@@ -35,12 +35,13 @@ class CorbaAccess
     static CosNaming::NamingContext_var rootContext;
 
 public:
-    static bool           InitOrb(int argc, char* argv[] );
-    static void           DestroyOrb();
+    CorbaAccess(int argc, char* argv[] );
+    ~CorbaAccess();
+
     static CORBA::ORB_var getOrb();
     static CosNaming::NamingContext_var getRootContext();
     static std::list<std::string> knownTasks();
-    static RTT::Corba::ControlTask_var findByName(std::string const& name);
+    static RTT::Corba::ControlTask_ptr findByName(std::string const& name);
 };
 
 #endif

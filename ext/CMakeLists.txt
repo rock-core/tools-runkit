@@ -1,9 +1,11 @@
-PROJECT(rasguard-corba)
+PROJECT(rorocos)
+
+SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
+INCLUDE(RubyExtensions)
 
 ADD_DEFINITIONS(-D_REENTRANT)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-
 MACRO(TAO_ORB)
     INCLUDE_DIRECTORIES(/usr/include/orbsvcs)
     FILE(GLOB IDL_FILES *.idl)
@@ -28,6 +30,10 @@ MACRO(TAO_ORB)
 ENDMACRO(TAO_ORB)
 
 TAO_ORB()
-ADD_EXECUTABLE(corba_test corba_access.cc main.cpp ${ORB_IDL_FILES})
-TARGET_LINK_LIBRARIES(corba_test ${ORB_LIBRARIES})
+ADD_RUBY_EXTENSION(rorocos_ext 
+    rorocos.cc corba_access.cc ${ORB_IDL_FILES})
+TARGET_LINK_LIBRARIES(rorocos_ext ${ORB_LIBRARIES})
+
+ADD_EXECUTABLE(test main.cpp corba_access.cc ${ORB_IDL_FILES})
+TARGET_LINK_LIBRARIES(test ${ORB_LIBRARIES})
 
