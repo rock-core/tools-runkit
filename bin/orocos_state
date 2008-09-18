@@ -1,0 +1,10 @@
+#! /usr/bin/env ruby
+
+require 'orocos'
+require 'pp'
+
+Orocos.components.each do |name|
+    component = Orocos::TaskContext.get(name)
+    pp component
+end
+
