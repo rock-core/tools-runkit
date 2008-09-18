@@ -21,14 +21,12 @@ CorbaAccess::CorbaAccess(int argc, char** argv)
         cerr << "CorbaAccess could not acquire NameService."<<endl;
         throw IllegalServer();
     }
-    cout << "found CORBA NameService."<<endl;
 }
 
 CorbaAccess::~CorbaAccess()
 {
     orb->shutdown(true);
     orb->destroy();
-    std::cerr <<"Orb destroyed."<<std::endl;
 }
 
 CORBA::ORB_var               CorbaAccess::getOrb() { return orb; }
@@ -75,9 +73,7 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
             cerr << "Failed to acquire ControlTaskServer '"+name+"'."<<endl;
             throw IllegalServer();
         }
-        cout << "Found '" << name << "'. Connecting ..." <<endl;
         CORBA::String_var nm = mtask->getName(); // force connect to object.
-        cout << "Successfully connected to ControlTaskServer '" << nm << "'." <<endl;
         return mtask._retn();
     }
     catch (CORBA::Exception &e) {
