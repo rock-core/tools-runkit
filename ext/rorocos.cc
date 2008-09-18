@@ -38,6 +38,9 @@ struct RTaskContext
 {
     RTT::Corba::ControlTask_var        task;
     RTT::Corba::DataFlowInterface_var  ports;
+    RTT::Corba::AttributeInterface_var attributes;
+    RTT::Corba::MethodInterface_var    methods;
+    RTT::Corba::CommandInterface_var   commands;
 };
 
 struct RBufferPort
@@ -60,34 +63,52 @@ static VALUE task_context_get(VALUE klass, VALUE name)
 {
     try {
         std::auto_ptr<RTaskContext> new_context( new RTaskContext );
-        new_context->task  = CorbaAccess::findByName(StringValuePtr(name));
-        new_context->ports = new_context->task->ports();
+        new_context->task       = CorbaAccess::findByName(StringValuePtr(name));
+        new_context->ports      = new_context->task->ports();
+        new_context->attributes = new_context->task->attributes();
+        new_context->methods    = new_context->task->methods();
+        new_context->commands   = new_context->task->commands();
 
         VALUE obj = simple_wrap<RTaskContext>(cTaskContext, new_context.release());
-        rb_iv_set(obj, "@name", name);
+        rb_iv_set(obj, "@name", rb_str_dup(name));
         return obj;
     }
     catch(...) {
         rb_raise(eNotFound, "task context %s not found", StringValuePtr(name));
     }
 }
-static VALUE task_context_port(VALUE obj, VALUE name)
+
+static VALUE task_context_port(VALUE self, VALUE name)
 {
-    RTaskContext& context = get_wrapped<RTaskContext>(obj);
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
     RTT::Corba::DataFlowInterface::ConnectionModel port_model = context.ports->getConnectionModel(StringValuePtr(name));
 
+    VALUE obj;
     if (port_model == RTT::Corba::DataFlowInterface::Buffered)
     {
         auto_ptr<RBufferPort> rport( new RBufferPort );
         rport->port = context.ports->createBufferChannel( StringValuePtr(name) );
-        return simple_wrap<RBufferPort>(cBufferPort, rport.release());
+        obj = simple_wrap<RBufferPort>(cBufferPort, rport.release());
     }
     else
     {
         auto_ptr<RDataPort> rport( new RDataPort );
         rport->port = context.ports->createDataChannel( StringValuePtr(name) );
-        return simple_wrap<RDataPort>(cDataPort, rport.release());
+        obj = simple_wrap<RDataPort>(cDataPort, rport.release());
     }
+    rb_iv_set(obj, "@name", rb_str_dup(name));
+    return obj;
+}
+
+static VALUE task_context_each_port(VALUE self)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    RTT::Corba::DataFlowInterface::PortNames_var ports = context.ports->getPorts();
+
+    for (int i = 0; i < ports->length(); ++i)
+        rb_yield(task_context_port(self, rb_str_new2((*ports)[i])));
+
+    return self;
 }
 
 static VALUE task_context_state(VALUE obj)
@@ -105,15 +126,15 @@ extern "C" void Init_rorocos_ext()
     rb_iv_set(mOrocos, "@corba", Corba);
 
     cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
-#define SET_STATE_CONSTANT(ruby, cxx) rb_const_set(cTaskContext, rb_intern(#ruby), RTT::Corba::cxx);
-    SET_STATE_CONSTANT(INIT, Init);
-    SET_STATE_CONSTANT(PRE_OPERATIONAL, PreOperational);
-    SET_STATE_CONSTANT(FATAL_ERROR, FatalError);
-    SET_STATE_CONSTANT(STOPPED, Stopped);
-    SET_STATE_CONSTANT(ACTIVE, Active);
-    SET_STATE_CONSTANT(RUNNING, Running);
-    SET_STATE_CONSTANT(RUNTIME_WARNING, RunTimeWarning);
-    SET_STATE_CONSTANT(RUNTIME_ERROR, RunTimeError);
+#define SET_STATE_CONSTANT(ruby, cxx) rb_const_set(cTaskContext, rb_intern(#ruby), INT2FIX(RTT::Corba::cxx));
+    SET_STATE_CONSTANT(STATE_INIT, Init);
+    SET_STATE_CONSTANT(STATE_PRE_OPERATIONAL, PreOperational);
+    SET_STATE_CONSTANT(STATE_FATAL_ERROR, FatalError);
+    SET_STATE_CONSTANT(STATE_STOPPED, Stopped);
+    SET_STATE_CONSTANT(STATE_ACTIVE, Active);
+    SET_STATE_CONSTANT(STATE_RUNNING, Running);
+    SET_STATE_CONSTANT(STATE_RUNTIME_WARNING, RunTimeWarning);
+    SET_STATE_CONSTANT(STATE_RUNTIME_ERROR, RunTimeError);
 #undef SET_STATE_CONSTANT
     
     cBufferPort  = rb_define_class_under(mOrocos, "BufferPort", rb_cObject);
@@ -123,6 +144,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_singleton_method(mOrocos, "components", RUBY_METHOD_FUNC(orocos_components), 0);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "port", RUBY_METHOD_FUNC(task_context_port), 1);
+    rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
 }
 
