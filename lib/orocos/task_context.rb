@@ -24,11 +24,16 @@ module Orocos
                 end
 
             pp.text "Component #{name}"
+            pp.breakable
             pp.text "  state: #{states_description[state]}"
+            pp.breakable
 
-            ports = Hash.new
-            each_port do |port|
-                port.pretty_print(pp)
+            pp.nest(2) do
+                pp.text "  "
+                each_port do |port|
+                    port.pretty_print(pp)
+                    pp.breakable
+                end
             end
         end
     end
