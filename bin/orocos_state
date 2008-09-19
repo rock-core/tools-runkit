@@ -4,7 +4,10 @@ require 'orocos'
 require 'pp'
 
 Orocos.components.each do |name|
-    component = Orocos::TaskContext.get(name)
-    pp component
+    begin
+        component = Orocos::TaskContext.get(name)
+        pp component
+    rescue Orocos::NotFound
+    end
 end
 
