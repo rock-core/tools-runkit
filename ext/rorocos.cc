@@ -86,7 +86,7 @@ static VALUE task_context_get(VALUE klass, VALUE name)
         return obj;
     }
     catch(...) {
-        rb_raise(eNotFound, "task context %s not found", StringValuePtr(name));
+        rb_raise(eNotFound, "task context '%s' not found", StringValuePtr(name));
     }
 }
 
