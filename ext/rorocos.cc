@@ -11,7 +11,10 @@ static VALUE Corba;
 static VALUE cTaskContext;
 static VALUE cBufferPort;
 static VALUE cDataPort;
+static VALUE cPort;
 static VALUE eNotFound;
+
+using namespace RTT::Corba;
 
 template<typename T>
 T& get_wrapped(VALUE self)
@@ -43,10 +46,19 @@ struct RTaskContext
     RTT::Corba::CommandInterface_var   commands;
 };
 
-struct RBufferPort
-{ RTT::Corba::BufferChannel_var port; };
-struct RDataPort
-{ RTT::Corba::AssignableExpression_var   port; };
+struct RPortBase
+{
+    DataFlowInterface::PortType type;
+};
+
+struct RBufferPort : RPortBase
+{
+    BufferChannel_var channel;
+};
+struct RDataPort : RPortBase
+{
+    RTT::Corba::AssignableExpression_var channel;
+};
 
 static VALUE orocos_components(VALUE mod)
 {
@@ -83,17 +95,33 @@ static VALUE task_context_port(VALUE self, VALUE name)
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     RTT::Corba::DataFlowInterface::ConnectionModel port_model = context.ports->getConnectionModel(StringValuePtr(name));
 
+    DataFlowInterface::PortType type = context.ports->getPortType(StringValuePtr(name));
+
     VALUE obj;
     if (port_model == RTT::Corba::DataFlowInterface::Buffered)
     {
         auto_ptr<RBufferPort> rport( new RBufferPort );
-        rport->port = context.ports->createBufferChannel( StringValuePtr(name) );
+        if (type != DataFlowInterface::ReadPort)
+        {
+            rport->channel = context.ports->createBufferChannel( StringValuePtr(name) );
+            if (CORBA::is_nil(rport->channel))
+                rb_raise(rb_eRuntimeError, "cannot get port '%s' from Corba", StringValuePtr(name));
+        }
+        rport->type = type;
+
         obj = simple_wrap<RBufferPort>(cBufferPort, rport.release());
     }
     else
     {
         auto_ptr<RDataPort> rport( new RDataPort );
-        rport->port = context.ports->createDataChannel( StringValuePtr(name) );
+        if (type != DataFlowInterface::ReadPort)
+        {
+            rport->channel = context.ports->createDataChannel( StringValuePtr(name) );
+            if (CORBA::is_nil(rport->channel))
+                rb_raise(rb_eRuntimeError, "cannot get port '%s' from Corba", StringValuePtr(name));
+        }
+        rport->type = type;
+
         obj = simple_wrap<RDataPort>(cDataPort, rport.release());
     }
     rb_iv_set(obj, "@name", rb_str_dup(name));
@@ -106,7 +134,7 @@ static VALUE task_context_each_port(VALUE self)
     RTT::Corba::DataFlowInterface::PortNames_var ports = context.ports->getPorts();
 
     for (int i = 0; i < ports->length(); ++i)
-        rb_yield(task_context_port(self, rb_str_new2((*ports)[i])));
+        rb_yield(task_context_port(self, rb_str_new2(ports[i])));
 
     return self;
 }
@@ -116,6 +144,25 @@ static VALUE task_context_state(VALUE obj)
     RTaskContext& context = get_wrapped<RTaskContext>(obj);
     return INT2FIX(context.task->getTaskState());
 }
+
+static VALUE port_read_p(VALUE obj)
+{
+    RPortBase& port = get_wrapped<RPortBase>(obj);
+    return port.type != DataFlowInterface::WritePort;
+}
+
+static VALUE port_write_p(VALUE obj)
+{
+    RPortBase& port = get_wrapped<RPortBase>(obj);
+    return port.type != DataFlowInterface::ReadPort;
+}
+
+static VALUE port_read_write_p(VALUE obj)
+{
+    RPortBase& port = get_wrapped<RPortBase>(obj);
+    return port.type == DataFlowInterface::ReadWritePort;
+}
+
 
 extern "C" void Init_rorocos_ext()
 {
@@ -137,8 +184,9 @@ extern "C" void Init_rorocos_ext()
     SET_STATE_CONSTANT(STATE_RUNTIME_ERROR, RunTimeError);
 #undef SET_STATE_CONSTANT
     
-    cBufferPort  = rb_define_class_under(mOrocos, "BufferPort", rb_cObject);
-    cDataPort    = rb_define_class_under(mOrocos, "DataPort", rb_cObject);
+    cPort        = rb_define_class_under(mOrocos, "Port", rb_cObject);
+    cBufferPort  = rb_define_class_under(mOrocos, "BufferPort", cPort);
+    cDataPort    = rb_define_class_under(mOrocos, "DataPort", cPort);
     eNotFound    = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "components", RUBY_METHOD_FUNC(orocos_components), 0);
@@ -146,5 +194,9 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "port", RUBY_METHOD_FUNC(task_context_port), 1);
     rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
+
+    rb_define_method(cPort, "read?", RUBY_METHOD_FUNC(port_read_p), 0);
+    rb_define_method(cPort, "write?", RUBY_METHOD_FUNC(port_write_p), 0);
+    rb_define_method(cPort, "read_write?", RUBY_METHOD_FUNC(port_read_write_p), 0);
 }
 

@@ -1,16 +1,14 @@
 module Orocos
-    class BufferPort
+    class Port
         attr_reader :name
 
         def pretty_print(pp)
-            pp.text "buffer_port #{name}"
-        end
-    end
-    class DataPort
-        attr_reader :name
+            pp.text "#{self.class.name} #{name}"
 
-        def pretty_print(pp)
-            pp.text "data_port #{name}"
+            if read? then pp.text "[R]"
+            elsif write? then pp.text "[W]"
+            else pp.text "[RW]"
+            end
         end
     end
 
