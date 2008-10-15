@@ -1,0 +1,11 @@
+name 'process'
+version '1.0'
+
+task_context 'Test' do
+end
+
+static_deployment do
+    test = task('Test').
+        period(0.1).
+        start
+end
