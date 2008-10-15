@@ -12,6 +12,7 @@ static VALUE cTaskContext;
 static VALUE cBufferPort;
 static VALUE cDataPort;
 static VALUE cPort;
+static VALUE cAttribute;
 static VALUE eNotFound;
 
 using namespace RTT::Corba;
@@ -53,7 +54,10 @@ struct RBufferPort : RPortBase
 { BufferChannel_var channel; };
 struct RDataPort : RPortBase
 { RTT::Corba::AssignableExpression_var channel; };
+
+struct RAttribute
 {
+    RTT::Corba::Expression_var expr;
 };
 
 /* call-seq:
@@ -89,7 +93,7 @@ static VALUE task_context_get(VALUE klass, VALUE name)
         new_context->methods    = new_context->task->methods();
         new_context->commands   = new_context->task->commands();
 
-        VALUE obj = simple_wrap<RTaskContext>(cTaskContext, new_context.release());
+        VALUE obj = simple_wrap(cTaskContext, new_context.release());
         rb_iv_set(obj, "@name", rb_str_dup(name));
         return obj;
     }
@@ -123,7 +127,7 @@ static VALUE task_context_port(VALUE self, VALUE name)
         }
         rport->type = type;
 
-        obj = simple_wrap<RBufferPort>(cBufferPort, rport.release());
+        obj = simple_wrap(cBufferPort, rport.release());
     }
     else
     {
@@ -136,7 +140,7 @@ static VALUE task_context_port(VALUE self, VALUE name)
         }
         rport->type = type;
 
-        obj = simple_wrap<RDataPort>(cDataPort, rport.release());
+        obj = simple_wrap(cDataPort, rport.release());
     }
     rb_iv_set(obj, "@name", rb_str_dup(name));
     return obj;
@@ -160,7 +164,53 @@ static VALUE task_context_each_port(VALUE self)
 }
 
 /* call-seq:
+ *  task.attribute(name) => attribute
+ *
+ * Returns the Attribute object which represents the remote task's
+ * Attribute or Property of the given name
+ */
+static VALUE task_context_attribute(VALUE self, VALUE name)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    std::auto_ptr<RAttribute> rattr(new RAttribute);
+    rattr->expr = context.attributes->getProperty( StringValuePtr(name) );
+    if (CORBA::is_nil(rattr->expr))
+        rattr->expr = context.attributes->getAttribute( StringValuePtr(name) );
+    if (CORBA::is_nil(rattr->expr))
+        rb_raise(eNotFound, "no attribute or property named '%s'", StringValuePtr(name));
+
+    VALUE type_name = rb_str_new2(rattr->expr->getTypeName());
+    VALUE obj = simple_wrap(cAttribute, rattr.release());
+    rb_iv_set(obj, "@name", rb_str_dup(name));
+    rb_iv_set(obj, "@typename", type_name);
+    return obj;
+}
+
 /* call-seq:
+ *  task.each_attribute { |a| ... } => task
+ *
+ * Enumerates the attributes and properties that are available on
+ * this task, as instances of Orocos::Attribute
+ */
+static VALUE task_context_each_attribute(VALUE self)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+
+    {
+        RTT::Corba::AttributeInterface::AttributeNames_var
+            attributes = context.attributes->getAttributeList();
+        for (int i = 0; i < attributes->length(); ++i)
+            rb_yield(task_context_attribute(self, rb_str_new2(attributes[i])));
+    }
+
+    {
+        RTT::Corba::AttributeInterface::PropertyNames_var
+            properties = context.attributes->getPropertyList();
+        for (int i = 0; i < properties->length(); ++i)
+            rb_yield(task_context_attribute(self, rb_str_new2(properties[i].name)));
+    }
+}
+
 /* call-seq:
  *  task.state => value
  *
@@ -282,6 +332,7 @@ extern "C" void Init_rorocos_ext()
     cPort        = rb_define_class_under(mOrocos, "Port", rb_cObject);
     cBufferPort  = rb_define_class_under(mOrocos, "BufferPort", cPort);
     cDataPort    = rb_define_class_under(mOrocos, "DataPort", cPort);
+    cAttribute   = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound    = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "components", RUBY_METHOD_FUNC(orocos_components), 0);
@@ -289,6 +340,8 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "port", RUBY_METHOD_FUNC(task_context_port), 1);
     rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
+    rb_define_method(cTaskContext, "attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
+    rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
 
     rb_define_method(cPort, "read?", RUBY_METHOD_FUNC(port_read_p), 0);
     rb_define_method(cPort, "write?", RUBY_METHOD_FUNC(port_write_p), 0);
