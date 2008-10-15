@@ -6,8 +6,9 @@ require 'pp'
 Orocos.components.each do |name|
     begin
         component = Orocos::TaskContext.get(name)
-        pp component
     rescue Orocos::NotFound
     end
+    pp component
+    puts
 end
 
