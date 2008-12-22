@@ -102,8 +102,10 @@ module Orocos
 		raise "module #{name} died" if !pid
 
                 task_name = Orocos.components.find { |n| n =~ /^#{name}\.\w+$/ }
-                begin Orocos::TaskContext.get task_name
-                rescue Orocos::NotFound
+                if task_name
+                    begin Orocos::TaskContext.get task_name
+                    rescue Orocos::NotFound
+                    end
                 end
 	    else
                 while true
