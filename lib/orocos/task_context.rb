@@ -4,6 +4,23 @@ module Orocos
         attr_reader :name
         attr_reader :typename
 
+        def connect(other)
+            # Check port compatibility
+            if self.class != other.class
+                raise "#{name} and #{other.name} do not have the same connection model"
+            elsif self.typename != other.typename
+                raise "#{name} and #{other.name} do not hold the same data type"
+            end
+
+            if write? && other.read?
+                other.do_connect(self)
+            elsif other.write? && read?
+                do_connect(other)
+            else
+                raise "cannot create a connection because there is not one reader and one writer"
+            end
+        end
+
         def pretty_print(pp) # :nodoc:
             pp.text "#{self.class.name} #{name}"
 

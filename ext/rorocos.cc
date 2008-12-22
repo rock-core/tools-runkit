@@ -237,6 +237,62 @@ static VALUE task_context_state(VALUE obj)
 }
 
 /* call-seq:
+ *  port.connect(remote_port) => nil
+ *
+ * Connects the given output port to the specified remote port
+ */
+static VALUE port_do_connect(VALUE self, VALUE remote_port)
+{
+    VALUE src_task_r = rb_iv_get(self, "@task");
+    VALUE src_name   = rb_iv_get(self, "@name");
+    RTaskContext& src_task = get_wrapped<RTaskContext>(src_task_r);
+    VALUE dst_task_r = rb_iv_get(remote_port, "@task");
+    VALUE dst_name   = rb_iv_get(remote_port, "@name");
+    RTaskContext& dst_task = get_wrapped<RTaskContext>(dst_task_r);
+
+    if (!src_task.ports->connectPorts(StringValuePtr(src_name), dst_task.ports, StringValuePtr(dst_name)))
+    {
+        VALUE src_task_name = rb_iv_get(src_task_r, "@name");
+        VALUE dst_task_name = rb_iv_get(dst_task_r, "@name");
+        rb_raise(rb_eArgError, "cannot connect %s.%s to %s.%s",
+                StringValuePtr(src_task_name),
+                StringValuePtr(src_name),
+                StringValuePtr(dst_task_name),
+                StringValuePtr(dst_name));
+    }
+    return Qnil;
+}
+
+/* call-seq:
+ *   port.disconnect => nil
+ *
+ * Remove all connections that go to or come from this port
+ */
+static VALUE port_disconnect(VALUE self)
+{
+
+    VALUE task_r = rb_iv_get(self, "@task");
+    VALUE name   = rb_iv_get(self, "@name");
+    RTaskContext& task = get_wrapped<RTaskContext>(task_r);
+    task.ports->disconnect(StringValuePtr(name));
+    return Qnil;
+}
+
+/* call-seq:
+ *  port.connected? => true or false
+ *
+ * Tests if this port is already part of a connection or not
+ */
+static VALUE port_connected_p(VALUE self)
+{
+
+    VALUE task_r = rb_iv_get(self, "@task");
+    VALUE name   = rb_iv_get(self, "@name");
+    RTaskContext& task = get_wrapped<RTaskContext>(task_r);
+    return task.ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse;
+}
+
+/* call-seq:
  *   port.read? => true or false
  *
  * True if the port can be read, and false otherwise
@@ -346,6 +402,9 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
     rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
 
+    rb_define_method(cPort, "do_connect", RUBY_METHOD_FUNC(port_do_connect), 1);
+    rb_define_method(cPort, "disconnect", RUBY_METHOD_FUNC(port_disconnect), 0);
+    rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
     rb_define_method(cPort, "read?", RUBY_METHOD_FUNC(port_read_p), 0);
     rb_define_method(cPort, "write?", RUBY_METHOD_FUNC(port_write_p), 0);
     rb_define_method(cPort, "read_write?", RUBY_METHOD_FUNC(port_read_write_p), 0);

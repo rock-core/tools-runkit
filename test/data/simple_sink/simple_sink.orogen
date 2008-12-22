@@ -1,0 +1,11 @@
+name "simple_sink"
+
+task_context "sink" do
+    data_port "cycle", "int", 'r'
+end
+
+static_deployment do
+    src = task("sink").
+        period(0.1)
+end
+
