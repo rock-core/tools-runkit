@@ -1,6 +1,8 @@
 module Orocos
     class Port
+        attr_reader :task
         attr_reader :name
+        attr_reader :typename
 
         def pretty_print(pp) # :nodoc:
             pp.text "#{self.class.name} #{name}"

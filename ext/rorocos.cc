@@ -143,6 +143,9 @@ static VALUE task_context_port(VALUE self, VALUE name)
         obj = simple_wrap(cDataPort, rport.release());
     }
     rb_iv_set(obj, "@name", rb_str_dup(name));
+    rb_iv_set(obj, "@task", self);
+    VALUE type_name = rb_str_new2(context.ports->getDataType( StringValuePtr(name) ));
+    rb_iv_set(obj, "@typename", type_name);
     return obj;
 }
 
