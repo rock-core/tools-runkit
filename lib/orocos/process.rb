@@ -93,25 +93,36 @@ module Orocos
 	    end
         end
 
-        # Wait for the module to be started. If nohang is true, the function
+        # Wait for the module to be started. If timeout is 0, the function
         # returns immediatly, with a false return value if the module is not
-        # started yet and a true return value if it is started. Otherwise, it
-        # waits until the process is available
-	def wait_running(nohang = false)
-	    if nohang
-		raise "module #{name} died" if !pid
-
-                task_name = Orocos.components.find { |n| n =~ /^#{name}\.\w+$/ }
+        # started yet and a true return value if it is started.
+        #
+        # Otherwise, it waits for the process to start for the specified amount
+        # of seconds. It will throw Orocos::NotFound if the process was not
+        # started within that time.
+        #
+        # If timeout is nil, the method will wait indefinitely
+	def wait_running(timeout = nil)
+	    if timeout == 0
+		return nil if !pid
+                
+                # Get any task name from that specific deployment, and check we
+                # can access it. If there is none
+                task_name = Orocos.components.find { |n| n =~ /^#{name}_\w+$/ }
                 if task_name
                     begin Orocos::TaskContext.get task_name
                     rescue Orocos::NotFound
                     end
                 end
 	    else
+                start_time = Time.now
                 while true
-                    if wait_running(true)
+                    if wait_running(0)
                         return true
+                    elsif timeout && timeout < (Time.now - start_time)
+                        raise Orocos::NotFound, "cannot get a running #{name} module"
                     end
+
                     sleep 0.1
                 end
 	    end
