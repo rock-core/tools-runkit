@@ -14,20 +14,12 @@
 #include <string>
 #include <stack>
 #include <list>
+#include <ruby.h>
 
 using namespace std;
 
-/**
- * Thrown if a server does not exist or has the wrong type.
- */
-struct IllegalServer 
-    : public std::exception
-{
-    std::string reason;
-    IllegalServer();
-    ~IllegalServer() throw();
-    const char* what() const throw();
-};
+extern VALUE eCORBA;
+extern VALUE eNotFound;
 
 /**
  * This class locates and connects to a Corba ControlTask.

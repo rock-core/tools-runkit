@@ -13,7 +13,8 @@ static VALUE cInputPort;
 static VALUE cOutputPort;
 static VALUE cPort;
 static VALUE cAttribute;
-static VALUE eNotFound;
+VALUE eCORBA;
+VALUE eNotFound;
 
 using namespace RTT::Corba;
 
@@ -106,7 +107,17 @@ static VALUE task_context_get(VALUE klass, VALUE name)
 static VALUE task_context_port(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
-    RTT::Corba::PortType  port_type      = context.ports->getPortType(StringValuePtr(name));
+    RTT::Corba::PortType port_type;
+    try {
+        port_type      = context.ports->getPortType(StringValuePtr(name));
+    }
+    catch(RTT::Corba::NoSuchPortException)
+    { 
+        VALUE task_name = rb_iv_get(self, "@name");
+        rb_raise(eNotFound, "task %s does not have a '%s' port",
+                StringValuePtr(task_name),
+                StringValuePtr(name));
+    }
 
     VALUE obj = Qnil;
     if (port_type == RTT::Corba::Input)
@@ -338,6 +349,7 @@ extern "C" void Init_rorocos_ext()
     cInputPort   = rb_define_class_under(mOrocos, "InputPort", cPort);
     cAttribute   = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound    = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
+    eCORBA       = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "components", RUBY_METHOD_FUNC(orocos_components), 0);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);

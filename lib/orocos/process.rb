@@ -25,7 +25,7 @@ module Orocos
             begin
                 @pkg = Utilrb::PkgConfig.new("orogen-#{name}")
             rescue Utilrb::PkgConfig::NotFound => e
-                raise e, "#{name} does not exist or isn't found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
+                raise NotFound, "#{name} does not exist or isn't found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
             end
         end
 
