@@ -128,8 +128,8 @@ module Orocos
 	    end
 	end
 
-        def kill(wait = true)
-            ::Process.kill('SIGINT', pid)
+        def kill(wait = true, signal = 'INT')
+            ::Process.kill("SIG#{signal}", pid)
             join if wait
         end
 
