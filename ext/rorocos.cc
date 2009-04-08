@@ -98,6 +98,16 @@ static VALUE task_context_get(VALUE klass, VALUE name)
     }
 }
 
+static VALUE task_context_equal_p(VALUE self, VALUE other)
+{
+    if (!rb_obj_is_kind_of(other, cTaskContext))
+        return Qfalse;
+
+    RTaskContext& self_  = get_wrapped<RTaskContext>(self);
+    RTaskContext& other_ = get_wrapped<RTaskContext>(other);
+    return self_.task->_is_equivalent(other_.task) ? Qtrue : Qfalse;
+}
+
 /* call-seq:
  *   task.port(name) => port
  *
@@ -353,6 +363,7 @@ extern "C" void Init_rorocos_ext()
 
     rb_define_singleton_method(mOrocos, "components", RUBY_METHOD_FUNC(orocos_components), 0);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
+    rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "port", RUBY_METHOD_FUNC(task_context_port), 1);
     rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
