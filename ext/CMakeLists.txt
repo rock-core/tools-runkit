@@ -57,8 +57,5 @@ ADD_RUBY_EXTENSION(rorocos_ext
     rorocos.cc corba_access.cc ${ORB_IDL_FILES})
 TARGET_LINK_LIBRARIES(rorocos_ext ${ORB_LIBRARIES})
 
-ADD_EXECUTABLE(test main.cpp corba_access.cc ${ORB_IDL_FILES})
-TARGET_LINK_LIBRARIES(test ${ORB_LIBRARIES})
-
 INSTALL(TARGETS rorocos_ext LIBRARY DESTINATION ".")
 
