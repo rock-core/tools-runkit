@@ -1,29 +1,58 @@
-require 'test/unit'
+$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
+require 'minitest/spec'
 require 'orocos'
 require 'orocos/test'
 
-class TC_Process < Test::Unit::TestCase
-    TEST_DIR   = File.dirname(__FILE__)
-    DATA_DIR   = File.join(TEST_DIR, 'data')
-    PREFIX_DIR = File.join(DATA_DIR, 'prefix')
+MiniTest::Unit.autorun
 
-    include Orocos::Test
+describe Orocos::Process do
+    TEST_DIR = File.dirname(__FILE__)
+    DATA_DIR = File.join(TEST_DIR, 'data')
+    WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
-    def test_spawn
-        generate_and_build File.join(DATA_DIR, 'process', 'process.orogen'), PREFIX_DIR
+    include Orocos::Spec
 
-        process = Orocos::Process.new 'process'
-        process.spawn
-        process.wait_running
+    it "raises NotFound when the deployment name does not exist" do
+        assert_raises(Orocos::NotFound) { Orocos::Process.new("does_not_exist") }
+    end
 
-        assert(process.alive?)
-        # We should now be able to get a reference on the TaskContext instances
-        task = Orocos::TaskContext.get 'process.Test'
+    it "can spawn a new process and waits for it" do
+        cleanup_process(Orocos::Process.new 'process') do |process|
+            process.spawn
+            process.wait_running(0.5)
+            assert(process.alive?)
+        end
+    end
 
-        process.kill
-        assert(!process.alive?)
+    it "can kill a running process" do
+        start_processes('process') do |process|
+            process.kill
+            assert(!process.alive?)
+        end
+    end
 
-    ensure
-        process.kill if process && process.alive?
+    it "can get a reference on a deployed task context" do
+        start_processes('process') do |process|
+            assert(direct   = Orocos::TaskContext.get('process_Test'))
+            assert(indirect = process.task("Test"))
+            assert_equal(direct, indirect)
+        end
+    end
+
+    it "can enumerate its own deployed task contexts" do
+        start_processes('process') do |process|
+            process.task_names.must_equal %w{Test}
+        end
+    end
+
+    it "cleanups dead reference on the name server" do
+        start_processes('process') do |process|
+            process.kill('KILL')
+
+            assert( Orocos.components.find { |name| name == 'process_Test' } )
+            assert_raises(Orocos::NotFound) { Orocos::TaskContext.get 'process_Test' }
+            assert( !Orocos.components.find { |name| name == 'process_Test' } )
+        end
     end
 end
+
