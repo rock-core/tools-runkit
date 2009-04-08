@@ -132,6 +132,15 @@ module Orocos
             ::Process.kill('SIGINT', pid)
             join if wait
         end
+
+        def task_names
+            Orocos.components.grep(/^#{Regexp.quote(name)}_/).
+                map { |task_name| task_name.gsub(/^#{Regexp.quote(name)}_/, '') }
+        end
+
+        def task(task_name)
+            TaskContext.get "#{name}_#{task_name}"
+        end
     end
 end
 
