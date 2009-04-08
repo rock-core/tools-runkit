@@ -13,7 +13,7 @@ namespace simple_sink {
     
 
     public:
-        sink(std::string const& name = "SimpleSink::sink");
+        sink(std::string const& name = "simple_sink::sink", TaskCore::TaskState initial_state = Stopped);
     };
 }
 

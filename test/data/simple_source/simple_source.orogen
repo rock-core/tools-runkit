@@ -1,11 +1,11 @@
 name "simple_source"
 
 task_context "source" do
-    data_port "cycle", "int"
+    output_port "cycle", "int"
 end
 
 static_deployment do
     src = task("source").
-        period(0.1)
+        periodic(0.1)
 end
 

@@ -18,10 +18,17 @@ module Orocos
         # Generates, builds and installs the orogen component defined by the
         # orogen description file +src+. The compiled package is installed in
         # +prefix+
-        def generate_and_build(src, prefix)
-            src_dir = File.dirname(src)
-            Dir.chdir(src_dir) do
-                if !system('orogen', '--corba', src)
+        def generate_and_build(src, work_basedir)
+            src_dir  = File.dirname(src)
+            src_name = File.basename(src_dir)
+
+            work_dir = File.join(work_basedir, src_name)
+            FileUtils.rm_rf work_dir
+            FileUtils.cp_r  src_dir, work_dir
+
+            prefix   = File.join(work_basedir, "prefix")
+            Dir.chdir(work_dir) do
+                if !system('orogen', '--corba', File.basename(src))
                     raise "failed to build"
                 end
 

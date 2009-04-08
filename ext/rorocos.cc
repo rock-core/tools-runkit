@@ -9,8 +9,8 @@ using namespace std;
 static VALUE mOrocos;
 static VALUE Corba;
 static VALUE cTaskContext;
-static VALUE cBufferPort;
-static VALUE cDataPort;
+static VALUE cInputPort;
+static VALUE cOutputPort;
 static VALUE cPort;
 static VALUE cAttribute;
 static VALUE eNotFound;
@@ -47,13 +47,8 @@ struct RTaskContext
     RTT::Corba::CommandInterface_var   commands;
 };
 
-struct RPortBase
-{ DataFlowInterface::PortType type; };
-
-struct RBufferPort : RPortBase
-{ BufferChannel_var channel; };
-struct RDataPort : RPortBase
-{ RTT::Corba::AssignableExpression_var channel; };
+struct RInputPort { };
+struct ROutputPort { };
 
 struct RAttribute
 {
@@ -111,37 +106,20 @@ static VALUE task_context_get(VALUE klass, VALUE name)
 static VALUE task_context_port(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
-    RTT::Corba::DataFlowInterface::ConnectionModel port_model = context.ports->getConnectionModel(StringValuePtr(name));
+    RTT::Corba::PortType  port_type      = context.ports->getPortType(StringValuePtr(name));
 
-    DataFlowInterface::PortType type = context.ports->getPortType(StringValuePtr(name));
-
-    VALUE obj;
-    if (port_model == RTT::Corba::DataFlowInterface::Buffered)
+    VALUE obj = Qnil;
+    if (port_type == RTT::Corba::Input)
     {
-        auto_ptr<RBufferPort> rport( new RBufferPort );
-        if (type != DataFlowInterface::ReadPort)
-        {
-            rport->channel = context.ports->createBufferChannel( StringValuePtr(name) );
-            if (CORBA::is_nil(rport->channel))
-                rb_raise(eNotFound, "cannot get port '%s' from Corba", StringValuePtr(name));
-        }
-        rport->type = type;
-
-        obj = simple_wrap(cBufferPort, rport.release());
+        auto_ptr<RInputPort> rport( new RInputPort );
+        obj = simple_wrap(cInputPort, rport.release());
     }
-    else
+    else if (port_type == RTT::Corba::Output)
     {
-        auto_ptr<RDataPort> rport( new RDataPort );
-        if (type != DataFlowInterface::ReadPort)
-        {
-            rport->channel = context.ports->createDataChannel( StringValuePtr(name) );
-            if (CORBA::is_nil(rport->channel))
-                rb_raise(eNotFound, "cannot get port '%s' from Corba", StringValuePtr(name));
-        }
-        rport->type = type;
-
-        obj = simple_wrap(cDataPort, rport.release());
+        auto_ptr<ROutputPort> rport( new ROutputPort );
+        obj = simple_wrap(cOutputPort, rport.release());
     }
+
     rb_iv_set(obj, "@name", rb_str_dup(name));
     rb_iv_set(obj, "@task", self);
     VALUE type_name = rb_str_new2(context.ports->getDataType( StringValuePtr(name) ));
@@ -241,42 +219,42 @@ static VALUE task_context_state(VALUE obj)
  *
  * Connects the given output port to the specified remote port
  */
-static VALUE port_do_connect(VALUE self, VALUE remote_port)
-{
-    VALUE src_task_r = rb_iv_get(self, "@task");
-    VALUE src_name   = rb_iv_get(self, "@name");
-    RTaskContext& src_task = get_wrapped<RTaskContext>(src_task_r);
-    VALUE dst_task_r = rb_iv_get(remote_port, "@task");
-    VALUE dst_name   = rb_iv_get(remote_port, "@name");
-    RTaskContext& dst_task = get_wrapped<RTaskContext>(dst_task_r);
-
-    if (!src_task.ports->connectPorts(StringValuePtr(src_name), dst_task.ports, StringValuePtr(dst_name)))
-    {
-        VALUE src_task_name = rb_iv_get(src_task_r, "@name");
-        VALUE dst_task_name = rb_iv_get(dst_task_r, "@name");
-        rb_raise(rb_eArgError, "cannot connect %s.%s to %s.%s",
-                StringValuePtr(src_task_name),
-                StringValuePtr(src_name),
-                StringValuePtr(dst_task_name),
-                StringValuePtr(dst_name));
-    }
-    return Qnil;
-}
+//static VALUE port_do_connect(VALUE self, VALUE other_port)
+//{
+//    VALUE src_task_r = rb_iv_get(self, "@task");
+//    VALUE src_name   = rb_iv_get(self, "@name");
+//    RTaskContext& src_task = get_wrapped<RTaskContext>(src_task_r);
+//    VALUE dst_task_r = rb_iv_get(remote_port, "@task");
+//    VALUE dst_name   = rb_iv_get(remote_port, "@name");
+//    RTaskContext& dst_task = get_wrapped<RTaskContext>(dst_task_r);
+//
+//    if (!src_task.ports->connectPorts(StringValuePtr(src_name), dst_task.ports, StringValuePtr(dst_name)))
+//    {
+//        VALUE src_task_name = rb_iv_get(src_task_r, "@name");
+//        VALUE dst_task_name = rb_iv_get(dst_task_r, "@name");
+//        rb_raise(rb_eArgError, "cannot connect %s.%s to %s.%s",
+//                StringValuePtr(src_task_name),
+//                StringValuePtr(src_name),
+//                StringValuePtr(dst_task_name),
+//                StringValuePtr(dst_name));
+//    }
+//    return Qnil;
+//}
 
 /* call-seq:
  *   port.disconnect => nil
  *
  * Remove all connections that go to or come from this port
  */
-static VALUE port_disconnect(VALUE self)
-{
-
-    VALUE task_r = rb_iv_get(self, "@task");
-    VALUE name   = rb_iv_get(self, "@name");
-    RTaskContext& task = get_wrapped<RTaskContext>(task_r);
-    task.ports->disconnect(StringValuePtr(name));
-    return Qnil;
-}
+//static VALUE port_disconnect(VALUE self)
+//{
+//
+//    VALUE task_r = rb_iv_get(self, "@task");
+//    VALUE name   = rb_iv_get(self, "@name");
+//    RTaskContext& task = get_wrapped<RTaskContext>(task_r);
+//    task.ports->disconnect(StringValuePtr(name));
+//    return Qnil;
+//}
 
 /* call-seq:
  *  port.connected? => true or false
@@ -290,39 +268,6 @@ static VALUE port_connected_p(VALUE self)
     VALUE name   = rb_iv_get(self, "@name");
     RTaskContext& task = get_wrapped<RTaskContext>(task_r);
     return task.ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse;
-}
-
-/* call-seq:
- *   port.read? => true or false
- *
- * True if the port can be read, and false otherwise
- */
-static VALUE port_read_p(VALUE obj)
-{
-    RPortBase& port = get_wrapped<RPortBase>(obj);
-    return port.type != DataFlowInterface::WritePort;
-}
-
-/* call-seq:
- *   port.write? => true or false
- *
- * True if the port can be written, and false otherwise
- */
-static VALUE port_write_p(VALUE obj)
-{
-    RPortBase& port = get_wrapped<RPortBase>(obj);
-    return port.type != DataFlowInterface::ReadPort;
-}
-
-/* call-seq:
- *   port.read_write? => true or false
- *
- * True if the port can be read and written, and false otherwise
- */
-static VALUE port_read_write_p(VALUE obj)
-{
-    RPortBase& port = get_wrapped<RPortBase>(obj);
-    return port.type == DataFlowInterface::ReadWritePort;
 }
 
 /* Document-class: Orocos::TaskContext
@@ -389,8 +334,8 @@ extern "C" void Init_rorocos_ext()
     rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::Corba::RunTimeError));
     
     cPort        = rb_define_class_under(mOrocos, "Port", rb_cObject);
-    cBufferPort  = rb_define_class_under(mOrocos, "BufferPort", cPort);
-    cDataPort    = rb_define_class_under(mOrocos, "DataPort", cPort);
+    cOutputPort  = rb_define_class_under(mOrocos, "OutputPort", cPort);
+    cInputPort   = rb_define_class_under(mOrocos, "InputPort", cPort);
     cAttribute   = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound    = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
 
@@ -402,11 +347,8 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
     rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
 
-    rb_define_method(cPort, "do_connect", RUBY_METHOD_FUNC(port_do_connect), 1);
-    rb_define_method(cPort, "disconnect", RUBY_METHOD_FUNC(port_disconnect), 0);
-    rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
-    rb_define_method(cPort, "read?", RUBY_METHOD_FUNC(port_read_p), 0);
-    rb_define_method(cPort, "write?", RUBY_METHOD_FUNC(port_write_p), 0);
-    rb_define_method(cPort, "read_write?", RUBY_METHOD_FUNC(port_read_write_p), 0);
+//    rb_define_method(cPort, "do_connect", RUBY_METHOD_FUNC(port_do_connect), 1);
+//    rb_define_method(cPort, "disconnect", RUBY_METHOD_FUNC(port_disconnect), 0);
+//    rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
 }
 

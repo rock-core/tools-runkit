@@ -6,6 +6,6 @@ end
 
 static_deployment do
     test = task('Test').
-        period(0.1).
+        periodic(0.1).
         start
 end
