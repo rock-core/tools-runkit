@@ -2,42 +2,20 @@
 #include "DataFlowC.h"
 #include <ruby.h>
 
-#include "corba_access.hh"
+#include "corba.hh"
+#include "misc.hh"
 #include <memory>
 
 using namespace std;
 static VALUE mOrocos;
-static VALUE mCORBA;
-static VALUE Corba;
 static VALUE cTaskContext;
 static VALUE cInputPort;
 static VALUE cOutputPort;
 static VALUE cPort;
 static VALUE cAttribute;
-VALUE eCORBA;
 VALUE eNotFound;
 
 using namespace RTT::Corba;
-
-template<typename T>
-T& get_wrapped(VALUE self)
-{
-    void* object = 0;
-    Data_Get_Struct(self, void, object);
-    return *reinterpret_cast<T*>(object);
-}
-template<typename T>
-void delete_object(void* obj) { delete( (T*)obj ); }
-template<typename T>
-VALUE simple_wrap(VALUE klass, T* obj = 0)
-{
-    if (! obj)
-        obj = new T;
-
-    VALUE robj = Data_Wrap_Struct(klass, 0, delete_object<T>, obj);
-    rb_iv_set(robj, "@corba", Corba);
-    return robj;
-}
 
 
 struct RTaskContext
@@ -71,18 +49,6 @@ static VALUE orocos_task_names(VALUE mod)
         rb_ary_push(result, rb_str_new2(it->c_str()));
 
     return result;
-}
-
-/* call-seq:
- *  Orocos::CORBA.unregister(name)
- *
- * Remove this name from the list of task contexts registered on the name server
- */
-static VALUE corba_unregister(VALUE mod, VALUE name)
-{
-    string task_name = StringValuePtr(name);
-    CorbaAccess::unbind(task_name);
-    return Qnil;
 }
 
 /* call-seq:
@@ -355,10 +321,6 @@ extern "C" void Init_rorocos_ext()
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");
 
-    char const* argv[2] = { "bla", 0 };
-    Corba   = Data_Wrap_Struct(rb_cObject, 0, delete_object<CorbaAccess>, new CorbaAccess(1, (char**)argv));
-    rb_iv_set(mOrocos, "@corba", Corba);
-
     cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
     rb_const_set(cTaskContext, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::Corba::PreOperational));
     rb_const_set(cTaskContext, rb_intern("STATE_FATAL_ERROR"),          INT2FIX(RTT::Corba::FatalError));
@@ -373,10 +335,8 @@ extern "C" void Init_rorocos_ext()
     cInputPort   = rb_define_class_under(mOrocos, "InputPort", cPort);
     cAttribute   = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound    = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
-    eCORBA       = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
-    rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
@@ -385,6 +345,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
     rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
 
+    Orocos_CORBA_init();
 //    rb_define_method(cPort, "do_connect", RUBY_METHOD_FUNC(port_do_connect), 1);
 //    rb_define_method(cPort, "disconnect", RUBY_METHOD_FUNC(port_disconnect), 0);
 //    rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);

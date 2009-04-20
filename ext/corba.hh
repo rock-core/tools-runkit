@@ -1,12 +1,7 @@
-#ifndef EXEC_CLIENT_CONTROL_TASK_HPP
-#define EXEC_CLIENT_CONTROL_TASK_HPP
+#ifndef OROCOS_RB_EXT_CORBA_HH
+#define OROCOS_RB_EXT_CORBA_HH
 
-#ifdef CORBA_IS_TAO
-#include <tao/corba.h>
-#include <orbsvcs/CosNamingC.h>
-#else
 #include <omniORB4/CORBA.h>
-#endif
 
 #include <exception>
 #include "ControlTaskC.h"
@@ -18,8 +13,10 @@
 
 using namespace std;
 
+extern VALUE mCORBA;
+extern VALUE corba_access;
 extern VALUE eCORBA;
-extern VALUE eNotFound;
+extern void Orocos_CORBA_init();
 
 /**
  * This class locates and connects to a Corba ControlTask.

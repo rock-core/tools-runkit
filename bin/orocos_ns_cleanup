@@ -1,0 +1,4 @@
+#! /usr/bin/env ruby
+
+require 'orocos'
+Orocos::CORBA.cleanup
