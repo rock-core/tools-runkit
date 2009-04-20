@@ -51,6 +51,12 @@ module Orocos
         # process is actually dead.
 	def dead! # :nodoc:
 	    @pid = nil 
+
+            # And force unregistering the task contexts from CORBA naming
+            # service
+            Orocos.task_names.
+                grep(/^#{Regexp.quote(name)}_/).
+                each { |task_name| Orocos::CORBA.unregister(task_name) }
 	end
         
         # Spawns this process

@@ -84,3 +84,12 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
     rb_raise(eNotFound, "task context '%s' not found", name.c_str());
 }
 
+void CorbaAccess::unbind(std::string const& name)
+{
+    CosNaming::Name serverName;
+    serverName.length(2);
+    serverName[0].id = CORBA::string_dup("ControlTasks");
+    serverName[1].id = CORBA::string_dup( name.c_str() );
+    rootContext->unbind(serverName);
+}
+

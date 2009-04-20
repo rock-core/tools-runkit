@@ -38,6 +38,7 @@ public:
     static CosNaming::NamingContext_var getRootContext();
     static std::list<std::string> knownTasks();
     static RTT::Corba::ControlTask_ptr findByName(std::string const& name);
+    static void unbind(std::string const& name);
 };
 
 #endif

@@ -24,10 +24,12 @@ describe Orocos::Process do
         end
     end
 
-    it "can kill a running process" do
+    it "can stop a running process and clean up the name server" do
         start_processes('process') do |process|
+            assert( Orocos.task_names.find { |name| name == 'process_Test' } )
             process.kill
             assert(!process.alive?)
+            assert( !Orocos.task_names.find { |name| name == 'process_Test' } )
         end
     end
 

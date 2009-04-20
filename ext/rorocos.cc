@@ -7,6 +7,7 @@
 
 using namespace std;
 static VALUE mOrocos;
+static VALUE mCORBA;
 static VALUE Corba;
 static VALUE cTaskContext;
 static VALUE cInputPort;
@@ -70,6 +71,18 @@ static VALUE orocos_task_names(VALUE mod)
         rb_ary_push(result, rb_str_new2(it->c_str()));
 
     return result;
+}
+
+/* call-seq:
+ *  Orocos::CORBA.unregister(name)
+ *
+ * Remove this name from the list of task contexts registered on the name server
+ */
+static VALUE corba_unregister(VALUE mod, VALUE name)
+{
+    string task_name = StringValuePtr(name);
+    CorbaAccess::unbind(task_name);
+    return Qnil;
 }
 
 /* call-seq:
@@ -340,6 +353,7 @@ static VALUE port_connected_p(VALUE self)
 extern "C" void Init_rorocos_ext()
 {
     mOrocos = rb_define_module("Orocos");
+    mCORBA  = rb_define_module_under(mOrocos, "CORBA");
 
     char const* argv[2] = { "bla", 0 };
     Corba   = Data_Wrap_Struct(rb_cObject, 0, delete_object<CorbaAccess>, new CorbaAccess(1, (char**)argv));
@@ -362,6 +376,7 @@ extern "C" void Init_rorocos_ext()
     eCORBA       = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
+    rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
