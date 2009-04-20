@@ -46,17 +46,5 @@ describe Orocos::Process do
             process.task_names.must_equal %w{Test}
         end
     end
-
-    it "cleanups dead reference on the name server" do
-        start_processes('process') do |process|
-            process.kill('KILL')
-
-            assert( Orocos.task_names.find { |name| name == 'process_Test' },
-                "there is a dangling reference" )
-            assert_raises(Orocos::NotFound) { Orocos::TaskContext.get 'process_Test' }
-            assert( !Orocos.task_names.find { |name| name == 'process_Test' },
-                "the dangling reference has been cleaned up")
-        end
-    end
 end
 

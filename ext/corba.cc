@@ -84,13 +84,8 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
     RTT::Corba::ControlTask_var mtask = RTT::Corba::ControlTask::_narrow (task_object.in ());
     if ( !CORBA::is_nil( mtask ) )
     {
-        try {
-            CORBA::String_var nm = mtask->getName();
-            return mtask._retn();
-        }
-        catch (CORBA::Exception &e) {
-            rootContext->unbind(serverName);
-        }
+        CORBA::String_var nm = mtask->getName();
+        return mtask._retn();
     }
     rb_raise(eNotFound, "task context '%s' not found", name.c_str());
 }
