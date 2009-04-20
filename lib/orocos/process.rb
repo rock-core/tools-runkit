@@ -116,8 +116,11 @@ module Orocos
                 # can access it. If there is none
                 task_name = Orocos.task_names.find { |n| n =~ /^#{name}_\w+$/ }
                 if task_name
-                    begin Orocos::TaskContext.get task_name
+                    begin
+                        Orocos::TaskContext.get task_name
+                        return true
                     rescue Orocos::NotFound
+                        return false
                     end
                 end
 	    else
