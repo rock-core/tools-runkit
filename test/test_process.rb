@@ -49,9 +49,11 @@ describe Orocos::Process do
         start_processes('process') do |process|
             process.kill('KILL')
 
-            assert( Orocos.components.find { |name| name == 'process_Test' } )
+            assert( Orocos.task_names.find { |name| name == 'process_Test' },
+                "there is a dangling reference" )
             assert_raises(Orocos::NotFound) { Orocos::TaskContext.get 'process_Test' }
-            assert( !Orocos.components.find { |name| name == 'process_Test' } )
+            assert( !Orocos.task_names.find { |name| name == 'process_Test' },
+                "the dangling reference has been cleaned up")
         end
     end
 end

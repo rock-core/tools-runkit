@@ -61,7 +61,7 @@ struct RAttribute
  *
  * Returns the names of the task contexts registered with Corba
  */
-static VALUE orocos_components(VALUE mod)
+static VALUE orocos_task_names(VALUE mod)
 {
     VALUE result = rb_ary_new();
 
@@ -361,7 +361,7 @@ extern "C" void Init_rorocos_ext()
     eNotFound    = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
     eCORBA       = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
 
-    rb_define_singleton_method(mOrocos, "components", RUBY_METHOD_FUNC(orocos_components), 0);
+    rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);

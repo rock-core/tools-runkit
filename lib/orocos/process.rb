@@ -108,7 +108,7 @@ module Orocos
                 
                 # Get any task name from that specific deployment, and check we
                 # can access it. If there is none
-                task_name = Orocos.components.find { |n| n =~ /^#{name}_\w+$/ }
+                task_name = Orocos.task_names.find { |n| n =~ /^#{name}_\w+$/ }
                 if task_name
                     begin Orocos::TaskContext.get task_name
                     rescue Orocos::NotFound
@@ -134,7 +134,7 @@ module Orocos
         end
 
         def task_names
-            Orocos.components.grep(/^#{Regexp.quote(name)}_/).
+            Orocos.task_names.grep(/^#{Regexp.quote(name)}_/).
                 map { |task_name| task_name.gsub(/^#{Regexp.quote(name)}_/, '') }
         end
 
