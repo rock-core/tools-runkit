@@ -55,5 +55,30 @@ describe Orocos::TaskContext do
             assert_raises(Orocos::NotFound) { source.task("source").port("does_not_exist") }
         end
     end
+
+    it "should be able to manipulate the task state machine and read its state" do
+        start_processes('simple_source') do |source|
+            source = source.task("source")
+            assert_equal(Orocos::TaskContext::STATE_PRE_OPERATIONAL, source.state)
+            assert(!source.start)
+            assert(!source.ready?)
+            assert(!source.running?)
+
+            assert(source.configure)
+            assert_equal(Orocos::TaskContext::STATE_STOPPED, source.state)
+            assert(source.ready?)
+            assert(!source.running?)
+
+            assert(source.start)
+            assert_equal(Orocos::TaskContext::STATE_RUNNING, source.state)
+            assert(source.ready?)
+            assert(source.running?)
+
+            assert(source.stop)
+            assert_equal(Orocos::TaskContext::STATE_STOPPED, source.state)
+            assert(source.ready?)
+            assert(!source.running?)
+        end
+    end
 end
 

@@ -1,6 +1,7 @@
 name "simple_source"
 
 task_context "source" do
+    needs_configuration
     output_port "cycle", "int"
 end
 

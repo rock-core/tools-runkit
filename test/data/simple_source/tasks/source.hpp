@@ -11,7 +11,7 @@ namespace simple_source {
         void updateHook();
 
     public:
-        source(std::string const& name = "simple_source::source", TaskCore::TaskState initial_state = Stopped);
+        source(std::string const& name = "simple_source::source");
     };
 }
 

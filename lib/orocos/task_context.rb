@@ -14,9 +14,24 @@ module Orocos
         # The name of this task context
         attr_reader :name
 
+        RUNNING_STATES = []
+        RUNNING_STATES[STATE_PRE_OPERATIONAL] = false
+        RUNNING_STATES[STATE_ACTIVE]          = false
+        RUNNING_STATES[STATE_STOPPED]         = false
+        RUNNING_STATES[STATE_RUNNING]         = true
+        RUNNING_STATES[STATE_RUNTIME_ERROR]   = true
+        RUNNING_STATES[STATE_RUNTIME_WARNING] = true
+        RUNNING_STATES[STATE_FATAL_ERROR]     = false
+
         def initialize
             @ports ||= Hash.new
         end
+
+        # Returns true if the task is in a state where code is executed. This
+        # includes of course the running state, but also runtime error states.
+        def running?; RUNNING_STATES[state] end
+        # Returns true if the task has been configured.
+        def ready?;   state != STATE_PRE_OPERATIONAL end
 
         def port(name)
             name = name.to_str

@@ -239,15 +239,53 @@ static VALUE task_context_each_attribute(VALUE self)
  *
  * See Orocos own documentation for their meaning
  */
-static VALUE task_context_state(VALUE obj)
+static VALUE task_context_state(VALUE task)
 {
-    RTaskContext& context = get_wrapped<RTaskContext>(obj);
+    RTaskContext& context = get_wrapped<RTaskContext>(task);
     return INT2FIX(context.task->getTaskState());
 }
 
 /* call-seq:
+ *  task.configure => true or false
  *
+ * Do the transition between STATE_PRE_OPERATIONAL and STATE_STOPPED
  */
+static VALUE task_context_configure(VALUE task)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(task);
+    try
+    { return context.task->configure() ? Qtrue : Qfalse; }
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
+    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+}
+
+/* call-seq:
+ *  task.start => true or false
+ *
+ * Do the transition between STATE_STOPPED and STATE_RUNNING
+ */
+static VALUE task_context_start(VALUE task)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(task);
+    try
+    { return context.task->start() ? Qtrue : Qfalse; }
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
+    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+}
+
+/* call-seq:
+ *  task.stop => true or false
+ *
+ * Do the transition between STATE_RUNNING and STATE_STOPPED
+ */
+static VALUE task_context_stop(VALUE task)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(task);
+    try
+    { return context.task->stop() ? Qtrue : Qfalse; }
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
+    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+}
 
 /* call-seq:
  *  port.connected? => true or false
@@ -410,6 +448,9 @@ extern "C" void Init_rorocos_ext()
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
+    rb_define_method(cTaskContext, "configure", RUBY_METHOD_FUNC(task_context_configure), 0);
+    rb_define_method(cTaskContext, "start", RUBY_METHOD_FUNC(task_context_start), 0);
+    rb_define_method(cTaskContext, "stop", RUBY_METHOD_FUNC(task_context_stop), 0);
     rb_define_method(cTaskContext, "has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
