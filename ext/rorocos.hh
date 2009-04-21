@@ -1,7 +1,29 @@
-#ifndef OROCOS_RB_EXT_MISC_HH
-#define OROCOS_RB_EXT_MISC_HH
+#ifndef OROCOS_EXT_RB_ROROCOS_HH
+#define OROCOS_EXT_RB_ROROCOS_HH
 
+#include "ControlTaskC.h"
+#include "DataFlowC.h"
 #include "corba.hh"
+
+extern VALUE eNotFound;
+
+struct RTaskContext
+{
+    RTT::Corba::ControlTask_var        task;
+    RTT::Corba::DataFlowInterface_var  ports;
+    RTT::Corba::AttributeInterface_var attributes;
+    RTT::Corba::MethodInterface_var    methods;
+    RTT::Corba::CommandInterface_var   commands;
+};
+
+struct RInputPort { };
+struct ROutputPort { };
+
+struct RAttribute
+{
+    RTT::Corba::Expression_var expr;
+};
+
 namespace
 {
     template<typename T>

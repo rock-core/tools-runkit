@@ -6,6 +6,8 @@ toolkit do
 end
 
 task_context 'Test' do
+    property "prop1", "/process/Simple"
+    property "prop2", "int"
 end
 
 static_deployment do

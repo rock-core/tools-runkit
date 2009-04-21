@@ -2,11 +2,27 @@ require 'utilrb/object/attribute'
 
 module Orocos
     class Attribute
+        attr_reader :task
         attr_reader :name
-        attr_reader :typename
+        attr_reader :type
+
+        def initialize
+            @type = Orocos.registry.get(@type_name)
+        end
+
+        def read
+            value = type.new
+            do_read(@type_name, value)
+            value.to_ruby
+        end
+
+        def write(value)
+            value = Typelib.from_ruby(value, type)
+            do_write(@type_name, value)
+        end
 
         def pretty_print(pp) # :nodoc:
-            pp.text "attribute #{name} (#{typename})"
+            pp.text "attribute #{name} (#{type_name})"
         end
     end
 

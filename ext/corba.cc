@@ -1,6 +1,5 @@
-#include "corba.hh"
+#include "rorocos.hh"
 #include <list>
-#include "misc.hh"
 #include <typeinfo>
 #include <rtt/corba/CorbaLib.hpp>
 #include <rtt/Types.hpp>

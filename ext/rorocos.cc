@@ -1,10 +1,6 @@
-#include "ControlTaskC.h"
-#include "DataFlowC.h"
-#include <ruby.h>
+#include "rorocos.hh"
 #include <typeinfo>
 
-#include "corba.hh"
-#include "misc.hh"
 #include <memory>
 #include <boost/tuple/tuple.hpp>
 
@@ -21,20 +17,10 @@ static VALUE cPort;
 static VALUE cAttribute;
 VALUE eNotFound;
 
+extern void Orocos_data_handling();
+
 using namespace RTT::Corba;
 
-
-struct RTaskContext
-{
-    RTT::Corba::ControlTask_var        task;
-    RTT::Corba::DataFlowInterface_var  ports;
-    RTT::Corba::AttributeInterface_var attributes;
-    RTT::Corba::MethodInterface_var    methods;
-    RTT::Corba::CommandInterface_var   commands;
-};
-
-struct RInputPort { };
-struct ROutputPort { };
 
 std::pair<RTaskContext*, std::string> getPortReference(VALUE port)
 {
@@ -44,11 +30,6 @@ std::pair<RTaskContext*, std::string> getPortReference(VALUE port)
     RTaskContext& task_context = get_wrapped<RTaskContext>(task);
     return make_pair(&task_context, string(StringValuePtr(name)));
 }
-
-struct RAttribute
-{
-    RTT::Corba::Expression_var expr;
-};
 
 /* call-seq:
  *  Orocos.components => [name1, name2, name3, ...]
@@ -182,7 +163,8 @@ static VALUE task_context_each_port(VALUE self)
  *  task.attribute(name) => attribute
  *
  * Returns the Attribute object which represents the remote task's
- * Attribute or Property of the given name
+ * Attribute or Property of the given name. There is no difference on the CORBA
+ * side (and honestly I don't know the difference on the C++ side either).
  */
 static VALUE task_context_attribute(VALUE self, VALUE name)
 {
@@ -197,7 +179,9 @@ static VALUE task_context_attribute(VALUE self, VALUE name)
     VALUE type_name = rb_str_new2(rattr->expr->getTypeName());
     VALUE obj = simple_wrap(cAttribute, rattr.release());
     rb_iv_set(obj, "@name", rb_str_dup(name));
-    rb_iv_set(obj, "@typename", type_name);
+    rb_iv_set(obj, "@task", self);
+    rb_iv_set(obj, "@type_name", type_name);
+    rb_funcall(obj, rb_intern("initialize"), 0);
     return obj;
 }
 
@@ -449,11 +433,11 @@ extern "C" void Init_rorocos_ext()
     rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_WARNING"),      INT2FIX(RTT::Corba::RunTimeWarning));
     rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::Corba::RunTimeError));
     
-    cPort        = rb_define_class_under(mOrocos, "Port", rb_cObject);
-    cOutputPort  = rb_define_class_under(mOrocos, "OutputPort", cPort);
-    cInputPort   = rb_define_class_under(mOrocos, "InputPort", cPort);
-    cAttribute   = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
-    eNotFound    = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
+    cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
+    cOutputPort   = rb_define_class_under(mOrocos, "OutputPort", cPort);
+    cInputPort    = rb_define_class_under(mOrocos, "InputPort", cPort);
+    cAttribute    = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
+    eNotFound     = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
@@ -478,8 +462,6 @@ extern "C" void Init_rorocos_ext()
     loadCorbaLib();
 
     Orocos_CORBA_init();
-//    rb_define_method(cPort, "do_connect", RUBY_METHOD_FUNC(port_do_connect), 1);
-//    rb_define_method(cPort, "disconnect", RUBY_METHOD_FUNC(port_disconnect), 0);
-//    rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
+    Orocos_data_handling();
 }
 
