@@ -16,6 +16,7 @@ using namespace std;
 extern VALUE mCORBA;
 extern VALUE corba_access;
 extern VALUE eCORBA;
+extern VALUE eConn;
 extern void Orocos_CORBA_init();
 
 /**

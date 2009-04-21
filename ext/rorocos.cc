@@ -1,12 +1,15 @@
 #include "ControlTaskC.h"
 #include "DataFlowC.h"
 #include <ruby.h>
+#include <typeinfo>
 
 #include "corba.hh"
 #include "misc.hh"
 #include <memory>
+#include <boost/tuple/tuple.hpp>
 
 using namespace std;
+using boost::tie;
 static VALUE mOrocos;
 static VALUE cTaskContext;
 static VALUE cInputPort;
@@ -29,6 +32,15 @@ struct RTaskContext
 
 struct RInputPort { };
 struct ROutputPort { };
+
+std::pair<RTaskContext*, std::string> getPortReference(VALUE port)
+{
+    VALUE task = rb_iv_get(port, "@task");
+    VALUE name = rb_iv_get(port, "@name");
+
+    RTaskContext& task_context = get_wrapped<RTaskContext>(task);
+    return make_pair(&task_context, string(StringValuePtr(name)));
+}
 
 struct RAttribute
 {
@@ -88,12 +100,30 @@ static VALUE task_context_equal_p(VALUE self, VALUE other)
 }
 
 /* call-seq:
- *   task.port(name) => port
+ *   task.has_port?(name) => true or false
+ *
+ * Returns true if the given name is the name of a port on this task context,
+ * and false otherwise
+ */
+static VALUE task_context_has_port_p(VALUE self, VALUE name)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    try {
+        context.ports->getPortType(StringValuePtr(name));
+    }
+    catch(RTT::Corba::NoSuchPortException)
+    { return Qfalse; }
+    return Qtrue;
+}
+
+/* call-seq:
+ *   task.do_port(name) => port
  *
  * Returns the Orocos::DataPort or Orocos::BufferPort object representing the
- * remote port +name+. Raises RuntimeError if the port does not exist.
+ * remote port +name+. Raises NotFound if the port does not exist. This is an
+ * internal method. Use TaskContext#port to get a port object.
  */
-static VALUE task_context_port(VALUE self, VALUE name)
+static VALUE task_context_do_port(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     RTT::Corba::PortType port_type;
@@ -123,7 +153,7 @@ static VALUE task_context_port(VALUE self, VALUE name)
     rb_iv_set(obj, "@name", rb_str_dup(name));
     rb_iv_set(obj, "@task", self);
     VALUE type_name = rb_str_new2(context.ports->getDataType( StringValuePtr(name) ));
-    rb_iv_set(obj, "@typename", type_name);
+    rb_iv_set(obj, "@type_name", type_name);
     return obj;
 }
 
@@ -139,7 +169,7 @@ static VALUE task_context_each_port(VALUE self)
     RTT::Corba::DataFlowInterface::PortNames_var ports = context.ports->getPorts();
 
     for (int i = 0; i < ports->length(); ++i)
-        rb_yield(task_context_port(self, rb_str_new2(ports[i])));
+        rb_yield(task_context_do_port(self, rb_str_new2(ports[i])));
 
     return self;
 }
@@ -215,46 +245,8 @@ static VALUE task_context_state(VALUE obj)
 }
 
 /* call-seq:
- *  port.connect(remote_port) => nil
  *
- * Connects the given output port to the specified remote port
  */
-//static VALUE port_do_connect(VALUE self, VALUE other_port)
-//{
-//    VALUE src_task_r = rb_iv_get(self, "@task");
-//    VALUE src_name   = rb_iv_get(self, "@name");
-//    RTaskContext& src_task = get_wrapped<RTaskContext>(src_task_r);
-//    VALUE dst_task_r = rb_iv_get(remote_port, "@task");
-//    VALUE dst_name   = rb_iv_get(remote_port, "@name");
-//    RTaskContext& dst_task = get_wrapped<RTaskContext>(dst_task_r);
-//
-//    if (!src_task.ports->connectPorts(StringValuePtr(src_name), dst_task.ports, StringValuePtr(dst_name)))
-//    {
-//        VALUE src_task_name = rb_iv_get(src_task_r, "@name");
-//        VALUE dst_task_name = rb_iv_get(dst_task_r, "@name");
-//        rb_raise(rb_eArgError, "cannot connect %s.%s to %s.%s",
-//                StringValuePtr(src_task_name),
-//                StringValuePtr(src_name),
-//                StringValuePtr(dst_task_name),
-//                StringValuePtr(dst_name));
-//    }
-//    return Qnil;
-//}
-
-/* call-seq:
- *   port.disconnect => nil
- *
- * Remove all connections that go to or come from this port
- */
-//static VALUE port_disconnect(VALUE self)
-//{
-//
-//    VALUE task_r = rb_iv_get(self, "@task");
-//    VALUE name   = rb_iv_get(self, "@name");
-//    RTaskContext& task = get_wrapped<RTaskContext>(task_r);
-//    task.ports->disconnect(StringValuePtr(name));
-//    return Qnil;
-//}
 
 /* call-seq:
  *  port.connected? => true or false
@@ -263,11 +255,114 @@ static VALUE task_context_state(VALUE obj)
  */
 static VALUE port_connected_p(VALUE self)
 {
+    RTaskContext* task; string name;
+    tie(task, name) = getPortReference(self);
 
-    VALUE task_r = rb_iv_get(self, "@task");
-    VALUE name   = rb_iv_get(self, "@name");
-    RTaskContext& task = get_wrapped<RTaskContext>(task_r);
-    return task.ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse;
+    try
+    { return task->ports->isConnected(name.c_str()) ? Qtrue : Qfalse; }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // is refined on the Ruby side
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
+    catch(CORBA::Exception&)
+    { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    return Qnil; // never reached
+}
+
+static RTT::Corba::ConnPolicy policyFromHash(VALUE options)
+{
+    RTT::Corba::ConnPolicy result;
+    VALUE conn_type = SYM2ID(rb_hash_aref(options, ID2SYM(rb_intern("type"))));
+    if (conn_type == rb_intern("data"))
+        result.type = RTT::Corba::Data;
+    else if (conn_type == rb_intern("buffer"))
+        result.type = RTT::Corba::Buffer;
+    else
+    {
+        VALUE obj_as_str = rb_funcall(conn_type, rb_intern("inspect"), 0);
+        rb_raise(rb_eArgError, "invalid connection type %s", StringValuePtr(obj_as_str));
+    }
+
+    if (RTEST(rb_hash_aref(options, ID2SYM(rb_intern("init")))))
+        result.init = true;
+    else
+        result.init = false;
+
+    if (RTEST(rb_hash_aref(options, ID2SYM(rb_intern("pull")))))
+        result.pull = true;
+    else
+        result.pull = false;
+
+    result.size = NUM2INT(rb_hash_aref(options, ID2SYM(rb_intern("size"))));
+
+    VALUE lock_type = SYM2ID(rb_hash_aref(options, ID2SYM(rb_intern("lock"))));
+    if (lock_type == rb_intern("locked"))
+        result.lock_policy = RTT::Corba::Locked;
+    else if (lock_type == rb_intern("lock_free"))
+        result.lock_policy = RTT::Corba::LockFree;
+    else
+    {
+        VALUE obj_as_str = rb_funcall(lock_type, rb_intern("to_s"), 0);
+        rb_raise(rb_eArgError, "invalid locking type %s", StringValuePtr(obj_as_str));
+    }
+    return result;
+}
+
+/* Actual implementation of #connect_to. Sanity checks are done in Ruby. Just
+ * create the connection. 
+ */
+static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE options)
+{
+    RTaskContext* out_task; string out_name;
+    tie(out_task, out_name) = getPortReference(routput_port);
+    RTaskContext* in_task; string in_name;
+    tie(in_task, in_name) = getPortReference(rinput_port);
+
+    RTT::Corba::ConnPolicy policy = policyFromHash(options);
+
+    try
+    {
+        out_task->ports->createConnection(out_name.c_str(),
+                in_task->ports, in_name.c_str(),
+                policy);
+        return Qnil;
+    }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // should be refined on the Ruby side
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // should be refined on the Ruby side
+    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    return Qnil; // never reached
+}
+
+static VALUE do_port_disconnect_all(VALUE port)
+{
+    RTaskContext* task; string name;
+    tie(task, name) = getPortReference(port);
+
+    try
+    {
+        task->ports->disconnect(name.c_str());
+        return Qnil;
+    }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); }
+    catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
+    return Qnil; // never reached
+}
+
+static VALUE do_port_disconnect_from(VALUE self, VALUE other)
+{
+    RTaskContext* self_task; string self_name;
+    tie(self_task, self_name) = getPortReference(self);
+    RTaskContext* other_task; string other_name;
+    tie(other_task, other_name) = getPortReference(other);
+
+    try
+    {
+        self_task->ports->disconnectPort(self_name.c_str(), other_task->ports, other_name.c_str());
+        return Qnil;
+    }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); }
+    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    return Qnil; // never reached
 }
 
 /* Document-class: Orocos::TaskContext
@@ -275,32 +370,6 @@ static VALUE port_connected_p(VALUE self)
  * TaskContext in Orocos are the representation of the component: access to its
  * inputs and outputs (#each_port) and to its execution state (#state).
  *
- */
-/* Document-class: Orocos::Port
- *
- * Ports are in Orocos the representation of the task's dynamic input and
- * output. Port instances are never used. The task's ports are either represented
- * by instances of Orocos::DataPort or Orocos::BufferPort.
- */
-/* Document-class: Orocos::DataPort
- *
- * Ports are in Orocos the representation of the task's dynamic input and
- * output. In data ports, the data you read from the port is the last sample
- * ever written to it.
- *
- * See also Orocos::Port and Orocos::BufferPort
- */
-/* Document-class: Orocos::BufferPort
- *
- * Ports are in Orocos the representation of the task's dynamic input and
- * output. In buffered ports, the data is kept as long as it is not read, meaning
- * that the target of the data link should be able to get all the samples ever
- * written on the wire.
- *
- * In Orocos, this is limited to a fixed number of samples (the size of the
- * buffer), so if the buffer is full, samples are still lost.
- *
- * See also Orocos::Port and Orocos::DataPort
  */
 /* Document-class: Orocos::NotFound
  *
@@ -340,10 +409,16 @@ extern "C" void Init_rorocos_ext()
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
-    rb_define_method(cTaskContext, "port", RUBY_METHOD_FUNC(task_context_port), 1);
+    rb_define_method(cTaskContext, "has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
+    rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
     rb_define_method(cTaskContext, "attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
     rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
+
+    rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
+    rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
+    rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);
+    rb_define_method(cPort, "do_disconnect_all", RUBY_METHOD_FUNC(do_port_disconnect_all), 0);
 
     Orocos_CORBA_init();
 //    rb_define_method(cPort, "do_connect", RUBY_METHOD_FUNC(port_do_connect), 1);

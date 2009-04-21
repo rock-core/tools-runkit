@@ -1,36 +1,6 @@
+require 'utilrb/object/attribute'
+
 module Orocos
-    class Port
-        attr_reader :task
-        attr_reader :name
-        attr_reader :typename
-
-        def connect(other)
-            # Check port compatibility
-            if self.class != other.class
-                raise "#{name} and #{other.name} do not have the same connection model"
-            elsif self.typename != other.typename
-                raise "#{name} and #{other.name} do not hold the same data type"
-            end
-
-            if write? && other.read?
-                other.do_connect(self)
-            elsif other.write? && read?
-                do_connect(other)
-            else
-                raise "cannot create a connection because there is not one reader and one writer"
-            end
-        end
-
-        def pretty_print(pp) # :nodoc:
-            pp.text "#{self.class.name} #{name}"
-
-            if read? then pp.text "[R]"
-            elsif write? then pp.text "[W]"
-            else pp.text "[RW]"
-            end
-        end
-    end
-
     class Attribute
         attr_reader :name
         attr_reader :typename
@@ -43,6 +13,22 @@ module Orocos
     class TaskContext
         # The name of this task context
         attr_reader :name
+
+        def port(name)
+            @ports ||= Hash.new
+
+            name = name.to_str
+            if @ports[name]
+                if has_port?(name) # Check that this port is still valid
+                    @ports[name]
+                else
+                    @ports.delete(name)
+                    raise NotFound, "no port named '#{name}' on task '#{self.name}'"
+                end
+            else
+                @ports[name] = do_port(name)
+            end
+        end
 
         def pretty_print(pp)
             states_description = TaskContext.constants.grep(/^STATE_/).

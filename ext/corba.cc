@@ -7,6 +7,7 @@ using namespace std;
 
 VALUE mCORBA;
 VALUE eCORBA;
+VALUE eConn;
 VALUE corba_access = Qnil;
 extern VALUE eNotFound;
 
@@ -150,6 +151,7 @@ void Orocos_CORBA_init()
     VALUE mOrocos = rb_define_module("Orocos");
     mCORBA = rb_define_module_under(mOrocos, "CORBA");
     eCORBA = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
+    eConn  = rb_define_class_under(mCORBA, "ConnError", eCORBA);
 
     rb_define_singleton_method(mCORBA, "init", RUBY_METHOD_FUNC(corba_init), 0);
     rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
