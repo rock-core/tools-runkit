@@ -14,9 +14,11 @@ module Orocos
         # The name of this task context
         attr_reader :name
 
-        def port(name)
+        def initialize
             @ports ||= Hash.new
+        end
 
+        def port(name)
             name = name.to_str
             if @ports[name]
                 if has_port?(name) # Check that this port is still valid
