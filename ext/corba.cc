@@ -2,6 +2,8 @@
 #include <list>
 #include "misc.hh"
 #include <typeinfo>
+#include <rtt/corba/CorbaLib.hpp>
+#include <rtt/Types.hpp>
 using namespace CORBA;
 using namespace std;
 
@@ -146,6 +148,29 @@ static VALUE corba_init(VALUE mod)
     return Qtrue;
 }
 
+/* call-seq:
+ *   Orocos::CORBA.transportable_type_names => name_list
+ *
+ * Returns an array of string that are the type names which can be transported
+ * over the CORBA layer
+ */
+static VALUE corba_transportable_type_names(VALUE mod)
+{
+    RTT::TypeInfoRepository::shared_ptr rtt_types =
+        RTT::types();
+
+    VALUE result = rb_ary_new();
+    vector<string> all_types = rtt_types->getTypes();
+    for (vector<string>::iterator it = all_types.begin(); it != all_types.end(); ++it)
+    {
+        RTT::TypeInfo* ti = rtt_types->type(*it);
+        vector<int> transports = ti->getTransportNames();
+        if (find(transports.begin(), transports.end(), ORO_CORBA_PROTOCOL_ID) != transports.end())
+            rb_ary_push(result, rb_str_new2(it->c_str()));
+    }
+    return result;
+}
+
 void Orocos_CORBA_init()
 {
     VALUE mOrocos = rb_define_module("Orocos");
@@ -157,5 +182,6 @@ void Orocos_CORBA_init()
     rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
     rb_define_singleton_method(mCORBA, "do_call_timeout", RUBY_METHOD_FUNC(corba_set_call_timeout), 1);
     rb_define_singleton_method(mCORBA, "do_connect_timeout", RUBY_METHOD_FUNC(corba_set_connect_timeout), 1);
+    rb_define_singleton_method(mCORBA, "transportable_type_names", RUBY_METHOD_FUNC(corba_transportable_type_names), 0);
 }
 

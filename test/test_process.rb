@@ -46,5 +46,12 @@ describe Orocos::Process do
             process.task_names.must_equal %w{Test}
         end
     end
+
+    it "loads the toolkits associated with any given deployment" do
+        assert(!Orocos::CORBA.loaded_toolkit?("process"))
+        start_processes('process') do |process|
+            assert(Orocos::CORBA.loaded_toolkit?("process"))
+        end
+    end
 end
 

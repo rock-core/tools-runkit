@@ -27,6 +27,11 @@ module Orocos
             rescue Utilrb::PkgConfig::NotFound => e
                 raise NotFound, "#{name} does not exist or isn't found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
             end
+
+            # Load the needed toolkits
+            Shellwords.split(pkg.toolkits).each do |name|
+                Orocos::CORBA.load_toolkit(name)
+            end
         end
 
 

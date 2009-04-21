@@ -5,11 +5,37 @@ SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 INCLUDE(RubyExtensions)
 
 ADD_DEFINITIONS(-D_REENTRANT)
+MACRO(CMAKE_USE_FULL_RPATH install_rpath)
+    # use, i.e. don't skip the full RPATH for the build tree
+    SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+
+    # when building, don't use the install RPATH already
+    # (but later on when installing)
+    SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
+
+    # the RPATH to be used when installing
+    SET(CMAKE_INSTALL_RPATH ${install_rpath})
+
+    # add the automatically determined parts of the RPATH
+    # which point to directories outside the build tree to the install RPATH
+    SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+ENDMACRO(CMAKE_USE_FULL_RPATH)
+CMAKE_USE_FULL_RPATH("")
+
 
 FIND_PACKAGE(PkgConfig)
+pkg_check_modules(RTT REQUIRED orocos-rtt-${OROCOS_TARGET})
+ADD_DEFINITIONS( -DOROCOS_TARGET=${OROCOS_TARGET} )
+INCLUDE_DIRECTORIES( ${RTT_INCLUDE_DIRS} )
+LINK_DIRECTORIES( ${RTT_LIBRARY_DIRS} )
+
 pkg_check_modules(RTT_CORBA REQUIRED orocos-rtt-corba-${OROCOS_TARGET})
 FIND_PATH(IDL_DIR ControlTask.idl ${RTT_CORBA_INCLUDE_DIRS})
 FILE(GLOB IDL_FILES ${IDL_DIR}/*.idl)
+
+ADD_DEFINITIONS( -DOROCOS_TARGET=${OROCOS_TARGET} )
+INCLUDE_DIRECTORIES( ${RTT_CORBA_INCLUDE_DIRS} )
+LINK_DIRECTORIES( ${RTT_CORBA_LIBRARY_DIRS} )
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 MACRO(TAO_ORB)
@@ -55,7 +81,8 @@ ENDMACRO(OMNIORB)
 OMNIORB()
 ADD_RUBY_EXTENSION(rorocos_ext 
     rorocos.cc corba.cc ${ORB_IDL_FILES})
-TARGET_LINK_LIBRARIES(rorocos_ext ${ORB_LIBRARIES})
+TARGET_LINK_LIBRARIES(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
+    ${RTT_CORBA_LIBRARIES})
 
 INSTALL(TARGETS rorocos_ext LIBRARY DESTINATION ".")
 

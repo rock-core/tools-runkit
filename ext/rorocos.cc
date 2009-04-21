@@ -8,6 +8,9 @@
 #include <memory>
 #include <boost/tuple/tuple.hpp>
 
+#include <rtt/Toolkit.hpp>
+#include <rtt/RealTimeToolkit.hpp>
+
 using namespace std;
 using boost::tie;
 static VALUE mOrocos;
@@ -424,6 +427,14 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
  */
 /* Document-module: Orocos
  */
+namespace RTT
+{
+    namespace Corba
+    {
+        extern int loadCorbaLib();
+    }
+}
+
 extern "C" void Init_rorocos_ext()
 {
     mOrocos = rb_define_module("Orocos");
@@ -461,6 +472,10 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);
     rb_define_method(cPort, "do_disconnect_all", RUBY_METHOD_FUNC(do_port_disconnect_all), 0);
+
+    // load the default toolkit and the CORBA transport
+    RTT::Toolkit::Import(RTT::RealTimeToolkit);
+    loadCorbaLib();
 
     Orocos_CORBA_init();
 //    rb_define_method(cPort, "do_connect", RUBY_METHOD_FUNC(port_do_connect), 1);

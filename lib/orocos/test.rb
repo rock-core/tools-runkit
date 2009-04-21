@@ -1,4 +1,5 @@
 require 'fileutils'
+require 'typelib'
 
 module Orocos
     module Test
@@ -70,6 +71,8 @@ module Orocos
         end
         def teardown
             super
+            Orocos.instance_variable_set :@registry, Typelib::Registry.new
+            Orocos::CORBA.instance_variable_set :@loaded_toolkits, []
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
         end
 
