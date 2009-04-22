@@ -12,6 +12,10 @@ describe Orocos::TaskContext do
 
     include Orocos::Spec
 
+    it "should raise NotFound on unknown task contexts" do
+	assert_raises(Orocos::NotFound) { Orocos::TaskContext.get('Bla_Blo') }
+    end
+
     it "should check equality based on CORBA reference" do
         start_processes('process') do |process|
             assert(t1 = Orocos::TaskContext.get('process_Test'))

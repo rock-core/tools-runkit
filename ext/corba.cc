@@ -78,9 +78,12 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
 
     CORBA::Object_var task_object;
     try { task_object = rootContext->resolve(serverName); }
-    catch (CORBA::Exception &e) {
-        rb_raise(eCORBA, "cannot access CORBA naming service");
-    }
+    catch(CosNaming::NamingContext::NotFound&)
+    { rb_raise(eNotFound, "task context '%s' does not exist", name.c_str()); }
+    catch (CORBA::TRANSIENT &e)
+    { rb_raise(eCORBA, "cannot access CORBA naming service"); }
+    catch (CORBA::Exception &e)
+    { rb_raise(eCORBA, "unspecified CORBA error of type '%s'", typeid(e).name()); }
 
     // Then check we can actually access it
     RTT::Corba::ControlTask_var mtask = RTT::Corba::ControlTask::_narrow (task_object.in ());

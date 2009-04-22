@@ -41,6 +41,12 @@ describe Orocos::Process do
         end
     end
 
+    it "throws NotFound on an unknown task context name" do
+        start_processes('process') do |process|
+            assert_raises(Orocos::NotFound) { process.task("Bla") }
+        end
+    end
+
     it "can enumerate its own deployed task contexts" do
         start_processes('process') do |process|
             process.task_names.must_equal %w{Test}
