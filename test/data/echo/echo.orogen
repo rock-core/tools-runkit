@@ -1,0 +1,14 @@
+name 'echo'
+
+task_context 'Echo' do
+    input_port 'input',   'int'
+    output_port 'output', 'int'
+
+    port_driven :input
+end
+
+static_deployment do
+    echo_task = task('Echo').
+        triggered
+end
+

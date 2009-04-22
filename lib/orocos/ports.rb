@@ -2,9 +2,18 @@ require 'utilrb/kernel/options'
 
 module Orocos
     class Port
+        # The task this port is part of
         attr_reader :task
+        # The port name
         attr_reader :name
+        # The port's type name as used by the RTT
         attr_reader :type_name
+        # The port's type as a Typelib::Type object
+        attr_reader :type
+
+        def initialize
+            @type = Orocos.registry.get(@type_name)
+        end
 
         def ==(other)
             other.class == self.class &&
@@ -21,14 +30,31 @@ module Orocos
             end
         end
 
+        # Removes this port from all connections it is part of
         def disconnect_all
             refine_exceptions do
                 do_disconnect_all
             end
         end
 
-    private
+        def validate_policy(policy)
+            policy = validate_options policy,
+                :type => :data,
+                :init => false,
+                :pull => false,
+                :size => nil,
+                :lock => :lock_free
 
+            if policy[:type] == :buffer && !policy[:size]
+                raise ArgumentError, "you must provide a 'size' argument for buffer connections"
+            elsif policy[:type] == :data && policy[:size]
+                raise ArgumentError, "there are no 'size' argument to data connections"
+            end
+            policy[:size] ||= 0
+            policy
+        end
+
+    private
         def refine_exceptions(other = nil)
             yield
 
@@ -57,6 +83,11 @@ module Orocos
             self
         end
 
+        def writer(policy = Hash.new)
+            do_writer(@type_name, validate_policy(policy))
+        end
+
+
         def connect_to(output_port, options = Hash.new)
             unless output_port.kind_of?(OutputPort)
                 raise ArgumentError, "an input port can only connect to an output port"
@@ -74,6 +105,10 @@ module Orocos
             self
         end
 
+        def reader(policy = Hash.new)
+            do_reader(@type_name, validate_policy(policy))
+        end
+
         def connect_to(input_port, options = Hash.new)
             if !input_port.kind_of?(InputPort)
                 raise ArgumentError, "an output port can only connect to an input port"
@@ -81,22 +116,30 @@ module Orocos
                 raise ArgumentError, "trying to connect am output port of type #{type_name} to an input port of type #{input_port.type_name}"
             end
 
-            options = validate_options options,
-                :type => :data,
-                :init => false,
-                :pull => false,
-                :size => nil,
-                :lock => :lock_free
-
-            if options[:type] == :buffer && !options[:size]
-                raise ArgumentError, "you must provide a 'size' argument for buffer connections"
-            elsif options[:type] == :data && options[:size]
-                raise ArgumentError, "there are no 'size' argument to data connections"
-            end
-            options[:size] ||= 0
-
-            do_connect_to(input_port, options)
+            do_connect_to(input_port, validate_policy(options))
             self
+        end
+    end
+
+    class OutputReader
+        # The OutputPort object this reader is linked to
+        attr_reader :port
+
+        def read
+            value = port.type.new
+            if do_read(port.type_name, value)
+                value.to_ruby
+            end
+        end
+    end
+
+    class InputWriter
+        # The InputPort object this writer is linked to
+        attr_reader :port
+
+        def write(data)
+            data = Typelib.from_ruby(data, port.type)
+            do_write(port.type_name, data)
         end
     end
 end

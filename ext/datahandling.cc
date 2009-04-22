@@ -3,6 +3,7 @@
 #include <rtt/Types.hpp>
 #include <rtt/TypeTransporter.hpp>
 #include <rtt/corba/CorbaLib.hpp>
+#include <rtt/PortInterface.hpp>
 
 using namespace RTT;
 
@@ -11,11 +12,7 @@ using namespace RTT;
 // the given type.
 VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::Any& src)
 {
-    TypeInfoRepository::shared_ptr type_registry = RTT::types();
-    TypeInfo* ti = type_registry->type(type_name);
-    if (! ti)
-        rb_raise(rb_eArgError, "trying to unmarshal %s, but there is no type definition for it", type_name.c_str());
-
+    TypeInfo* ti = get_type_info(type_name);
     detail::TypeTransporter* transport = ti->getProtocol(ORO_CORBA_PROTOCOL_ID);
     if (! transport)
         rb_raise(rb_eArgError, "trying to unmarshal %s, but it is not supported by the CORBA transport", type_name.c_str());
@@ -30,11 +27,7 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
 // Marshals the data that is held by +src+ into a CORBA::Any
 CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src)
 {
-    TypeInfoRepository::shared_ptr type_registry = RTT::types();
-    TypeInfo* ti = type_registry->type(type_name);
-    if (! ti)
-        rb_raise(rb_eArgError, "trying to unmarshal %s, but there is no type definition for it", type_name.c_str());
-
+    TypeInfo* ti = get_type_info(type_name);
     detail::TypeTransporter* transport = ti->getProtocol(ORO_CORBA_PROTOCOL_ID);
     if (! transport)
         rb_raise(rb_eArgError, "trying to unmarshal %s, but it is not supported by the CORBA transport", type_name.c_str());

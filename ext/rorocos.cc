@@ -4,31 +4,48 @@
 #include <memory>
 #include <boost/tuple/tuple.hpp>
 
+#include <rtt/Types.hpp>
 #include <rtt/Toolkit.hpp>
 #include <rtt/RealTimeToolkit.hpp>
+#include <rtt/PortInterface.hpp>
+
+#include <typelib_ruby.hh>
 
 using namespace std;
-using boost::tie;
+using namespace boost;
+using namespace RTT::Corba;
+
 static VALUE mOrocos;
 static VALUE cTaskContext;
 static VALUE cInputPort;
 static VALUE cOutputPort;
+static VALUE cPortAccess;
+static VALUE cInputWriter;
+static VALUE cOutputReader;
 static VALUE cPort;
 static VALUE cAttribute;
 VALUE eNotFound;
 
 extern void Orocos_data_handling();
+static RTT::Corba::ConnPolicy policyFromHash(VALUE options);
 
-using namespace RTT::Corba;
+extern RTT::TypeInfo* get_type_info(std::string const& name)
+{
+    RTT::TypeInfoRepository::shared_ptr type_registry = RTT::types();
+    RTT::TypeInfo* ti = type_registry->type(name);
+    if (! ti)
+        rb_raise(rb_eArgError, "type '%s' is not registered in the RTT type system", name.c_str());
+    return ti;
+}
 
-
-std::pair<RTaskContext*, std::string> getPortReference(VALUE port)
+tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 {
     VALUE task = rb_iv_get(port, "@task");
-    VALUE name = rb_iv_get(port, "@name");
+    VALUE task_name = rb_iv_get(task, "@name");
+    VALUE port_name = rb_iv_get(port, "@name");
 
     RTaskContext& task_context = get_wrapped<RTaskContext>(task);
-    return make_pair(&task_context, string(StringValuePtr(name)));
+    return make_tuple(&task_context, task_name, port_name);
 }
 
 /* call-seq:
@@ -40,7 +57,7 @@ static VALUE orocos_task_names(VALUE mod)
 {
     VALUE result = rb_ary_new();
 
-    list<string> names = CorbaAccess::knownTasks();
+    list<string> names = CorbaAccess::instance()->knownTasks();
     for (list<string>::const_iterator it = names.begin(); it != names.end(); ++it)
         rb_ary_push(result, rb_str_new2(it->c_str()));
 
@@ -58,7 +75,7 @@ static VALUE task_context_get(VALUE klass, VALUE name)
 {
     try {
         std::auto_ptr<RTaskContext> new_context( new RTaskContext );
-        new_context->task       = CorbaAccess::findByName(StringValuePtr(name));
+        new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
         new_context->ports      = new_context->task->ports();
         new_context->attributes = new_context->task->attributes();
         new_context->methods    = new_context->task->methods();
@@ -139,6 +156,7 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
     rb_iv_set(obj, "@task", self);
     VALUE type_name = rb_str_new2(context.ports->getDataType( StringValuePtr(name) ));
     rb_iv_set(obj, "@type_name", type_name);
+    rb_funcall(obj, rb_intern("initialize"), 0);
     return obj;
 }
 
@@ -157,6 +175,81 @@ static VALUE task_context_each_port(VALUE self)
         rb_yield(task_context_do_port(self, rb_str_new2(ports[i])));
 
     return self;
+}
+
+static void delete_port(RTT::PortInterface* port)
+{
+    port->disconnect();
+    CorbaAccess::instance()->removePort(port);
+    delete port;
+}
+
+static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
+{
+    CorbaAccess* corba = CorbaAccess::instance();
+
+    // Get the port and create an anti-clone of it
+    RTaskContext* task; VALUE port_name;
+    tie(task, tuples::ignore, port_name) = getPortReference(port);
+    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+
+    std::string local_name = corba->getLocalPortName(port);
+    RTT::PortInterface* local_port = ti->outputPort(local_name);
+
+    // Register this port on our data flow interface, and call CORBA to connect
+    // both ports
+    corba->addPort(local_port);
+    try {
+	bool result = corba->getDataFlowInterface()->createConnection(local_name.c_str(),
+		task->ports, StringValuePtr(port_name),
+		policyFromHash(policy));
+        if (!local_port->connected() || !result)
+        {
+            corba->removePort(local_port);
+            rb_raise(rb_eArgError, "failed to connect specified ports");
+        }
+    }
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
+    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+
+    // Finally, wrap the new port in a Ruby object
+    VALUE robj = Data_Wrap_Struct(cInputWriter, 0, delete_port, local_port);
+    rb_iv_set(robj, "@port", port);
+    return robj;
+}
+
+static VALUE do_output_port_reader(VALUE port, VALUE type_name, VALUE policy)
+{
+    CorbaAccess* corba = CorbaAccess::instance();
+
+    // Get the port and create an anti-clone of it
+    RTaskContext* task; VALUE port_name;
+    tie(task, tuples::ignore, port_name) = getPortReference(port);
+    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+
+    std::string local_name = corba->getLocalPortName(port);
+    RTT::PortInterface* local_port = ti->inputPort(local_name);
+
+    // Register this port on our data flow interface, and call CORBA to connect
+    // both ports
+    corba->addPort(local_port);
+    try {
+        bool result = task->ports->createConnection(StringValuePtr(port_name),
+                corba->getDataFlowInterface(), local_name.c_str(),
+                policyFromHash(policy));
+        if (!result)
+        {
+            corba->removePort(local_port);
+            rb_raise(rb_eArgError, "failed to connect specified ports");
+        }
+    }
+    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
+    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+
+    // Finally, wrap the new port in a Ruby object
+    VALUE robj = Data_Wrap_Struct(cOutputReader, 0, delete_port, local_port);
+    rb_iv_set(robj, "@port", port);
+    return robj;
 }
 
 /* call-seq:
@@ -281,11 +374,11 @@ static VALUE task_context_stop(VALUE task)
  */
 static VALUE port_connected_p(VALUE self)
 {
-    RTaskContext* task; string name;
-    tie(task, name) = getPortReference(self);
+    RTaskContext* task; VALUE name;
+    tie(task, tuples::ignore, name) = getPortReference(self);
 
     try
-    { return task->ports->isConnected(name.c_str()) ? Qtrue : Qfalse; }
+    { return task->ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse; }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // is refined on the Ruby side
     catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
     catch(CORBA::Exception&)
@@ -337,17 +430,17 @@ static RTT::Corba::ConnPolicy policyFromHash(VALUE options)
  */
 static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE options)
 {
-    RTaskContext* out_task; string out_name;
-    tie(out_task, out_name) = getPortReference(routput_port);
-    RTaskContext* in_task; string in_name;
-    tie(in_task, in_name) = getPortReference(rinput_port);
+    RTaskContext* out_task; VALUE out_name;
+    tie(out_task, tuples::ignore, out_name) = getPortReference(routput_port);
+    RTaskContext* in_task; VALUE in_name;
+    tie(in_task, tuples::ignore, in_name) = getPortReference(rinput_port);
 
     RTT::Corba::ConnPolicy policy = policyFromHash(options);
 
     try
     {
-        out_task->ports->createConnection(out_name.c_str(),
-                in_task->ports, in_name.c_str(),
+        out_task->ports->createConnection(StringValuePtr(out_name),
+                in_task->ports, StringValuePtr(in_name),
                 policy);
         return Qnil;
     }
@@ -359,12 +452,12 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
 
 static VALUE do_port_disconnect_all(VALUE port)
 {
-    RTaskContext* task; string name;
-    tie(task, name) = getPortReference(port);
+    RTaskContext* task; VALUE name;
+    tie(task, tuples::ignore, name) = getPortReference(port);
 
     try
     {
-        task->ports->disconnect(name.c_str());
+        task->ports->disconnect(StringValuePtr(name));
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
@@ -375,20 +468,52 @@ static VALUE do_port_disconnect_all(VALUE port)
 
 static VALUE do_port_disconnect_from(VALUE self, VALUE other)
 {
-    RTaskContext* self_task; string self_name;
-    tie(self_task, self_name) = getPortReference(self);
-    RTaskContext* other_task; string other_name;
-    tie(other_task, other_name) = getPortReference(other);
+    RTaskContext* self_task; VALUE self_name;
+    tie(self_task, tuples::ignore, self_name) = getPortReference(self);
+    RTaskContext* other_task; VALUE other_name;
+    tie(other_task, tuples::ignore, other_name) = getPortReference(other);
 
     try
     {
-        self_task->ports->disconnectPort(self_name.c_str(), other_task->ports, other_name.c_str());
+        self_task->ports->disconnectPort(StringValuePtr(self_name), other_task->ports, StringValuePtr(other_name));
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
     catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); }
     catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
     return Qnil; // never reached
+}
+
+static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_typelib_value)
+{
+    RTT::InputPortInterface& local_port = get_wrapped<RTT::InputPortInterface>(port_access);
+    Typelib::Value value = typelib_get(rb_typelib_value);
+    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+
+    RTT::DataSourceBase::shared_ptr ds =
+        ti->buildReference(value.getData());
+    return local_port.read(ds) ? Qtrue : Qfalse;
+}
+static VALUE output_reader_clear(VALUE port_access)
+{
+    RTT::InputPortInterface& local_port = get_wrapped<RTT::InputPortInterface>(port_access);
+    local_port.clear();
+    return Qnil;
+}
+
+static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_typelib_value)
+{
+    RTT::OutputPortInterface& local_port = get_wrapped<RTT::OutputPortInterface>(port_access);
+    Typelib::Value value = typelib_get(rb_typelib_value);
+    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+
+    RTT::DataSourceBase::shared_ptr ds =
+        ti->buildReference(value.getData());
+    if (!local_port.connected())
+        rb_raise(rb_eArgError, "writing on a disconnected port");
+
+    local_port.write(ds);
+    return Qnil;
 }
 
 /* Document-class: Orocos::TaskContext
@@ -436,6 +561,9 @@ extern "C" void Init_rorocos_ext()
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
     cOutputPort   = rb_define_class_under(mOrocos, "OutputPort", cPort);
     cInputPort    = rb_define_class_under(mOrocos, "InputPort", cPort);
+    cPortAccess   = rb_define_class_under(mOrocos, "PortAccess", rb_cObject);
+    cOutputReader = rb_define_class_under(mOrocos, "OutputReader", cPortAccess);
+    cInputWriter  = rb_define_class_under(mOrocos, "InputWriter", cPortAccess);
     cAttribute    = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound     = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
 
@@ -453,9 +581,16 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
 
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
-    rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);
     rb_define_method(cPort, "do_disconnect_all", RUBY_METHOD_FUNC(do_port_disconnect_all), 0);
+
+    rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
+    rb_define_method(cOutputPort, "do_reader", RUBY_METHOD_FUNC(do_output_port_reader), 2);
+    rb_define_method(cOutputReader, "do_read", RUBY_METHOD_FUNC(do_output_reader_read), 2);
+    rb_define_method(cOutputReader, "clear", RUBY_METHOD_FUNC(output_reader_clear), 0);
+
+    rb_define_method(cInputPort, "do_writer", RUBY_METHOD_FUNC(do_input_port_writer), 2);
+    rb_define_method(cInputWriter, "do_write", RUBY_METHOD_FUNC(do_input_writer_write), 2);
 
     // load the default toolkit and the CORBA transport
     RTT::Toolkit::Import(RTT::RealTimeToolkit);

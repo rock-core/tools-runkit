@@ -4,6 +4,7 @@
 #include "ControlTaskC.h"
 #include "DataFlowC.h"
 #include "corba.hh"
+#include <boost/tuple/tuple.hpp>
 
 extern VALUE eNotFound;
 
@@ -23,6 +24,13 @@ struct RAttribute
 {
     RTT::Corba::Expression_var expr;
 };
+
+namespace RTT
+{
+    class TypeInfo;
+}
+extern RTT::TypeInfo* get_type_info(std::string const& name);
+extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
 
 namespace
 {

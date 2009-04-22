@@ -1,10 +1,15 @@
 #include "rorocos.hh"
 #include <list>
 #include <typeinfo>
-#include <rtt/corba/CorbaLib.hpp>
 #include <rtt/Types.hpp>
+
+#include <rtt/corba/CorbaLib.hpp>
+#include <rtt/corba/ControlTaskProxy.hpp>
+#include <rtt/corba/ControlTaskServer.hpp>
+#include <boost/lexical_cast.hpp>
 using namespace CORBA;
 using namespace std;
+using namespace boost;
 
 VALUE mCORBA;
 VALUE eCORBA;
@@ -15,27 +20,71 @@ extern VALUE eNotFound;
 CORBA::ORB_var               CorbaAccess::orb;
 CosNaming::NamingContext_var CorbaAccess::rootContext;
 
-CorbaAccess::CorbaAccess(int argc, char** argv)
+CorbaAccess* CorbaAccess::the_instance;
+void CorbaAccess::init(int argc, char* argv[])
 {
-    // First initialize the ORB, that will remove some arguments...
-    orb = CORBA::ORB_init (argc, const_cast<char**>(argv), "omniORB4");
-    if (CORBA::is_nil(orb))
-        rb_raise(eCORBA, "failed to initialize the ORB");
+    if (the_instance)
+        return;
+    the_instance = new CorbaAccess(argc, argv);
+}
+void CorbaAccess::deinit()
+{
+    delete the_instance;
+    the_instance = NULL;
+}
 
+CorbaAccess::CorbaAccess(int argc, char* argv[])
+{
+    // First initialize the ORB. We use ControlTaskProxy::InitORB as we will
+    // have to create a servant for our local DataFlowInterface object.
+    RTT::Corba::ControlTaskProxy::InitOrb(argc, argv);
+    orb = RTT::Corba::ApplicationServer::orb;
+
+    // Now, get the name service once and for all
     CORBA::Object_var rootObj = orb->resolve_initial_references("NameService");
     rootContext = CosNaming::NamingContext::_narrow(rootObj.in());
     if (CORBA::is_nil(rootContext))
         rb_raise(eCORBA, "cannot find CORBA naming service");
+
+    // Finally, create a dataflow interface and export it to CORBA. This is
+    // needed to use the port interface. Since we're lazy, we just create a
+    // normal TaskContext and use ControlTaskProxy to create the necessary
+    // interfaces.
+    m_task   = new RTT::TaskContext("__orocos_rb__");
+    m_task_server = RTT::Corba::ControlTaskServer::Create(m_task, false);
+    RTT::Corba::ControlTask_var corba_ref = m_task_server->server();
+    m_corba_dataflow = corba_ref->ports();
 }
 
 CorbaAccess::~CorbaAccess()
 {
+    m_corba_dataflow = RTT::Corba::DataFlowInterface::_nil();
+    delete m_task_server;
+    delete m_task;
+
     orb->shutdown(true);
     orb->destroy();
 }
 
-CORBA::ORB_var               CorbaAccess::getOrb() { return orb; }
-CosNaming::NamingContext_var CorbaAccess::getRootContext() { return rootContext; }
+RTT::Corba::DataFlowInterface_ptr CorbaAccess::getDataFlowInterface() const
+{ return m_corba_dataflow.in(); }
+
+string CorbaAccess::getLocalPortName(VALUE port)
+{
+    RTaskContext* task; VALUE task_name, port_name;
+    tie(task, task_name, port_name) = getPortReference(port);
+    return std::string(StringValuePtr(task_name)) + "/" + StringValuePtr(port_name) + "/" + boost::lexical_cast<string>(++port_id_counter);
+}
+
+void CorbaAccess::addPort(RTT::PortInterface* local_port)
+{
+    m_task->ports()->addPort(local_port);
+}
+
+void CorbaAccess::removePort(RTT::PortInterface* local_port)
+{
+    m_task->ports()->removePort(local_port->getName());
+}
 
 list<string> CorbaAccess::knownTasks()
 {
@@ -112,7 +161,7 @@ void CorbaAccess::unbind(std::string const& name)
 static VALUE corba_unregister(VALUE mod, VALUE name)
 {
     string task_name = StringValuePtr(name);
-    CorbaAccess::unbind(task_name);
+    CorbaAccess::instance()->unbind(task_name);
     return Qnil;
 }
 
@@ -128,6 +177,10 @@ static VALUE corba_set_connect_timeout(VALUE mod, VALUE duration)
     return Qnil;
 }
 
+static void corba_deinit(void*)
+{
+//    CorbaAccess::deinit();
+}
 /* call-seq:
  *   Orocos::CORBA.init => true or false
  *
@@ -145,7 +198,8 @@ static VALUE corba_init(VALUE mod)
         return Qfalse;
 
     char const* argv[2] = { "bla", 0 };
-    corba_access = Data_Wrap_Struct(rb_cObject, 0, delete_object<CorbaAccess>, new CorbaAccess(1, (char**)argv));
+    CorbaAccess::init(1, const_cast<char**>(argv));
+    corba_access = Data_Wrap_Struct(rb_cObject, 0, corba_deinit, CorbaAccess::instance());
     rb_iv_set(mCORBA, "@corba", corba_access);
     return Qtrue;
 }
