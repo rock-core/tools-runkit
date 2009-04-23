@@ -12,6 +12,10 @@ describe Orocos::Port do
 
     include Orocos::Spec
 
+    it "should not be possible to create an instance directly" do
+	assert_raises(NoMethodError) { Orocos::Port.new }
+    end
+
     it "should check equality based on CORBA reference" do
         start_processes('simple_source') do |source|
             source = source.task("source")
@@ -33,6 +37,10 @@ describe Orocos::OutputPort do
     ComError = Orocos::CORBA::ComError
 
     include Orocos::Spec
+
+    it "should not be possible to create an instance directly" do
+	assert_raises(NoMethodError) { Orocos::OutputPort.new }
+    end
 
     it "should be able to connect to an input" do
         start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
@@ -136,6 +144,10 @@ describe Orocos::InputPort do
 
     include Orocos::Spec
 
+    it "should not be possible to create an instance directly" do
+	assert_raises(NoMethodError) { Orocos::InputPort.new }
+    end
+
     it "should be able to disconnect from all connected outputs" do
         start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
@@ -180,6 +192,10 @@ describe Orocos::OutputReader do
     WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
     include Orocos::Spec
+
+    it "should not be possible to create an instance directly" do
+	assert_raises(NoMethodError) { Orocos::OutputReader.new }
+    end
 
     it "should offer read access on an output port" do
         start_processes('simple_source') do |source|
@@ -251,6 +267,10 @@ describe Orocos::InputWriter do
     WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
     include Orocos::Spec
+
+    it "should not be possible to create an instance directly" do
+	assert_raises(NoMethodError) { Orocos::InputWriter.new }
+    end
 
     it "should offer write access on an input port" do
         start_processes('echo') do |echo|

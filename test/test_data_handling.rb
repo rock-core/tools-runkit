@@ -12,6 +12,10 @@ describe "data convertions between CORBA and Ruby" do
 
     include Orocos::Spec
 
+    it "should not be possible to create an Attribute instance directly" do
+	assert_raises(NoMethodError) { Orocos::Attribute.new }
+    end
+
     it "should be able to read property values from a simple type" do
         start_processes('process') do |process|
             prop = process.task('Test').attribute('prop2')

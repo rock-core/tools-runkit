@@ -2,6 +2,12 @@ require 'utilrb/kernel/options'
 
 module Orocos
     class Port
+	class << self
+	    # The only way to create a Port object (and its derivatives) is
+	    # TaskContext#port
+	    private :new
+	end
+
         # The task this port is part of
         attr_reader :task
         # The port name
@@ -109,6 +115,11 @@ module Orocos
     end
 
     class OutputReader
+	class << self
+	    # The only way to create an OutputReader object is OutputPort#reader
+	    private :new
+	end
+
         # The OutputPort object this reader is linked to
         attr_reader :port
 
@@ -121,6 +132,11 @@ module Orocos
     end
 
     class InputWriter
+	class << self
+	    # The only way to create an InputWriter object is InputPort#writer
+	    private :new
+	end
+
         # The InputPort object this writer is linked to
         attr_reader :port
 

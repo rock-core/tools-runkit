@@ -12,6 +12,10 @@ describe Orocos::TaskContext do
 
     include Orocos::Spec
 
+    it "should not be possible to create one directly" do
+	assert_raises(NoMethodError) { Orocos::TaskContext.new }
+    end
+
     it "should raise NotFound on unknown task contexts" do
 	assert_raises(Orocos::NotFound) { Orocos::TaskContext.get('Bla_Blo') }
     end

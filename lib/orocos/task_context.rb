@@ -2,6 +2,12 @@ require 'utilrb/object/attribute'
 
 module Orocos
     class Attribute
+	class << self
+	    # The only way to create an Attribute object is
+	    # TaskContext#attribute
+	    private :new
+	end
+
         attr_reader :task
         attr_reader :name
         attr_reader :type
@@ -42,6 +48,11 @@ module Orocos
         def initialize
             @ports ||= Hash.new
         end
+
+	class << self
+	    # The only way to create TaskContext is TaskContext.get
+	    private :new
+	end
 
         # Returns true if the task is in a state where code is executed. This
         # includes of course the running state, but also runtime error states.
