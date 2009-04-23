@@ -75,22 +75,17 @@ static VALUE orocos_task_names(VALUE mod)
  */
 static VALUE task_context_get(VALUE klass, VALUE name)
 {
-    try {
-        std::auto_ptr<RTaskContext> new_context( new RTaskContext );
-        new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
-        new_context->ports      = new_context->task->ports();
-        new_context->attributes = new_context->task->attributes();
-        new_context->methods    = new_context->task->methods();
-        new_context->commands   = new_context->task->commands();
+    std::auto_ptr<RTaskContext> new_context( new RTaskContext );
+    new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
+    new_context->ports      = new_context->task->ports();
+    new_context->attributes = new_context->task->attributes();
+    new_context->methods    = new_context->task->methods();
+    new_context->commands   = new_context->task->commands();
 
-        VALUE obj = simple_wrap(cTaskContext, new_context.release());
-        rb_funcall(obj, rb_intern("initialize"), 0);
-        rb_iv_set(obj, "@name", rb_str_dup(name));
-        return obj;
-    }
-    catch(...) {
-        rb_raise(eNotFound, "task context '%s' not found", StringValuePtr(name));
-    }
+    VALUE obj = simple_wrap(cTaskContext, new_context.release());
+    rb_funcall(obj, rb_intern("initialize"), 0);
+    rb_iv_set(obj, "@name", rb_str_dup(name));
+    return obj;
 }
 
 static VALUE task_context_equal_p(VALUE self, VALUE other)
@@ -567,7 +562,7 @@ extern "C" void Init_rorocos_ext()
     eNotFound     = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
-    rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
+    rb_define_singleton_method(cTaskContext, "do_get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);

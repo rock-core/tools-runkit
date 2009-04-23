@@ -54,6 +54,16 @@ module Orocos
 	    private :new
 	end
 
+	# Returns the TaskContext instance representing the remote task context
+	# with the given name. Raises Orocos::NotFound if the task name does
+	# not exist.
+	def self.get(name)
+	    name = name.to_s
+	    CORBA.refine_exceptions("naming service") do
+		do_get(name)
+	    end
+	end
+
         # Returns true if the task is in a state where code is executed. This
         # includes of course the running state, but also runtime error states.
         def running?; RUNNING_STATES[state] end
