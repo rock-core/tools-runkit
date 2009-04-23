@@ -92,6 +92,12 @@ module Orocos
             end
         end
 
+        def rtt_method(name)
+            CORBA.refine_exceptions(self) do
+                do_rtt_method(name.to_s)
+            end
+        end
+
         def pretty_print(pp)
             states_description = TaskContext.constants.grep(/^STATE_/).
                 inject([]) do |map, name|

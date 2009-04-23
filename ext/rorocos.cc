@@ -598,5 +598,6 @@ extern "C" void Init_rorocos_ext()
 
     Orocos_init_CORBA();
     Orocos_init_data_handling();
+    Orocos_init_methods();
 }
 

@@ -3,8 +3,15 @@
 using namespace echo;
 
 Echo::Echo(std::string const& name, TaskCore::TaskState initial_state)
-    : EchoBase(name, initial_state) {}
+    : EchoBase(name, initial_state)
+{
+}
 
+int Echo::write(int value)
+{
+    _output.write(value);
+    return value;
+}
 
 
 
@@ -15,8 +22,14 @@ Echo::Echo(std::string const& name, TaskCore::TaskState initial_state)
 // hooks defined by Orocos::RTT. See Echo.hpp for more detailed
 // documentation about them.
 
-// bool Echo::configureHook() { return true; }
-// bool Echo::startHook() { return true; }
+// bool Echo::configureHook()
+// {
+//     return true;
+// }
+// bool Echo::startHook()
+// {
+//     return true;
+// }
 
 void Echo::updateHook(std::vector<RTT::PortInterface*> const& updated_ports)
 {
@@ -26,7 +39,13 @@ void Echo::updateHook(std::vector<RTT::PortInterface*> const& updated_ports)
 
 }
 
-// void Echo::errorHook() {}
-// void Echo::stopHook() {}
-// void Echo::cleanupHook() {}
+// void Echo::errorHook()
+// {
+// }
+// void Echo::stopHook()
+// {
+// }
+// void Echo::cleanupHook()
+// {
+// }
 

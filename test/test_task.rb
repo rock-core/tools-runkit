@@ -68,6 +68,32 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should allow getting a method object" do
+        start_processes 'echo' do |echo|
+            echo = echo.task('Echo')
+            m = echo.rtt_method(:write)
+            assert_equal "write", m.name
+            assert_equal "write_method", m.description
+            assert_equal "int", m.return_spec
+            assert_equal [["value", "value_arg", "int"]], m.arguments_spec
+        end
+    end
+
+    it "should raise NotFound on an unknown method object" do
+        start_processes 'echo' do |echo|
+            echo = echo.task('Echo')
+            assert_raises(Orocos::NotFound) { echo.rtt_method(:unknown) }
+        end
+    end
+
+    it "should raise CORBA::ComError when #rtt_method has communication errors" do
+        start_processes 'echo' do |echo_p|
+            echo = echo_p.task('Echo')
+            echo_p.kill
+            assert_raises(Orocos::CORBA::ComError) { echo.rtt_method(:write) }
+        end
+    end
+
     it "should be able to manipulate the task state machine and read its state" do
         start_processes('simple_source') do |source|
             source = source.task("source")

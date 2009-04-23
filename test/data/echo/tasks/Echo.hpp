@@ -9,6 +9,7 @@ namespace echo {
 	friend class EchoBase;
     protected:
     
+	int write(int value);
     
 
     public:

@@ -83,7 +83,7 @@ ENDMACRO(OMNIORB)
 
 OMNIORB()
 ADD_RUBY_EXTENSION(rorocos_ext 
-    rorocos.cc corba.cc datahandling.cc ${ORB_IDL_FILES})
+    rorocos.cc corba.cc datahandling.cc methods.cc ${ORB_IDL_FILES})
 TARGET_LINK_LIBRARIES(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
     ${RTT_CORBA_LIBRARIES} ${TYPELIB_LIBRARIES})
 

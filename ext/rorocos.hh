@@ -42,6 +42,18 @@ namespace
         return *reinterpret_cast<T*>(object);
     }
     template<typename T>
+    T& get_iv(VALUE self, char const* name)
+    {
+        VALUE iv = rb_iv_get(self, name);
+        return get_wrapped<T>(iv);
+    }
+    std::string get_str_iv(VALUE self, char const* name)
+    {
+        VALUE iv = rb_iv_get(self, name);
+        return StringValuePtr(iv);
+    }
+
+    template<typename T>
     void delete_object(void* obj) { delete( (T*)obj ); }
     template<typename T>
     VALUE simple_wrap(VALUE klass, T* obj = 0)

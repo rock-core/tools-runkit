@@ -11,6 +11,7 @@
 #include <stack>
 #include <list>
 #include <ruby.h>
+#include <typelib_ruby.hh>
 
 using namespace std;
 
@@ -85,6 +86,8 @@ public:
      */
     void unbind(std::string const& name);
 };
+extern VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::Any& src);
+extern CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src);
 
 #define CORBA_EXCEPTION_HANDLERS \
     catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, ""); } \
