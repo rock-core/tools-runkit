@@ -56,7 +56,9 @@ module Orocos
 
     private
         def refine_exceptions(other = nil)
-            yield
+            CORBA.refine_exceptions(self, other) do
+                yield
+            end
 
         rescue NotFound
             if !other || task.has_task?(name)
@@ -64,25 +66,10 @@ module Orocos
             else
                 raise CORBA::NotFound, "port '#{other.name}' disappeared from task '#{other.task.name}'"
             end
-
-        rescue CORBA::ConnError
-            if !other || task.try_connect
-                raise CORBA::ConnError, "cannot connect to task '#{task.name}' anymore"
-            else
-                raise CORBA::ConnError, "cannot connect to task '#{other.task.name}' anymore"
-            end
         end
     end
 
     class InputPort
-        def disconnect_from(output)
-            if output.kind_of?(InputPort)
-                raise ArgumentError, "expected an OutputPort, got #{output}"
-            end
-            output.disconnect_from(self)
-            self
-        end
-
         def writer(policy = Hash.new)
             do_writer(@type_name, validate_policy(policy))
         end

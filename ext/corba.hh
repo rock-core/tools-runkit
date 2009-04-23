@@ -17,9 +17,7 @@ using namespace std;
 extern VALUE mCORBA;
 extern VALUE corba_access;
 extern VALUE eCORBA;
-extern VALUE eConn;
-extern void Orocos_CORBA_init();
-
+extern VALUE eComError;
 namespace RTT
 {
     class TaskContext;
@@ -87,6 +85,11 @@ public:
      */
     void unbind(std::string const& name);
 };
+
+#define CORBA_EXCEPTION_HANDLERS \
+    catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, ""); } \
+    catch(CORBA::TRANSIENT&) { rb_raise(eComError, ""); } \
+    catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
 
 #endif
 

@@ -51,8 +51,7 @@ static VALUE attribute_do_read(VALUE attr, VALUE type_name, VALUE rb_typelib_val
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); }
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
 }
 
 static VALUE attribute_do_write(VALUE attr, VALUE type_name, VALUE rb_typelib_value)
@@ -68,11 +67,10 @@ static VALUE attribute_do_write(VALUE attr, VALUE type_name, VALUE rb_typelib_va
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); }
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
 }
 
-void Orocos_data_handling()
+void Orocos_init_data_handling()
 {
     // Unfortunately, we must redefine this here to make RDoc happy
     VALUE mOrocos    = rb_define_module("Orocos");

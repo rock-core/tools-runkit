@@ -26,7 +26,9 @@ static VALUE cPort;
 static VALUE cAttribute;
 VALUE eNotFound;
 
-extern void Orocos_data_handling();
+extern void Orocos_init_CORBA();
+extern void Orocos_init_data_handling();
+extern void Orocos_init_methods();
 static RTT::Corba::ConnPolicy policyFromHash(VALUE options);
 
 extern RTT::TypeInfo* get_type_info(std::string const& name)
@@ -113,8 +115,8 @@ static VALUE task_context_has_port_p(VALUE self, VALUE name)
     try {
         context.ports->getPortType(StringValuePtr(name));
     }
-    catch(RTT::Corba::NoSuchPortException)
-    { return Qfalse; }
+    catch(RTT::Corba::NoSuchPortException) { return Qfalse; }
+    CORBA_EXCEPTION_HANDLERS
     return Qtrue;
 }
 
@@ -129,8 +131,10 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     RTT::Corba::PortType port_type;
+    CORBA::String_var    type_name;
     try {
-        port_type      = context.ports->getPortType(StringValuePtr(name));
+        port_type = context.ports->getPortType(StringValuePtr(name));
+        type_name = context.ports->getDataType(StringValuePtr(name));
     }
     catch(RTT::Corba::NoSuchPortException)
     { 
@@ -139,6 +143,7 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
                 StringValuePtr(task_name),
                 StringValuePtr(name));
     }
+    CORBA_EXCEPTION_HANDLERS
 
     VALUE obj = Qnil;
     if (port_type == RTT::Corba::Input)
@@ -154,8 +159,7 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
 
     rb_iv_set(obj, "@name", rb_str_dup(name));
     rb_iv_set(obj, "@task", self);
-    VALUE type_name = rb_str_new2(context.ports->getDataType( StringValuePtr(name) ));
-    rb_iv_set(obj, "@type_name", type_name);
+    rb_iv_set(obj, "@type_name", rb_str_new2(type_name));
     rb_funcall(obj, rb_intern("initialize"), 0);
     return obj;
 }
@@ -209,8 +213,7 @@ static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
             rb_raise(rb_eArgError, "failed to connect specified ports");
         }
     }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
 
     // Finally, wrap the new port in a Ruby object
     VALUE robj = Data_Wrap_Struct(cInputWriter, 0, delete_port, local_port);
@@ -243,8 +246,7 @@ static VALUE do_output_port_reader(VALUE port, VALUE type_name, VALUE policy)
             rb_raise(rb_eArgError, "failed to connect specified ports");
         }
     }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
 
     // Finally, wrap the new port in a Ruby object
     VALUE robj = Data_Wrap_Struct(cOutputReader, 0, delete_port, local_port);
@@ -322,7 +324,8 @@ static VALUE task_context_each_attribute(VALUE self)
 static VALUE task_context_state(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
-    return INT2FIX(context.task->getTaskState());
+    try { return INT2FIX(context.task->getTaskState()); }
+    CORBA_EXCEPTION_HANDLERS
 }
 
 /* call-seq:
@@ -335,8 +338,7 @@ static VALUE task_context_configure(VALUE task)
     RTaskContext& context = get_wrapped<RTaskContext>(task);
     try
     { return context.task->configure() ? Qtrue : Qfalse; }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
 }
 
 /* call-seq:
@@ -349,8 +351,7 @@ static VALUE task_context_start(VALUE task)
     RTaskContext& context = get_wrapped<RTaskContext>(task);
     try
     { return context.task->start() ? Qtrue : Qfalse; }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
 }
 
 /* call-seq:
@@ -363,8 +364,7 @@ static VALUE task_context_stop(VALUE task)
     RTaskContext& context = get_wrapped<RTaskContext>(task);
     try
     { return context.task->stop() ? Qtrue : Qfalse; }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
 }
 
 /* call-seq:
@@ -380,9 +380,7 @@ static VALUE port_connected_p(VALUE self)
     try
     { return task->ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse; }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // is refined on the Ruby side
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // is refined on the Ruby side
-    catch(CORBA::Exception&)
-    { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
 
@@ -445,8 +443,7 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // should be refined on the Ruby side
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); } // should be refined on the Ruby side
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
 
@@ -461,8 +458,7 @@ static VALUE do_port_disconnect_all(VALUE port)
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); }
-    catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
+    CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
 
@@ -479,8 +475,7 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
-    catch(CORBA::TRANSIENT&) { rb_raise(eConn, ""); }
-    catch(CORBA::Exception&) { rb_raise(eCORBA, "unspecified error in the CORBA layer"); }
+    CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
 
@@ -509,11 +504,15 @@ static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_
 
     RTT::DataSourceBase::shared_ptr ds =
         ti->buildReference(value.getData());
-    if (!local_port.connected())
-        rb_raise(rb_eArgError, "writing on a disconnected port");
 
     local_port.write(ds);
-    return Qnil;
+    return local_port.connected() ? Qtrue : Qfalse;
+}
+
+static VALUE do_input_writer_connected(VALUE port_access)
+{
+    RTT::OutputPortInterface& local_port = get_wrapped<RTT::OutputPortInterface>(port_access);
+    return local_port.connected() ? Qtrue : Qfalse;
 }
 
 /* Document-class: Orocos::TaskContext
@@ -570,14 +569,14 @@ extern "C" void Init_rorocos_ext()
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
     rb_define_singleton_method(cTaskContext, "get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
-    rb_define_method(cTaskContext, "state", RUBY_METHOD_FUNC(task_context_state), 0);
-    rb_define_method(cTaskContext, "configure", RUBY_METHOD_FUNC(task_context_configure), 0);
-    rb_define_method(cTaskContext, "start", RUBY_METHOD_FUNC(task_context_start), 0);
-    rb_define_method(cTaskContext, "stop", RUBY_METHOD_FUNC(task_context_stop), 0);
-    rb_define_method(cTaskContext, "has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
+    rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);
+    rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);
+    rb_define_method(cTaskContext, "do_start", RUBY_METHOD_FUNC(task_context_start), 0);
+    rb_define_method(cTaskContext, "do_stop", RUBY_METHOD_FUNC(task_context_stop), 0);
+    rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
-    rb_define_method(cTaskContext, "attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
+    rb_define_method(cTaskContext, "do_attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
     rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
 
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
@@ -591,12 +590,13 @@ extern "C" void Init_rorocos_ext()
 
     rb_define_method(cInputPort, "do_writer", RUBY_METHOD_FUNC(do_input_port_writer), 2);
     rb_define_method(cInputWriter, "do_write", RUBY_METHOD_FUNC(do_input_writer_write), 2);
+    rb_define_method(cInputWriter, "connected?", RUBY_METHOD_FUNC(do_input_writer_connected), 0);
 
     // load the default toolkit and the CORBA transport
     RTT::Toolkit::Import(RTT::RealTimeToolkit);
     loadCorbaLib();
 
-    Orocos_CORBA_init();
-    Orocos_data_handling();
+    Orocos_init_CORBA();
+    Orocos_init_data_handling();
 }
 

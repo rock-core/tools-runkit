@@ -60,6 +60,14 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should raise CORBA::ComError when #port is called on a dead remote process" do
+        start_processes('simple_source') do |source_p|
+            source = source_p.task("source")
+            source_p.kill
+            assert_raises(Orocos::CORBA::ComError) { source.port("cycle") }
+        end
+    end
+
     it "should be able to manipulate the task state machine and read its state" do
         start_processes('simple_source') do |source|
             source = source.task("source")
@@ -82,6 +90,17 @@ describe Orocos::TaskContext do
             assert_equal(Orocos::TaskContext::STATE_STOPPED, source.state)
             assert(source.ready?)
             assert(!source.running?)
+        end
+    end
+
+    it "should raise CORBA::ComError when state-related methods are called on a dead process" do
+        start_processes('simple_source') do |source_p|
+            source = source_p.task("source")
+            source_p.kill
+            assert_raises(Orocos::CORBA::ComError) { source.state }
+            #assert_raises(Orocos::CORBA::ComError) { source.start }
+            #assert_raises(Orocos::CORBA::ComError) { source.stop }
+            #assert_raises(Orocos::CORBA::ComError) { source.configure }
         end
     end
 end

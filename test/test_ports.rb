@@ -30,6 +30,8 @@ describe Orocos::OutputPort do
     DATA_DIR = File.join(TEST_DIR, 'data')
     WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+    ComError = Orocos::CORBA::ComError
+
     include Orocos::Spec
 
     it "should be able to connect to an input" do
@@ -42,6 +44,24 @@ describe Orocos::OutputPort do
             source.connect_to sink
             assert(sink.connected?)
             assert(source.connected?)
+        end
+    end
+
+    it "should raise CORBA::ComError when connected to a dead input" do
+        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+            source = p_source.task("source").port("cycle")
+            sink   = p_sink.task("sink").port("cycle")
+            p_sink.kill
+            assert_raises(ComError) { source.connect_to sink }
+        end
+    end
+
+    it "should raise CORBA::ComError when #connect_to is called on a dead process" do
+        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+            source = p_source.task("source").port("cycle")
+            sink   = p_sink.task("sink").port("cycle")
+            p_source.kill
+            assert_raises(ComError) { source.connect_to sink }
         end
     end
 
@@ -59,6 +79,19 @@ describe Orocos::OutputPort do
         end
     end
 
+    it "it should be able to disconnect from a dead input" do
+        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+            source = p_source.task("source").port("cycle")
+            sink   = p_sink.task("sink").port("cycle")
+            source.connect_to sink
+            assert(source.connected?)
+            p_sink.kill
+            assert(source.connected?)
+            source.disconnect_from sink
+            assert(!source.connected?)
+        end
+    end
+
     it "should be able to disconnect from all its InputPort" do
         start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
@@ -69,6 +102,19 @@ describe Orocos::OutputPort do
             assert(source.connected?)
             source.disconnect_all
             assert(!sink.connected?)
+            assert(!source.connected?)
+        end
+    end
+
+    it "it should be able to disconnect all inputs even though some are dead" do
+        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+            source = p_source.task("source").port("cycle")
+            sink   = p_sink.task("sink").port("cycle")
+            source.connect_to sink
+            assert(source.connected?)
+            p_sink.kill
+            assert(source.connected?)
+            source.disconnect_all
             assert(!source.connected?)
         end
     end
@@ -90,20 +136,6 @@ describe Orocos::InputPort do
 
     include Orocos::Spec
 
-    it "should be able to disconnect from a particular output" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
-            source = p_source.task("source").port("cycle")
-            sink   = p_sink.task("sink").port("cycle")
-
-            source.connect_to sink
-            assert(sink.connected?)
-            assert(source.connected?)
-            sink.disconnect_from source
-            assert(!sink.connected?)
-            assert(!source.connected?)
-        end
-    end
-
     it "should be able to disconnect from all connected outputs" do
         start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
@@ -115,6 +147,20 @@ describe Orocos::InputPort do
             sink.disconnect_all
             assert(!sink.connected?)
             assert(!source.connected?)
+        end
+    end
+
+    it "should be able to disconnect from all connected outputs even though some are dead" do
+        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+            source = p_source.task("source").port("cycle")
+            sink   = p_sink.task("sink").port("cycle")
+
+            source.connect_to sink
+            assert(sink.connected?)
+            p_source.kill
+            assert(sink.connected?)
+            sink.disconnect_all
+            assert(!sink.connected?)
         end
     end
 
@@ -138,7 +184,6 @@ describe Orocos::OutputReader do
     it "should offer read access on an output port" do
         start_processes('simple_source') do |source|
             source = source.task('source')
-
             output = source.port('cycle')
             
             # Create a new reader. The default policy is data
@@ -215,6 +260,18 @@ describe Orocos::InputWriter do
             writer = input.writer
             assert(writer.kind_of?(Orocos::InputWriter))
             writer.write(0)
+        end
+    end
+
+    it "should be disconnected after writing on a dead port" do
+        start_processes('echo') do |echo_p|
+            echo  = echo_p.task('Echo')
+            input = echo.port('input')
+            
+            writer = input.writer
+            echo_p.kill
+            assert(!writer.write(0))
+            assert(!writer.connected?)
         end
     end
 

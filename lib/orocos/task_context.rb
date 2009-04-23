@@ -49,17 +49,46 @@ module Orocos
         # Returns true if the task has been configured.
         def ready?;   state != STATE_PRE_OPERATIONAL end
 
+        def self.corba_wrap(m, *args)
+            class_eval <<-EOD
+            def #{m}(#{args.join(". ")})
+                CORBA.refine_exceptions(self) { do_#{m}(#{args.join(", ")}) }
+            end
+            EOD
+        end
+
+        corba_wrap :state
+        corba_wrap :start
+        corba_wrap :stop
+        corba_wrap :configure
+
+        def has_port?(name)
+            name = name.to_s
+            CORBA.refine_exceptions(self) do
+                do_has_port?(name)
+            end
+        end
+
+        def attribute(name)
+            name = name.to_s
+            CORBA.refine_exceptions(self) do
+                do_attribute(name)
+            end
+        end
+
         def port(name)
             name = name.to_str
-            if @ports[name]
-                if has_port?(name) # Check that this port is still valid
-                    @ports[name]
+            CORBA.refine_exceptions(self) do
+                if @ports[name]
+                    if has_port?(name) # Check that this port is still valid
+                        @ports[name]
+                    else
+                        @ports.delete(name)
+                        raise NotFound, "no port named '#{name}' on task '#{self.name}'"
+                    end
                 else
-                    @ports.delete(name)
-                    raise NotFound, "no port named '#{name}' on task '#{self.name}'"
+                    @ports[name] = do_port(name)
                 end
-            else
-                @ports[name] = do_port(name)
             end
         end
 

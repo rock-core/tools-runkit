@@ -85,6 +85,17 @@ module Orocos
 
             nil
         end
+
+        def self.refine_exceptions(obj0, obj1 = nil)
+            yield
+
+        rescue ComError
+            if !obj1
+                raise ComError, "communication failed with #{obj0}"
+            else
+                raise ComError, "communication failed with either #{obj0} or #{obj1}"
+            end
+        end
     end
 end
 

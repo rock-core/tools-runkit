@@ -13,7 +13,7 @@ using namespace boost;
 
 VALUE mCORBA;
 VALUE eCORBA;
-VALUE eConn;
+VALUE eComError;
 VALUE corba_access = Qnil;
 extern VALUE eNotFound;
 
@@ -110,9 +110,7 @@ list<string> CorbaAccess::knownTasks()
                 names.push_back(list[i].binding_name[0].id.in());
         }
     }
-    catch(CosNaming::NamingContext::NotFound) { }
-    catch(CORBA::Exception& e)
-    { rb_raise(eCORBA, "error talking to the CORBA name server: %s", typeid(e).name()); }
+    CORBA_EXCEPTION_HANDLERS 
 
     return names;
 }
@@ -129,10 +127,7 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
     try { task_object = rootContext->resolve(serverName); }
     catch(CosNaming::NamingContext::NotFound&)
     { rb_raise(eNotFound, "task context '%s' does not exist", name.c_str()); }
-    catch (CORBA::TRANSIENT &e)
-    { rb_raise(eCORBA, "cannot access CORBA naming service"); }
-    catch (CORBA::Exception &e)
-    { rb_raise(eCORBA, "unspecified CORBA error of type '%s'", typeid(e).name()); }
+    CORBA_EXCEPTION_HANDLERS 
 
     // Then check we can actually access it
     RTT::Corba::ControlTask_var mtask = RTT::Corba::ControlTask::_narrow (task_object.in ());
@@ -227,12 +222,12 @@ static VALUE corba_transportable_type_names(VALUE mod)
     return result;
 }
 
-void Orocos_CORBA_init()
+void Orocos_init_CORBA()
 {
     VALUE mOrocos = rb_define_module("Orocos");
-    mCORBA = rb_define_module_under(mOrocos, "CORBA");
-    eCORBA = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
-    eConn  = rb_define_class_under(mCORBA, "ConnError", eCORBA);
+    mCORBA    = rb_define_module_under(mOrocos, "CORBA");
+    eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
+    eComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
 
     rb_define_singleton_method(mCORBA, "init", RUBY_METHOD_FUNC(corba_init), 0);
     rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
