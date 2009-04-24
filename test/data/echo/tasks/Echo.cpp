@@ -1,9 +1,11 @@
 #include "Echo.hpp"
+#include <iostream>
 
 using namespace echo;
 
 Echo::Echo(std::string const& name, TaskCore::TaskState initial_state)
     : EchoBase(name, initial_state)
+    , async(false)
 {
 }
 
@@ -14,6 +16,33 @@ int Echo::write(int value)
 }
 
 
+
+bool Echo::asyncWrite(int value, int stop)
+{
+    if (value == 0)
+	return false;
+    if (async)
+	return false;
+
+    async     = true;
+    async_old = value;
+    _output.write(value);
+    return true;
+}
+
+bool Echo::isAsyncWriteCompleted(int value, int stop)
+{
+    int current_input;
+    if (_input.read(current_input))
+    {
+	if (current_input == stop)
+	{
+	    async = false;
+	    return true;
+	}
+	return false;
+    }
+}
 
 
 
@@ -36,6 +65,8 @@ void Echo::updateHook(std::vector<RTT::PortInterface*> const& updated_ports)
     int val;
     if (_input.read(val))
         _output.write(val);
+    else
+	_output.write(++async_old);
 
 }
 

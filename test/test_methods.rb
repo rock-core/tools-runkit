@@ -29,6 +29,21 @@ describe Orocos::RTTMethod do
         end
     end
 
+    it "should be possible to reuse a method object with different arguments" do
+        start_processes 'echo' do |echo|
+            echo = echo.task 'Echo'
+            echo.start
+
+            port_reader = echo.port('output').reader
+
+            m = echo.rtt_method 'write'
+            m.call(10)
+            assert_equal(10, m.recall)
+            m.call(11)
+            assert_equal(11, m.recall)
+        end
+    end
+
     it "should be possible to recall an already called method" do
         start_processes 'echo' do |echo|
             echo = echo.task 'Echo'
@@ -60,4 +75,3 @@ describe Orocos::RTTMethod do
         end
     end
 end
-

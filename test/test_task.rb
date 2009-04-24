@@ -98,6 +98,31 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should allow getting a command object" do
+        start_processes 'echo' do |echo|
+            echo = echo.task('Echo')
+            m = echo.command(:AsyncWrite)
+            assert_equal "AsyncWrite", m.name
+            assert_equal "async_write_command", m.description
+            assert_equal [["value", "value_arg", "int"], ["stop", "stop_value", "int"]], m.arguments_spec
+        end
+    end
+
+    it "should raise NotFound on an unknown method object" do
+        start_processes 'echo' do |echo|
+            echo = echo.task('Echo')
+            assert_raises(Orocos::NotFound) { echo.command(:unknown) }
+        end
+    end
+
+    it "should raise CORBA::ComError when #command has communication errors" do
+        start_processes 'echo' do |echo_p|
+            echo = echo_p.task('Echo')
+            echo_p.kill
+            assert_raises(Orocos::CORBA::ComError) { echo.command(:write) }
+        end
+    end
+
     it "should be able to manipulate the task state machine and read its state" do
         start_processes('simple_source') do |source|
             source = source.task("source")

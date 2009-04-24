@@ -7,10 +7,16 @@ namespace echo {
     class Echo : public EchoBase
     {
 	friend class EchoBase;
+
+	bool async;
+	int  async_old;
+
     protected:
     
 	int write(int value);
     
+	bool asyncWrite(int value, int stop);
+	bool isAsyncWriteCompleted(int value, int stop);
 
     public:
         Echo(std::string const& name = "echo::Echo", TaskCore::TaskState initial_state = Stopped);

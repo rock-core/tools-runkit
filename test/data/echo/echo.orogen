@@ -9,11 +9,19 @@ task_context 'Echo' do
         argument('value', 'int', 'value_arg').
         doc('write_method')
 
+    # This command starts at value and writes it on the output port. Then, it
+    # increments the value at each cycle, until stop_value is found on the
+    # input port
+    command(:AsyncWrite).
+	argument('value',  'int', 'value_arg').
+	argument('stop', 'int', 'stop_value').
+	doc('async_write_command')
+
     port_driven :input
 end
 
 static_deployment do
     echo_task = task('Echo').
-        triggered
+        periodic 0.05
 end
 
