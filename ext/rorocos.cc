@@ -504,9 +504,16 @@ static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_
     return local_port.connected() ? Qtrue : Qfalse;
 }
 
-static VALUE do_input_writer_connected(VALUE port_access)
+static VALUE do_local_port_disconnect(VALUE port_access)
 {
-    RTT::OutputPortInterface& local_port = get_wrapped<RTT::OutputPortInterface>(port_access);
+    RTT::PortInterface& local_port = get_wrapped<RTT::PortInterface>(port_access);
+    local_port.disconnect();
+    return Qnil;
+}
+
+static VALUE do_local_port_connected(VALUE port_access)
+{
+    RTT::PortInterface& local_port = get_wrapped<RTT::PortInterface>(port_access);
     return local_port.connected() ? Qtrue : Qfalse;
 }
 
@@ -577,15 +584,15 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);
     rb_define_method(cPort, "do_disconnect_all", RUBY_METHOD_FUNC(do_port_disconnect_all), 0);
-
     rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
     rb_define_method(cOutputPort, "do_reader", RUBY_METHOD_FUNC(do_output_port_reader), 2);
+    rb_define_method(cInputPort, "do_writer", RUBY_METHOD_FUNC(do_input_port_writer), 2);
+
+    rb_define_method(cPortAccess, "disconnect", RUBY_METHOD_FUNC(do_local_port_disconnect), 0);
+    rb_define_method(cPortAccess, "connected?", RUBY_METHOD_FUNC(do_local_port_connected), 0);
     rb_define_method(cOutputReader, "do_read", RUBY_METHOD_FUNC(do_output_reader_read), 2);
     rb_define_method(cOutputReader, "clear", RUBY_METHOD_FUNC(output_reader_clear), 0);
-
-    rb_define_method(cInputPort, "do_writer", RUBY_METHOD_FUNC(do_input_port_writer), 2);
     rb_define_method(cInputWriter, "do_write", RUBY_METHOD_FUNC(do_input_writer_write), 2);
-    rb_define_method(cInputWriter, "connected?", RUBY_METHOD_FUNC(do_input_writer_connected), 0);
 
     // load the default toolkit and the CORBA transport
     RTT::Toolkit::Import(RTT::RealTimeToolkit);

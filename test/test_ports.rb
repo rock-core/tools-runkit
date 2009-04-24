@@ -259,6 +259,22 @@ describe Orocos::OutputReader do
             assert(!reader.read)
         end
     end
+
+    it "should raise ComError if the remote end is dead and be disconnected" do
+	start_processes 'simple_source' do |source_p|
+            source = source_p.task('source')
+            output = source.port('cycle')
+            reader = output.reader
+            source.configure
+            source.start
+            sleep(0.5)
+
+	    source_p.kill
+
+	    assert_raises(CORBA::ComError) { reader.read }
+	    assert(!reader.connected?)
+	end
+    end
 end
 
 describe Orocos::InputWriter do
@@ -266,6 +282,7 @@ describe Orocos::InputWriter do
     DATA_DIR = File.join(TEST_DIR, 'data')
     WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+    CORBA = Orocos::CORBA
     include Orocos::Spec
 
     it "should not be possible to create an instance directly" do
@@ -283,15 +300,15 @@ describe Orocos::InputWriter do
         end
     end
 
-    it "should be disconnected after writing on a dead port" do
+    it "should raise Corba::ComError when writing on a dead port and be disconnected" do
         start_processes('echo') do |echo_p|
             echo  = echo_p.task('Echo')
             input = echo.port('input')
             
             writer = input.writer
             echo_p.kill
-            assert(!writer.write(0))
-            assert(!writer.connected?)
+	    assert_raises(CORBA::ComError) { writer.write(0) }
+	    assert(!writer.connected?)
         end
     end
 

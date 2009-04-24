@@ -124,6 +124,13 @@ module Orocos
         attr_reader :port
 
         def read
+	    if process = port.task.process
+		if !process.alive?
+		    disconnect
+		    raise CORBA::ComError, "remote end is dead"
+		end
+	    end
+
             value = port.type.new
             if do_read(port.type_name, value)
                 value.to_ruby
@@ -141,6 +148,13 @@ module Orocos
         attr_reader :port
 
         def write(data)
+	    if process = port.task.process
+		if !process.alive?
+		    disconnect
+		    raise CORBA::ComError, "remote end is dead"
+		end
+	    end
+
             data = Typelib.from_ruby(data, port.type)
             do_write(port.type_name, data)
         end

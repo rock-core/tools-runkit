@@ -153,7 +153,9 @@ module Orocos
         end
 
         def task(task_name)
-            TaskContext.get "#{name}_#{task_name}"
+            task = TaskContext.get "#{name}_#{task_name}"
+	    task.instance_variable_set(:@process, self)
+	    task
         end
     end
 end
