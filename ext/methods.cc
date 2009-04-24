@@ -13,12 +13,26 @@ static VALUE eNeverCalled;
 struct RMethod
 {
     RTT::Corba::Method_var method;
-    RMethod()
-        : method(RTT::Corba::Method::_nil()) {}
+    ~RMethod()
+    {
+        if (!CORBA::is_nil(method))
+        {
+            try { method->destroyExpression(); }
+            catch(CORBA::Exception&) {}
+        }
+    }
 };
 struct RCommand
 {
     RTT::Corba::Command_var command;
+    ~RCommand()
+    {
+        if (!CORBA::is_nil(command))
+        {
+            try { command->destroyCommand(); }
+            catch(CORBA::Exception&) {}
+        }
+    }
 };
 
 template<typename RemoteInterface>
