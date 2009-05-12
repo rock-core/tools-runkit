@@ -28,12 +28,7 @@ module Orocos
         end
 
         def pretty_print(pp) # :nodoc:
-            pp.text "#{self.class.name} #{name}"
-
-            if read? then pp.text "[R]"
-            elsif write? then pp.text "[W]"
-            else pp.text "[RW]"
-            end
+            pp.text " #{name} (#{type.name})"
         end
 
         # Removes this port from all connections it is part of
@@ -80,6 +75,10 @@ module Orocos
             do_writer(@type_name, validate_policy(policy))
         end
 
+        def pretty_print(pp)
+            pp.text "in "
+            super
+        end
 
         def connect_to(output_port, options = Hash.new)
             unless output_port.kind_of?(OutputPort)
@@ -96,6 +95,11 @@ module Orocos
                 do_disconnect_from(input)
             end
             self
+        end
+
+        def pretty_print(pp)
+            pp.text "out "
+            super
         end
 
         def reader(policy = Hash.new)

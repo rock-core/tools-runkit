@@ -28,7 +28,7 @@ module Orocos
         end
 
         def pretty_print(pp) # :nodoc:
-            pp.text "attribute #{name} (#{type_name})"
+            pp.text "attribute #{name} (#{type.name})"
         end
     end
 
@@ -138,20 +138,38 @@ module Orocos
             pp.text "  state: #{states_description[state]}"
             pp.breakable
 
-            pp.nest(2) do
-                pp.text "  "
-                each_attribute do |attribute|
-                    attribute.pretty_print(pp)
-                    pp.breakable
+            attributes = enum_for(:each_attribute).to_a
+            if attributes.empty?
+                pp.text "No attributes"
+                pp.breakable
+            else
+                pp.text "Attributes:"
+                pp.breakable
+                pp.nest(2) do
+                    pp.text "  "
+                    each_attribute do |attribute|
+                        attribute.pretty_print(pp)
+                        pp.breakable
+                    end
                 end
+                pp.breakable
             end
 
-            pp.nest(2) do
-                pp.text "  "
-                each_port do |port|
-                    port.pretty_print(pp)
-                    pp.breakable
+            ports = enum_for(:each_port).to_a
+            if ports.empty?
+                pp.text "No ports"
+                pp.breakable
+            else
+                pp.text "Ports:"
+                pp.breakable
+                pp.nest(2) do
+                    pp.text "  "
+                    each_port do |port|
+                        port.pretty_print(pp)
+                        pp.breakable
+                    end
                 end
+                pp.breakable
             end
         end
     end

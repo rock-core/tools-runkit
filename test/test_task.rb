@@ -158,5 +158,14 @@ describe Orocos::TaskContext do
             #assert_raises(Orocos::CORBA::ComError) { source.configure }
         end
     end
+
+    it "should be pretty-printable" do
+        start_processes('echo', 'process') do |source_p, process_p|
+            source = source_p.task("Echo")
+            process = process_p.task('Test')
+            PP.pp(source, '')
+            PP.pp(process, '')
+        end
+    end
 end
 
