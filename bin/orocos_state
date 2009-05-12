@@ -6,7 +6,6 @@ require 'utilrb/pkgconfig'
 
 # First, load all toolkits that are available
 Utilrb::PkgConfig.each_package(/-toolkit-/) do |name|
-    puts name.inspect
     name =~ /-toolkit-/
     Orocos::CORBA.load_toolkit $`
 end
