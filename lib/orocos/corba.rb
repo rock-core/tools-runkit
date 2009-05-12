@@ -7,6 +7,15 @@ module Orocos
     @registry = Typelib::Registry.new
     registry.import File.join(`orogen --base-dir`.chomp, 'orogen', 'orocos.tlb')
 
+    # All processes started in the provided block will be automatically killed
+    def self.guard
+        yield
+    ensure
+        processes = ObjectSpace.enum_for(:each_object, Orocos::Process)
+        processes.each { |mod| mod.kill if mod.running? }
+        processes.each { |mod| mod.join if mod.running? }
+    end
+
     module CORBA
         extend Logger::Forward
         extend Logger::Hierarchy

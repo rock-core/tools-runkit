@@ -51,6 +51,7 @@ module Orocos
         
         # True if the orocos component process is running
         def alive?; !!@pid end
+        def running?; alive? end
 
         # Announce that, even though we did not detect it, the
         # process is actually dead.
@@ -64,6 +65,61 @@ module Orocos
                 each { |task_name| Orocos::CORBA.unregister(task_name) }
 	end
         
+        # call-seq:
+        #   Process.spawn('mod1', 'mod2')
+        #   Process.spawn('mod1', 'mod2', :wait => false, :output => '%m-%p.log')
+        #   Process.spawn('mod1', 'mod2', :wait => false, :output => '%m-%p.log') do |mod1, mod2|
+        #   end
+        def self.spawn(*names)
+            if names.last.kind_of?(Hash)
+                options = names.pop
+            end
+
+            begin
+                options = validate_options options, :wait => true, :output => nil
+
+                # First thing, do create all the named processes
+                processes = names.map { |name| [name, Process.new(name)] }
+                # Then spawn them, but without waiting for them
+                processes.each do |name, p|
+                    output = if options[:output]
+                                 output.gsub '%m', name
+                             end
+                    p.spawn(output)
+                end
+
+                # Finally, if the user required it, wait for the processes to run
+                if options[:wait]
+                    timeout = if options[:wait].kind_of?(Numeric)
+                                  options[:wait]
+                              end
+                    processes.each { |_, p| p.wait_running(timeout) }
+                end
+            rescue Exception
+                # Kill the processes that are already running
+                if processes
+                    kill(processes.map { |name, p| p if p.running? }.compact)
+                end
+                raise
+            end
+
+            processes = processes.map { |_, p| p }
+            if block_given?
+                Orocos.guard do
+                    yield(*processes)
+                end
+            else
+                processes
+            end
+        end
+
+        def self.kill(processes, wait = true)
+            processes.each { |p| p.kill if p.running? }
+            if wait
+                processes.each { |p| p.join }
+            end
+        end
+
         # Spawns this process
         def spawn(output = nil)
 	    raise "#{name} is already running" if alive?
