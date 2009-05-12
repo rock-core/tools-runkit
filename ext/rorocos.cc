@@ -25,6 +25,7 @@ static VALUE cOutputReader;
 static VALUE cPort;
 static VALUE cAttribute;
 VALUE eNotFound;
+static VALUE eConnectionFailed;
 
 extern void Orocos_init_CORBA();
 extern void Orocos_init_data_handling();
@@ -205,7 +206,7 @@ static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
         if (!local_port->connected() || !result)
         {
             corba->removePort(local_port);
-            rb_raise(rb_eArgError, "failed to connect specified ports");
+            rb_raise(eConnectionFailed, "failed to connect the writer object to its remote port");
         }
     }
     CORBA_EXCEPTION_HANDLERS
@@ -238,7 +239,7 @@ static VALUE do_output_port_reader(VALUE port, VALUE type_name, VALUE policy)
         if (!result)
         {
             corba->removePort(local_port);
-            rb_raise(rb_eArgError, "failed to connect specified ports");
+            rb_raise(eConnectionFailed, "failed to connect specified ports");
         }
     }
     CORBA_EXCEPTION_HANDLERS
@@ -567,6 +568,7 @@ extern "C" void Init_rorocos_ext()
     cInputWriter  = rb_define_class_under(mOrocos, "InputWriter", cPortAccess);
     cAttribute    = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound     = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
+    eConnectionFailed = rb_define_class_under(mOrocos, "ConnectionFailed", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
     rb_define_singleton_method(cTaskContext, "do_get", RUBY_METHOD_FUNC(task_context_get), 1);
