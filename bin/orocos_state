@@ -2,13 +2,21 @@
 
 require 'orocos'
 require 'pp'
+require 'utilrb/pkgconfig'
 
-Orocos.components.each do |name|
+# First, load all toolkits that are available
+Utilrb::PkgConfig.each_package(/-toolkit-/) do |name|
+    puts name.inspect
+    name =~ /-toolkit-/
+    Orocos::CORBA.load_toolkit $`
+end
+
+Orocos.task_names.each do |name|
     begin
-        component = Orocos::TaskContext.get(name)
+        task = Orocos::TaskContext.get(name)
     rescue Orocos::NotFound
     end
-    pp component
+    pp task
     puts
 end
 
