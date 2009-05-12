@@ -57,7 +57,7 @@ module Orocos
 	def dead! # :nodoc:
 	    @pid = nil 
 
-            # And force unregistering the task contexts from CORBA naming
+            # Force unregistering the task contexts from CORBA naming
             # service
             Orocos.task_names.
                 grep(/^#{Regexp.quote(name)}_/).
