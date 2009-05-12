@@ -22,14 +22,22 @@ module Orocos
         end
 
         def read
-            value = type.new
-            do_read(@type_name, value)
-            value.to_ruby
+            if @type_name == "/std/string"
+                do_read_string
+            else
+                value = type.new
+                do_read(@type_name, value)
+                value.to_ruby
+            end
         end
 
         def write(value)
-            value = Typelib.from_ruby(value, type)
-            do_write(@type_name, value)
+            if @type_name == "/std/string" && value.respond_to?(:to_str)
+                do_write_string(value.to_str)
+            else
+                value = Typelib.from_ruby(value, type)
+                do_write(@type_name, value)
+            end
         end
 
         def pretty_print(pp) # :nodoc:
