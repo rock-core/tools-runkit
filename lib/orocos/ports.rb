@@ -18,7 +18,9 @@ module Orocos
         attr_reader :type
 
         def initialize
-            @type = Orocos.registry.get(@type_name)
+            if !(@type = Orocos.registry.get(@type_name))
+                raise "cannot find type #{@type_name} in the registry"
+            end
         end
 
         def ==(other)
