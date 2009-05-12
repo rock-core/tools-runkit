@@ -5,6 +5,7 @@ module Orocos
         attr_reader :registry
     end
     @registry = Typelib::Registry.new
+    registry.import File.join(`orogen --base-dir`.chomp, 'orogen', 'orocos.tlb')
 
     module CORBA
         extend Logger::Forward
