@@ -20,7 +20,11 @@ module Orocos
         def initialize
             @arguments_types = []
             arguments_spec.each do |_, _, type_name|
-                arguments_types << Orocos.registry.get(type_name)
+                if !(arg_type = Orocos.registry.get(type_name))
+                    raise "cannot find type '#{type_name}' in the registry"
+                end
+
+                arguments_types << arg_type
             end
             @args_type_names = arguments_spec.map { |name, doc, type| type }
         end
@@ -32,7 +36,11 @@ module Orocos
 
             filtered = []
             args.each_with_index do |v, i|
-                filtered << Typelib.from_ruby(v, arguments_types[i])
+                if arguments_types[i].name == "/std/string"
+                    filtered << v.to_str
+                else
+                    filtered << Typelib.from_ruby(v, arguments_types[i])
+                end
             end
             CORBA.refine_exceptions(self) do
                 yield(filtered)

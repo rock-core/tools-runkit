@@ -79,11 +79,21 @@ static AnyArguments* init_corba_args(VALUE type_names, VALUE args)
     VALUE* types_ptr = RARRAY_PTR(type_names);
     for (size_t i = 0; i < len; ++i)
     {
-        Typelib::Value v = typelib_get(value_ptr[i]);
-        CORBA::Any_var to_corba = ruby_to_corba(
-                StringValuePtr(types_ptr[i]), v);
+        if (rb_obj_is_kind_of(value_ptr[i], rb_cString))
+        {
+            char const* string = StringValuePtr(value_ptr[i]);
+            CORBA::Any_var arg_any = new CORBA::Any;
+            arg_any <<= CORBA::string_dup(string);
+            corba_args[i] = arg_any;
+        }
+        else
+        {
+            Typelib::Value v = typelib_get(value_ptr[i]);
+            CORBA::Any_var arg_any = ruby_to_corba(
+                    StringValuePtr(types_ptr[i]), v);
+            corba_args[i] = arg_any;
+        }
 
-        corba_args[i] = to_corba;
     }
 
     return corba_args._retn();
@@ -151,8 +161,17 @@ static VALUE method_call(VALUE method_, VALUE type_names, VALUE args, VALUE resu
             method.method->executeAny(corba_args);
         }
         CORBA::Any_var corba_result = method.method->value();
-        Typelib::Value result = typelib_get(result_);
-        corba_to_ruby(get_str_iv(method_, "@return_spec"), result, corba_result);
+        if (rb_obj_is_kind_of(result_, rb_cString))
+        {
+            char const* result_str;
+            corba_result >>= result_str;
+            return rb_str_new2(result_str);
+        }
+        else
+        {
+            Typelib::Value result = typelib_get(result_);
+            corba_to_ruby(get_str_iv(method_, "@return_spec"), result, corba_result);
+        }
         return result_;
     }
     CORBA_EXCEPTION_HANDLERS
