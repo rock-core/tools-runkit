@@ -160,17 +160,20 @@ static VALUE method_call(VALUE method_, VALUE type_names, VALUE args, VALUE resu
         {
             method.method->executeAny(corba_args);
         }
-        CORBA::Any_var corba_result = method.method->value();
-        if (rb_obj_is_kind_of(result_, rb_cString))
+        if (RTEST(result_))
         {
-            char const* result_str;
-            corba_result >>= result_str;
-            return rb_str_new2(result_str);
-        }
-        else
-        {
-            Typelib::Value result = typelib_get(result_);
-            corba_to_ruby(get_str_iv(method_, "@return_spec"), result, corba_result);
+            CORBA::Any_var corba_result = method.method->value();
+            if (rb_obj_is_kind_of(result_, rb_cString))
+            {
+                char const* result_str;
+                corba_result >>= result_str;
+                return rb_str_new2(result_str);
+            }
+            else
+            {
+                Typelib::Value result = typelib_get(result_);
+                corba_to_ruby(get_str_iv(method_, "@return_spec"), result, corba_result);
+            }
         }
         return result_;
     }

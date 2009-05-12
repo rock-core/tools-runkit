@@ -68,14 +68,19 @@ module Orocos
         # Raises NeverCalled if the method has never been called before
         def recall
             CORBA.refine_exceptions(self) do
-                result = return_type.new
+                result = if !return_type.null?
+                             return_type.new
+                         end
                 do_recall(result)
             end
         end
 
         # Calls the method with the provided arguments
         def call(*args)
-            result = return_type.new
+            result = if !return_type.null?
+                         return_type.new
+                     end
+
             common_call(args) do |filtered|
                 do_call(@args_type_names, filtered, result)
             end
