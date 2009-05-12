@@ -13,6 +13,9 @@ module Orocos
         attr_reader :type
 
         def initialize
+            if @type_name == "string"
+                @type_name = "/std/string"
+            end
             if !(@type = Orocos.registry.get(@type_name))
                 raise "can not find #{@type_name} in the registry"
             end
