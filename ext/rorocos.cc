@@ -26,6 +26,7 @@ static VALUE cPort;
 static VALUE cAttribute;
 VALUE eNotFound;
 static VALUE eConnectionFailed;
+static VALUE eStateTransitionFailed;
 
 extern void Orocos_init_CORBA();
 extern void Orocos_init_data_handling();
@@ -333,7 +334,11 @@ static VALUE task_context_configure(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
     try
-    { return context.task->configure() ? Qtrue : Qfalse; }
+    {
+        if (!context.task->configure())
+            rb_raise(eStateTransitionFailed, "failed to configure");
+        return Qnil;
+    }
     CORBA_EXCEPTION_HANDLERS
 }
 
@@ -346,7 +351,11 @@ static VALUE task_context_start(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
     try
-    { return context.task->start() ? Qtrue : Qfalse; }
+    {
+        if (!context.task->start())
+            rb_raise(eStateTransitionFailed, "failed to start");
+        return Qnil;
+    }
     CORBA_EXCEPTION_HANDLERS
 }
 
@@ -568,6 +577,7 @@ extern "C" void Init_rorocos_ext()
     cInputWriter  = rb_define_class_under(mOrocos, "InputWriter", cPortAccess);
     cAttribute    = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound     = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
+    eStateTransitionFailed = rb_define_class_under(mOrocos, "StateTransitionFailed", rb_eRuntimeError);
     eConnectionFailed = rb_define_class_under(mOrocos, "ConnectionFailed", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
