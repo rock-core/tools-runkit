@@ -107,6 +107,8 @@ module Orocos
             super
         end
 
+        def read; reader.read end
+
         def reader(policy = Hash.new)
             do_reader(@type_name, validate_policy(policy))
         end
