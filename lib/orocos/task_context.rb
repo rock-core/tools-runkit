@@ -139,6 +139,28 @@ module Orocos
             end
 	end
 
+        def method_missing(m, *args)
+            m = m.to_s
+            if m =~ /^(\w+)=/
+                name = $1
+                begin
+                    attribute(name).write(*args)
+                rescue Orocos::NotFound
+                end
+
+            else
+                if has_port?(m)
+                    return port(m)
+                end
+
+                begin
+                    return attribute(m).read(*args)
+                rescue Orocos::NotFound
+                end
+            end
+            super
+        end
+
         def pretty_print(pp)
             states_description = TaskContext.constants.grep(/^STATE_/).
                 inject([]) do |map, name|
