@@ -442,9 +442,10 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
 
     try
     {
-        out_task->ports->createConnection(StringValuePtr(out_name),
+        if (!out_task->ports->createConnection(StringValuePtr(out_name),
                 in_task->ports, StringValuePtr(in_name),
-                policy);
+                policy))
+            rb_raise(eConnectionFailed, "failed to connect ports");
         return Qnil;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // should be refined on the Ruby side
