@@ -144,7 +144,7 @@ module Orocos
             if m =~ /^(\w+)=/
                 name = $1
                 begin
-                    attribute(name).write(*args)
+                    return attribute(name).write(*args)
                 rescue Orocos::NotFound
                 end
 
