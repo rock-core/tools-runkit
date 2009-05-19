@@ -11,6 +11,16 @@ module Orocos
     def self.guard
         yield
     ensure
+        tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
+        tasks.each do |t|
+            if t.process && t.process.running?
+                begin
+                    t.stop
+                rescue
+                end
+            end
+        end
+
         processes = ObjectSpace.enum_for(:each_object, Orocos::Process)
         processes.each { |mod| mod.kill if mod.running? }
         processes.each { |mod| mod.join if mod.running? }
