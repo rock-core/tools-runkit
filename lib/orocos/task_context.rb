@@ -158,7 +158,7 @@ module Orocos
                 rescue Orocos::NotFound
                 end
             end
-            super
+            super(m.to_sym, *args)
         end
 
         def pretty_print(pp)
