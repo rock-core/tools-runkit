@@ -26,6 +26,7 @@ module Orocos
             end
         end
 
+        # True if +self+ and +other+ represent the same port
         def ==(other)
             other.class == self.class &&
                 other.task == self.task &&
@@ -43,7 +44,7 @@ module Orocos
             end
         end
 
-        def validate_policy(policy)
+        def validate_policy(policy) # :nodoc:
             policy = validate_options policy,
                 :type => :data,
                 :init => false,
@@ -75,16 +76,23 @@ module Orocos
         end
     end
 
+    # This class represents a remote task's input port
     class InputPort
+        # Returns a InputWriter object that allows you to write data to the
+        # remote input port.
         def writer(policy = Hash.new)
             do_writer(@type_name, validate_policy(policy))
         end
 
-        def pretty_print(pp)
+        def pretty_print(pp) # :nodoc:
             pp.text "in "
             super
         end
 
+        # Connect this input port to an output port. +options+ defines the
+        # connection policy for the connection.
+        #
+        # See OutputPort#connect_to for a in-depth explanation on +options+.
         def connect_to(output_port, options = Hash.new)
             unless output_port.kind_of?(OutputPort)
                 raise ArgumentError, "an input port can only connect to an output port"
@@ -113,6 +121,25 @@ module Orocos
             do_reader(@type_name, validate_policy(policy))
         end
 
+        # Connect this output port to an input port. +options+ defines the
+        # connection policy for the connection. The following options are
+        # available:
+        #
+        # Data connections. In that connection, the reader will see only the
+        # last sample he received. Such a connection is set up with
+        #   
+        #   input_port.connect_to output_port, :type => :data
+        #
+        # Buffered connections. In that case, the reader will be able to read
+        # all the samples received since the last read. A buffer in between the
+        # output and input port will keep the samples that have not been read
+        # already.  Such a connection is set up with:
+        #
+        #   output_port.connect_to input_port, :type => :buffer, :size => 10
+        #
+        # Where the +size+ option gives the size of the intermediate buffer.
+        # Note that new samples will be lost if they are received when the
+        # buffer is full.
         def connect_to(input_port, options = Hash.new)
             if !input_port.kind_of?(InputPort)
                 raise ArgumentError, "an output port can only connect to an input port"

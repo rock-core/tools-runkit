@@ -5,6 +5,9 @@ require 'orocos/test'
 
 MiniTest::Unit.autorun
 
+Orocos::CORBA.call_timeout = 10000
+Orocos::CORBA.connect_timeout = 10000
+
 describe Orocos::Port do
     TEST_DIR = File.expand_path(File.dirname(__FILE__))
     DATA_DIR = File.join(TEST_DIR, 'data')
