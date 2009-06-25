@@ -34,7 +34,7 @@ describe Orocos::CORBA do
     end
 
     it "should load type registries associated with the plugins" do
-        assert(!Orocos.registry.get("/process/Simple"))
+        assert_raises(Typelib::NotFound) { Orocos.registry.get("/process/Simple") }
         Orocos::CORBA.load_toolkit 'process'
         assert(Orocos.registry.get("/process/Simple"))
     end
