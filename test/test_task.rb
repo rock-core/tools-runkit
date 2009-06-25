@@ -127,21 +127,21 @@ describe Orocos::TaskContext do
         start_processes('simple_source') do |source|
             source = source.task("source")
             assert_equal(Orocos::TaskContext::STATE_PRE_OPERATIONAL, source.state)
-            assert(!source.start)
+            assert_raises(Orocos::StateTransitionFailed) { source.start }
             assert(!source.ready?)
             assert(!source.running?)
 
-            assert(source.configure)
+            source.configure
             assert_equal(Orocos::TaskContext::STATE_STOPPED, source.state)
             assert(source.ready?)
             assert(!source.running?)
 
-            assert(source.start)
+            source.start
             assert_equal(Orocos::TaskContext::STATE_RUNNING, source.state)
             assert(source.ready?)
             assert(source.running?)
 
-            assert(source.stop)
+            source.stop
             assert_equal(Orocos::TaskContext::STATE_STOPPED, source.state)
             assert(source.ready?)
             assert(!source.running?)
