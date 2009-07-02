@@ -77,17 +77,20 @@ static VALUE orocos_task_names(VALUE mod)
  */
 static VALUE task_context_get(VALUE klass, VALUE name)
 {
-    std::auto_ptr<RTaskContext> new_context( new RTaskContext );
-    new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
-    new_context->ports      = new_context->task->ports();
-    new_context->attributes = new_context->task->attributes();
-    new_context->methods    = new_context->task->methods();
-    new_context->commands   = new_context->task->commands();
+    try {
+        std::auto_ptr<RTaskContext> new_context( new RTaskContext );
+        new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
+        new_context->ports      = new_context->task->ports();
+        new_context->attributes = new_context->task->attributes();
+        new_context->methods    = new_context->task->methods();
+        new_context->commands   = new_context->task->commands();
 
-    VALUE obj = simple_wrap(cTaskContext, new_context.release());
-    rb_funcall(obj, rb_intern("initialize"), 0);
-    rb_iv_set(obj, "@name", rb_str_dup(name));
-    return obj;
+        VALUE obj = simple_wrap(cTaskContext, new_context.release());
+        rb_funcall(obj, rb_intern("initialize"), 0);
+        rb_iv_set(obj, "@name", rb_str_dup(name));
+        return obj;
+    }
+    CORBA_EXCEPTION_HANDLERS;
 }
 
 static VALUE task_context_equal_p(VALUE self, VALUE other)
@@ -170,10 +173,13 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
 static VALUE task_context_each_port(VALUE self)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
-    RTT::Corba::DataFlowInterface::PortNames_var ports = context.ports->getPorts();
+    try {
+        RTT::Corba::DataFlowInterface::PortNames_var ports = context.ports->getPorts();
 
-    for (int i = 0; i < ports->length(); ++i)
-        rb_yield(task_context_do_port(self, rb_str_new2(ports[i])));
+        for (int i = 0; i < ports->length(); ++i)
+            rb_yield(task_context_do_port(self, rb_str_new2(ports[i])));
+    }
+    CORBA_EXCEPTION_HANDLERS
 
     return self;
 }

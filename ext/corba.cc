@@ -133,8 +133,14 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
     RTT::Corba::ControlTask_var mtask = RTT::Corba::ControlTask::_narrow (task_object.in ());
     if ( !CORBA::is_nil( mtask ) )
     {
-        CORBA::String_var nm = mtask->getName();
-        return mtask._retn();
+        try {
+            CORBA::String_var nm = mtask->getName();
+            return mtask._retn();
+        }
+        catch(CORBA::Exception&)
+        {
+            rb_raise(eNotFound, "task context '%s' was registered but cannot be contacted", name.c_str());
+        }
     }
     rb_raise(eNotFound, "task context '%s' not found", name.c_str());
 }
@@ -142,10 +148,13 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
 void CorbaAccess::unbind(std::string const& name)
 {
     CosNaming::Name serverName;
-    serverName.length(2);
-    serverName[0].id = CORBA::string_dup("ControlTasks");
-    serverName[1].id = CORBA::string_dup( name.c_str() );
-    rootContext->unbind(serverName);
+    try {
+        serverName.length(2);
+        serverName[0].id = CORBA::string_dup( "ControlTask" );
+        serverName[1].id = CORBA::string_dup( name.c_str() );
+        rootContext->unbind(serverName);
+    } catch(CosNaming::NamingContext::NotFound) {}
+    CORBA_EXCEPTION_HANDLERS
 }
 
 /* call-seq:
