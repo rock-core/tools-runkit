@@ -7,6 +7,49 @@ module Orocos
     @registry = Typelib::Registry.new
     registry.import File.join(`orogen --base-dir`.chomp, 'orogen', 'orocos.tlb')
 
+    # This method assumes that #add_logger has been called at the end of each
+    # static_deployment block.
+    def self.log_all_ports(options)
+        exclude_ports = options[:exclude_ports]
+        exclude_types = options[:exclude_types]
+
+        each_process do |process|
+            begin
+                logger = process.task 'Logger'
+                report = logger.rtt_method 'reportPort'
+
+                process.each_task do |task|
+                    next if task == logger
+                    task.each_port do |port|
+                        next unless port.kind_of?(OutputPort)
+                        next if exclude_ports && exclude_ports === port.name
+                        next if exclude_types && exclude_types === port.type.name
+                        Orocos.info "logging % 50s of type %s" % ["#{task.name}:#{port.name}", port.type.name]
+                        report.call task.name, port.name
+                    end
+                end
+                logger.file = "#{process.name}.log"
+                logger.start
+
+            rescue Orocos::NotFound
+                puts "WARN: no logger defined on #{process.name}"
+            end
+        end
+    end
+
+    def self.each_task
+        each_process do |p|
+            p.task_names.each do |name|
+                yield(p.task(name))
+            end
+        end
+    end
+    def self.each_process
+        ObjectSpace.each_object(Orocos::Process) do |p|
+            yield(p)
+        end
+    end
+
     # All processes started in the provided block will be automatically killed
     def self.guard
         yield

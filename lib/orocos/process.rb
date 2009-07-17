@@ -1,4 +1,5 @@
 require 'utilrb/pkgconfig'
+require 'orogen'
 require 'fcntl'
 
 module Orocos
@@ -12,6 +13,11 @@ module Orocos
         attr_reader :pkg
         # The component process ID
         attr_reader :pid
+        # The orogen description
+        attr_reader :orogen
+        # The set of task contexts for this process. This is valid only after
+        # the process is actually started
+        attr_reader :tasks
 
 	def self.from_pid(pid)
 	    ObjectSpace.enum_for(:each_object, Orocos::Process).find { |mod| mod.pid == pid }
@@ -21,11 +27,18 @@ module Orocos
         # start and supervise the execution of the given Orocos
         # component
         def initialize(name)
-            @name = name
+            @name  = name
+            @tasks = []
             begin
                 @pkg = Utilrb::PkgConfig.new("orogen-#{name}")
             rescue Utilrb::PkgConfig::NotFound => e
                 raise NotFound, "#{name} does not exist or isn't found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
+            end
+
+            # Load the orogen's description
+            orogen_project = Orocos::Generation::TaskLibrary.load(nil, pkg, pkg.deffile)
+            @orogen = orogen_project.deployers.find do |d|
+                d.name == name
             end
 
             # Load the needed toolkits
@@ -175,13 +188,14 @@ module Orocos
                 
                 # Get any task name from that specific deployment, and check we
                 # can access it. If there is none
-                task_name = Orocos.task_names.find { |n| n =~ /^#{name}_\w+$/ }
-                if task_name
+                task_names.all? do |task_name|
                     begin
-                        Orocos::TaskContext.get task_name
-                        return true
+                        task(task_name)
+                        Orocos.debug "#{task_name} is reachable, assuming #{name} is up and running"
+                        true
                     rescue Orocos::NotFound
-                        return false
+                        Orocos.debug "could not access #{task_name}, #{name} is not running yet ..."
+                        false
                     end
                 end
 	    else
@@ -204,14 +218,31 @@ module Orocos
         end
 
         def task_names
-            Orocos.task_names.grep(/^#{Regexp.quote(name)}_/).
-                map { |task_name| task_name.gsub(/^#{Regexp.quote(name)}_/, '') }
+            orogen.task_activities.map { |act| act.name }
+        end
+
+        def each_task
+            task_names.each do |name|
+                yield(task(name))
+            end
         end
 
         def task(task_name)
-            task = TaskContext.get "#{name}_#{task_name}"
-	    task.instance_variable_set(:@process, self)
-	    task
+            full_name = "#{name}_#{task_name}"
+            if result = tasks.find { |t| t.name == task_name || t.name == full_name}
+                return result
+            end
+
+            result = if task_names.include?(task_name)
+                         TaskContext.get task_name, self
+                     elsif task_names.include?(full_name)
+                         TaskContext.get full_name, self
+                     else
+                         raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
+                     end
+
+            @tasks << result
+            result
         end
     end
 end

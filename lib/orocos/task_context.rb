@@ -72,11 +72,22 @@ module Orocos
 	# Returns the TaskContext instance representing the remote task context
 	# with the given name. Raises Orocos::NotFound if the task name does
 	# not exist.
-	def self.get(name)
-	    name = name.to_s
-	    CORBA.refine_exceptions("naming service") do
-		do_get(name)
-	    end
+	def self.get(name, process = nil)
+            name = name.to_s
+
+            # Try to find ourselves a process object if none is given
+            if !process
+                process = Orocos.enum_for(:each_process).
+                    find do |p|
+                        p.task_names.any? { |n| n == name }
+                    end
+            end
+
+            result = CORBA.refine_exceptions("naming service") do
+                do_get(name)
+            end
+            result.instance_variable_set(:@process, process)
+            result
 	end
 
         # Returns true if the task is in a state where code is executed. This
@@ -160,6 +171,17 @@ module Orocos
                 end
             end
             super(m.to_sym, *args)
+        end
+
+        def info
+            process.orogen.task_activities.find { |act| act.name == name }
+        end
+        def model
+            info.context
+        end
+
+        def implements?(class_name)
+            model.implements?(class_name)
         end
 
         def pretty_print(pp)
