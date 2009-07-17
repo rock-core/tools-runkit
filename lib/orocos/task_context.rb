@@ -95,6 +95,11 @@ module Orocos
         def running?; RUNNING_STATES[state] end
         # Returns true if the task has been configured.
         def ready?;   state != STATE_PRE_OPERATIONAL end
+        # Returns true if the task is in an error state (runtime or fatal)
+        def error?
+            s = state
+            s == STATE_RUNTIME_ERROR || s == STATE_FATAL_ERROR
+        end
 
         def self.corba_wrap(m, *args)
             class_eval <<-EOD
