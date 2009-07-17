@@ -69,16 +69,24 @@ module Orocos
         call_timeout    = 1000
         connect_timeout = 1000
 
+        def self.orocos_target
+            if ENV['OROCOS_TARGET']
+                ENV['OROCOS_TARGET']
+            else
+                'gnulinux'
+            end
+        end
+
         def self.load_toolkit(name)
             return if loaded_toolkit?(name)
 
             pkg = begin
-                      Utilrb::PkgConfig.new("#{name}-toolkit-gnulinux")
+                      Utilrb::PkgConfig.new("#{name}-toolkit-#{orocos_target}")
                   rescue Utilrb::PkgConfig::NotFound
                       raise NotFound, "the '#{name}' toolkit is not available to pkgconfig"
                   end
 
-            libname = "lib#{name}-toolkit-gnulinux.so"
+            libname = "lib#{name}-toolkit-#{orocos_target}.so"
             libpath = pkg.library_dirs.find do |dir|
                 full_path = File.join(dir, libname)
                 break(full_path) if File.file?(full_path)
