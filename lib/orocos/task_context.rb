@@ -95,6 +95,7 @@ module Orocos
 
         corba_wrap :state
         corba_wrap :start
+        corba_wrap :cleanup
         corba_wrap :stop
         corba_wrap :configure
 

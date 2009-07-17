@@ -379,6 +379,19 @@ static VALUE task_context_stop(VALUE task)
 }
 
 /* call-seq:
+ *  task.cleanup => true or false
+ *
+ * Do the transition between STATE_STOPPED and STATE_PRE_OPERATIONAL
+ */
+static VALUE task_context_cleanup(VALUE task)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(task);
+    try
+    { return context.task->cleanup() ? Qtrue : Qfalse; }
+    CORBA_EXCEPTION_HANDLERS
+}
+
+/* call-seq:
  *  port.connected? => true or false
  *
  * Tests if this port is already part of a connection or not
@@ -594,6 +607,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);
     rb_define_method(cTaskContext, "do_start", RUBY_METHOD_FUNC(task_context_start), 0);
     rb_define_method(cTaskContext, "do_stop", RUBY_METHOD_FUNC(task_context_stop), 0);
+    rb_define_method(cTaskContext, "do_cleanup", RUBY_METHOD_FUNC(task_context_cleanup), 0);
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
