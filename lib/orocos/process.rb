@@ -89,7 +89,7 @@ module Orocos
             end
 
             begin
-                options = validate_options options, :wait => true, :output => nil
+                options = validate_options options, :wait => 2, :output => nil
 
                 # First thing, do create all the named processes
                 processes = names.map { |name| [name, Process.new(name)] }
