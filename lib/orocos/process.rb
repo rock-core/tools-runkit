@@ -96,7 +96,7 @@ module Orocos
                 # Then spawn them, but without waiting for them
                 processes.each do |name, p|
                     output = if options[:output]
-                                 output.gsub '%m', name
+                                 options[:output].gsub '%m', name
                              end
                     p.spawn(output)
                 end
@@ -151,7 +151,7 @@ module Orocos
 		if output_format
 		    real_name = output_format.
 			gsub('%m', name).
-			gsub('%p', Process.pid.to_s)
+			gsub('%p', ::Process.pid.to_s)
 		    FileUtils.mv output.path, real_name
 		end
 		
