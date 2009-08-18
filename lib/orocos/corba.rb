@@ -56,11 +56,9 @@ module Orocos
     ensure
         tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
         tasks.each do |t|
-            if t.process && t.process.running?
-                begin
-                    t.stop
-                rescue
-                end
+            begin
+                t.stop if t.running?
+            rescue
             end
         end
 
