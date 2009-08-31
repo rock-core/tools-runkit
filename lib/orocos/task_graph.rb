@@ -53,11 +53,21 @@ module Graph
 
     class TaskNode
         attr_reader :name
+        attr_accessor :visited
+        attr_reader :ports
+
+        @nodes = Hash.new
+        class << self
+            attr_accessor :nodes
+        end
 
         def initialize(name)
             @name = name
             @state = State::STOPPED
             @ports = Hash.new
+            @visited = false
+
+            self.class.nodes[name] = self
         end
 
         def method_missing(m, *args)
@@ -74,7 +84,7 @@ module Graph
             @ports.each do |k,v|
                 v.in_ports.each do |p|
                     if ((!required_only) || (p.required))
-                        yield :src => v, :dst => p
+                        yield :dst => v, :src => p
                     end
                 end
             end
@@ -92,12 +102,6 @@ module Graph
  
     end
 end
-
-#n1 = Graph::TaskNode.new("Task1")
-#n2 = Graph::TaskNode.new("Task2")
-
-#n1.bla.connect_to(n2.blubbx, :XXX => 1, :required => true)
-#n2.blubb.connect_to(n1.blax, :YYY => 2, :required => true)
 
 #n1.incoming(true) do |a|
 #    puts "In:  #{a[:src].parentname}.#{a[:src].name} -> #{a[:dst].parentname}.#{a[:dst].name}"
