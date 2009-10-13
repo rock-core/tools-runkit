@@ -201,10 +201,14 @@ static VALUE corba_init(VALUE mod)
     if (!NIL_P(corba_access))
         return Qfalse;
 
-    char const* argv[2] = { "bla", 0 };
-    CorbaAccess::init(1, const_cast<char**>(argv));
-    corba_access = Data_Wrap_Struct(rb_cObject, 0, corba_deinit, CorbaAccess::instance());
-    rb_iv_set(mCORBA, "@corba", corba_access);
+    try {
+        char const* argv[2] = { "bla", 0 };
+        CorbaAccess::init(1, const_cast<char**>(argv));
+        corba_access = Data_Wrap_Struct(rb_cObject, 0, corba_deinit, CorbaAccess::instance());
+        rb_iv_set(mCORBA, "@corba", corba_access);
+    } catch(CORBA::Exception& e) {
+        rb_raise(eCORBA, "failed to contact the name server");
+    }
     return Qtrue;
 }
 
