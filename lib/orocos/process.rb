@@ -138,7 +138,10 @@ module Orocos
 	    raise "#{name} is already running" if alive?
 	    Orocos.debug { "Spawning module #{name}" }
 
-            module_bin = "#{@pkg.exec_prefix}/bin/#{name}"
+            module_bin = pkg.binfile
+            if !module_bin # assume an older orogen version
+                module_bin = "#{pkg.exec_prefix}/bin/#{name}"
+            end
             cmdline = [module_bin]
 
 	    if output.respond_to?(:to_str)
