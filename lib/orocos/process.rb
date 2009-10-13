@@ -166,8 +166,11 @@ module Orocos
 		read.close
 		write.fcntl(Fcntl::F_SETFD, 1)
 		::Process.setpgrp
-		exec(*cmdline)
-		write.write("FAILED")
+                begin
+                    exec(*cmdline)
+                rescue Exception => e
+                    write.write("FAILED")
+                end
 	    end
 
 	    write.close
