@@ -118,16 +118,7 @@ module Orocos
             end
         end
 
-        def self.load_toolkit(name)
-            return if loaded_toolkit?(name)
-
-            pkg = begin
-                      Utilrb::PkgConfig.new("#{name}-toolkit-#{orocos_target}")
-                  rescue Utilrb::PkgConfig::NotFound
-                      raise NotFound, "the '#{name}' toolkit is not available to pkgconfig"
-                  end
-
-            libname = "lib#{name}-toolkit-#{orocos_target}.so"
+        def self.load_plugin_library(pkg, name, libname)
             libpath = pkg.library_dirs.find do |dir|
                 full_path = File.join(dir, libname)
                 break(full_path) if File.file?(full_path)
@@ -141,13 +132,36 @@ module Orocos
             factory = lib.find('loadRTTPlugin').
                 with_arguments('void*')
             factory[nil]
+            true
+        end
+
+        def self.load_toolkit(name)
+            return if loaded_toolkit?(name)
+
+            toolkit_pkg =
+                begin
+                    Utilrb::PkgConfig.new("#{name}-toolkit-#{orocos_target}")
+                rescue Utilrb::PkgConfig::NotFound
+                    raise NotFound, "the '#{name}' toolkit is not available to pkgconfig"
+                end
+            load_plugin_library(toolkit_pkg, name, "lib#{name}-toolkit-#{orocos_target}.so")
+
+            if Orocos::Generation::VERSION >= "0.8"
+                corba_transport_pkg =
+                    begin
+                        Utilrb::PkgConfig.new("#{name}-transport-corba-#{orocos_target}")
+                    rescue Utilrb::PkgConfig::NotFound
+                        raise NotFound, "the '#{name}' CORBA transport is not available to pkgconfig"
+                    end
+                load_plugin_library(corba_transport_pkg, name, "lib#{name}-transport-corba-#{orocos_target}.so")
+            end
 
             @loaded_toolkits << name
 
             # Now, if this is an orogen toolkit, then load the corresponding
             # data types. orogen defines a type_registry field in the pkg-config
             # file for that purpose.
-            tlb = pkg.type_registry
+            tlb = toolkit_pkg.type_registry
             if tlb
                 Orocos.registry.import(tlb)
             end
