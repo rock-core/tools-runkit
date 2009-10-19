@@ -73,9 +73,9 @@ module Orocos
 
             # Force unregistering the task contexts from CORBA naming
             # service
-            Orocos.task_names.
-                grep(/^#{Regexp.quote(name)}_/).
-                each { |task_name| Orocos::CORBA.unregister(task_name) }
+            task_names.each do |name|
+                Orocos::CORBA.unregister(name)
+            end
 	end
         
         # call-seq:
