@@ -150,7 +150,7 @@ void CorbaAccess::unbind(std::string const& name)
     CosNaming::Name serverName;
     try {
         serverName.length(2);
-        serverName[0].id = CORBA::string_dup( "ControlTask" );
+        serverName[0].id = CORBA::string_dup( "ControlTasks" );
         serverName[1].id = CORBA::string_dup( name.c_str() );
         rootContext->unbind(serverName);
     } catch(CosNaming::NamingContext::NotFound) {}
