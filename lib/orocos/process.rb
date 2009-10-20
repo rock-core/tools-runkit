@@ -138,6 +138,8 @@ module Orocos
 	    raise "#{name} is already running" if alive?
 	    Orocos.debug { "Spawning module #{name}" }
 
+            ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
+
             module_bin = pkg.binfile
             if !module_bin # assume an older orogen version
                 module_bin = "#{pkg.exec_prefix}/bin/#{name}"

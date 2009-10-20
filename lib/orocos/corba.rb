@@ -71,6 +71,12 @@ module Orocos
         extend Logger::Forward
         extend Logger::Hierarchy
 
+        class << self
+            # The address at which to contact the CORBA naming service
+            attr_accessor :name_service
+        end
+        @name_service = "127.0.0.1"
+
         def self.cleanup
             names = Orocos.task_names.dup
             names.each do |n|
