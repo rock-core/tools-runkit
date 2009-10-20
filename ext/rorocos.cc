@@ -68,13 +68,13 @@ static VALUE orocos_task_names(VALUE mod)
     return result;
 }
 
-/* call-seq:
- *  TaskContext.get(name) => task
- *
- * Returns the TaskContext instance representing the remote task context
- * with the given name. Raises Orocos::NotFound if the task name does
- * not exist.
- */
+// call-seq:
+//  TaskContext.get(name) => task
+//
+// Returns the TaskContext instance representing the remote task context
+// with the given name. Raises Orocos::NotFound if the task name does
+// not exist.
+///
 static VALUE task_context_get(VALUE klass, VALUE name)
 {
     try {
@@ -103,12 +103,12 @@ static VALUE task_context_equal_p(VALUE self, VALUE other)
     return self_.task->_is_equivalent(other_.task) ? Qtrue : Qfalse;
 }
 
-/* call-seq:
- *   task.has_port?(name) => true or false
- *
- * Returns true if the given name is the name of a port on this task context,
- * and false otherwise
- */
+// call-seq:
+//   task.has_port?(name) => true or false
+//
+// Returns true if the given name is the name of a port on this task context,
+// and false otherwise
+///
 static VALUE task_context_has_port_p(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
@@ -120,13 +120,13 @@ static VALUE task_context_has_port_p(VALUE self, VALUE name)
     return Qtrue;
 }
 
-/* call-seq:
- *   task.do_port(name) => port
- *
- * Returns the Orocos::DataPort or Orocos::BufferPort object representing the
- * remote port +name+. Raises NotFound if the port does not exist. This is an
- * internal method. Use TaskContext#port to get a port object.
- */
+// call-seq:
+//   task.do_port(name) => port
+//
+// Returns the Orocos::DataPort or Orocos::BufferPort object representing the
+// remote port +name+. Raises NotFound if the port does not exist. This is an
+// internal method. Use TaskContext#port to get a port object.
+///
 static VALUE task_context_do_port(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
@@ -164,12 +164,6 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
     return obj;
 }
 
-/* call-seq:
- *  task.each_port { |p| ... } => task
- *
- * Enumerates the ports available on this task. This yields instances of either
- * Orocos::BufferPort or Orocos::DataPort
- */
 static VALUE task_context_each_port(VALUE self)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
@@ -257,13 +251,13 @@ static VALUE do_output_port_reader(VALUE port, VALUE type_name, VALUE policy)
     return robj;
 }
 
-/* call-seq:
- *  task.attribute(name) => attribute
- *
- * Returns the Attribute object which represents the remote task's
- * Attribute or Property of the given name. There is no difference on the CORBA
- * side (and honestly I don't know the difference on the C++ side either).
- */
+// call-seq:
+//  task.attribute(name) => attribute
+//
+// Returns the Attribute object which represents the remote task's
+// Attribute or Property of the given name. There is no difference on the CORBA
+// side (and honestly I don't know the difference on the C++ side either).
+///
 static VALUE task_context_attribute(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
@@ -283,47 +277,51 @@ static VALUE task_context_attribute(VALUE self, VALUE name)
     return obj;
 }
 
-/* call-seq:
- *  task.each_attribute { |a| ... } => task
- *
- * Enumerates the attributes and properties that are available on
- * this task, as instances of Orocos::Attribute
- */
+// call-seq:
+//  task.each_attribute { |a| ... } => task
+//
+// Enumerates the attributes and properties that are available on
+// this task, as instances of Orocos::Attribute
+///
 static VALUE task_context_each_attribute(VALUE self)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
 
+    try
     {
-        RTT::Corba::AttributeInterface::AttributeNames_var
-            attributes = context.attributes->getAttributeList();
-        for (int i = 0; i < attributes->length(); ++i)
-            rb_yield(task_context_attribute(self, rb_str_new2(attributes[i])));
-    }
+        {
+            RTT::Corba::AttributeInterface::AttributeNames_var
+                attributes = context.attributes->getAttributeList();
+            for (int i = 0; i < attributes->length(); ++i)
+                rb_yield(task_context_attribute(self, rb_str_new2(attributes[i])));
+        }
 
-    {
-        RTT::Corba::AttributeInterface::PropertyNames_var
-            properties = context.attributes->getPropertyList();
-        for (int i = 0; i < properties->length(); ++i)
-            rb_yield(task_context_attribute(self, rb_str_new2(properties[i].name)));
+        {
+            RTT::Corba::AttributeInterface::PropertyNames_var
+                properties = context.attributes->getPropertyList();
+            for (int i = 0; i < properties->length(); ++i)
+                rb_yield(task_context_attribute(self, rb_str_new2(properties[i].name)));
+        }
     }
+    CORBA_EXCEPTION_HANDLERS
 }
 
-/* call-seq:
- *  task.state => value
- *
- * Returns the state of the task, as an integer value. The possible values are
- * represented by the various +STATE_+ constants:
- * 
- *   STATE_PRE_OPERATIONAL
- *   STATE_STOPPED
- *   STATE_ACTIVE
- *   STATE_RUNNING
- *   STATE_RUNTIME_WARNING
- *   STATE_RUNTIME_ERROR
- *   STATE_FATAL_ERROR
- *
- * See Orocos own documentation for their meaning
- */
+// call-seq:
+//  task.state => value
+//
+// Returns the state of the task, as an integer value. The possible values are
+// represented by the various +STATE_+ constants:
+// 
+//   STATE_PRE_OPERATIONAL
+//   STATE_STOPPED
+//   STATE_ACTIVE
+//   STATE_RUNNING
+//   STATE_RUNTIME_WARNING
+//   STATE_RUNTIME_ERROR
+//   STATE_FATAL_ERROR
+//
+// See Orocos own documentation for their meaning
+///
 static VALUE task_context_state(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
@@ -331,11 +329,7 @@ static VALUE task_context_state(VALUE task)
     CORBA_EXCEPTION_HANDLERS
 }
 
-/* call-seq:
- *  task.configure => true or false
- *
- * Do the transition between STATE_PRE_OPERATIONAL and STATE_STOPPED
- */
+// Do the transition between STATE_PRE_OPERATIONAL and STATE_STOPPED
 static VALUE task_context_configure(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
@@ -348,11 +342,7 @@ static VALUE task_context_configure(VALUE task)
     CORBA_EXCEPTION_HANDLERS
 }
 
-/* call-seq:
- *  task.start => true or false
- *
- * Do the transition between STATE_STOPPED and STATE_RUNNING
- */
+// Do the transition between STATE_STOPPED and STATE_RUNNING
 static VALUE task_context_start(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
@@ -365,11 +355,7 @@ static VALUE task_context_start(VALUE task)
     CORBA_EXCEPTION_HANDLERS
 }
 
-/* call-seq:
- *  task.stop => true or false
- *
- * Do the transition between STATE_RUNNING and STATE_STOPPED
- */
+// Do the transition between STATE_RUNNING and STATE_STOPPED
 static VALUE task_context_stop(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
@@ -378,11 +364,7 @@ static VALUE task_context_stop(VALUE task)
     CORBA_EXCEPTION_HANDLERS
 }
 
-/* call-seq:
- *  task.cleanup => true or false
- *
- * Do the transition between STATE_STOPPED and STATE_PRE_OPERATIONAL
- */
+// Do the transition between STATE_STOPPED and STATE_PRE_OPERATIONAL
 static VALUE task_context_cleanup(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
@@ -547,12 +529,6 @@ static VALUE do_local_port_connected(VALUE port_access)
     return local_port.connected() ? Qtrue : Qfalse;
 }
 
-/* Document-class: Orocos::TaskContext
- *
- * TaskContext in Orocos are the representation of the component: access to its
- * inputs and outputs (#each_port) and to its execution state (#state).
- *
- */
 /* Document-class: Orocos::NotFound
  *
  * This exception is raised every time an Orocos object is required by name,
@@ -610,9 +586,9 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_cleanup", RUBY_METHOD_FUNC(task_context_cleanup), 0);
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
-    rb_define_method(cTaskContext, "each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
+    rb_define_method(cTaskContext, "do_each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
     rb_define_method(cTaskContext, "do_attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
-    rb_define_method(cTaskContext, "each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
+    rb_define_method(cTaskContext, "do_each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
 
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);

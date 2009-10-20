@@ -1,4 +1,5 @@
 module Orocos
+    # Base class for RTTMethod and Command
     class Callable
         # The task this method is part of
         attr_reader :task
@@ -29,7 +30,7 @@ module Orocos
             @args_type_names = arguments_spec.map { |name, doc, type| type }
         end
 
-        def common_call(args)
+        def common_call(args) # :nodoc:
             if args.size() != arguments_spec.size()
                 raise ArgumentError, "not enough arguments"
             end
@@ -88,9 +89,22 @@ module Orocos
         end
     end
 
+    # Represents a command, i.e. an asynchronous method call.
     class Command < Callable
         class StateError < RuntimeError; end
 
+        # The last known command state
+        #
+        # Possible states are
+        #   STATE_READY
+        #   STATE_SENT
+        #   STATE_ACCEPTED
+        #   STATE_NOT_ACCEPTED
+        #   STATE_VALID
+        #   STATE_NOT_VALID
+        #   STATE_DONE
+        #
+        # New commands start in the STATE_READY state.
         attr_reader :state
 
         def initialize
@@ -99,11 +113,27 @@ module Orocos
         end
 
         class << self
+            # Set to true if state predicates should call Command#update_state
+            # automatically.
+            #
+            # See the documentation of the state predicates and of #update_state
+            # for more details.
             attr_writer :state_auto_update
+
+            # True if state predicates should call Command#update_state
+            # automatically.
+            #
+            # See the documentation of the state predicates and of #update_state
+            # for more details.
             def state_auto_update?; @state_auto_update end
         end
         @state_auto_update = true
 
+        # Recalls the same command with the same arguments as the last call to
+        # #call. This is an optimization feature, as arguments are stored on the
+        # remote component's side
+        #
+        # Raises StateError if that command is not in a READY state
         def recall
             if state != STATE_READY
                 raise StateError, "the command is not ready. Call #reset first."
@@ -115,6 +145,12 @@ module Orocos
             end
         end
 
+        # Call the command with the given argument.
+        #
+        # If you need to repeatedly call the same command with the same
+        # arguments, use #call once and then use #recall.
+        #
+        # Raises StateError if that command is not in a READY state
         def call(*args)
             if state != STATE_READY
                 raise StateError, "the command is not ready. Call #reset first."
@@ -126,6 +162,8 @@ module Orocos
             end
         end
 
+        # Transitions that command from the FINISHED state into the READY
+        # state, so that #call or #recall can be used again.
         def reset
             if state != STATE_READY
                 if !finished?
@@ -139,7 +177,7 @@ module Orocos
             end
         end
 
-        def self.state_predicate(name, with_negation)
+        def self.state_predicate(name, with_negation) # :nodoc:
             name = name.to_s
             mdef = <<-EOD
             def #{name}?
@@ -165,10 +203,74 @@ module Orocos
             class_eval mdef
         end
 
+        ##
+        # :method: sent?
+        #
+        # True if the command has been sent, i.e. #call has been used but the
+        # command has not yet been accepted by the remote component.
+        #
+        # Note that you will usually want to use one of #ready?, #running?,
+        # #finished?, #successful? and #failed?
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         state_predicate :sent, false
+
+        ##
+        # :method: accepted?
+        #
+        # True if the command has been accepted by the remote component, i.e. if
+        # it is actually queued for execution.
+        #
+        # Note that you will usually want to use one of #ready?, #running?,
+        # #finished?, #successful? and #failed?
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         state_predicate :accepted, true
+
+        ##
+        # :method: executed?
+        #
+        # True if the command's start method has been executed by the remote
+        # component.
+        #
+        # Note that you will usually want to use one of #ready?, #running?,
+        # #finished?, #successful? and #failed?
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         state_predicate :executed, false
+
+        ##
+        # :method: executed?
+        #
+        # True if the command's start method has been executed by the remote
+        # component, and if that method returned true (i.e. the command's
+        # parameters where valid).
+        #
+        # Note that you will usually want to use one of #ready?, #running?,
+        # #finished?, #successful? and #failed?
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         state_predicate :valid, true
+
+        ##
+        # :method: done?
+        #
+        # True if the command execution is finished.
+        #
+        # Note that you will usually want to use one of #ready?, #running?,
+        # #finished?, #successful? and #failed?
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         state_predicate :done, false
 
         STATE_IS_TERMINAL = []
@@ -176,9 +278,19 @@ module Orocos
         STATE_IS_TERMINAL[STATE_NOT_VALID] = true
         STATE_IS_TERMINAL[STATE_DONE] = true
 
+        # True if the given state is terminal (i.e. represents the end of the
+        # command execution)
         def self.terminal_state?(state); STATE_IS_TERMINAL[state] end
 
+        # True if that command object can be used to start a new execution, i.e.
+        # if #call and/or #recall can be used.
         def ready?; state == STATE_READY; end
+
+        # True if that command is currently being executed
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         def running?
             if Command.terminal_state?(state)
                 return false
@@ -190,13 +302,38 @@ module Orocos
                 true
             end
         end
+
+        # True if that command finished its execution
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         def finished?
             Command.terminal_state?(state) ||
                 (Command.state_auto_update? && Command.terminal_state?(update_state))
         end
+
+        # True if that command successfully finished its execution, i.e. if it
+        # has been validated by the remote component.
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         def successful?; valid? if finished? end
+
+        # True if that command failed, i.e. if it has been flagged as invalid by
+        # the remote component.
+        #
+        # If Command.state_auto_update is true, then #update_state will be called
+        # if needed. Otherwise, you will have to call it by yourself to update
+        # the command's state.
         def failed?;     !valid? if finished? end
 
+        # Calls the remote component to update the #state variable.
+        #
+        # Most state-reading predicates will call this method automatically if
+        # Command.state_auto_update is true. This is described in the
+        # documentation of these methods.
         def update_state
             return state if state == STATE_READY || Command.terminal_state?(state)
 

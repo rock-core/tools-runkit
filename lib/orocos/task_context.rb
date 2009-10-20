@@ -45,6 +45,18 @@ module Orocos
         end
     end
 
+    # A proxy for a remote task context. The communication between Ruby and the
+    # RTT component is done through the CORBA transport.
+    #
+    # See README.txt for information on how you can manipulate a task context
+    # through this class.
+    #
+    # The available information about this task context can be displayed using
+    # Ruby's pretty print library:
+    #
+    #   require 'pp'
+    #   pp task_object
+    #
     class TaskContext
         # The name of this task context
         attr_reader :name
@@ -134,7 +146,9 @@ module Orocos
             s == STATE_RUNTIME_ERROR || s == STATE_FATAL_ERROR
         end
 
-        def self.corba_wrap(m, *args)
+        # Automated wrapper to handle CORBA exceptions coming from the C
+        # extension
+        def self.corba_wrap(m, *args) # :nodoc:
             class_eval <<-EOD
             def #{m}(#{args.join(". ")})
                 CORBA.refine_exceptions(self) { do_#{m}(#{args.join(", ")}) }
@@ -142,12 +156,70 @@ module Orocos
             EOD
         end
 
+        # :method: state
+        #
+        # call-seq:
+        #  task.state => value
+        #
+        # Returns the state of the task, as an integer value. The possible values are
+        # represented by the various +STATE_+ constants:
+        # 
+        #   STATE_PRE_OPERATIONAL
+        #   STATE_STOPPED
+        #   STATE_ACTIVE
+        #   STATE_RUNNING
+        #   STATE_RUNTIME_WARNING
+        #   STATE_RUNTIME_ERROR
+        #   STATE_FATAL_ERROR
+        #
+        # See Orocos own documentation for their meaning
         corba_wrap :state
-        corba_wrap :start
-        corba_wrap :cleanup
-        corba_wrap :stop
+
+        ##
+        # :method: configure
+        #
+        # Configures the component, i.e. do the transition from STATE_PRE_OPERATIONAL into
+        # STATE_STOPPED.
+        #
+        # Raises StateTransitionFailed if the component was not in
+        # STATE_PRE_OPERATIONAL state before the call, or if the component
+        # refused to do the transition (startHook() returned false)
         corba_wrap :configure
 
+        ##
+        # :method: start
+        #
+        # Starts the component, i.e. do the transition from STATE_STOPPED into
+        # STATE_RUNNING.
+        #
+        # Raises StateTransitionFailed if the component was not in STATE_STOPPED
+        # state before the call, or if the component refused to do the
+        # transition (startHook() returned false)
+        corba_wrap :start
+
+        ##
+        # :method: stop
+        #
+        # Stops the component, i.e. do the transition from STATE_RUNNING into
+        # STATE_STOPPED.
+        #
+        # Raises StateTransitionFailed if the component was not in STATE_RUNNING
+        # state before the call. The component cannot refuse to perform the
+        # transition (but can take an arbitrarily long time to do it).
+        corba_wrap :stop
+
+        ##
+        # :method: cleanup
+        #
+        # Cleans the component, i.e. do the transition from STATE_STOPPED into
+        # STATE_PRE_OPERATIONAL.
+        #
+        # Raises StateTransitionFailed if the component was not in STATE_STOPPED
+        # state before the call. The component cannot refuse to perform the
+        # transition (but can take an arbitrarily long time to do it).
+        corba_wrap :cleanup
+
+        # Returns true if this task context has a port with the given name
         def has_port?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
@@ -155,6 +227,20 @@ module Orocos
             end
         end
 
+        # Returns an Attribute object representing the given attribute or
+        # property.
+        #
+        # Raises NotFound if no such attribute or property exists.
+        #
+        # Ports can also be accessed by calling directly the relevant
+        # method on the task context:
+        #
+        #   task.attribute("myProperty")
+        #
+        # is equivalent to
+        #
+        #   task.myProperty
+        #
         def attribute(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
@@ -162,6 +248,20 @@ module Orocos
             end
         end
 
+        # Returns an object that represents the given port on the remote task
+        # context. The returned object is either an InputPort or an OutputPort
+        #
+        # Raises NotFound if no such port exists.
+        #
+        # Ports can also be accessed by calling directly the relevant
+        # method on the task context:
+        #
+        #   task.port("myPort")
+        #
+        # is equivalent to
+        #
+        #   task.myPort
+        #
         def port(name)
             name = name.to_str
             CORBA.refine_exceptions(self) do
@@ -178,19 +278,54 @@ module Orocos
             end
         end
 
+        # call-seq:
+        #  task.each_port { |p| ... } => task
+        # 
+        # Enumerates the ports that are available on this task, as instances of
+        # either Orocos::InputPort or Orocos::OutputPort
+        def each_port(&block)
+            CORBA.refine_exceptions(self) do
+                do_each_port(&block)
+            end
+            self
+        end
+
+        # call-seq:
+        #  task.each_attribute { |a| ... } => task
+        # 
+        # Enumerates the attributes and properties that are available on
+        # this task, as instances of Orocos::Attribute
+        def each_attribute(&block)
+            CORBA.refine_exceptions(self) do
+                do_each_attribute(&block)
+            end
+            self
+        end
+
+        # Returns a RTTMethod object that represents the given method on the
+        # remote component.
+        #
+        # Raises NotFound if no such method exists.
         def rtt_method(name)
             CORBA.refine_exceptions(self) do
                 do_rtt_method(name.to_s)
             end
         end
+        # Returns a Command object that represents the given command on the
+        # remote component.
+        #
+        # Raises NotFound if no such command exists.
+        #
+        # See also #rtt_command
 	def command(name)
             CORBA.refine_exceptions(self) do
                 do_command(name.to_s)
             end
 	end
+        # Like #command. Provided for consistency with #rtt_method
         def rtt_command(name); command(name) end
 
-        def method_missing(m, *args)
+        def method_missing(m, *args) # :nodoc:
             m = m.to_s
             if m =~ /^(\w+)=/
                 name = $1
@@ -212,18 +347,33 @@ module Orocos
             super(m.to_sym, *args)
         end
 
+        # Returns the Orogen specification object for this task instance.
+        # This is available only if the deployment in which this task context
+        # runs has been generated by orogen.
+        #
+        # See also #model
         def info
             process.orogen.task_activities.find { |act| act.name == name }
         end
+
+        # Returns the Orogen specification object for this task's model
+        # This is available only if the deployment in which this task context
+        # runs has been generated by orogen.
+        #
+        # See also #info
         def model
             info.context
         end
 
+        # True if this task's model is a subclass of the provided class name
+        #
+        # This is available only if the deployment in which this task context
+        # runs has been generated by orogen.
         def implements?(class_name)
             model.implements?(class_name)
         end
 
-        def pretty_print(pp)
+        def pretty_print(pp) # :nodoc:
             states_description = TaskContext.constants.grep(/^STATE_/).
                 inject([]) do |map, name|
                     map[TaskContext.const_get(name)] = name.gsub /^STATE_/, ''

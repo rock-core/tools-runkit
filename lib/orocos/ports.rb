@@ -1,6 +1,9 @@
 require 'utilrb/kernel/options'
 
 module Orocos
+    # Base class for port classes.
+    #
+    # See OutputPort and InputPort
     class Port
 	class << self
 	    # The only way to create a Port object (and its derivatives) is
@@ -44,7 +47,38 @@ module Orocos
             end
         end
 
-        def validate_policy(policy) # :nodoc:
+        # A connection policy is represented by a hash whose elements are each
+        # of the policy parameters. Valid policies are:
+        # 
+        #  * buffer policy. Values are stored in a FIFO of the specified size.
+        #    Connecting with a buffer policy is done with:
+        # 
+        #      output_port.connect_to(input_port, :type => :buffer, :size => 10)
+        # 
+        #  * data policy. The input port will always read the last value pushed by the
+        #    output port. It is the default policy, but can be explicitly specified with:
+        # 
+        #      output_port.connect_to(input_port, :type => :data)
+        # 
+        # An additional +:pull+ option specifies if samples should be pushed by the
+        # output end (i.e. if all samples that are written on the output port are sent to
+        # the input port), or if the values are transmitted only when the input port is
+        # read. For instance:
+        # 
+        #   output_port.connect_to(input_port, :type => :data, :pull => true)
+        #
+        # Finally, the type of locking can be specified. The +lock_free+ locking
+        # policy guarantees that a high-priority thread will not be "taken over"
+        # by a low-priority one, but requires a lot of copying -- so avoid it in
+        # non-hard-realtime contexts with big data samples. The +locked+ locking
+        # policy uses mutexes, so is not ideal in hard realtime contexts. Each
+        # policy is specified with:
+        #
+        #   output_port.connect_to(input_port, :lock => :lock_free)
+        #   output_port.connect_to(input_port, :lock => :locked)
+        #
+        # This method raises ArgumentError if the policy is not valid.
+        def validate_policy(policy)
             policy = validate_options policy,
                 :type => :data,
                 :init => false,
@@ -62,7 +96,7 @@ module Orocos
         end
 
     private
-        def refine_exceptions(other = nil)
+        def refine_exceptions(other = nil) # :nodoc:
             CORBA.refine_exceptions(self, other) do
                 yield
             end
@@ -76,12 +110,25 @@ module Orocos
         end
     end
 
-    # This class represents a remote task's input port
+    # This class represents output ports on remote task contexts.
+    #
+    # They are obtained from TaskContext#port or TaskContext#each_port
     class InputPort
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
         def writer(policy = Hash.new)
             do_writer(@type_name, validate_policy(policy))
+        end
+
+        # Writes one sample with a default policy.
+        #
+        # While convenient, this is quite ressource consuming, as each time one
+        # will need to create a new connection between the ruby interpreter and
+        # the remote component.
+        #
+        # Use #writer if you need to write on the same port repeatedly.
+        def write(sample)
+            writer.write(sample)
         end
 
         def pretty_print(pp) # :nodoc:
@@ -102,7 +149,11 @@ module Orocos
         end
     end
 
+    # This class represents output ports on remote task contexts.
+    #
+    # They are obtained from TaskContext#port or TaskContext#each_port
     class OutputPort
+        # Require this port to disconnect from the provided input port
         def disconnect_from(input)
             refine_exceptions(input) do
                 do_disconnect_from(input)
@@ -110,13 +161,24 @@ module Orocos
             self
         end
 
-        def pretty_print(pp)
+        def pretty_print(pp) # :nodoc:
             pp.text "out "
             super
         end
 
+        # Reads one sample with a default policy.
+        #
+        # While convenient, this is quite ressource consuming, as each time one
+        # will need to create a new connection between the ruby interpreter and
+        # the remote component.
+        #
+        # Use #writer if you need to read the same port repeatedly.
         def read; reader.read end
 
+        # Returns an OutputReader object that is connected to that port
+        #
+        # The policy dictates how data should flow between the port and the
+        # reader object. See #validate_policy
         def reader(policy = Hash.new)
             do_reader(@type_name, validate_policy(policy))
         end
@@ -152,6 +214,8 @@ module Orocos
         end
     end
 
+    # Instances of this class allow to read a component's output port. They are
+    # obtained from OutputPort#reader
     class OutputReader
 	class << self
 	    # The only way to create an OutputReader object is OutputPort#reader
@@ -161,6 +225,21 @@ module Orocos
         # The OutputPort object this reader is linked to
         attr_reader :port
 
+        # Reads a sample on the associated output port.
+        #
+        # For simple types, the returned value is the Ruby representation of the
+        # C value.  For instance, C++ strings are represented as String objects,
+        # integers as Integer, ...
+        #
+        # For structures and vectors, the returned value is a representation of
+        # that type that Ruby can understand. Field access is transparent:
+        #
+        #   struct = reader.read
+        #   struct.a_field # returns either a simple value or another structure
+        #   struct.an_array.each do |element|
+        #   end
+        #   
+        # Raises CORBA::ComError if the communication is broken.
         def read
 	    if process = port.task.process
 		if !process.alive?
@@ -185,6 +264,23 @@ module Orocos
         # The InputPort object this writer is linked to
         attr_reader :port
 
+        # Write a sample on the associated input port.
+        #
+        # If the data type is a struct, the sample can be provided either as a
+        # Typelib instance object or as a hash.
+        #
+        # In the first case, one can do:
+        #
+        #   value = input_port.new_sample # Get a new sample from the port
+        #   value = input_writer.new_sample # Get a new sample from the writer
+        #   value.field = 10
+        #   value.other_field = "a_string"
+        #   input_writer.write(value)
+        #
+        # In the second case, 
+        #   input_writer.write(:field => 10, :other_field => "a_string")
+        #   
+        # Raises CORBA::ComError if the communication is broken.
         def write(data)
 	    if process = port.task.process
 		if !process.alive?
