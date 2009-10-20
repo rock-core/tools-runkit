@@ -5,17 +5,19 @@ require 'pp'
 require 'utilrb/pkgconfig'
 
 # First, load all toolkits that are available
-Utilrb::PkgConfig.each_package(/-toolkit-/) do |name|
-    name =~ /-toolkit-/
+Utilrb::PkgConfig.each_package(/-transport-corba-/) do |name|
+    name =~ /-transport-corba-/
     Orocos::CORBA.load_toolkit $`
 end
 
 Orocos.task_names.each do |name|
+    puts name
     begin
         task = Orocos::TaskContext.get(name)
+        pp task
+        puts
     rescue Orocos::NotFound
+        STDERR.puts "#{name} seems to be a dead name"
     end
-    pp task
-    puts
 end
 
