@@ -17,14 +17,14 @@ describe "data convertions between CORBA and Ruby" do
     end
 
     it "should be able to read property values from a simple type" do
-        start_processes('process') do |process|
+        Orocos::Process.spawn('process') do |process|
             prop = process.task('Test').attribute('prop2')
             assert_equal(84, prop.read)
         end
     end
 
     it "should be able to read property values from a complex type" do
-        start_processes('process') do |process|
+        Orocos::Process.spawn('process') do |process|
             prop1 = process.task('Test').attribute('prop1')
 
             value = prop1.read
@@ -34,7 +34,7 @@ describe "data convertions between CORBA and Ruby" do
     end
 
     it "should be able to write a property of a simple type" do
-        start_processes('process') do |process|
+        Orocos::Process.spawn('process') do |process|
             prop = process.task('Test').attribute('prop2')
             prop.write(80)
             assert_equal(80, prop.read)
@@ -42,7 +42,7 @@ describe "data convertions between CORBA and Ruby" do
     end
 
     it "should be able to write a property of a complex type" do
-        start_processes('process') do |process|
+        Orocos::Process.spawn('process') do |process|
             prop = process.task('Test').attribute('prop1')
 
             value = prop.type.new

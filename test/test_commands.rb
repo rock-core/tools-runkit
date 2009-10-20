@@ -17,7 +17,7 @@ describe Orocos::Command do
     end
 
     def common_setup
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task 'Echo'
             echo.start
             reader = echo.port('output').reader
@@ -90,7 +90,7 @@ describe Orocos::Command do
     end
 
     it "should be possible to track its status (non-running processor)" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task 'Echo'
             c = echo.command 'AsyncWrite'
             c.call(10, 42)

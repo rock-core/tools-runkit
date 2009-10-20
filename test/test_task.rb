@@ -21,7 +21,7 @@ describe Orocos::TaskContext do
     end
 
     it "should check equality based on CORBA reference" do
-        start_processes('process') do |process|
+        Orocos::Process.spawn('process') do |process|
             assert(t1 = Orocos::TaskContext.get('process_Test'))
             assert(t2 = Orocos::TaskContext.get('process_Test'))
             refute_equal(t1.object_id, t2.object_id)
@@ -30,7 +30,7 @@ describe Orocos::TaskContext do
     end
 
     it "should allow enumerating its ports" do
-        start_processes('simple_source', 'simple_sink') do |source, sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |source, sink|
             source = source.task("source")
             sink   = sink.task("sink")
 
@@ -40,7 +40,7 @@ describe Orocos::TaskContext do
     end
 
     it "should allow getting its ports" do
-        start_processes('simple_source', 'simple_sink') do |source, sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |source, sink|
             source = source.task("source")
             sink   = sink.task("sink")
 
@@ -59,13 +59,13 @@ describe Orocos::TaskContext do
     end
 
     it "should raise NotFound if a port does not exist" do
-        start_processes('simple_source', 'simple_sink') do |source, sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |source, sink|
             assert_raises(Orocos::NotFound) { source.task("source").port("does_not_exist") }
         end
     end
 
     it "should raise CORBA::ComError when #port is called on a dead remote process" do
-        start_processes('simple_source') do |source_p|
+        Orocos::Process.spawn('simple_source') do |source_p|
             source = source_p.task("source")
             source_p.kill
             assert_raises(Orocos::CORBA::ComError) { source.port("cycle") }
@@ -73,7 +73,7 @@ describe Orocos::TaskContext do
     end
 
     it "should allow getting a method object" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task('Echo')
             m = echo.rtt_method(:write)
             assert_equal "write", m.name
@@ -84,14 +84,14 @@ describe Orocos::TaskContext do
     end
 
     it "should raise NotFound on an unknown method object" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task('Echo')
             assert_raises(Orocos::NotFound) { echo.rtt_method(:unknown) }
         end
     end
 
     it "should raise CORBA::ComError when #rtt_method has communication errors" do
-        start_processes 'echo' do |echo_p|
+        Orocos::Process.spawn 'echo' do |echo_p|
             echo = echo_p.task('Echo')
             echo_p.kill
             assert_raises(Orocos::CORBA::ComError) { echo.rtt_method(:write) }
@@ -99,7 +99,7 @@ describe Orocos::TaskContext do
     end
 
     it "should allow getting a command object" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task('Echo')
             m = echo.command(:AsyncWrite)
             assert_equal "AsyncWrite", m.name
@@ -109,14 +109,14 @@ describe Orocos::TaskContext do
     end
 
     it "should raise NotFound on an unknown method object" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task('Echo')
             assert_raises(Orocos::NotFound) { echo.command(:unknown) }
         end
     end
 
     it "should raise CORBA::ComError when #command has communication errors" do
-        start_processes 'echo' do |echo_p|
+        Orocos::Process.spawn 'echo' do |echo_p|
             echo = echo_p.task('Echo')
             echo_p.kill
             assert_raises(Orocos::CORBA::ComError) { echo.command(:write) }
@@ -124,7 +124,7 @@ describe Orocos::TaskContext do
     end
 
     it "should be able to manipulate the task state machine and read its state" do
-        start_processes('simple_source') do |source|
+        Orocos::Process.spawn('simple_source') do |source|
             source = source.task("source")
             assert_equal(Orocos::TaskContext::STATE_PRE_OPERATIONAL, source.state)
             assert_raises(Orocos::StateTransitionFailed) { source.start }
@@ -149,7 +149,7 @@ describe Orocos::TaskContext do
     end
 
     it "should raise CORBA::ComError when state-related methods are called on a dead process" do
-        start_processes('simple_source') do |source_p|
+        Orocos::Process.spawn('simple_source') do |source_p|
             source = source_p.task("source")
             source_p.kill
             assert_raises(Orocos::CORBA::ComError) { source.state }
@@ -160,7 +160,7 @@ describe Orocos::TaskContext do
     end
 
     it "should be pretty-printable" do
-        start_processes('echo', 'process') do |source_p, process_p|
+        Orocos::Process.spawn('echo', 'process') do |source_p, process_p|
             source = source_p.task("Echo")
             process = process_p.task('Test')
             PP.pp(source, '')

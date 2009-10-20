@@ -20,7 +20,7 @@ describe Orocos::Port do
     end
 
     it "should check equality based on CORBA reference" do
-        start_processes('simple_source') do |source|
+        Orocos::Process.spawn 'simple_source' do |source|
             source = source.task("source")
             p1 = source.port("cycle")
             # Remove p1 from source's port cache
@@ -46,7 +46,7 @@ describe Orocos::OutputPort do
     end
 
     it "should be able to connect to an input" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
 
@@ -59,7 +59,7 @@ describe Orocos::OutputPort do
     end
 
     it "should raise CORBA::ComError when connected to a dead input" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
             p_sink.kill
@@ -68,7 +68,7 @@ describe Orocos::OutputPort do
     end
 
     it "should raise CORBA::ComError when #connect_to is called on a dead process" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
             p_source.kill
@@ -77,7 +77,7 @@ describe Orocos::OutputPort do
     end
 
     it "should be able to disconnect from a particular input" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
 
@@ -91,7 +91,7 @@ describe Orocos::OutputPort do
     end
 
     it "it should be able to disconnect from a dead input" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
             source.connect_to sink
@@ -104,7 +104,7 @@ describe Orocos::OutputPort do
     end
 
     it "should be able to disconnect from all its InputPort" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
 
@@ -118,7 +118,7 @@ describe Orocos::OutputPort do
     end
 
     it "it should be able to disconnect all inputs even though some are dead" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
             source.connect_to sink
@@ -131,7 +131,7 @@ describe Orocos::OutputPort do
     end
 
     it "should refuse connecting to another OutputPort" do
-        start_processes('simple_source') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
 
             assert(!source.connected?)
@@ -152,7 +152,7 @@ describe Orocos::InputPort do
     end
 
     it "should be able to disconnect from all connected outputs" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
 
@@ -166,7 +166,7 @@ describe Orocos::InputPort do
     end
 
     it "should be able to disconnect from all connected outputs even though some are dead" do
-        start_processes('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
 
@@ -180,7 +180,7 @@ describe Orocos::InputPort do
     end
 
     it "should refuse connecting to another input" do
-        start_processes('simple_source') do |p_source, p_sink|
+        Orocos::Process.spawn('simple_source') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
 
             assert(!source.connected?)
@@ -201,7 +201,7 @@ describe Orocos::OutputReader do
     end
 
     it "should offer read access on an output port" do
-        start_processes('simple_source') do |source|
+        Orocos::Process.spawn('simple_source') do |source|
             source = source.task('source')
             output = source.port('cycle')
             
@@ -213,7 +213,7 @@ describe Orocos::OutputReader do
     end
 
     it "should be able to read data from an output port using a data connection" do
-        start_processes('simple_source') do |source|
+        Orocos::Process.spawn('simple_source') do |source|
             source = source.task('source')
             output = source.port('cycle')
             source.configure
@@ -227,7 +227,7 @@ describe Orocos::OutputReader do
     end
 
     it "should be able to read data from an output port using a buffer connection" do
-        start_processes('simple_source') do |source|
+        Orocos::Process.spawn('simple_source') do |source|
             source = source.task('source')
             output = source.port('cycle')
             reader = output.reader :type => :buffer, :size => 10
@@ -248,7 +248,7 @@ describe Orocos::OutputReader do
     end
 
     it "should be able to clear its connection" do
-        start_processes('simple_source') do |source|
+        Orocos::Process.spawn('simple_source') do |source|
             source = source.task('source')
             output = source.port('cycle')
             reader = output.reader
@@ -264,7 +264,7 @@ describe Orocos::OutputReader do
     end
 
     it "should raise ComError if the remote end is dead and be disconnected" do
-	start_processes 'simple_source' do |source_p|
+	Orocos::Process.spawn 'simple_source' do |source_p|
             source = source_p.task('source')
             output = source.port('cycle')
             reader = output.reader
@@ -293,7 +293,7 @@ describe Orocos::InputWriter do
     end
 
     it "should offer write access on an input port" do
-        start_processes('echo') do |echo|
+        Orocos::Process.spawn('echo') do |echo|
             echo  = echo.task('Echo')
             input = echo.port('input')
             
@@ -304,7 +304,7 @@ describe Orocos::InputWriter do
     end
 
     it "should raise Corba::ComError when writing on a dead port and be disconnected" do
-        start_processes('echo') do |echo_p|
+        Orocos::Process.spawn('echo') do |echo_p|
             echo  = echo_p.task('Echo')
             input = echo.port('input')
             
@@ -316,7 +316,7 @@ describe Orocos::InputWriter do
     end
 
     it "should be able to write data to an input port using a data connection" do
-        start_processes('echo') do |echo|
+        Orocos::Process.spawn('echo') do |echo|
             echo  = echo.task('Echo')
             writer = echo.port('input').writer
             reader = echo.port('output').reader

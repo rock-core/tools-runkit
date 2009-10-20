@@ -17,7 +17,7 @@ describe Orocos::RTTMethod do
     end
 
     it "should be possible to call a method with arguments" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task 'Echo'
             echo.start
 
@@ -30,7 +30,7 @@ describe Orocos::RTTMethod do
     end
 
     it "should be possible to reuse a method object with different arguments" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task 'Echo'
             echo.start
 
@@ -45,7 +45,7 @@ describe Orocos::RTTMethod do
     end
 
     it "should be possible to recall an already called method" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task 'Echo'
             echo.start
 
@@ -58,7 +58,7 @@ describe Orocos::RTTMethod do
     end
 
     it "should be possible to have mutliple RTTMethod instances referring to the same remote method" do
-        start_processes 'echo' do |echo|
+        Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task 'Echo'
             echo.start
 

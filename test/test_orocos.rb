@@ -17,7 +17,7 @@ describe "Orocos module features" do
         Orocos.task_names.must_equal []
         deployments = %w{process simple_source simple_sink}
         tasks       = %w{process_Test simple_source_source simple_sink_sink}
-        start_processes(*deployments) do |*processes|
+        Orocos::Process.spawn(*deployments) do |*processes|
             Orocos.task_names.to_set.
                 must_equal tasks.to_set
         end

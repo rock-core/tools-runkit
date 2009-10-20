@@ -75,29 +75,6 @@ module Orocos
             Orocos::CORBA.instance_variable_set :@loaded_toolkits, []
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
         end
-
-        def cleanup_process(process)
-            yield(process)
-        ensure
-            process.kill if process.alive?
-        end
-
-        def do_start_processes(procs, name, *remaining_names, &block)
-            cleanup_process(Orocos::Process.new(name)) do |process|
-                process.spawn
-                procs << process
-                if remaining_names.empty?
-                    procs.each { |p| p.wait_running(0.5) }
-                    yield(*procs)
-                else
-                    do_start_processes(procs, *remaining_names, &block)
-                end
-            end
-        end
-
-        def start_processes(name, *remaining_names, &block)
-            do_start_processes([], name, *remaining_names, &block)
-        end
     end
 end
 
