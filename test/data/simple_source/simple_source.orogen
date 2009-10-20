@@ -5,7 +5,7 @@ task_context "source" do
     output_port "cycle", "int"
 end
 
-static_deployment do
+deployment "simple_source" do
     src = task("source").
         periodic(0.1)
 end

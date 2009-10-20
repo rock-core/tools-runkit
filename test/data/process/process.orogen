@@ -10,7 +10,7 @@ task_context 'Test' do
     property "prop2", "int"
 end
 
-static_deployment do
+deployment "process" do
     test = task('Test').
         periodic(0.1).
         start

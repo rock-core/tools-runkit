@@ -4,7 +4,7 @@ task_context "sink" do
     input_port "cycle", "int"
 end
 
-static_deployment do
+deployment "simple_sink" do
     src = task("sink").
         periodic(0.1)
 end
