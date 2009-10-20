@@ -46,7 +46,7 @@ module Orocos
     end
     def self.each_process
         ObjectSpace.each_object(Orocos::Process) do |p|
-            yield(p)
+            yield(p) if p.alive?
         end
     end
 
