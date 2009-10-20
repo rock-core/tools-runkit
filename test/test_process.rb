@@ -34,9 +34,17 @@ describe Orocos::Process do
         end
     end
 
-    it "can get a reference on a deployed task context" do
+    it "can get a reference on a deployed task context by name" do
         Orocos::Process.spawn('process') do |process|
             assert(direct   = Orocos::TaskContext.get('process_Test'))
+            assert(indirect = process.task("Test"))
+            assert_equal(direct, indirect)
+        end
+    end
+
+    it "can get a reference on a deployed task context by class" do
+        Orocos::Process.spawn('process') do |process|
+            assert(direct   = Orocos::TaskContext.get(:provides => "process::Test"))
             assert(indirect = process.task("Test"))
             assert_equal(direct, indirect)
         end

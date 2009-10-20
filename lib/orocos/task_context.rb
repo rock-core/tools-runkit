@@ -69,11 +69,44 @@ module Orocos
 	    private :new
 	end
 
-	# Returns the TaskContext instance representing the remote task context
-	# with the given name. Raises Orocos::NotFound if the task name does
-	# not exist.
-	def self.get(name, process = nil)
-            name = name.to_s
+        # Returns a task which provides the +type+ interface.
+        #
+        # Use TaskContext.get(:provides => name) instead.
+        def self.get_provides(type) # :nodoc:
+            results = Orocos.enum_for(:each_task).find_all do |task|
+                task.implements?(type)
+            end
+
+            if results.empty?
+                raise Orocos::NotFound, "no task implements #{type}"
+            elsif results.size > 1
+                candidates = results.map { |t| t.name }.join(", ")
+                raise Orocos::NotFound, "more than one task implements #{type}: #{candidates}"
+            end
+            get(results.first.name)
+        end
+
+	# call-seq:
+        #   TaskContext.get(name) => task
+        #   TaskContext.get(:provides => interface_name) => task
+        #
+        # In the first form, returns the TaskContext instance representing the
+        # remote task context with the given name.
+        #
+        # In the second form, searches for a task context that implements the given
+        # interface. This is doable only if orogen has been used to generate the
+        # components.
+        #
+        # Raises Orocos::NotFound if the task name does not exist, or if no task
+        # implements the given interface.
+	def self.get(options, process = nil)
+            if options.kind_of?(Hash)
+                # Right now, the only allowed option is :provides
+                options = Kernel.validate_options options, :provides => nil
+                return get_provides(options[:provides].to_str)
+            else
+                name = options.to_str
+            end
 
             # Try to find ourselves a process object if none is given
             if !process
@@ -155,6 +188,7 @@ module Orocos
                 do_command(name.to_s)
             end
 	end
+        def rtt_command(name); command(name) end
 
         def method_missing(m, *args)
             m = m.to_s
