@@ -242,7 +242,7 @@ void Orocos_init_CORBA()
     eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
     eComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
 
-    rb_define_singleton_method(mCORBA, "init", RUBY_METHOD_FUNC(corba_init), 0);
+    rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 0);
     rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
     rb_define_singleton_method(mCORBA, "do_call_timeout", RUBY_METHOD_FUNC(corba_set_call_timeout), 1);
     rb_define_singleton_method(mCORBA, "do_connect_timeout", RUBY_METHOD_FUNC(corba_set_connect_timeout), 1);
