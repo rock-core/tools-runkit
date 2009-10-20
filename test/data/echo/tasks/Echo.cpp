@@ -63,8 +63,11 @@ bool Echo::isAsyncWriteCompleted(int value, int stop)
 void Echo::updateHook(std::vector<RTT::PortInterface*> const& updated_ports)
 {
     int val;
+    Int str;
     if (_input.read(val))
         _output.write(val);
+    else if (_input_struct.read(str))
+        _output.write(str.value);
     else
 	_output.write(++async_old);
 

@@ -328,5 +328,19 @@ describe Orocos::InputWriter do
             assert_equal(10, reader.read)
         end
     end
+
+    it "should be able to structs using a Hash" do
+        Orocos::Process.spawn('echo') do |echo|
+            echo  = echo.task('Echo')
+            writer = echo.port('input_struct').writer
+            reader = echo.port('output').reader
+
+            echo.start
+            assert_equal(nil, reader.read)
+            writer.write(:value => 10)
+            sleep(0.1)
+            assert_equal(10, reader.read)
+        end
+    end
 end
 
