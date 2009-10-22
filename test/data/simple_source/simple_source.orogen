@@ -1,8 +1,11 @@
 name "simple_source"
 
+import_types_from "source.h"
+
 task_context "source" do
     needs_configuration
     output_port "cycle", "int"
+    output_port "cycle_struct", "simple_source/Int"
 end
 
 deployment "simple_source" do

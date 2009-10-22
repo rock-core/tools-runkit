@@ -247,6 +247,27 @@ describe Orocos::OutputReader do
         end
     end
 
+    it "should be able to read data from an output port using a struct" do
+        Orocos::Process.spawn('simple_source') do |source|
+            source = source.task('source')
+            output = source.port('cycle_struct')
+            reader = output.reader :type => :buffer, :size => 10
+            source.configure
+            source.start
+            sleep(0.5)
+            source.stop
+
+            values = []
+            while v = reader.read
+                values << v.value
+            end
+            assert(values.size > 1)
+            values.each_cons(2) do |a, b|
+                assert(b == a + 1, "non-consecutive values #{a.inspect} and #{b.inspect}")
+            end
+        end
+    end
+
     it "should be able to clear its connection" do
         Orocos::Process.spawn('simple_source') do |source|
             source = source.task('source')

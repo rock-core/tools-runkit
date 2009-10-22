@@ -9,6 +9,9 @@ void source::updateHook()
 {
     static int cycle = 0;
     _cycle.write(++cycle);
+
+    Int v = { cycle };
+    _cycle_struct.write(v);
 }
 
 
