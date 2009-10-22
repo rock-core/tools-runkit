@@ -34,6 +34,7 @@ void CorbaAccess::deinit()
 }
 
 CorbaAccess::CorbaAccess(int argc, char* argv[])
+    : port_id_counter(0)
 {
     // First initialize the ORB. We use ControlTaskProxy::InitORB as we will
     // have to create a servant for our local DataFlowInterface object.
