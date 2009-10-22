@@ -350,7 +350,7 @@ describe Orocos::InputWriter do
         end
     end
 
-    it "should be able to structs using a Hash" do
+    it "should be able to write structs using a Hash" do
         Orocos::Process.spawn('echo') do |echo|
             echo  = echo.task('Echo')
             writer = echo.port('input_struct').writer
