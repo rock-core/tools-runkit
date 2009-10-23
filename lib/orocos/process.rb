@@ -36,8 +36,7 @@ module Orocos
             end
 
             # Load the orogen's description
-            project_name = name.gsub(/-tasks.*$/, '')
-            orogen_project = Orocos::Generation.load_task_library(project_name)
+            orogen_project = Orocos::Generation::TaskLibrary.load(@pkg, @pkg.deffile)
             @orogen = orogen_project.deployers.find do |d|
                 d.name == name
             end
