@@ -65,12 +65,15 @@ module Orocos
 
     module Spec
         def setup
+            @old_timeout = Orocos::CORBA.connect_timeout
+            Orocos::CORBA.connect_timeout = 50
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             ENV['PKG_CONFIG_PATH'] += ":#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
             super
         end
         def teardown
             super
+            Orocos::CORBA.connect_timeout = @old_timeout
             Orocos.instance_variable_set :@registry, Typelib::Registry.new
             Orocos::CORBA.instance_variable_set :@loaded_toolkits, []
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
