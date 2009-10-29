@@ -34,7 +34,7 @@ describe Orocos::TaskContext do
             source = source.task("source")
             sink   = sink.task("sink")
 
-            source.enum_for(:each_port).to_a.must_equal [source.port("cycle")]
+            source.enum_for(:each_port).to_a.must_equal [source.port("cycle"), source.port("cycle_struct")]
             sink.enum_for(:each_port).to_a.must_equal [sink.port("cycle")]
         end
     end
