@@ -125,7 +125,9 @@ module Orocos
                 processes
             end
         end
-
+        
+        # Kills the given processes. If +wait+ is true, will also wait for the
+        # processes to be destroyed.
         def self.kill(processes, wait = true)
             processes.each { |p| p.kill if p.running? }
             if wait
@@ -134,6 +136,10 @@ module Orocos
         end
 
         # Spawns this process
+        #
+        # If +output+ is non-nil, the process output is redirected towards that
+        # file. Special patterns %m and %p are replaced respectively by the
+        # process name and the process PID value.
         def spawn(output = nil)
 	    raise "#{name} is already running" if alive?
 	    Orocos.debug { "Spawning module #{name}" }
