@@ -24,8 +24,8 @@ module Orocos
             if @type_name == "string"
                 @type_name = "/std/string"
             end
-            if !(@type = Orocos.registry.get(@type_name))
-                raise "cannot find type #{@type_name} in the registry"
+            if !(@type = Orocos.registry.get(type_name))
+                raise "cannot find type #{type_name} in the registry"
             end
         end
 
@@ -117,7 +117,7 @@ module Orocos
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
         def writer(policy = Hash.new)
-            do_writer(@type_name, validate_policy(policy))
+            do_writer(type_name, validate_policy(policy))
         end
 
         # Writes one sample with a default policy.
