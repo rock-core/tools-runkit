@@ -349,48 +349,46 @@ static VALUE task_context_state(VALUE task)
     CORBA_EXCEPTION_HANDLERS
 }
 
-// Do the transition between STATE_PRE_OPERATIONAL and STATE_STOPPED
-static VALUE task_context_configure(VALUE task)
+static VALUE call_checked_state_change(VALUE task, char const* msg, bool (RTT::Corba::_objref_ControlTask::*m)())
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
     try
     {
-        if (!context.task->configure())
-            rb_raise(eStateTransitionFailed, "failed to configure");
+        RTT::Corba::_objref_ControlTask& obj = *context.task;
+        if (!((obj.*m)()))
+            rb_raise(eStateTransitionFailed, msg);
         return Qnil;
     }
     CORBA_EXCEPTION_HANDLERS
+}
+
+// Do the transition between STATE_PRE_OPERATIONAL and STATE_STOPPED
+static VALUE task_context_configure(VALUE task)
+{
+    return call_checked_state_change(task, "failed to configure", &RTT::Corba::_objref_ControlTask::configure);
 }
 
 // Do the transition between STATE_STOPPED and STATE_RUNNING
 static VALUE task_context_start(VALUE task)
 {
-    RTaskContext& context = get_wrapped<RTaskContext>(task);
-    try
-    {
-        if (!context.task->start())
-            rb_raise(eStateTransitionFailed, "failed to start");
-        return Qnil;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    return call_checked_state_change(task, "failed to start", &RTT::Corba::_objref_ControlTask::start);
 }
 
 // Do the transition between STATE_RUNNING and STATE_STOPPED
 static VALUE task_context_stop(VALUE task)
 {
-    RTaskContext& context = get_wrapped<RTaskContext>(task);
-    try
-    { return context.task->stop() ? Qtrue : Qfalse; }
-    CORBA_EXCEPTION_HANDLERS
+    return call_checked_state_change(task, "failed to stop", &RTT::Corba::_objref_ControlTask::stop);
 }
 
 // Do the transition between STATE_STOPPED and STATE_PRE_OPERATIONAL
 static VALUE task_context_cleanup(VALUE task)
 {
-    RTaskContext& context = get_wrapped<RTaskContext>(task);
-    try
-    { return context.task->cleanup() ? Qtrue : Qfalse; }
-    CORBA_EXCEPTION_HANDLERS
+    return call_checked_state_change(task, "failed to cleanup", &RTT::Corba::_objref_ControlTask::cleanup);
+}
+
+static VALUE task_context_reset_error(VALUE task)
+{
+    return call_checked_state_change(task, "failed to reset the error state", &RTT::Corba::_objref_ControlTask::resetError);
 }
 
 /* call-seq:
@@ -602,6 +600,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);
     rb_define_method(cTaskContext, "do_start", RUBY_METHOD_FUNC(task_context_start), 0);
+    rb_define_method(cTaskContext, "do_reset_error", RUBY_METHOD_FUNC(task_context_reset_error), 0);
     rb_define_method(cTaskContext, "do_stop", RUBY_METHOD_FUNC(task_context_stop), 0);
     rb_define_method(cTaskContext, "do_cleanup", RUBY_METHOD_FUNC(task_context_cleanup), 0);
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);

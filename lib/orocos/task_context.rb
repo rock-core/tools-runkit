@@ -200,6 +200,16 @@ module Orocos
         corba_wrap :start
 
         ##
+        # :method: reset_error
+        #
+        # Recover from a fatal error. It does the transition from
+        # STATE_FATAL_ERROR to STATE_STOPPED.
+        #
+        # Raises StateTransitionFailed if the component was not in a proper
+        # state before the call.
+        corba_wrap :reset_error
+
+        ##
         # :method: stop
         #
         # Stops the component, i.e. do the transition from STATE_RUNNING into
