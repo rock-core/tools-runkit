@@ -14,6 +14,7 @@ describe "Orocos module features" do
     include Orocos::Spec
 
     it "should be able to enumerate the name of all registered task contexts" do
+        Orocos::CORBA.cleanup
         Orocos.task_names.must_equal []
         deployments = %w{process simple_source simple_sink}
         tasks       = %w{process_Test simple_source_source simple_sink_sink}
@@ -21,6 +22,7 @@ describe "Orocos module features" do
             Orocos.task_names.to_set.
                 must_equal tasks.to_set
         end
+        Orocos.task_names.must_equal []
     end
 end
 
