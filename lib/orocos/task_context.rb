@@ -131,7 +131,9 @@ module Orocos
             result = CORBA.refine_exceptions("naming service") do
                 do_get(name)
             end
-            result.instance_variable_set(:@process, process)
+            result.instance_variable_set :@process, process
+            result.instance_variable_set :@name, name
+            result.send(:initialize)
             result
 	end
 

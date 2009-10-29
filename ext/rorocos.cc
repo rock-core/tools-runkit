@@ -86,8 +86,6 @@ static VALUE task_context_get(VALUE klass, VALUE name)
         new_context->commands   = new_context->task->commands();
 
         VALUE obj = simple_wrap(cTaskContext, new_context.release());
-        rb_funcall(obj, rb_intern("initialize"), 0);
-        rb_iv_set(obj, "@name", rb_str_dup(name));
         return obj;
     }
     CORBA_EXCEPTION_HANDLERS;
