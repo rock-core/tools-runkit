@@ -111,6 +111,8 @@ list<string> CorbaAccess::knownTasks()
                 names.push_back(list[i].binding_name[0].id.in());
         }
     }
+    catch(CosNaming::NamingContext::NotFound)
+    { return names; }
     CORBA_EXCEPTION_HANDLERS 
 
     return names;
