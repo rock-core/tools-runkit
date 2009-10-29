@@ -45,6 +45,23 @@ module Orocos
         end
     end
 
+    # Specialization of the OutputReader to read the task'ss state port. Its
+    # read method will return a state in the form of a symbol. For instance, the
+    # RUNTIME_ERROR state is returned as :RUNTIME_ERROR
+    #
+    # StateReader objects are created by TaskContext#state_reader
+    class StateReader < OutputReader
+        class << self
+            private :new
+        end
+
+        def read
+            if value = super
+                @state_symbols[value]
+            end
+        end
+    end
+
     # A proxy for a remote task context. The communication between Ruby and the
     # RTT component is done through the CORBA transport.
     #
@@ -74,12 +91,32 @@ module Orocos
 
         def initialize
             @ports ||= Hash.new
+
+            @state_symbols = model.each_state.map { |name, type| name.to_sym }
+            @error_states  = model.each_state.
+                map { |name, type| name.to_sym if (type == :error || type == :fatal) }.
+                compact.to_set
+            @runtime_states = model.each_state.
+                map { |name, type| name.to_sym if (type == :error || type == :runtime) }.
+                compact.to_set
+
+            @error_states << :RUNTIME_ERROR << :FATAL_ERROR
+            @runtime_states << :RUNNING << :RUNTIME_ERROR
         end
 
 	class << self
 	    # The only way to create TaskContext is TaskContext.get
 	    private :new
 	end
+
+        # Returns an array of symbols that give the tasks' state names from
+        # their integer value. This is mostly for internal use.
+        def available_states # :nodoc:
+            if @states
+                return @states
+            end
+
+        end
 
         # Returns a task which provides the +type+ interface.
         #
@@ -139,13 +176,14 @@ module Orocos
 
         # Returns true if the task is in a state where code is executed. This
         # includes of course the running state, but also runtime error states.
-        def running?; RUNNING_STATES[state] end
+        def running?
+            @runtime_states.include?(state)
+        end
         # Returns true if the task has been configured.
-        def ready?;   state != STATE_PRE_OPERATIONAL end
+        def ready?;   state != :PRE_OPERATIONAL end
         # Returns true if the task is in an error state (runtime or fatal)
         def error?
-            s = state
-            s == STATE_RUNTIME_ERROR || s == STATE_FATAL_ERROR
+            @error_states.include?(state)
         end
 
         # Automated wrapper to handle CORBA exceptions coming from the C
@@ -158,24 +196,51 @@ module Orocos
             EOD
         end
 
+        # Returns a StateReader object that allows to flexibly monitor the
+        # task's state
+        def state_reader(policy = Hash.new)
+            p = port('state')
+            policy = p.validate_policy({:init => true}.merge(policy))
+            policy[:init] = true
+
+            # Create the mapping from state integers to state symbols
+            reader = p.do_reader(StateReader, p.type_name, policy)
+            reader.instance_variable_set :@state_symbols, @state_symbols
+            reader
+        end
+
         # :method: state
         #
         # call-seq:
         #  task.state => value
         #
-        # Returns the state of the task, as an integer value. The possible values are
-        # represented by the various +STATE_+ constants:
+        # Returns the state of the task, as a symbol. The possible values for
+        # all task contexts are:
         # 
-        #   STATE_PRE_OPERATIONAL
-        #   STATE_STOPPED
-        #   STATE_ACTIVE
-        #   STATE_RUNNING
-        #   STATE_RUNTIME_WARNING
-        #   STATE_RUNTIME_ERROR
-        #   STATE_FATAL_ERROR
+        #   :PRE_OPERATIONAL
+        #   :STOPPED
+        #   :ACTIVE
+        #   :RUNNING
+        #   :RUNTIME_WARNING
+        #   :RUNTIME_ERROR
+        #   :FATAL_ERROR
         #
-        # See Orocos own documentation for their meaning
-        corba_wrap :state
+        # If extended support is available, the custom states are also reported
+        # with their name. For instance, after the orogen definition
+        #
+        #   runtime_states "CUSTOM_RUNTIME"
+        #
+        # #state may return :CUSTOM_RUNTIME if the component goes into that
+        # state.
+        def state
+            if model.extended_state_support?
+                @state_reader ||= state_reader
+                state_reader.read
+            else
+                value = CORBA.refine_exceptions(self) { do_state() }
+                @state_symbols[value]
+            end
+        end
 
         ##
         # :method: configure
@@ -416,7 +481,7 @@ module Orocos
 
             pp.text "Component #{name}"
             pp.breakable
-            pp.text "  state: #{states_description[state]}"
+            pp.text "  state: #{state}"
             pp.breakable
 
             attributes = enum_for(:each_attribute).to_a

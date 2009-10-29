@@ -180,7 +180,7 @@ module Orocos
         # The policy dictates how data should flow between the port and the
         # reader object. See #validate_policy
         def reader(policy = Hash.new)
-            do_reader(@type_name, validate_policy(policy))
+            do_reader(OutputReader, type_name, validate_policy(policy))
         end
 
         # Connect this output port to an input port. +options+ defines the

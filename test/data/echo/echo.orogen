@@ -3,6 +3,8 @@ name 'echo'
 import_types_from "echo.h"
 
 task_context 'Echo' do
+    extended_state_support
+
     input_port 'input',   'int'
     input_port 'input_struct',   'echo::Int'
     output_port 'output', 'int'

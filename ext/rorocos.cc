@@ -238,7 +238,7 @@ static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
     return robj;
 }
 
-static VALUE do_output_port_reader(VALUE port, VALUE type_name, VALUE policy)
+static VALUE do_output_port_reader(VALUE port, VALUE klass, VALUE type_name, VALUE policy)
 {
     CorbaAccess* corba = CorbaAccess::instance();
 
@@ -266,7 +266,7 @@ static VALUE do_output_port_reader(VALUE port, VALUE type_name, VALUE policy)
     CORBA_EXCEPTION_HANDLERS
 
     // Finally, wrap the new port in a Ruby object
-    VALUE robj = Data_Wrap_Struct(cOutputReader, 0, delete_port, local_port);
+    VALUE robj = Data_Wrap_Struct(klass, 0, delete_port, local_port);
     rb_iv_set(robj, "@port", port);
     return robj;
 }
@@ -615,7 +615,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);
     rb_define_method(cPort, "do_disconnect_all", RUBY_METHOD_FUNC(do_port_disconnect_all), 0);
     rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
-    rb_define_method(cOutputPort, "do_reader", RUBY_METHOD_FUNC(do_output_port_reader), 2);
+    rb_define_method(cOutputPort, "do_reader", RUBY_METHOD_FUNC(do_output_port_reader), 3);
     rb_define_method(cInputPort, "do_writer", RUBY_METHOD_FUNC(do_input_port_writer), 2);
 
     rb_define_method(cPortAccess, "disconnect", RUBY_METHOD_FUNC(do_local_port_disconnect), 0);

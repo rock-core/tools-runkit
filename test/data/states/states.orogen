@@ -1,0 +1,24 @@
+name "states"
+
+task_context "Task" do
+    extended_state_support
+    needs_configuration
+
+    runtime_states "CUSTOM_RUNTIME"
+    error_states "CUSTOM_ERROR"
+    fatal_states "CUSTOM_FATAL"
+
+    method "do_runtime_warning"
+    method "do_runtime_error"
+    method "do_nominal_running"
+    method "do_fatal_error"
+    method "do_custom_runtime"
+    method "do_custom_error"
+    method "do_custom_fatal"
+    method "do_recover"
+end
+
+deployment "states" do
+    task "Task"
+end
+

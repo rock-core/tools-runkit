@@ -150,25 +150,29 @@ describe Orocos::TaskContext do
     it "should be able to manipulate the task state machine and read its state" do
         Orocos::Process.spawn('simple_source') do |source|
             source = source.task("source")
-            assert_equal(Orocos::TaskContext::STATE_PRE_OPERATIONAL, source.state)
+            assert_equal(:PRE_OPERATIONAL, source.state)
             assert_raises(Orocos::StateTransitionFailed) { source.start }
             assert(!source.ready?)
             assert(!source.running?)
+            assert(!source.error?)
 
             source.configure
-            assert_equal(Orocos::TaskContext::STATE_STOPPED, source.state)
+            assert_equal(:STOPPED, source.state)
             assert(source.ready?)
             assert(!source.running?)
+            assert(!source.error?)
 
             source.start
-            assert_equal(Orocos::TaskContext::STATE_RUNNING, source.state)
+            assert_equal(:RUNNING, source.state)
             assert(source.ready?)
             assert(source.running?)
+            assert(!source.error?)
 
             source.stop
-            assert_equal(Orocos::TaskContext::STATE_STOPPED, source.state)
+            assert_equal(:STOPPED, source.state)
             assert(source.ready?)
             assert(!source.running?)
+            assert(!source.error?)
         end
     end
 
@@ -189,6 +193,113 @@ describe Orocos::TaskContext do
             process = process_p.task('Test')
             PP.pp(source, '')
             PP.pp(process, '')
+        end
+    end
+
+    it "should allow to record its state trace when using extended state support" do
+        Orocos::Process.spawn('states') do |p|
+            t = p.task("Task")
+
+            state = t.port('state').reader :type => :buffer, :size => 20, :init => true
+
+            # First check the nominal state changes
+            t.configure
+            t.start
+            t.stop
+            t.cleanup
+            assert_equal Orocos::TaskContext::STATE_PRE_OPERATIONAL, state.read
+            assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
+            assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
+            assert_equal Orocos::TaskContext::STATE_PRE_OPERATIONAL, state.read
+
+            # Then test the error states
+            t.configure
+            t.start
+            t.do_runtime_warning
+            t.do_recover
+            t.do_runtime_error
+            t.do_recover
+            t.do_runtime_warning
+            t.do_runtime_error
+            t.do_recover
+            t.do_fatal_error
+            t.reset_error
+            t.cleanup
+
+            # Note: we don't have state_pre_operational as we already read it
+            # once
+            assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNTIME_WARNING, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNTIME_ERROR, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNTIME_WARNING, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNTIME_ERROR, state.read
+            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
+            assert_equal Orocos::TaskContext::STATE_FATAL_ERROR, state.read
+            assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
+            assert_equal Orocos::TaskContext::STATE_PRE_OPERATIONAL, state.read
+        end
+    end
+
+    it "should allow to trace custom states trace when using extended state support" do
+        Orocos::Process.spawn('states') do |p|
+            t = p.task("Task")
+
+            state = t.state_reader :type => :buffer, :size => 20
+
+            assert !t.ready?
+            assert !t.running?
+            assert !t.error?
+            t.configure
+            assert t.ready?
+            assert !t.running?
+            assert !t.error?
+            t.start
+            assert t.ready?
+            assert t.running?
+            assert !t.error?
+            t.do_custom_runtime
+            assert t.ready?
+            assert t.running?
+            assert !t.error?
+            t.do_nominal_running
+            assert t.ready?
+            assert t.running?
+            assert !t.error?
+            t.do_custom_error
+            assert t.ready?
+            assert t.running?
+            assert t.error?
+            t.do_recover
+            assert t.ready?
+            assert t.running?
+            assert !t.error?
+            t.do_custom_fatal
+            assert t.ready?
+            assert !t.running?
+            assert t.error?
+            t.reset_error
+            assert t.ready?
+            assert !t.running?
+            assert !t.error?
+            t.cleanup
+            assert !t.ready?
+            assert !t.running?
+            assert !t.error?
+
+            assert_equal :PRE_OPERATIONAL, state.read
+            assert_equal :STOPPED, state.read
+            assert_equal :RUNNING, state.read
+            assert_equal :CUSTOM_RUNTIME, state.read
+            assert_equal :RUNNING, state.read
+            assert_equal :CUSTOM_ERROR, state.read
+            assert_equal :RUNNING, state.read
+            assert_equal :CUSTOM_FATAL, state.read
+            assert_equal :STOPPED, state.read
+            assert_equal :PRE_OPERATIONAL, state.read
         end
     end
 end
