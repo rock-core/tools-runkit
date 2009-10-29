@@ -99,10 +99,18 @@ module Orocos
             @runtime_states = model.each_state.
                 map { |name, type| name.to_sym if (type == :error || type == :runtime) }.
                 compact.to_set
+            @fatal_states = model.each_state.
+                map { |name, type| name.to_sym if type == :fatal }.
+                compact.to_set
 
             @error_states << :RUNTIME_ERROR << :FATAL_ERROR
             @runtime_states << :RUNNING << :RUNTIME_ERROR
+            @fatal_states << :FATAL_ERROR
         end
+
+        def error_state?(sym); @error_states.include?(sym) end
+        def fatal_state?(sym); @fatal_states.include?(sym) end
+        def runtime_state?(sym); @runtime_states.include?(sym) end
 
 	class << self
 	    # The only way to create TaskContext is TaskContext.get
