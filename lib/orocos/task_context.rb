@@ -221,6 +221,22 @@ module Orocos
         # transition (but can take an arbitrarily long time to do it).
         corba_wrap :cleanup
 
+        # Returns true if this task context has a command with the given name
+        def has_method?(name)
+            name = name.to_s
+            CORBA.refine_exceptions(self) do
+                do_has_method?(name)
+            end
+        end
+
+        # Returns true if this task context has a command with the given name
+        def has_command?(name)
+            name = name.to_s
+            CORBA.refine_exceptions(self) do
+                do_has_command?(name)
+            end
+        end
+
         # Returns true if this task context has a port with the given name
         def has_port?(name)
             name = name.to_s
@@ -339,6 +355,12 @@ module Orocos
             else
                 if has_port?(m)
                     return port(m)
+                elsif has_method?(m)
+                    return rtt_method(m).call(*args)
+                elsif has_command?(m)
+                    command = rtt_command(m)
+                    command.call(*args)
+                    return command
                 end
 
                 begin

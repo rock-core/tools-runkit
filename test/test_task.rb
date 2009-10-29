@@ -58,8 +58,32 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should allow to check a method availability" do
+        Orocos::Process.spawn('states') do |p|
+            t = p.task "Task"
+            assert(!t.has_method?("does_not_exist"))
+            assert(t.has_method?("do_runtime_warning"))
+        end
+    end
+
+    it "should allow to check a command availability" do
+        Orocos::Process.spawn('echo') do |p|
+            t = p.task "Echo"
+            assert(!t.has_command?("does_not_exist"))
+            assert(t.has_command?("AsyncWrite"))
+        end
+    end
+
+    it "should allow to check a port availability" do
+        Orocos::Process.spawn('simple_source') do |p|
+            t = p.task "source"
+            assert(!t.has_port?("does_not_exist"))
+            assert(t.has_port?("cycle"))
+        end
+    end
+
     it "should raise NotFound if a port does not exist" do
-        Orocos::Process.spawn('simple_source', 'simple_sink') do |source, sink|
+        Orocos::Process.spawn('simple_source') do |source|
             assert_raises(Orocos::NotFound) { source.task("source").port("does_not_exist") }
         end
     end

@@ -118,6 +118,28 @@ static VALUE task_context_has_port_p(VALUE self, VALUE name)
     return Qtrue;
 }
 
+static VALUE task_context_has_command_p(VALUE self, VALUE name)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    try {
+        context.commands->getResultType(StringValuePtr(name));
+    }
+    catch(RTT::Corba::NoSuchNameException) { return Qfalse; }
+    CORBA_EXCEPTION_HANDLERS
+    return Qtrue;
+}
+
+static VALUE task_context_has_method_p(VALUE self, VALUE name)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    try {
+        context.methods->getResultType(StringValuePtr(name));
+    }
+    catch(RTT::Corba::NoSuchNameException) { return Qfalse; }
+    CORBA_EXCEPTION_HANDLERS
+    return Qtrue;
+}
+
 // call-seq:
 //   task.do_port(name) => port
 //
@@ -583,6 +605,8 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_stop", RUBY_METHOD_FUNC(task_context_stop), 0);
     rb_define_method(cTaskContext, "do_cleanup", RUBY_METHOD_FUNC(task_context_cleanup), 0);
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
+    rb_define_method(cTaskContext, "do_has_method?", RUBY_METHOD_FUNC(task_context_has_method_p), 1);
+    rb_define_method(cTaskContext, "do_has_command?", RUBY_METHOD_FUNC(task_context_has_command_p), 1);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "do_each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
     rb_define_method(cTaskContext, "do_attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
