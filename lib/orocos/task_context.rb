@@ -92,16 +92,29 @@ module Orocos
         def initialize
             @ports ||= Hash.new
 
-            @state_symbols = model.each_state.map { |name, type| name.to_sym }
-            @error_states  = model.each_state.
-                map { |name, type| name.to_sym if (type == :error || type == :fatal) }.
-                compact.to_set
-            @runtime_states = model.each_state.
-                map { |name, type| name.to_sym if (type == :error || type == :runtime) }.
-                compact.to_set
-            @fatal_states = model.each_state.
-                map { |name, type| name.to_sym if type == :fatal }.
-                compact.to_set
+            if model
+                @state_symbols = model.each_state.map { |name, type| name.to_sym }
+                @error_states  = model.each_state.
+                    map { |name, type| name.to_sym if (type == :error || type == :fatal) }.
+                    compact.to_set
+                @runtime_states = model.each_state.
+                    map { |name, type| name.to_sym if (type == :error || type == :runtime) }.
+                    compact.to_set
+                @fatal_states = model.each_state.
+                    map { |name, type| name.to_sym if type == :fatal }.
+                    compact.to_set
+            else
+                @state_symbols = []
+                @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL
+                @state_symbols[STATE_ACTIVE]          = :ACTIVE
+                @state_symbols[STATE_STOPPED]         = :STOPPED
+                @state_symbols[STATE_RUNNING]         = :RUNNING
+                @state_symbols[STATE_RUNTIME_ERROR]   = :RUNTIME_ERROR
+                @state_symbols[STATE_RUNTIME_WARNING] = :RUNTIME_WARNING
+                @state_symbols[STATE_FATAL_ERROR]     = :FATAL_ERROR
+                @error_states  = Set.new
+                @fatal_states  = Set.new
+            end
 
             @error_states << :RUNTIME_ERROR << :FATAL_ERROR
             @runtime_states << :RUNNING << :RUNTIME_ERROR
@@ -460,7 +473,9 @@ module Orocos
         #
         # See also #model
         def info
-            process.orogen.task_activities.find { |act| act.name == name }
+            if process
+                @info ||= process.orogen.task_activities.find { |act| act.name == name }
+            end
         end
 
         # Returns the Orogen specification object for this task's model
@@ -469,7 +484,25 @@ module Orocos
         #
         # See also #info
         def model
-            info.context
+            if @model
+                @model
+            elsif info
+                @model = info.context
+            elsif has_method?("getModelName")
+                model_name = self.getModelName
+                # Try to find the tasklib that handles our model
+                tasklib_name = Utilrb::PkgConfig.
+                    enum_for(:each_package, /-tasks-#{Orocos.orocos_target}$/).
+                    find do |pkg_name|
+                        pkg = Utilrb::PkgConfig.new(pkg_name)
+                        pkg.task_models.split(",").include?(model_name)
+                    end
+
+                tasklib_name = tasklib_name.gsub(/-tasks-.*/)
+
+                tasklib = Orocos::Generation.load_task_library(tasklib_name)
+                @model = tasklib.tasks.find { |t| t.name == model_name }
+            end
         end
 
         # True if this task's model is a subclass of the provided class name
