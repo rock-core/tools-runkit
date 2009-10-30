@@ -78,12 +78,17 @@ module Orocos
 
         # Calls the method with the provided arguments
         def call(*args)
-            result = if !return_type.null?
+            result = if return_type.null?
+                     elsif return_type.name == "string" || return_type.name == "/std/string"
+                         ""
+                     elsif return_type.opaque?
+                         raise ArgumentError, "I don't know how to handle #{return_type.name}"
+                     else
                          return_type.new
                      end
 
             common_call(args) do |filtered|
-                do_call(@args_type_names, filtered, result)
+                result = do_call(@args_type_names, filtered, result)
             end
             result
         end
