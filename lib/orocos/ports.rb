@@ -47,6 +47,11 @@ module Orocos
             end
         end
 
+        # Returns a new object of this port's type
+        def new_sample
+            @type.new
+        end
+
         # A connection policy is represented by a hash whose elements are each
         # of the policy parameters. Valid policies are:
         # 
@@ -263,6 +268,9 @@ module Orocos
 
         # The InputPort object this writer is linked to
         attr_reader :port
+
+        # Returns a new sample that can be used to write on this port
+        def new_sample; port.new_sample end
 
         # Write a sample on the associated input port.
         #
