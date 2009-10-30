@@ -215,6 +215,9 @@ static VALUE corba_init(VALUE mod)
     return Qtrue;
 }
 
+static VALUE corba_is_initialized(VALUE mod)
+{ return NIL_P(corba_access) ? Qfalse : Qtrue; }
+
 /* call-seq:
  *   Orocos::CORBA.transportable_type_names => name_list
  *
@@ -245,6 +248,7 @@ void Orocos_init_CORBA()
     eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
     eComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
 
+    rb_define_singleton_method(mCORBA, "initialized?", RUBY_METHOD_FUNC(corba_is_initialized), 0);
     rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 0);
     rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
     rb_define_singleton_method(mCORBA, "do_call_timeout", RUBY_METHOD_FUNC(corba_set_call_timeout), 1);

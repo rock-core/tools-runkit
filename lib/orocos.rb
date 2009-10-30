@@ -6,3 +6,9 @@ require 'orocos/ports'
 require 'orocos/methods'
 require 'orocos/process'
 require 'orocos/corba'
+module Orocos
+    def self.initialize
+        Orocos::CORBA.init
+    end
+end
+

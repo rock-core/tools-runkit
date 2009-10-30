@@ -110,13 +110,9 @@ module Orocos
         @loaded_toolkits = []
 
 	def self.init
-	    ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
+	    ENV['ORBInitRef'] ||= "NameService=corbaname::#{CORBA.name_service}"
             do_init
 	end
-
-        if !init
-            raise "cannot initialize the CORBA layer"
-        end
 
         call_timeout    = 1000
         connect_timeout = 1000

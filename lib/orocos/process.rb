@@ -84,6 +84,10 @@ module Orocos
         #   Process.spawn('mod1', 'mod2', :wait => false, :output => '%m-%p.log') do |mod1, mod2|
         #   end
         def self.spawn(*names)
+            if !Orocos::CORBA.initialized?
+                raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
+            end
+
             if names.last.kind_of?(Hash)
                 options = names.pop
             end
