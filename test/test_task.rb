@@ -302,5 +302,12 @@ describe Orocos::TaskContext do
             assert_equal :PRE_OPERATIONAL, state.read
         end
     end
+
+    it "should report its model name" do
+        Orocos::Process.spawn('echo') do |p|
+            t = p.task "Echo"
+            assert_equal("echo::Echo", p.task("Echo").getModelName)
+        end
+    end
 end
 
