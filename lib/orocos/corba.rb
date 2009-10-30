@@ -67,6 +67,14 @@ module Orocos
         processes.each { |mod| mod.join if mod.running? }
     end
 
+    def self.orocos_target
+        if ENV['OROCOS_TARGET']
+            ENV['OROCOS_TARGET']
+        else
+            'gnulinux'
+        end
+    end
+
     module CORBA
         extend Logger::Forward
         extend Logger::Hierarchy
@@ -117,14 +125,6 @@ module Orocos
         call_timeout    = 1000
         connect_timeout = 1000
 
-        def self.orocos_target
-            if ENV['OROCOS_TARGET']
-                ENV['OROCOS_TARGET']
-            else
-                'gnulinux'
-            end
-        end
-
         def self.load_plugin_library(pkg, name, libname)
             libpath = pkg.library_dirs.find do |dir|
                 full_path = File.join(dir, libname)
@@ -147,20 +147,20 @@ module Orocos
 
             toolkit_pkg =
                 begin
-                    Utilrb::PkgConfig.new("#{name}-toolkit-#{orocos_target}")
+                    Utilrb::PkgConfig.new("#{name}-toolkit-#{Orocos.orocos_target}")
                 rescue Utilrb::PkgConfig::NotFound
                     raise NotFound, "the '#{name}' toolkit is not available to pkgconfig"
                 end
-            load_plugin_library(toolkit_pkg, name, "lib#{name}-toolkit-#{orocos_target}.so")
+            load_plugin_library(toolkit_pkg, name, "lib#{name}-toolkit-#{Orocos.orocos_target}.so")
 
             if Orocos::Generation::VERSION >= "0.8"
                 corba_transport_pkg =
                     begin
-                        Utilrb::PkgConfig.new("#{name}-transport-corba-#{orocos_target}")
+                        Utilrb::PkgConfig.new("#{name}-transport-corba-#{Orocos.orocos_target}")
                     rescue Utilrb::PkgConfig::NotFound
                         raise NotFound, "the '#{name}' CORBA transport is not available to pkgconfig"
                     end
-                load_plugin_library(corba_transport_pkg, name, "lib#{name}-transport-corba-#{orocos_target}.so")
+                load_plugin_library(corba_transport_pkg, name, "lib#{name}-transport-corba-#{Orocos.orocos_target}.so")
             end
 
             @loaded_toolkits << name
