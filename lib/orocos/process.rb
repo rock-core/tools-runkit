@@ -266,6 +266,29 @@ module Orocos
             result
         end
     end
+
+    def self.each_process
+        ObjectSpace.each_object(Orocos::Process) do |p|
+            yield(p) if p.alive?
+        end
+    end
+
+    # All processes started in the provided block will be automatically killed
+    def self.guard
+        yield
+    ensure
+        tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
+        tasks.each do |t|
+            begin
+                t.stop if t.running?
+            rescue
+            end
+        end
+
+        processes = ObjectSpace.enum_for(:each_object, Orocos::Process)
+        processes.each { |mod| mod.kill if mod.running? }
+        processes.each { |mod| mod.join if mod.running? }
+    end
 end
 
 trap('SIGCHLD') do
