@@ -16,10 +16,6 @@ describe Orocos::CORBA do
         assert !Orocos::CORBA::init
     end
 
-    it "should allow listing task names" do
-        Orocos.task_names
-    end
-
     it "should be able to list types that can be transported through CORBA" do
         types = Orocos::CORBA.transportable_type_names
         assert(types.include?("int"), "'int' is not part of #{types.join(", ")}")

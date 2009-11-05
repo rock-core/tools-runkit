@@ -309,5 +309,20 @@ describe Orocos::TaskContext do
             assert_equal("echo::Echo", p.task("Echo").getModelName)
         end
     end
+
+    it "should allow getting its model even though its process is unknown" do
+        Orocos::Process.spawn('echo') do |p|
+            t = p.task "Echo"
+
+            assert t.process
+            t.instance_variable_set :@process, nil
+            t.instance_variable_set :@info, nil
+            t.instance_variable_set :@model, nil
+            assert t.model
+            assert_equal("echo::Echo", t.model.name)
+            assert !t.process
+        end
+
+    end
 end
 

@@ -490,18 +490,12 @@ module Orocos
                 @model = info.context
             elsif has_method?("getModelName")
                 model_name = self.getModelName
+
                 # Try to find the tasklib that handles our model
-                tasklib_name = Utilrb::PkgConfig.
-                    enum_for(:each_package, /-tasks-#{Orocos.orocos_target}$/).
-                    find do |pkg_name|
-                        pkg = Utilrb::PkgConfig.new(pkg_name)
-                        pkg.task_models.split(",").include?(model_name)
-                    end
-
-                tasklib_name = tasklib_name.gsub(/-tasks-.*/)
-
-                tasklib = Orocos::Generation.load_task_library(tasklib_name)
-                @model = tasklib.tasks.find { |t| t.name == model_name }
+                if tasklib_name = Orocos.available_task_models[model_name]
+                    tasklib = Orocos::Generation.load_task_library(tasklib_name)
+                    @model = tasklib.tasks.find { |t| t.name == model_name }
+                end
             end
         end
 
