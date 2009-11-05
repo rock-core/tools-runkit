@@ -21,10 +21,8 @@ module Orocos
         def initialize
             @arguments_types = []
             arguments_spec.each do |_, _, type_name|
-                if !(arg_type = Orocos.registry.get(type_name))
-                    raise "cannot find type '#{type_name}' in the registry"
-                end
-
+		type_name.gsub! /\s+.*$/, ''
+                arg_type = Orocos.registry.get(type_name)
                 arguments_types << arg_type
             end
             @args_type_names = arguments_spec.map { |name, doc, type| type }
