@@ -2,6 +2,8 @@ require 'typelib'
 
 module Orocos
     class << self
+        # The Typelib::Registry instance that is the union of all the loaded
+        # component's type registries
         attr_reader :registry
 
         # The set of available task libraries, as a mapping from the task
