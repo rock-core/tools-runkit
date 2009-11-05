@@ -12,7 +12,6 @@ module Orocos
         # into the task library name that defines it
         attr_reader :available_task_models
     end
-    @registry = Typelib::Registry.new
 
     def self.orocos_target
         if ENV['OROCOS_TARGET']
@@ -24,6 +23,8 @@ module Orocos
 
     def self.initialize
         Orocos::CORBA.init
+
+        @registry = Typelib::Registry.new
         registry.import File.join(`orogen --base-dir`.chomp, 'orogen', 'orocos.tlb')
 
         # Load the name of all available task libraries
