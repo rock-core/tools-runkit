@@ -79,5 +79,14 @@ module Orocos
             end
         end
     end
+
+    def self.each_task
+        task_names.each do |name|
+            task = begin TaskContext.get(name)
+                   rescue Orocos::NotFound
+                   end
+            yield(task) if task
+        end
+    end
 end
 

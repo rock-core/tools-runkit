@@ -554,13 +554,5 @@ module Orocos
             end
         end
     end
-
-    def self.each_task
-        each_process do |p|
-            p.task_names.each do |name|
-                yield(p.task(name))
-            end
-        end
-    end
 end
 
