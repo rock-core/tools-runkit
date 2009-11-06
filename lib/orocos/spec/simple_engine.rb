@@ -1,5 +1,3 @@
-require 'spec'
-
 module Orocos
     class SimpleEngine
         # The configuration as a Hash. It can be loaded from a YAML file by
