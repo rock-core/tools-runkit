@@ -47,10 +47,9 @@ module Orocos
 	def self.init
 	    ENV['ORBInitRef'] ||= "NameService=corbaname::#{CORBA.name_service}"
             do_init
+            self.call_timeout    = 100
+            self.connect_timeout = 100
 	end
-
-        call_timeout    = 1000
-        connect_timeout = 1000
 
         def self.load_plugin_library(pkg, name, libname)
             libpath = pkg.library_dirs.find do |dir|
