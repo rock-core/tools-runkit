@@ -133,7 +133,11 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
     CORBA_EXCEPTION_HANDLERS 
 
     // Then check we can actually access it
-    RTT::Corba::ControlTask_var mtask = RTT::Corba::ControlTask::_narrow (task_object.in ());
+    RTT::Corba::ControlTask_var mtask;
+    try { mtask = RTT::Corba::ControlTask::_narrow (task_object.in ()); }
+    catch(CORBA::Exception&)
+    { rb_raise(eNotFound, "task context '%s' is registered but the registered object is of wrong type", name.c_str()); }
+
     if ( !CORBA::is_nil( mtask ) )
     {
         try {
