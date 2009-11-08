@@ -84,6 +84,7 @@ module Orocos
         task_names.each do |name|
             task = begin TaskContext.get(name)
                    rescue Orocos::NotFound
+                       CORBA.unregister(name)
                    end
             yield(task) if task
         end
