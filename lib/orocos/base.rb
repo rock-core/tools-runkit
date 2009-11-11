@@ -6,6 +6,14 @@ module Orocos
         # component's type registries
         attr_reader :registry
 
+        # The set of orogen projects that are available, as a mapping from a
+        # name into the project's orogen description file
+        attr_reader :available_projects
+
+        # The set of available deployments, as a mapping from the deployment
+        # name into the Utilrb::PkgConfig object that represen it
+        attr_reader :available_deployments
+
         # The set of available task libraries, as a mapping from the task
         # library name into the Utilrb::PkgConfig object that represent it
         attr_reader :available_task_libraries
@@ -29,6 +37,8 @@ module Orocos
         @registry = Typelib::Registry.new
         registry.import File.join(`orogen --base-dir`.chomp, 'orogen', 'orocos.tlb')
 
+        @available_projects ||= Hash.new
+
         # Load the name of all available task libraries
         if !available_task_libraries
             @available_task_libraries = Hash.new
@@ -36,6 +46,17 @@ module Orocos
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 tasklib_name = pkg_name.gsub(/-tasks-#{Orocos.orocos_target}$/, '')
                 available_task_libraries[tasklib_name] = pkg
+                available_projects[pkg.project_name] = pkg.deffile
+            end
+        end
+
+        if !available_deployments
+            @available_deployments = Hash.new
+            Utilrb::PkgConfig.each_package(/^orogen-\w+$/) do |pkg_name|
+                pkg = Utilrb::PkgConfig.new(pkg_name)
+                deployment_name = pkg_name.gsub(/^orogen-/, '')
+                available_deployments[deployment_name] = pkg
+                available_projects[pkg.project_name] = pkg.deffile
             end
         end
 
