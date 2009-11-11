@@ -218,6 +218,7 @@ module Orocos
                 end
 	    else
                 start_time = Time.now
+                got_pid = false
                 while true
                     if wait_running(0)
                         return true
@@ -225,6 +226,10 @@ module Orocos
                         raise Orocos::NotFound, "cannot get a running #{name} module"
                     end
 
+                    got_pid = true if pid
+                    if got_pid && !pid
+                        raise Orocos::NotFound, "#{name} was started but crashed"
+                    end
                     sleep 0.1
                 end
 	    end
