@@ -67,12 +67,11 @@ module Orocos
                 data_type = bus_model.message_type_name
                 result    = []
 
-                # Search for ports on driver_model
                 input_port  = find_device_port(data_type, device_name, driver_model.each_input)
                 output_port = find_device_port(data_type, device_name, driver_model.each_output)
 
                 if !(output_port || input_port)
-                    raise SpecError, "#{driver_model.name} offers neither input nor output means of connection to #{name}"
+                    raise SpecError, "#{driver_model.name} offers neither input nor output means of connection to #{name} for #{device_name}"
                 end
 
                 if output_port

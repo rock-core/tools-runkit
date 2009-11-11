@@ -1,3 +1,4 @@
+require 'utilrb/kernel/load_dsl_file'
 module Orocos
     module Spec
         class Port
@@ -32,7 +33,7 @@ module Orocos
                 end
                 result = dup
                 result.instance_variable_set :@scope, scope
-                result.instance_variable_set :@subsystem_name, subsystem_name.to_str
+                result.instance_variable_set :@subsystem_name, subsystem_name
                 result
             end
 
@@ -54,7 +55,7 @@ module Orocos
                 elsif !(scope.model <= self.scope)
                     raise ArgumentError, "trying to instanciate from a non-compatible scope"
                 end
-                scope[subsystem_name].port(self)
+                scope[subsystem_name.first].port(self)
             end
         end
         class InputPort < Port; end
@@ -102,17 +103,6 @@ module Orocos
 
             def to_s; "#<#{self.class}: #{name}>" end
 
-            def self.method_missing(name, *args)
-                #if args.empty?
-                #    if p = each_output.find { |p| p.name == name }
-                #        return p
-                #    elsif p = each_input.find { |p| p.name == name }
-                #        return p
-                #    end
-                #end
-                super
-            end
-
             def self.provides?(model)
                 self <= model
             end
@@ -130,7 +120,21 @@ module Orocos
             end
 
             def [](name)
-                children[name]
+                _, v = children.find { |names, value| names.include?(name) }
+                v
+            end
+            def add_child(names, sys)
+                if !names.respond_to?(:to_ary)
+                    names = [names]
+                end
+
+                child_names, child_sys = children.each.find { |child_names, child_sys| child_sys == sys }
+                if child_names
+                    children.delete(child_names)
+                    children[child_names.concat(names)] = sys
+                else
+                    children[names] = sys
+                end
             end
 
             def port(bound_port)
@@ -152,8 +156,11 @@ module Orocos
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(children) do |child_def|
-                        pp.text "#{child_def.first}: "
+                        names, instance = *child_def
+                        pp.text "#{names.join(", ")}: selected "
                         child_def.last.pretty_print(pp)
+                        pp.text " for "
+                        model[names.first].pretty_print(pp)
                     end
                 end
             end
@@ -172,9 +179,32 @@ module Orocos
                 def abstract?; @abstract end
 
                 attribute(:children) { Hash.new }
+                def [](name)
+                    _, v = children.find { |names, value| names.include?(name) }
+                    v
+                end
+                def add_child(name, task)
+                    if name.respond_to?(:to_ary)
+                        children[name.to_ary] = task
+                    else
+                        children[[name]] = task
+                    end
+                end
 
                 attribute(:outputs)  { Hash.new }
                 attribute(:inputs)   { Hash.new }
+
+                def export(port, name = nil)
+                    name ||= port.name
+                    case port
+                    when OutputPort
+                        outputs[name] = port
+                    when InputPort
+                        inputs[name] = port
+                    else
+                        raise TypeError, "invalid port #{port}"
+                    end
+                end
 
                 def exported_port?(port_model)
                     outputs.values.any? { |p| port_model == p } ||
@@ -212,8 +242,8 @@ module Orocos
                     # First of all, create the instance object and instances for
                     # its children
                     instance = new(engine, name)
-                    children.each do |child_name, child_model|
-                        instance.children[child_name] = child_model.instanciate(engine, child_name)
+                    children.each do |child_names, child_model|
+                        instance.add_child(child_names, child_model.instanciate(engine, child_model.name))
                     end
 
                     # Autoconnect these (if required), and add the explicit
@@ -227,17 +257,27 @@ module Orocos
                     # busses, and add the necessary connections to the
                     # connection set.
                     com_bus = Hash.new { |h, k| h[k] = Array.new }
-                    children.each do |child_name, child|
-                        if device = engine.robot.devices[child_name]
-                            com_bus[device.com_bus] << [child_name, child]
+                    children.each do |child_names, child|
+                        child_names.each do |child_name|
+                            device = engine.robot.devices[child_name]
+                            next if !device
+                            next if !device.com_bus
+
+                            if entry = com_bus[device.com_bus].find { |(entry_names, entry_child)| entry_child == child }
+                                entry.first << child_name
+                            else
+                                com_bus[device.com_bus] << [[child_name], child]
+                            end
                         end
                     end
                     com_bus.each do |bus, subsystems|
                         bus_instance = engine.com_bus(bus)
-                        instance.children[bus.name] = bus_instance
-                        subsystems.each do |child_name, sys|
-                            bus_connections = bus.connect(self, child_name, bus_instance.model, instance[child_name].model)
-                            connections.concat(bus_connections)
+                        instance.add_child(bus.name, bus_instance)
+                        subsystems.each do |child_names, sys|
+                            child_names.each do |child_name|
+                                bus_connections = bus.connect(self, child_name, bus_instance.model, instance[child_names.first].model)
+                                connections.concat(bus_connections)
+                            end
                         end
                     end
 
@@ -275,16 +315,16 @@ module Orocos
                     child_outputs = Hash.new { |h, k| h[k] = Array.new }
 
                     # Gather all child input and outputs
-                    children.each do |name, sys|
+                    children.each do |names, sys|
                         sys.each_input do |in_port|
                             if !exported_port?(in_port)
-                                child_inputs[in_port.type_name] << in_port.bind_to(self, name)
+                                child_inputs[in_port.type_name] << in_port.bind_to(self, names)
                             end
                         end
 
                         sys.each_output do |out_port|
                             if !exported_port?(out_port)
-                                child_outputs[out_port.type_name] << out_port.bind_to(self, name)
+                                child_outputs[out_port.type_name] << out_port.bind_to(self, names)
                             end
                         end
                     end
@@ -298,13 +338,13 @@ module Orocos
                         end
                         next if out_ports.empty?
 
-                        if in_ports.size > 1
-                            raise AmbiguousConnections, "multiple input candidates for #{typename}: #{in_ports.map(&:name)}"
-                        elsif out_ports.size > 1
-                            raise AmbiguousConnections, "multiple output candidates for #{typename}: #{out_ports.map(&:name)}"
+                        if out_ports.size > 1
+                            raise Orocos::Spec::AmbiguousConnections, "multiple output candidates for #{typename}: #{out_ports.map(&:name).join(", ")}"
                         end
 
-                        result << [out_ports.first, in_ports.first, nil]
+                        in_ports.each do |inp|
+                            result << [out_ports.first, inp, nil]
+                        end
                     end
 
                     result
@@ -325,9 +365,24 @@ module Orocos
 
                 # Add a subsystem to this composition
                 def add(model_name, options = Hash.new)
+                    task = nil
+                    system.device_drivers.each_key do |devices|
+                        next if !devices.include?(model_name)
+
+                        other_names, task = children.find { |names, _| !(names & devices).empty? }
+                        next if !other_names
+
+                        children.delete(other_names)
+                        other_names << model_name
+                        children[other_names] = task
+                        return
+                    end
+
                     task = system.get(model_name)
                     task.system = system
-                    children[model_name] = task
+
+                    options = Kernel.validate_options options, :as => model_name
+                    add_child(options[:as], task)
                     task
                 end
 
@@ -360,7 +415,8 @@ module Orocos
 
             def initialize(engine, name)
                 super
-                @task = engine.task_instance_of(model)
+                engine.register_task(self)
+                @task = engine.task_instance_of(model, name)
             end
 
             def port(bound_port, with_dynamic = true)
@@ -396,7 +452,7 @@ module Orocos
                 end
 
                 def pretty_print(pp)
-                    pp.text "task: #{name}"
+                    pp.text name
                 end
 
                 def find_matching_models(engine)
@@ -406,11 +462,13 @@ module Orocos
                         find_all do |sys|
                             sys.provides?(self) && !sys.abstract?
                         end
-
-
                 end
 
                 def instanciate(engine, name)
+                    if task = engine.find_task(self, name)
+                        return task
+                    end
+
                     models = find_matching_models(engine)
                     if models.size > 1
                         models = engine.disambiguate(self, models)
@@ -502,12 +560,6 @@ module Orocos
                     Class.new(self)
                 end
 
-                def load(file)
-                    text = File.read(file)
-                    Kernel.eval(text, binding)
-                    self
-                end
-
                 def robot(name, &block)
                     new_model = Robot.new(name)
                     robots[name] = new_model
@@ -544,15 +596,30 @@ module Orocos
                     end
                 end
 
-                def device_drivers(mapping)
-                    mapping.each do |names, model|
-                        names = [names] if !names.respond_to?(:to_ary)
-
-                        names.each do |name|
-                            subsystems[name] = drivers[name] = get(model)
+                def driver_for(name)
+                    drivers.each do |names, sys|
+                        if names.include?(name)
+                            return sys
                         end
                     end
-                    self
+                    nil
+                end
+
+                def device_drivers(mapping = nil)
+                    if mapping
+                        mapping.each do |names, model|
+                            names = [names] if !names.respond_to?(:to_ary)
+                            model = get(model)
+
+                            names.each do |name|
+                                subsystems[name] = model
+                            end
+                            drivers[names] = model
+                        end
+                        self
+                    else
+                        drivers
+                    end
                 end
 
                 def configure(task_model, &block)
@@ -597,6 +664,13 @@ module Orocos
                             map { |m| [indentation + 2, m] }
                         queue.concat children
                     end
+                end
+
+                #--
+                # Note: this method HAS TO BE the last in the file
+                def load(file)
+                    load_dsl_file(file, binding, true, Exception)
+                    self
                 end
             end
         end
