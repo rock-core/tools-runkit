@@ -105,11 +105,11 @@ module Orocos
         def self.refine_exceptions(obj0, obj1 = nil)
             yield
 
-        rescue ComError
+        rescue ComError => e
             if !obj1
-                raise ComError, "communication failed with #{obj0}"
+                raise ComError, "communication failed with #{obj0}", e.backtrace
             else
-                raise ComError, "communication failed with either #{obj0} or #{obj1}"
+                raise ComError, "communication failed with either #{obj0} or #{obj1}", e.backtrace
             end
         end
     end
