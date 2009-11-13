@@ -47,7 +47,6 @@ module Orocos
 	def self.init
 	    ENV['ORBInitRef'] ||= "NameService=corbaname::#{CORBA.name_service}"
             do_init
-            self.call_timeout    = 100
             self.connect_timeout = 100
 	end
 
