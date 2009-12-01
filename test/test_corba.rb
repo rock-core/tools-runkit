@@ -12,10 +12,6 @@ describe Orocos::CORBA do
 
     include Orocos::Spec
 
-    it "should be already initialized" do
-        assert !Orocos::CORBA::init
-    end
-
     it "should be able to list types that can be transported through CORBA" do
         types = Orocos::CORBA.transportable_type_names
         assert(types.include?("int"), "'int' is not part of #{types.join(", ")}")
