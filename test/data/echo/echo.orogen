@@ -26,7 +26,7 @@ task_context 'Echo' do
 end
 
 deployment "echo" do
-    echo_task = task('Echo').
+    echo_task = task('echo_Echo', 'Echo').
         periodic 0.05
 end
 

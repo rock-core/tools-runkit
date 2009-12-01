@@ -19,6 +19,6 @@ task_context "Task" do
 end
 
 deployment "states" do
-    task "Task"
+    task "states_Task", "Task"
 end
 

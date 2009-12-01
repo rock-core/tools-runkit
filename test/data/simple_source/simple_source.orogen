@@ -9,7 +9,7 @@ task_context "source" do
 end
 
 deployment "simple_source" do
-    src = task("source").
+    src = task("simple_source_source", "source").
         periodic(0.1)
 end
 

@@ -11,7 +11,7 @@ task_context 'Test' do
 end
 
 deployment "process" do
-    test = task('Test').
+    test = task('process_Test', 'Test').
         periodic(0.1).
         start
 end
