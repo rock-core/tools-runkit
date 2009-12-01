@@ -32,7 +32,7 @@ module Orocos
         end
 
         def write(value)
-            if @type_name == "/std/string" && value.respond_to?(:to_str)
+            if @type_name == "/std/string"
                 do_write_string(value.to_str)
             else
                 value = Typelib.from_ruby(value, type)
