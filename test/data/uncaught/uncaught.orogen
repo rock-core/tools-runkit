@@ -1,0 +1,13 @@
+name 'uncaught'
+
+task_context 'Uncaught' do
+    property "exception_level", "int"
+
+    method "do_runtime_error"
+end
+
+deployment "uncaught" do
+    task("Uncaught", "Uncaught").
+        periodic(0.1)
+end
+

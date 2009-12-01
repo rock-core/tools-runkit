@@ -122,7 +122,7 @@ module Orocos
         end
 
         def error_state?(sym); @error_states.include?(sym) end
-        def fatal_state?(sym); @fatal_states.include?(sym) end
+        def fatal_error_state?(sym); @fatal_states.include?(sym) end
         def runtime_state?(sym); @runtime_states.include?(sym) end
 
 	class << self
@@ -205,6 +205,14 @@ module Orocos
         # Returns true if the task is in an error state (runtime or fatal)
         def error?
             @error_states.include?(state)
+        end
+        # Returns true if the task is in a runtime error state
+        def runtime_error?
+            error_state?(state) && !fatal_error_state?(state)
+        end
+        # Returns true if the task is in a fatal error state
+        def fatal_error?
+            fatal_error_state?(state)
         end
 
         # Automated wrapper to handle CORBA exceptions coming from the C

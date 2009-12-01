@@ -244,6 +244,32 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should handle uncaught exceptions in a nice way" do
+        Orocos::Process.spawn('uncaught') do |p|
+            t = p.task("Uncaught")
+
+            assert_raises(Orocos::StateTransitionFailed) { t.configure }
+            t.exception_level = 1
+            t.configure
+
+            assert_raises(Orocos::StateTransitionFailed) { t.start }
+            t.exception_level = 2
+            t.start
+
+            sleep 0.1
+            assert(t.fatal_error?)
+
+            t.reset_error
+            t.exception_level = 3
+            t.start
+            sleep 0.2
+            assert(t.running?)
+            t.do_runtime_error
+            sleep 0.2
+            assert(t.fatal_error?)
+        end
+    end
+
     it "should allow to restart after a fatal error if resetError has been called" do
         Orocos::Process.spawn('states') do |p|
             t = p.task("Task")
