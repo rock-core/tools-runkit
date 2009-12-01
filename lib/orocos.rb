@@ -8,5 +8,3 @@ require 'orocos/ports'
 require 'orocos/methods'
 require 'orocos/process'
 require 'orocos/corba'
-
-require 'orocos/spec'
