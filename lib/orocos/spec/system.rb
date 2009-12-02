@@ -302,54 +302,6 @@ module Orocos
                     instance
                 end
 
-                # Automatically compute the connections that can be done in the
-                # limits of this composition, and returns the set.
-                #
-                # Connections are determined by port direction and type name.
-                #
-                # It raises AmbiguousConnections if autoconnection does not know
-                # what to do.
-                def compute_autoconnection
-                    result = Array.new
-                    child_inputs  = Hash.new { |h, k| h[k] = Array.new }
-                    child_outputs = Hash.new { |h, k| h[k] = Array.new }
-
-                    # Gather all child input and outputs
-                    children.each do |names, sys|
-                        sys.each_input do |in_port|
-                            if !exported_port?(in_port)
-                                child_inputs[in_port.type_name] << in_port.bind_to(self, names)
-                            end
-                        end
-
-                        sys.each_output do |out_port|
-                            if !exported_port?(out_port)
-                                child_outputs[out_port.type_name] << out_port.bind_to(self, names)
-                            end
-                        end
-                    end
-
-                    # Make sure there is only one input for one output, and add the
-                    # connections
-                    child_inputs.each do |typename, in_ports|
-                        out_ports = child_outputs[typename]
-                        out_ports.delete_if do |outp|
-                            in_ports.any? { |inp| inp.subsystem == outp.subsystem }
-                        end
-                        next if out_ports.empty?
-
-                        if out_ports.size > 1
-                            raise Orocos::Spec::AmbiguousConnections, "multiple output candidates for #{typename}: #{out_ports.map(&:name).join(", ")}"
-                        end
-
-                        in_ports.each do |inp|
-                            result << [out_ports.first, inp, nil]
-                        end
-                    end
-
-                    result
-                end
-
                 # If true, we will try to autoconnect the user-added components
                 # of this composition at configuration time.
                 def autoconnect?; @autoconnect end

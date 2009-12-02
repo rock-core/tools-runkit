@@ -1,0 +1,13 @@
+name 'camera'
+
+import_types_from "CameraTypes.hpp"
+
+task_context 'Driver' do
+    output_port 'image', 'camera/Image'
+end
+
+task_context 'Filter' do
+    input_port  'in',  'camera/Image'
+    output_port 'out', 'camera/Image'
+end
+
