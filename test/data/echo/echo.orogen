@@ -25,6 +25,10 @@ task_context 'Echo' do
     port_driven :input
 end
 
+task_context 'EchoSubmodel' do
+    subclasses 'Echo'
+end
+
 deployment "echo" do
     echo_task = task('echo_Echo', 'Echo').
         periodic 0.05
