@@ -96,7 +96,7 @@ module Orocos
                 logger.start
 
             rescue Orocos::NotFound
-                puts "WARN: no logger defined on #{process.name}"
+                STDERR.puts "WARN: no logger defined on #{process.name}"
             end
         end
     end
