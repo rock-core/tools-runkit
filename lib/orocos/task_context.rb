@@ -125,6 +125,9 @@ module Orocos
         def fatal_error_state?(sym); @fatal_states.include?(sym) end
         def runtime_state?(sym); @runtime_states.include?(sym) end
 
+        def to_s
+            "#<TaskContext: #{self.class.name}/#{name}>"
+        end
 	class << self
 	    # The only way to create TaskContext is TaskContext.get
 	    private :new
