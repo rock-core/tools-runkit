@@ -52,6 +52,14 @@ module Orocos
             @type.new
         end
 
+        CONNECTION_POLICY_OPTIONS = {
+            :type => :data,
+            :init => false,
+            :pull => false,
+            :size => nil,
+            :lock => :lock_free
+        }
+
         # A connection policy is represented by a hash whose elements are each
         # of the policy parameters. Valid policies are:
         # 
@@ -84,12 +92,7 @@ module Orocos
         #
         # This method raises ArgumentError if the policy is not valid.
         def validate_policy(policy)
-            policy = validate_options policy,
-                :type => :data,
-                :init => false,
-                :pull => false,
-                :size => nil,
-                :lock => :lock_free
+            policy = validate_options policy, CONNECTION_POLICY_OPTIONS
 
             if policy[:type] == :buffer && !policy[:size]
                 raise ArgumentError, "you must provide a 'size' argument for buffer connections"
