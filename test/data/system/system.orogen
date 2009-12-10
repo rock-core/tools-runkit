@@ -1,0 +1,72 @@
+name 'system_test'
+
+import_types_from "DataTypes.hpp"
+
+task_context "CanBus" do
+    dynamic_input_port /\w+w/, 'can/Message'
+    dynamic_output_port /\w+w/, 'can/Message'
+end
+
+task_context "ControlDevices" do
+    input_port "can_in_joystick", "can/Message"
+    input_port "can_in_sliderbox", "can/Message"
+    output_port "can_out", "can/Message"
+end
+
+task_context "MotorController" do
+    input_port "can_in", "can/Message"
+    output_port "can_out", "can/Message"
+
+    input_port "command", "control/MotorsCommand"
+    output_port "state", "control/MotorsState"
+end
+
+task_context "Control" do
+    input_port  "cmd_in",  "control/MotionCommand"
+    output_port "cmd_out", "control/MotorsCommand"
+end
+
+task_context 'IMU' do
+    output_port 'orientation', 'imu::Orientation'
+end
+
+task_context 'CameraDriver' do
+    abstract
+    output_port 'image', 'camera/Image'
+end
+
+task_context 'FirewireCamera' do
+    subclasses "CameraDriver"
+end
+
+task_context 'ProsilicaCamera' do
+    subclasses "CameraDriver"
+end
+
+task_context 'Stereo' do
+    abstract
+    output_port 'disparity', 'camera/Image'
+    output_port 'cloud', 'base/PointCloud3D'
+end
+
+task_context 'StereoProcessing' do
+    subclasses "Stereo"
+    input_port 'image0', 'camera/Image'
+    input_port 'image1', 'camera/Image'
+end
+
+task_context 'StereoCamera' do
+    subclasses "Stereo"
+    output_port 'image0', 'camera/Image'
+    output_port 'image1', 'camera/Image'
+end
+
+task_context 'DemBuilder' do
+    input_port 'cloud', 'base/PointCloud3D'
+end
+
+task_context 'CameraFilter' do
+    input_port  'in',  'camera/Image'
+    output_port 'out', 'camera/Image'
+end
+
