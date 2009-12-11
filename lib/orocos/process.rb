@@ -94,12 +94,11 @@ module Orocos
         #   patterns will be replaced by respectively the name and the PID of
         #   each process.
         # valgrind::
-        #   start some or all the processes under valgrind. It can either be an
-        #   array of process names (e.g. :valgrind => ['p1', 'p2']) or 'true'.
-        #   In the first case, the listed processes will be added to the list of
-        #   processes to start (if they are not already in it) and will be
-        #   started under valgrind. In the second case, all processes are
-        #   started under valgrind.
+	#   start some or all the processes under valgrind. It can either be an
+	#   array of process names (e.g. :valgrind => ['p1', 'p2']) or 'true'.
+	#   In the first case, only the listed processes will be started under
+	#   valgrind, while in the second case, all processes are. Note that
+	#   the processes must be in the set of processes to start anyway.
         def self.spawn(*names)
             if !Orocos::CORBA.initialized?
                 raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
@@ -109,14 +108,12 @@ module Orocos
                 options = names.pop
             end
 
-            names = names.to_set
             begin
                 options = validate_options options, :wait => 2, :output => nil, :valgrind => false
 
                 valgrind = options[:valgrind]
                 if valgrind.respond_to?(:to_ary)
                     valgrind = valgrind.dup
-                    names |= valgrind.to_set
                 elsif valgrind
                     valgrind = names.dup
                 else
