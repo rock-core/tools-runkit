@@ -1,6 +1,0 @@
-name 'imu'
-import_types_from 'IMUTypes.hpp'
-
-task_context 'Driver' do
-    output_port 'orientation', 'imu::Orientation'
-end
