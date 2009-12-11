@@ -51,14 +51,14 @@ end
 
 task_context 'StereoProcessing' do
     subclasses "Stereo"
-    input_port 'image0', 'camera/Image'
-    input_port 'image1', 'camera/Image'
+    input_port 'leftImage',  'camera/Image'
+    input_port 'rightImage', 'camera/Image'
 end
 
 task_context 'StereoCamera' do
     subclasses "Stereo"
-    output_port 'image0', 'camera/Image'
-    output_port 'image1', 'camera/Image'
+    output_port 'leftImage',  'camera/Image'
+    output_port 'rightImage', 'camera/Image'
 end
 
 task_context 'DemBuilder' do
