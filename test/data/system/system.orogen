@@ -4,13 +4,26 @@ import_types_from "DataTypes.hpp"
 
 task_context "CanBus" do
     dynamic_input_port /\w+w/, 'can/Message'
-    dynamic_output_port /\w+w/, 'can/Message'
+    dynamic_output_port /\w+/, 'can/Message'
+end
+
+task_context "Sliderbox" do
+    output_port "sliderbox",        "controldev/Sliderbox"
+    output_port "fourWheelCommand", "controldev/FourWheelCommand"
+end
+task_context "Joystick" do
+    output_port "joystick",      "controldev/Joystick"
+    output_port "motionCommand", "controldev/MotionCommand"
 end
 
 task_context "ControlDevices" do
     input_port "can_in_joystick", "can/Message"
     input_port "can_in_sliderbox", "can/Message"
-    output_port "can_out", "can/Message"
+
+    output_port "joystick", "controldev/Joystick"
+    output_port "motionCommand", "controldev/MotionCommand"
+    output_port "sliderbox", "controldev/Sliderbox"
+    output_port "fourWheelCommand", "controldev/FourWheelCommand"
 end
 
 task_context "MotorController" do

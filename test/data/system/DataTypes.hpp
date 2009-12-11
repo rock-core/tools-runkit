@@ -13,6 +13,21 @@ namespace can {
     };
 }
 
+namespace controldev {
+    struct MotionCommand {
+        int dummy;
+    };
+    struct Joystick {
+        int dummy;
+    };
+    struct Sliderbox {
+        int dummy;
+    };
+    struct FourWheelCommand {
+        int dummy;
+    };
+}
+
 namespace control {
     struct MotorsCommand {
         int dummy;
