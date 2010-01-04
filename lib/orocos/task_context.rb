@@ -168,9 +168,9 @@ module Orocos
             get(results.first.name)
         end
 
-	# call-seq:
+	# :call-seq:
         #   TaskContext.get(name) => task
-        #   TaskContext.get(:provides => interface_name) => task
+        #   TaskContext.get(:provides => interface_name) => tas
         #
         # In the first form, returns the TaskContext instance representing the
         # remote task context with the given name.
@@ -179,8 +179,9 @@ module Orocos
         # interface. This is doable only if orogen has been used to generate the
         # components.
         #
-        # Raises Orocos::NotFound if the task name does not exist, or if no task
-        # implements the given interface.
+        # Raises Orocos::NotFound if the task name does not exist, if no task
+        # implements the given interface, or if more than one task does
+        # implement the required interface
 	def self.get(options, process = nil)
             if options.kind_of?(Hash)
                 # Right now, the only allowed option is :provides
