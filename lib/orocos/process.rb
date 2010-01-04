@@ -3,7 +3,28 @@ require 'orogen'
 require 'fcntl'
 
 module Orocos
-    # Shortcut for Process.spawn
+    # call-seq:
+    #   Orocos.run('mod1', 'mod2')
+    #   Orocos.run('mod1', 'mod2', :wait => false, :output => '%m-%p.log')
+    #   Orocos.run('mod1', 'mod2', :wait => false, :output => '%m-%p.log') do |mod1, mod2|
+    #   end
+    #
+    # Valid options are:
+    # wait::
+    #   wait that number of seconds (can be floating-point) for the
+    #   processes to be ready. If it did not start into the provided
+    #   timeout, an Orocos::NotFound exception raised.
+    # output::
+    #   redirect the process output to the given file. The %m and %p
+    #   patterns will be replaced by respectively the name and the PID of
+    #   each process.
+    # valgrind::
+    #   start some or all the processes under valgrind. It can either be an
+    #   array of process names (e.g. :valgrind => ['p1', 'p2']) or 'true'.
+    #   In the first case, the listed processes will be added to the list of
+    #   processes to start (if they are not already in it) and will be
+    #   started under valgrind. In the second case, all processes are
+    #   started under valgrind.
     def self.run(*args, &block)
         Process.spawn(*args, &block)
     end
@@ -83,28 +104,9 @@ module Orocos
             end
 	end
         
-        # call-seq:
-        #   Process.spawn('mod1', 'mod2')
-        #   Process.spawn('mod1', 'mod2', :wait => false, :output => '%m-%p.log')
-        #   Process.spawn('mod1', 'mod2', :wait => false, :output => '%m-%p.log') do |mod1, mod2|
-        #   end
+        # Deprecated
         #
-        # Valid options are:
-        # wait::
-        #   wait that number of seconds (can be floating-point) for the
-        #   processes to be ready. If it did not start into the provided
-        #   timeout, an Orocos::NotFound exception raised.
-        # output::
-        #   redirect the process output to the given file. The %m and %p
-        #   patterns will be replaced by respectively the name and the PID of
-        #   each process.
-        # valgrind::
-        #   start some or all the processes under valgrind. It can either be an
-        #   array of process names (e.g. :valgrind => ['p1', 'p2']) or 'true'.
-        #   In the first case, the listed processes will be added to the list of
-        #   processes to start (if they are not already in it) and will be
-        #   started under valgrind. In the second case, all processes are
-        #   started under valgrind.
+        # Use Orocos.run directly instead
         def self.spawn(*names)
             if !Orocos::CORBA.initialized?
                 raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
