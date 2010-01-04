@@ -134,6 +134,9 @@ module Orocos
         # True if the given symbol is the name of a runtime state
         def runtime_state?(sym); @runtime_states.include?(sym) end
 
+        def to_s
+            "#<TaskContext: #{self.class.name}/#{name}>"
+        end
 	class << self
 	    # The only way to create TaskContext is TaskContext.get
 	    private :new

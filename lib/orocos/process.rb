@@ -88,6 +88,23 @@ module Orocos
         #   Process.spawn('mod1', 'mod2', :wait => false, :output => '%m-%p.log')
         #   Process.spawn('mod1', 'mod2', :wait => false, :output => '%m-%p.log') do |mod1, mod2|
         #   end
+        #
+        # Valid options are:
+        # wait::
+        #   wait that number of seconds (can be floating-point) for the
+        #   processes to be ready. If it did not start into the provided
+        #   timeout, an Orocos::NotFound exception raised.
+        # output::
+        #   redirect the process output to the given file. The %m and %p
+        #   patterns will be replaced by respectively the name and the PID of
+        #   each process.
+        # valgrind::
+        #   start some or all the processes under valgrind. It can either be an
+        #   array of process names (e.g. :valgrind => ['p1', 'p2']) or 'true'.
+        #   In the first case, the listed processes will be added to the list of
+        #   processes to start (if they are not already in it) and will be
+        #   started under valgrind. In the second case, all processes are
+        #   started under valgrind.
         def self.spawn(*names)
             if !Orocos::CORBA.initialized?
                 raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
@@ -97,8 +114,19 @@ module Orocos
                 options = names.pop
             end
 
+            names = names.to_set
             begin
-                options = validate_options options, :wait => 2, :output => nil
+                options = validate_options options, :wait => 2, :output => nil, :valgrind => false
+
+                valgrind = options[:valgrind]
+                if valgrind.respond_to?(:to_ary)
+                    valgrind = valgrind.dup
+                    names |= valgrind.to_set
+                elsif valgrind
+                    valgrind = names.dup
+                else
+                    valgrind = []
+                end
 
                 # First thing, do create all the named processes
                 processes = names.map { |name| [name, Process.new(name)] }
@@ -107,7 +135,8 @@ module Orocos
                     output = if options[:output]
                                  options[:output].gsub '%m', name
                              end
-                    p.spawn(output)
+
+                    p.spawn(:output => output, :valgrind => valgrind.include?(name))
                 end
 
                 # Finally, if the user required it, wait for the processes to run
@@ -146,12 +175,22 @@ module Orocos
 
         # Spawns this process
         #
-        # If +output+ is non-nil, the process output is redirected towards that
-        # file. Special patterns %m and %p are replaced respectively by the
-        # process name and the process PID value.
-        def spawn(output = nil)
+        # Valid options:
+        # output::
+        #   if non-nil, the process output is redirected towards that
+        #   file. Special patterns %m and %p are replaced respectively by the
+        #   process name and the process PID value.
+        # valgrind::
+        #   if true, the process is started under valgrind. If :output is set
+        #   as well, valgrind's output is redirected towards the value of output
+        #   with a .valgrind extension added.
+        def spawn(options = Hash.new)
 	    raise "#{name} is already running" if alive?
 	    Orocos.debug { "Spawning module #{name}" }
+
+            options = Kernel.validate_options options, :output => nil, :valgrind => nil
+            output   = options[:output]
+            valgrind = !!options[:valgrind]
 
             ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
 
@@ -169,16 +208,23 @@ module Orocos
 	    read, write = IO.pipe
 	    @pid = fork do 
 		if output_format
-		    real_name = output_format.
+		    output_file_name = output_format.
 			gsub('%m', name).
 			gsub('%p', ::Process.pid.to_s)
-		    FileUtils.mv output.path, real_name
+		    FileUtils.mv output.path, output_file_name
 		end
 		
 		if output
 		    STDERR.reopen(output)
 		    STDOUT.reopen(output)
 		end
+
+                if valgrind
+                    if output_file_name
+                        cmdline.unshift "--log-file=#{output_file_name}.valgrind"
+                    end
+                    cmdline.unshift "valgrind"
+                end
 
 		read.close
 		write.fcntl(Fcntl::F_SETFD, 1)
