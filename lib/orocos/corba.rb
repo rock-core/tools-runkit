@@ -12,6 +12,10 @@ module Orocos
         end
         @name_service = "127.0.0.1"
 
+        # Removes dangling references from the name server
+        #
+        # This method removes objects that are not accessible anymore from the
+        # name server
         def self.cleanup
             names = Orocos.task_names.dup
             names.each do |n|
@@ -25,32 +29,59 @@ module Orocos
         end
 
         class << self
+            # Returns the current timeout for method calls, in milliseconds
+            #
+            # See #call_timeout= for a complete description
             attr_reader :call_timeout
+
+            # Sets the timeout, in milliseconds, for a CORBA method call to be
+            # completed. It means that no method call can exceed the specified
+            # value.
             def call_timeout=(value)
                 do_call_timeout(value)
                 @call_timeout = value
             end
 
+            # Returns the timeout, in milliseconds, before a connection creation
+            # fails.
+            #
+            # See #connect_timeout=
             attr_reader :connect_timeout
+
+            # Sets the timeout, in milliseconds, before a connection creation
+            # fails.
             def connect_timeout=(value)
                 do_connect_timeout(value)
                 @connect_timeout = value
             end
 
+            # The set of toolkits that are loaded in this Ruby instance, as an
+            # array toolkit names.
+            #
+            # See also load_toolkit and loaded_toolkit?
             attr_reader :loaded_toolkits
+
+            # True if the toolkit whose name is given in argument is loaded
+            #
+            # See also load_toolkit and loaded_toolkits
             def loaded_toolkit?(name)
                 loaded_toolkits.include?(name)
             end
         end
         @loaded_toolkits = []
 
+        # Initialize the CORBA layer
+        # 
+        # It does not need to be called explicitely, as it is called by
+        # Orocos.initialize
 	def self.init
 	    ENV['ORBInitRef'] ||= "NameService=corbaname::#{CORBA.name_service}"
             do_init
             self.connect_timeout = 100
 	end
 
-        def self.load_plugin_library(pkg, name, libname)
+        # Generic loading of a RTT plugin
+        def self.load_plugin_library(pkg, name, libname) # :nodoc:
             libpath = pkg.library_dirs.find do |dir|
                 full_path = File.join(dir, libname)
                 break(full_path) if File.file?(full_path)
@@ -67,6 +98,11 @@ module Orocos
             true
         end
 
+        # Load the toolkit whose name is given
+        #
+        # Toolkits are shared libraries that include marshalling/demarshalling
+        # code. It gets automatically loaded in orocos.rb whenever you start
+        # processes.
         def self.load_toolkit(name)
             return if loaded_toolkit?(name)
 
@@ -101,7 +137,9 @@ module Orocos
             nil
         end
 
-        def self.refine_exceptions(obj0, obj1 = nil)
+        # Improves exception messages for exceptions that are raised from the
+        # C++ extension
+        def self.refine_exceptions(obj0, obj1 = nil) # :nodoc:
             yield
 
         rescue ComError => e

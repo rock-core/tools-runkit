@@ -63,13 +63,13 @@ module Orocos
         # A connection policy is represented by a hash whose elements are each
         # of the policy parameters. Valid policies are:
         # 
-        #  * buffer policy. Values are stored in a FIFO of the specified size.
-        #    Connecting with a buffer policy is done with:
+        # * buffer policy. Values are stored in a FIFO of the specified size.
+        #   Connecting with a buffer policy is done with:
         # 
         #      output_port.connect_to(input_port, :type => :buffer, :size => 10)
         # 
-        #  * data policy. The input port will always read the last value pushed by the
-        #    output port. It is the default policy, but can be explicitly specified with:
+        # * data policy. The input port will always read the last value pushed by the
+        #   output port. It is the default policy, but can be explicitly specified with:
         # 
         #      output_port.connect_to(input_port, :type => :data)
         # 
@@ -263,6 +263,9 @@ module Orocos
         end
     end
 
+    # Instances of InputWriter allows to write data to a component's input port.
+    # 
+    # They are returned by InputPort#writer
     class InputWriter
 	class << self
 	    # The only way to create an InputWriter object is InputPort#writer

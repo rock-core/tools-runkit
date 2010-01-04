@@ -8,13 +8,17 @@ module Orocos
         attr_reader :name
         # The method description
         attr_reader :description
-        # An array describing the arguments. Each element is <tt>[name, doc,
-        # type_name]</tt>
+        # An array describing the arguments. Each element is a <tt>[name, doc,
+        # type_name]</tt> tuple
         attr_reader :arguments_spec
-        # The typelib types for the arguments.
+        # The typelib types for the arguments. This is an array of subclasses of
+        # Typelib::Type, with each element being the type of the corresponding
+        # element in #arguments_spec
         attr_reader :arguments_types
 
         class << self
+            # The only way to create an instance of RTTMethod or Command is to
+            # call the corresponding method on TaskContext
             private :new
         end
 
@@ -28,6 +32,7 @@ module Orocos
             @args_type_names = arguments_spec.map { |name, doc, type| type }
         end
 
+        # Helper method for RTTMethod and Command
         def common_call(args) # :nodoc:
             if args.size() != arguments_spec.size()
                 raise ArgumentError, "not enough arguments"
@@ -52,7 +57,7 @@ module Orocos
     class RTTMethod < Callable
         # The type name of the return value
         attr_reader :return_spec
-        # The typelib object representing the type of the return value
+        # The subclass of Typelib::Type that represents the type of the return value
         attr_reader :return_type
 
         def initialize
@@ -74,7 +79,8 @@ module Orocos
             end
         end
 
-        # Calls the method with the provided arguments
+        # Calls the method with the provided arguments, and returns the value
+        # returned by the remote method.
         def call(*args)
             result = if return_type.null?
                      elsif return_type.name == "string" || return_type.name == "/std/string"

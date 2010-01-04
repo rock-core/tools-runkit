@@ -31,6 +31,8 @@ module Orocos
         end
     end
 
+    # Initialize the Orocos communication layer and read all the oroGen models
+    # that are available.
     def self.initialize
         Orocos::CORBA.init
 
@@ -101,6 +103,13 @@ module Orocos
         end
     end
 
+    # call-seq:
+    #   Orocos.each_task do |task| ...
+    #   end
+    #
+    # Enumerates the tasks that are currently available on this sytem (i.e.
+    # registered on the name server). They are provided as TaskContext
+    # instances.
     def self.each_task
         task_names.each do |name|
             task = begin TaskContext.get(name)

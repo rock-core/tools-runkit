@@ -1,6 +1,7 @@
 require 'utilrb/object/attribute'
 
 module Orocos
+    # This class represents both RTT attributes and properties
     class Attribute
 	class << self
 	    # The only way to create an Attribute object is
@@ -8,8 +9,11 @@ module Orocos
 	    private :new
 	end
 
+        # The underlying TaskContext instance
         attr_reader :task
+        # The property/attribute name
         attr_reader :name
+        # The attribute type, as a subclass of Typelib::Type
         attr_reader :type
 
         def initialize
@@ -21,6 +25,7 @@ module Orocos
             end
         end
 
+        # Read the current value of the property/attribute
         def read
             if @type_name == "/std/string"
                 do_read_string
@@ -31,6 +36,7 @@ module Orocos
             end
         end
 
+        # Sets a new value for the property/attribute
         def write(value)
             if @type_name == "/std/string"
                 do_write_string(value.to_str)
@@ -121,8 +127,11 @@ module Orocos
             @fatal_states << :FATAL_ERROR
         end
 
+        # True if the given symbol is the name of an error state
         def error_state?(sym); @error_states.include?(sym) end
+        # True if the given symbol is the name of a fatal error state
         def fatal_error_state?(sym); @fatal_states.include?(sym) end
+        # True if the given symbol is the name of a runtime state
         def runtime_state?(sym); @runtime_states.include?(sym) end
 
 	class << self
