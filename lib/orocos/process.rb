@@ -3,6 +3,11 @@ require 'orogen'
 require 'fcntl'
 
 module Orocos
+    # Shortcut for Process.spawn
+    def self.run(*args, &block)
+        Process.spawn(*args, &block)
+    end
+
     # The representation of an Orocos process. It manages
     # starting the process and cleaning up when the process
     # dies.
