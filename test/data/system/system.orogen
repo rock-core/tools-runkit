@@ -36,6 +36,7 @@ end
 
 task_context "Control" do
     input_port  "cmd_in",  "control/MotionCommand"
+    input_port  'status',  'control/MotorsState'
     output_port "cmd_out", "control/MotorsCommand"
 end
 
