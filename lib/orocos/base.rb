@@ -31,6 +31,17 @@ module Orocos
         end
     end
 
+    # Helper method for initialize
+    def self.add_project_from(pkg) # :nodoc:
+        if pkg.project_name.empty?
+            Orocos.warn "#{pkg_name}.pc does not have a project_name field"
+        elsif pkg.deffile.empty?
+            Orocos.warn "#{pkg_name}.pc does not have a deffile field"
+        else
+            available_projects[pkg.project_name] = pkg.deffile
+        end
+    end
+
     # Initialize the Orocos communication layer and read all the oroGen models
     # that are available.
     def self.initialize
@@ -48,7 +59,8 @@ module Orocos
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 tasklib_name = pkg_name.gsub(/-tasks-#{Orocos.orocos_target}$/, '')
                 available_task_libraries[tasklib_name] = pkg
-                available_projects[pkg.project_name] = pkg.deffile
+
+                add_project_from(pkg)
             end
         end
 
@@ -58,8 +70,9 @@ module Orocos
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 deployment_name = pkg_name.gsub(/^orogen-/, '')
                 available_deployments[deployment_name] = pkg
-                available_projects[pkg.project_name] = pkg.deffile
-            end
+
+                add_project_from(pkg)
+                end
         end
 
         # Create a class_name => tasklib mapping for all task models available
