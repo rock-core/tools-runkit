@@ -80,12 +80,13 @@ module Orocos
         # under rOrocos supervision, using #spawn
         def join
             return unless alive?
+
 	    begin
 		::Process.waitpid(pid)
+                exit_status = $?
+                dead!(exit_status)
 	    rescue Errno::ECHILD
 	    end
-
-            dead!
         end
         
         # True if the process is running
@@ -94,7 +95,10 @@ module Orocos
         def running?; alive? end
 
         # Called externally to announce a component dead.
-	def dead! # :nodoc:
+	def dead!(exit_status) # :nodoc:
+            Orocos.debug "deployment #{name} terminated with exit status #{exit_status}"
+
+            @exit_status = exit_status
 	    @pid = nil 
 
             # Force unregistering the task contexts from CORBA naming
@@ -288,10 +292,58 @@ module Orocos
 	    end
 	end
 
-        # Kills the process by using UNIX signals
-        def kill(wait = true, signal = 'INT')
-            ::Process.kill("SIG#{signal}", pid)
-            join if wait
+        SIGNAL_NUMBERS = {
+            'ABRT' => 1,
+            'INT' => 2,
+            'KILL' => 9,
+            'SEGV' => 11
+        }
+        # Kills the process either cleanly by requesting a shutdown if signal ==
+        # nil, or forcefully by using UNIX signals if signal is a signal name.
+        def kill(wait = true, signal = nil)
+            # Stop all tasks and disconnect the ports
+            begin
+                services = nil
+                each_task do |task|
+                    begin task.stop
+                    rescue StateTransitionFailed
+                    end
+
+                    services ||= task.do_services
+                    task.each_port do |port|
+                        port.disconnect_all
+                    end
+                end
+            rescue Exception => e
+                Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
+                services = nil
+            end
+
+            expected_exit = nil
+            if !signal && services
+                begin
+                    services.shutdown
+                rescue Exception => e
+                    Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
+                    services = nil
+                end
+            end
+
+            if signal || !services
+                ::Process.kill("SIG#{signal || 'INT'}", pid)
+                expected_exit = if signal.kind_of?(Integer) then signal
+                                else SIGNAL_NUMBERS[signal] || signal
+                                end
+            end
+
+            if wait
+                join
+                if @exit_status.signaled? && !expected_exit
+                    Orocos.warn "#{name} unexpectedly exited with signal #{@exit_status.termsig}"
+                elsif expected_exit && @exit_status.termsig != expected_exit
+                    Orocos.warn "#{name} was expected to quit with signal #{expected_exit} but terminated with signal #{@exit_status.termsig}"
+                end
+            end
         end
 
         # Returns the name of the tasks that are running in this process
@@ -368,7 +420,7 @@ trap('SIGCHLD') do
     begin
 	while dead = Process.wait(-1, Process::WNOHANG)
 	    if mod = Orocos::Process.from_pid(dead)
-                mod.dead!
+                mod.dead!($?)
             end
 	end
     rescue Errno::ECHILD

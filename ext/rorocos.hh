@@ -32,6 +32,11 @@ namespace RTT
 extern RTT::TypeInfo* get_type_info(std::string const& name);
 extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
 
+struct RServices
+{
+    RTT::Corba::ServiceInterface_var services;
+};
+
 namespace
 {
     template<typename T>
