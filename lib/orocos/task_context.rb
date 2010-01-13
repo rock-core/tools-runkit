@@ -127,6 +127,11 @@ module Orocos
             @fatal_states << :FATAL_ERROR
         end
 
+        def ping
+            getModelName
+            nil
+        end
+
         # True if the given symbol is the name of an error state
         def error_state?(sym); @error_states.include?(sym) end
         # True if the given symbol is the name of a fatal error state

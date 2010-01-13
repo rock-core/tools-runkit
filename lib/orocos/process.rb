@@ -263,16 +263,20 @@ module Orocos
                 
                 # Get any task name from that specific deployment, and check we
                 # can access it. If there is none
-                task_names.all? do |task_name|
+                all_reachable = task_names.all? do |task_name|
                     begin
-                        task(task_name)
-                        Orocos.debug "#{task_name} is reachable, assuming #{name} is up and running"
+                        task(task_name).ping
+                        Orocos.debug "#{task_name} is reachable"
                         true
                     rescue Orocos::NotFound
                         Orocos.debug "could not access #{task_name}, #{name} is not running yet ..."
                         false
                     end
                 end
+                if all_reachable
+                    Orocos.info "all tasks of #{name} are reachable, assuming it is up and running"
+                end
+                all_reachable
 	    else
                 start_time = Time.now
                 got_pid = false
