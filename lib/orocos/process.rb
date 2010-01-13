@@ -394,6 +394,10 @@ module Orocos
     # Enumerates the Orocos::Process objects that are currently available in
     # this Ruby instance
     def self.each_process
+        if !block_given?
+            return enum_for(:each_process)
+        end
+
         ObjectSpace.each_object(Orocos::Process) do |p|
             yield(p) if p.alive?
         end
