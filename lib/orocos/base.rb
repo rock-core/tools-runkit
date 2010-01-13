@@ -42,11 +42,7 @@ module Orocos
         end
     end
 
-    # Initialize the Orocos communication layer and read all the oroGen models
-    # that are available.
-    def self.initialize
-        Orocos::CORBA.init
-
+    def self.load
         @registry = Typelib::Registry.new
         registry.import File.join(`orogen --base-dir`.chomp, 'orogen', 'orocos.tlb')
 
@@ -84,6 +80,16 @@ module Orocos
                     each { |class_name| available_task_models[class_name] = tasklib_name }
             end
         end
+    end
+
+    # Initialize the Orocos communication layer and read all the oroGen models
+    # that are available.
+    def self.initialize
+        if !registry
+            self.load
+        end
+
+        Orocos::CORBA.init
     end
 
     # This method assumes that #add_logger has been called at the end of each
