@@ -91,7 +91,7 @@ module Orocos
         #   output_port.connect_to(input_port, :lock => :locked)
         #
         # This method raises ArgumentError if the policy is not valid.
-        def validate_policy(policy)
+        def self.validate_policy(policy)
             policy = validate_options policy, CONNECTION_POLICY_OPTIONS
 
             if policy[:type] == :buffer && !policy[:size]
@@ -101,6 +101,10 @@ module Orocos
             end
             policy[:size] ||= 0
             policy
+        end
+
+        def validate_policy(policy)
+            Port.validate_policy(policy)
         end
 
     private
