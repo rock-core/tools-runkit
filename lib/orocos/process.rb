@@ -120,14 +120,12 @@ module Orocos
                 options = names.pop
             end
 
-            names = names.to_set
             begin
                 options = validate_options options, :wait => 2, :output => nil, :valgrind => false
 
                 valgrind = options[:valgrind]
                 if valgrind.respond_to?(:to_ary)
                     valgrind = valgrind.dup
-                    names |= valgrind.to_set
                 elsif valgrind
                     valgrind = names.dup
                 else
