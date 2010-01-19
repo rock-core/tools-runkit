@@ -96,7 +96,7 @@ module Orocos
 
             if policy[:type] == :buffer && !policy[:size]
                 raise ArgumentError, "you must provide a 'size' argument for buffer connections"
-            elsif policy[:type] == :data && policy[:size]
+            elsif policy[:type] == :data && (policy[:size] && policy[:size] != 0)
                 raise ArgumentError, "there are no 'size' argument to data connections"
             end
             policy[:size] ||= 0
