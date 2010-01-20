@@ -117,26 +117,7 @@ module Orocos
         exclude_types = options[:exclude_types]
 
         each_process do |process|
-            begin
-                logger = process.task 'Logger'
-                report = logger.rtt_method 'reportPort'
-
-                process.each_task do |task|
-                    next if task == logger
-                    task.each_port do |port|
-                        next unless port.kind_of?(OutputPort)
-                        next if exclude_ports && exclude_ports === port.name
-                        next if exclude_types && exclude_types === port.type.name
-                        Orocos.info "logging % 50s of type %s" % ["#{task.name}:#{port.name}", port.type.name]
-                        report.call task.name, port.name
-                    end
-                end
-                logger.file = "#{process.name}.log"
-                logger.start
-
-            rescue Orocos::NotFound
-                STDERR.puts "WARN: no logger defined on #{process.name}"
-            end
+            process.log_all_ports(options)
         end
     end
 

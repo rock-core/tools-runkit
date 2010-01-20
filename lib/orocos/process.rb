@@ -115,6 +115,30 @@ module Orocos
                 Orocos::CORBA.unregister(name)
             end
 	end
+
+        def log_all_ports(options = Hash.new)
+            exclude_ports = options[:exclude_ports]
+            exclude_types = options[:exclude_types]
+
+            logger = task 'Logger'
+            report = logger.rtt_method 'reportPort'
+
+            each_task do |task|
+                next if task == logger
+                task.each_port do |port|
+                    next unless port.kind_of?(OutputPort)
+                    next if exclude_ports && exclude_ports === port.name
+                    next if exclude_types && exclude_types === port.type.name
+                    Orocos.info "logging % 50s of type %s" % ["#{task.name}:#{port.name}", port.type.name]
+                    report.call task.name, port.name
+                end
+            end
+            logger.file = "#{name}.log"
+            logger.start
+
+        rescue Orocos::NotFound
+            Orocos.warn "no logger defined on #{name}"
+        end
         
         # Deprecated
         #
