@@ -248,7 +248,6 @@ module Orocos
         def state_reader(policy = Hash.new)
             p = port('state')
             policy = p.validate_policy({:init => true}.merge(policy))
-            policy[:init] = true
 
             # Create the mapping from state integers to state symbols
             reader = p.do_reader(StateReader, p.type_name, policy)
