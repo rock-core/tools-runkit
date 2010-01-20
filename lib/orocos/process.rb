@@ -96,9 +96,17 @@ module Orocos
 
         # Called externally to announce a component dead.
 	def dead!(exit_status) # :nodoc:
-            Orocos.debug "deployment #{name} terminated with exit status #{exit_status}"
+            exit_status = (@exit_status ||= exit_status)
+            if !exit_status
+                Orocos.info "deployment #{name} exited, exit status unknown"
+            elsif exit_status.success?
+                Orocos.info "deployment #{name} exited normally"
+            elsif exit_status.signaled?
+                Orocos.warn "deployment #{name} terminated with signal #{exit_status.termsig}"
+            else
+                Orocos.warn "deployment #{name} terminated with signal #{exit_status.to_i}"
+            end
 
-            @exit_status = exit_status
 	    @pid = nil 
 
             # Force unregistering the task contexts from CORBA naming
@@ -324,7 +332,10 @@ module Orocos
             expected_exit = nil
             if !signal && services
                 begin
-                    services.shutdown
+                    if !services.shutdown
+                        raise InternalError, "the deployment refused to shutdown"
+                    end
+                    Orocos.info "requested shut down of #{name}"
                 rescue Exception => e
                     Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
                     services = nil
@@ -332,7 +343,14 @@ module Orocos
             end
 
             if signal || !services
-                ::Process.kill("SIG#{signal || 'INT'}", pid)
+                signal ||= 'KILL'
+                Orocos.warn "sending #{signal} to #{name}"
+                begin
+                    ::Process.kill("SIG#{signal}", pid)
+                rescue Errno::ESRCH
+                    # Already exited
+                    return
+                end
                 expected_exit = if signal.kind_of?(Integer) then signal
                                 else SIGNAL_NUMBERS[signal] || signal
                                 end
