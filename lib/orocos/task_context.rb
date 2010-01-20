@@ -281,7 +281,7 @@ module Orocos
         def state
             if model.extended_state_support?
                 @state_reader ||= state_reader
-                state_reader.read
+                @state_reader.read
             else
                 value = CORBA.refine_exceptions(self) { do_state() }
                 @state_symbols[value]
