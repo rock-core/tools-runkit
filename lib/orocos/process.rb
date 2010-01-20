@@ -440,15 +440,3 @@ module Orocos
     end
 end
 
-trap('SIGCHLD') do
-    begin
-	while dead = Process.wait(-1, Process::WNOHANG)
-	    if mod = Orocos::Process.from_pid(dead)
-                mod.dead!($?)
-            end
-	end
-    rescue Errno::ECHILD
-    end
-end
-
-

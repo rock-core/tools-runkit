@@ -82,11 +82,29 @@ module Orocos
         end
     end
 
+    class << self
+        attr_predicate :disable_sigchld_handler, true
+    end
+
     # Initialize the Orocos communication layer and read all the oroGen models
     # that are available.
     def self.initialize
         if !registry
             self.load
+        end
+
+        # Install the SIGCHLD handler if it has not been disabled
+        if !disable_sigchld_handler?
+            trap('SIGCHLD') do
+                begin
+                    while dead = ::Process.wait(-1, ::Process::WNOHANG)
+                        if mod = Orocos::Process.from_pid(dead)
+                            mod.dead!($?)
+                        end
+                    end
+                rescue Errno::ECHILD
+                end
+            end
         end
 
         Orocos::CORBA.init
