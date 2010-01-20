@@ -31,8 +31,8 @@ describe Orocos::TaskContext do
 
     it "should allow enumerating its ports" do
         Orocos::Process.spawn('simple_source', 'simple_sink') do |source, sink|
-            source = source.task("source")
-            sink   = sink.task("sink")
+            source = source.task("simple_source_source")
+            sink   = sink.task("simple_sink_sink")
 
             source.enum_for(:each_port).to_a.must_equal [source.port("cycle"), source.port("cycle_struct")]
             sink.enum_for(:each_port).to_a.must_equal [sink.port("cycle")]
@@ -41,8 +41,8 @@ describe Orocos::TaskContext do
 
     it "should allow getting its ports" do
         Orocos::Process.spawn('simple_source', 'simple_sink') do |source, sink|
-            source = source.task("source")
-            sink   = sink.task("sink")
+            source = source.task("simple_source_source")
+            sink   = sink.task("simple_sink_sink")
 
             assert(source_p = source.port('cycle'))
             source_p.must_be_kind_of(Orocos::OutputPort)
@@ -76,7 +76,7 @@ describe Orocos::TaskContext do
 
     it "should allow to check a port availability" do
         Orocos::Process.spawn('simple_source') do |p|
-            t = p.task "source"
+            t = p.task "simple_source_source"
             assert(!t.has_port?("does_not_exist"))
             assert(t.has_port?("cycle"))
         end
@@ -84,13 +84,14 @@ describe Orocos::TaskContext do
 
     it "should raise NotFound if a port does not exist" do
         Orocos::Process.spawn('simple_source') do |source|
-            assert_raises(Orocos::NotFound) { source.task("source").port("does_not_exist") }
+            task = source.task("simple_source_source")
+            assert_raises(Orocos::NotFound) { task.port("does_not_exist") }
         end
     end
 
     it "should raise CORBA::ComError when #port is called on a dead remote process" do
         Orocos::Process.spawn('simple_source') do |source_p|
-            source = source_p.task("source")
+            source = source_p.task("simple_source_source")
             source_p.kill
             assert_raises(Orocos::CORBA::ComError) { source.port("cycle") }
         end
@@ -149,7 +150,7 @@ describe Orocos::TaskContext do
 
     it "should be able to manipulate the task state machine and read its state" do
         Orocos::Process.spawn('simple_source') do |source|
-            source = source.task("source")
+            source = source.task("simple_source_source")
             assert_equal(:PRE_OPERATIONAL, source.state)
             assert_raises(Orocos::StateTransitionFailed) { source.start }
             assert(!source.ready?)
@@ -178,7 +179,7 @@ describe Orocos::TaskContext do
 
     it "should raise CORBA::ComError when state-related methods are called on a dead process" do
         Orocos::Process.spawn('simple_source') do |source_p|
-            source = source_p.task("source")
+            source = source_p.task("simple_source_source")
             source_p.kill
             assert_raises(Orocos::CORBA::ComError) { source.state }
             #assert_raises(Orocos::CORBA::ComError) { source.start }
