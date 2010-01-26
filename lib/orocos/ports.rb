@@ -170,7 +170,6 @@ module Orocos
             refine_exceptions(input) do
                 do_disconnect_from(input)
             end
-            self
         end
 
         def pretty_print(pp) # :nodoc:

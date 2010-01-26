@@ -81,12 +81,14 @@ describe Orocos::OutputPort do
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
 
+            assert(!source.disconnect_from(sink))
             source.connect_to sink
             assert(sink.connected?)
             assert(source.connected?)
-            source.disconnect_from sink
+            assert(source.disconnect_from(sink))
             assert(!sink.connected?)
             assert(!source.connected?)
+            assert(!source.disconnect_from(sink))
         end
     end
 

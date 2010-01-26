@@ -511,8 +511,8 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
 
     try
     {
-        self_task->ports->disconnectPort(StringValuePtr(self_name), other_task->ports, StringValuePtr(other_name));
-        return Qnil;
+        bool ret = self_task->ports->disconnectPort(StringValuePtr(self_name), other_task->ports, StringValuePtr(other_name));
+        return ret ? Qtrue : Qfalse;
     }
     catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
     CORBA_EXCEPTION_HANDLERS
