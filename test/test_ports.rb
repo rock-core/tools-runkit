@@ -62,7 +62,7 @@ describe Orocos::OutputPort do
         Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
-            p_sink.kill
+            p_sink.kill(true, 'KILL')
             assert_raises(ComError) { source.connect_to sink }
         end
     end
@@ -71,7 +71,7 @@ describe Orocos::OutputPort do
         Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
             sink   = p_sink.task("sink").port("cycle")
-            p_source.kill
+            p_source.kill(true, 'KILL')
             assert_raises(ComError) { source.connect_to sink }
         end
     end
@@ -98,7 +98,7 @@ describe Orocos::OutputPort do
             sink   = p_sink.task("sink").port("cycle")
             source.connect_to sink
             assert(source.connected?)
-            p_sink.kill
+            p_sink.kill(true, 'KILL')
             assert(source.connected?)
             source.disconnect_from sink
             assert(!source.connected?)
@@ -125,7 +125,7 @@ describe Orocos::OutputPort do
             sink   = p_sink.task("sink").port("cycle")
             source.connect_to sink
             assert(source.connected?)
-            p_sink.kill
+            p_sink.kill(true, 'KILL')
             assert(source.connected?)
             source.disconnect_all
             assert(!source.connected?)
@@ -174,7 +174,7 @@ describe Orocos::InputPort do
 
             source.connect_to sink
             assert(sink.connected?)
-            p_source.kill
+            p_source.kill(true, 'KILL')
             assert(sink.connected?)
             sink.disconnect_all
             assert(!sink.connected?)
@@ -295,7 +295,7 @@ describe Orocos::OutputReader do
             source.start
             sleep(0.5)
 
-	    source_p.kill
+	    source_p.kill(true, 'KILL')
 
 	    assert_raises(CORBA::ComError) { reader.read }
 	    assert(!reader.connected?)
@@ -332,7 +332,7 @@ describe Orocos::InputWriter do
             input = echo.port('input')
             
             writer = input.writer
-            echo_p.kill
+            echo_p.kill(true, 'KILL')
 	    assert_raises(CORBA::ComError) { writer.write(0) }
 	    assert(!writer.connected?)
         end
