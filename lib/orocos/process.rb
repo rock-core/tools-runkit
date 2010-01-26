@@ -336,21 +336,23 @@ module Orocos
         # nil, or forcefully by using UNIX signals if signal is a signal name.
         def kill(wait = true, signal = nil)
             # Stop all tasks and disconnect the ports
-            begin
-                services = nil
-                each_task do |task|
-                    begin task.stop
-                    rescue StateTransitionFailed
-                    end
+            if !signal
+                begin
+                    services = nil
+                    each_task do |task|
+                        begin task.stop
+                        rescue StateTransitionFailed
+                        end
 
-                    services ||= task.do_services
-                    task.each_port do |port|
-                        port.disconnect_all
+                        services ||= task.do_services
+                        task.each_port do |port|
+                            port.disconnect_all
+                        end
                     end
+                rescue Exception => e
+                    Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
+                    services = nil
                 end
-            rescue Exception => e
-                Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
-                services = nil
             end
 
             expected_exit = nil
