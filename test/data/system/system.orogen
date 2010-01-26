@@ -84,3 +84,21 @@ task_context 'CameraFilter' do
     output_port 'out', 'camera/Image'
 end
 
+deployment 'system' do
+    task "can_bus", "CanBus"
+    task "slider_box", "Sliderbox"
+    task "joystick", "Joystick"
+    task "control_devices", "ControlDevices"
+    task "motor_controller", "MotorController"
+    task "control", "Control"
+    task "imu", 'IMU'
+    task "camera_driver", 'CameraDriver'
+    task "firewire_camera", 'FirewireCamera'
+    task "prosilica_camera", 'ProsilicaCamera'
+    task "stereo", 'Stereo'
+    task "stereo_processing", 'StereoProcessing'
+    task "stereo_camera", 'StereoCamera'
+    task "dem_builder", 'DemBuilder'
+    task "camera_filter", 'CameraFilter'
+end
+
