@@ -280,7 +280,7 @@ module Orocos
         # #state may return :CUSTOM_RUNTIME if the component goes into that
         # state.
         def state
-            if model.extended_state_support?
+            if model && model.extended_state_support?
                 @state_reader ||= state_reader
                 @state_reader.read
             else
