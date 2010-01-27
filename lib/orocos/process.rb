@@ -224,9 +224,11 @@ module Orocos
 	    raise "#{name} is already running" if alive?
 	    Orocos.debug { "Spawning module #{name}" }
 
-            options = Kernel.validate_options options, :output => nil, :valgrind => nil
+            options = Kernel.validate_options options, :output => nil,
+                :valgrind => nil, :working_directory => nil
             output   = options[:output]
             valgrind = !!options[:valgrind]
+            workdir  = options[:working_directory]
 
             ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
 
@@ -247,6 +249,9 @@ module Orocos
 		    output_file_name = output_format.
 			gsub('%m', name).
 			gsub('%p', ::Process.pid.to_s)
+                    if workdir
+                        output_file_name = File.expand_path(output_file_name, workdir)
+                    end
 		    FileUtils.mv output.path, output_file_name
 		end
 		
@@ -266,6 +271,9 @@ module Orocos
 		write.fcntl(Fcntl::F_SETFD, 1)
 		::Process.setpgrp
                 begin
+                    if workdir
+                        Dir.chdir(workdir)
+                    end
                     exec(*cmdline)
                 rescue Exception => e
                     write.write("FAILED")
