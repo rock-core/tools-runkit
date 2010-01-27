@@ -118,8 +118,9 @@ module Orocos
                 @state_symbols[STATE_RUNTIME_ERROR]   = :RUNTIME_ERROR
                 @state_symbols[STATE_RUNTIME_WARNING] = :RUNTIME_WARNING
                 @state_symbols[STATE_FATAL_ERROR]     = :FATAL_ERROR
-                @error_states  = Set.new
-                @fatal_states  = Set.new
+                @error_states   = Set.new
+                @runtime_states = Set.new
+                @fatal_states   = Set.new
             end
 
             @error_states << :RUNTIME_ERROR << :FATAL_ERROR
