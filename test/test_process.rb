@@ -17,11 +17,13 @@ describe Orocos::Process do
     end
 
     it "can spawn a new process and waits for it" do
+        process = nil
         Orocos.guard do
             process = Orocos::Process.new('process')
             process.spawn
-            process.wait_running(0.5)
+            process.wait_running(10)
             assert(process.alive?)
+            assert(process.running?)
         end
     end
 
