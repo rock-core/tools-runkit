@@ -5,11 +5,11 @@ require 'orocos/test'
 
 MiniTest::Unit.autorun
 
-describe Orocos::Process do
-    TEST_DIR = File.dirname(__FILE__)
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+TEST_DIR = File.expand_path(File.dirname(__FILE__))
+DATA_DIR = File.join(TEST_DIR, 'data')
+WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+describe Orocos::Process do
     include Orocos::Spec
 
     it "raises NotFound when the deployment name does not exist" do
