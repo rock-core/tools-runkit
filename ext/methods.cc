@@ -49,7 +49,7 @@ static void init_method_or_command(VALUE task_, RemoteInterface iface, VALUE nam
         rb_iv_set(obj, "@return_spec", rb_str_new2(return_type));
 
         VALUE arg_spec = rb_ary_new();
-        for (int i = 0; i < arguments->length(); ++i)
+        for (unsigned int i = 0; i < arguments->length(); ++i)
         {
             VALUE desc = rb_ary_new();
             rb_ary_push(desc, rb_str_new2(arguments[i].name));
@@ -63,8 +63,8 @@ static void init_method_or_command(VALUE task_, RemoteInterface iface, VALUE nam
     }
     catch(RTT::Corba::NoSuchNameException&)
     { rb_raise(eNotFound, "no method or command '%s'", name); }
-    catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, ""); }
-    catch(CORBA::TRANSIENT&)    { rb_raise(eComError, ""); }
+    catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, "CORBA communication failure"); }
+    catch(CORBA::TRANSIENT&)    { rb_raise(eComError, "CORBA transient exception"); }
     catch(CORBA::Exception& e)
     { rb_raise(eCORBA, "unspecified CORBA error of type %s", typeid(e).name()); }
 }

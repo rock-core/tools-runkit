@@ -539,7 +539,7 @@ module Orocos
         def pretty_print(pp) # :nodoc:
             states_description = TaskContext.constants.grep(/^STATE_/).
                 inject([]) do |map, name|
-                    map[TaskContext.const_get(name)] = name.gsub /^STATE_/, ''
+                    map[TaskContext.const_get(name)] = name.to_s.gsub /^STATE_/, ''
                     map
                 end
 

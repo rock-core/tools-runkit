@@ -51,7 +51,7 @@ static VALUE attribute_do_read_string(VALUE attr)
         VALUE rb_result = rb_str_new2(result);
         return rb_result;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
 }
 
@@ -65,7 +65,7 @@ static VALUE attribute_do_read(VALUE attr, VALUE type_name, VALUE rb_typelib_val
         corba_to_ruby(StringValuePtr(type_name), value, corba_value);
         return rb_typelib_value;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
 }
 
@@ -81,7 +81,7 @@ static VALUE attribute_do_write_string(VALUE attr, VALUE rb_value)
         corba_writer->set(corba_value);
         return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
 }
 
@@ -97,7 +97,7 @@ static VALUE attribute_do_write(VALUE attr, VALUE type_name, VALUE rb_typelib_va
         corba_writer->set(corba_value);
         return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
 }
 
@@ -105,7 +105,6 @@ void Orocos_init_data_handling()
 {
     // Unfortunately, we must redefine this here to make RDoc happy
     VALUE mOrocos    = rb_define_module("Orocos");
-    VALUE mCORBA     = rb_define_module_under(mOrocos, "CORBA");
     VALUE cAttribute = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
 
     rb_define_method(cAttribute, "do_read_string", RUBY_METHOD_FUNC(attribute_do_read_string), 0);

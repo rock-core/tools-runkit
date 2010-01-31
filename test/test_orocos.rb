@@ -6,11 +6,11 @@ require 'set'
 
 MiniTest::Unit.autorun
 
-describe "Orocos module features" do
-    TEST_DIR = File.dirname(__FILE__)
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+TEST_DIR = File.expand_path(File.dirname(__FILE__))
+DATA_DIR = File.join(TEST_DIR, 'data')
+WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+describe "Orocos module features" do
     include Orocos::Spec
 
     it "should be able to enumerate the name of all registered task contexts" do

@@ -5,11 +5,11 @@ require 'orocos/test'
 
 MiniTest::Unit.autorun
 
-describe "data convertions between CORBA and Ruby" do
-    TEST_DIR = File.expand_path(File.dirname(__FILE__))
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+TEST_DIR = File.expand_path(File.dirname(__FILE__))
+DATA_DIR = File.join(TEST_DIR, 'data')
+WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+describe "data convertions between CORBA and Ruby" do
     include Orocos::Spec
 
     it "should not be possible to create an Attribute instance directly" do
