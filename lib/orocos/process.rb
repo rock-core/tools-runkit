@@ -279,7 +279,13 @@ module Orocos
 	end
 
         def kill(wait = true, signal = 'INT')
-            ::Process.kill("SIG#{signal}", pid)
+            begin
+                if p = pid
+                    ::Process.kill("SIG#{signal}", p)
+                end
+            rescue Errno::ESRCH
+            end
+
             join if wait
         end
 
