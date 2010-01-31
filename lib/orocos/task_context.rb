@@ -118,8 +118,9 @@ module Orocos
                 @state_symbols[STATE_RUNTIME_ERROR]   = :RUNTIME_ERROR
                 @state_symbols[STATE_RUNTIME_WARNING] = :RUNTIME_WARNING
                 @state_symbols[STATE_FATAL_ERROR]     = :FATAL_ERROR
-                @error_states  = Set.new
-                @fatal_states  = Set.new
+                @error_states   = Set.new
+                @runtime_states = Set.new
+                @fatal_states   = Set.new
             end
 
             @error_states << :RUNTIME_ERROR << :FATAL_ERROR
@@ -279,7 +280,7 @@ module Orocos
         # #state may return :CUSTOM_RUNTIME if the component goes into that
         # state.
         def state
-            if model.extended_state_support?
+            if model && model.extended_state_support?
                 @state_reader ||= state_reader
                 @state_reader.read
             else
@@ -520,6 +521,9 @@ module Orocos
                 if tasklib_name = Orocos.available_task_models[model_name]
                     tasklib = Orocos::Generation.load_task_library(tasklib_name)
                     @model = tasklib.tasks.find { |t| t.name == model_name }
+                    @model.used_toolkits.each do |tk|
+                        Orocos::CORBA.load_toolkit(tk.name)
+                    end
                 end
             end
         end
@@ -535,7 +539,7 @@ module Orocos
         def pretty_print(pp) # :nodoc:
             states_description = TaskContext.constants.grep(/^STATE_/).
                 inject([]) do |map, name|
-                    map[TaskContext.const_get(name)] = name.gsub /^STATE_/, ''
+                    map[TaskContext.const_get(name)] = name.to_s.gsub /^STATE_/, ''
                     map
                 end
 

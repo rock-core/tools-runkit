@@ -1,6 +1,7 @@
 require 'orogen'
 require 'typelib'
 require 'utilrb/module/attr_predicate'
+require 'orogen'
 
 module Orocos
     class InternalError < Exception; end
@@ -45,25 +46,9 @@ module Orocos
         end
     end
 
-    def self.orogen_base_dir
-        if @orogen_base_dir
-            return @orogen_base_dir
-        end
-
-        candidates = $LOAD_PATH.
-            find_all { |path| File.exists?(File.join(path, 'orogen', 'orocos.tlb')) }
-
-        if candidates.empty?
-            raise InternalError, "cannot determine orogen's base directory"
-        elsif candidates.size > 1
-            raise InternalError, "more than one possible orogen base directory (!)"
-        end
-        @orogen_base_dir = candidates.to_a.first
-    end
-
     def self.load
         @registry = Typelib::Registry.new
-        registry.import File.join(orogen_base_dir, 'orogen', 'orocos.tlb')
+        registry.import File.join(Orocos::Generation.base_dir, 'orogen', 'orocos.tlb')
 
         @available_projects ||= Hash.new
 

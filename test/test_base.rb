@@ -5,11 +5,11 @@ require 'orocos/test'
 
 MiniTest::Unit.autorun
 
-describe Orocos do
-    TEST_DIR = File.expand_path(File.dirname(__FILE__))
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+TEST_DIR = File.expand_path(File.dirname(__FILE__))
+DATA_DIR = File.join(TEST_DIR, 'data')
+WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+describe "the Orocos module" do
     include Orocos::Spec
 
     it "should allow listing task names" do
@@ -17,7 +17,7 @@ describe Orocos do
     end
 
     it "should be able to list all available task libraries" do
-        test_deployments = %w{echo process simple_sink simple_source states}
+        test_deployments = %w{echo process simple_sink simple_source states uncaught}
         assert_equal test_deployments.sort, Orocos.available_task_libraries.keys.sort
 
         pkgconfig_names = test_deployments.

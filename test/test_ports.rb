@@ -8,11 +8,11 @@ MiniTest::Unit.autorun
 Orocos::CORBA.call_timeout = 10000
 Orocos::CORBA.connect_timeout = 10000
 
-describe Orocos::Port do
-    TEST_DIR = File.expand_path(File.dirname(__FILE__))
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+TEST_DIR = File.expand_path(File.dirname(__FILE__))
+DATA_DIR = File.join(TEST_DIR, 'data')
+WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+describe Orocos::Port do
     include Orocos::Spec
 
     it "should not be possible to create an instance directly" do
@@ -297,7 +297,7 @@ describe Orocos::OutputReader do
 
 	    source_p.kill(true, 'KILL')
 
-	    assert_raises(CORBA::ComError) { reader.read }
+	    assert_raises(Orocos::CORBA::ComError) { reader.read }
 	    assert(!reader.connected?)
 	end
     end

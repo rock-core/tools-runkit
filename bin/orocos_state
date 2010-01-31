@@ -4,12 +4,8 @@ require 'orocos'
 require 'pp'
 require 'utilrb/pkgconfig'
 
-# First, load all toolkits that are available
-Utilrb::PkgConfig.each_package(/-transport-corba-/) do |name|
-    name =~ /-transport-corba-/
-    Orocos::CORBA.load_toolkit $`
-end
-
+Orocos.load
+Orocos.initialize
 Orocos.task_names.each do |name|
     puts name
     begin

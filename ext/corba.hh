@@ -90,8 +90,8 @@ extern VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CO
 extern CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src);
 
 #define CORBA_EXCEPTION_HANDLERS \
-    catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, ""); } \
-    catch(CORBA::TRANSIENT&) { rb_raise(eComError, ""); } \
+    catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, "CORBA communication failure"); } \
+    catch(CORBA::TRANSIENT&) { rb_raise(eComError, "CORBA transient excepetion"); } \
     catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
 
 #endif

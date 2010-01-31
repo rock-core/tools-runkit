@@ -5,11 +5,11 @@ require 'orocos/test'
 
 MiniTest::Unit.autorun
 
-describe Orocos::CORBA do
-    TEST_DIR = File.dirname(__FILE__)
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+TEST_DIR = File.expand_path(File.dirname(__FILE__))
+DATA_DIR = File.join(TEST_DIR, 'data')
+WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+describe "the Orocos::CORBA module" do
     include Orocos::Spec
 
     it "should be able to list types that can be transported through CORBA" do
