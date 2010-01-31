@@ -190,7 +190,7 @@ static VALUE task_context_each_port(VALUE self)
     try {
         RTT::Corba::DataFlowInterface::PortNames_var ports = context.ports->getPorts();
 
-        for (int i = 0; i < ports->length(); ++i)
+        for (unsigned int i = 0; i < ports->length(); ++i)
             rb_yield(task_context_do_port(self, rb_str_new2(ports[i])));
     }
     CORBA_EXCEPTION_HANDLERS
@@ -312,18 +312,19 @@ static VALUE task_context_each_attribute(VALUE self)
         {
             RTT::Corba::AttributeInterface::AttributeNames_var
                 attributes = context.attributes->getAttributeList();
-            for (int i = 0; i < attributes->length(); ++i)
+            for (unsigned int i = 0; i < attributes->length(); ++i)
                 rb_yield(task_context_attribute(self, rb_str_new2(attributes[i])));
         }
 
         {
             RTT::Corba::AttributeInterface::PropertyNames_var
                 properties = context.attributes->getPropertyList();
-            for (int i = 0; i < properties->length(); ++i)
+            for (unsigned int i = 0; i < properties->length(); ++i)
                 rb_yield(task_context_attribute(self, rb_str_new2(properties[i].name)));
         }
     }
     CORBA_EXCEPTION_HANDLERS
+    return Qnil;
 }
 
 // call-seq:
@@ -403,7 +404,7 @@ static VALUE port_connected_p(VALUE self)
 
     try
     { return task->ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse; }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // is refined on the Ruby side
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // is refined on the Ruby side
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
@@ -467,7 +468,7 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
             rb_raise(eConnectionFailed, "failed to connect ports");
         return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); } // should be refined on the Ruby side
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
@@ -482,7 +483,7 @@ static VALUE do_port_disconnect_all(VALUE port)
         task->ports->disconnect(StringValuePtr(name));
         return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
@@ -499,7 +500,7 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
         self_task->ports->disconnectPort(StringValuePtr(self_name), other_task->ports, StringValuePtr(other_name));
         return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, ""); }
+    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }

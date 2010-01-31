@@ -107,7 +107,7 @@ list<string> CorbaAccess::knownTasks()
         while(binding_it->next_n(10, binding_list))
         {
             CosNaming::BindingList list = binding_list.in();
-            for (int i = 0; i < list.length(); ++i)
+            for (unsigned int i = 0; i < list.length(); ++i)
                 names.push_back(list[i].binding_name[0].id.in());
         }
     }
