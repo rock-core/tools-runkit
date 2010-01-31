@@ -1,5 +1,6 @@
 require 'fileutils'
 require 'typelib'
+require 'orogen'
 
 module Orocos
     module Test
@@ -29,8 +30,10 @@ module Orocos
             FileUtils.cp_r  src_dir, work_dir
 
             prefix   = File.join(work_basedir, "prefix")
+            ruby_bin   = RbConfig::CONFIG['RUBY_INSTALL_NAME']
+            orogen_bin = File.expand_path('../bin/orogen', Orocos::Generation.base_dir)
             Dir.chdir(work_dir) do
-                if !system('orogen', '--corba', File.basename(src))
+                if !system(ruby_bin, orogen_bin, '--corba', File.basename(src))
                     raise "failed to build"
                 end
 

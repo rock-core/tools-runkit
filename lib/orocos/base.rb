@@ -1,4 +1,5 @@
 require 'typelib'
+require 'orogen'
 
 module Orocos
     class << self
@@ -35,7 +36,7 @@ module Orocos
         Orocos::CORBA.init
 
         @registry = Typelib::Registry.new
-        registry.import File.join(`orogen --base-dir`.chomp, 'orogen', 'orocos.tlb')
+        registry.import File.join(Orocos::Generation.base_dir, 'orogen', 'orocos.tlb')
 
         @available_projects ||= Hash.new
 
