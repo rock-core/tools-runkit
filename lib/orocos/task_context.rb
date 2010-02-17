@@ -388,6 +388,18 @@ module Orocos
             end
         end
 
+        # Returns the Orocos::Generation::OutputPort instance that describes the
+        # required port, or nil if the port does not exist
+        def output_port_model(name)
+            model.each_output_port.find { |p| p.name == name }
+        end
+
+        # Returns the Orocos::Generation::InputPort instance that describes the
+        # required port, or nil if the port does not exist
+        def input_port_model(name)
+            model.each_input_port.find { |p| p.name == name }
+        end
+
         # Returns an object that represents the given port on the remote task
         # context. The returned object is either an InputPort or an OutputPort
         #
