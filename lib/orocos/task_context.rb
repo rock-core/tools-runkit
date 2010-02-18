@@ -420,11 +420,11 @@ module Orocos
         #
         #   task.myPort
         #
-        def port(name)
+        def port(name, verify = true)
             name = name.to_str
             CORBA.refine_exceptions(self) do
                 if @ports[name]
-                    if has_port?(name) # Check that this port is still valid
+                    if !verify || has_port?(name) # Check that this port is still valid
                         @ports[name]
                     else
                         @ports.delete(name)
