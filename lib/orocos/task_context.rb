@@ -391,13 +391,19 @@ module Orocos
         # Returns the Orocos::Generation::OutputPort instance that describes the
         # required port, or nil if the port does not exist
         def output_port_model(name)
-            model.each_output_port.find { |p| p.name == name }
+            if port_model = model.each_output_port.find { |p| p.name == name }
+                port_model
+            else model.find_dynamic_output_ports(name, nil).first
+            end
         end
 
         # Returns the Orocos::Generation::InputPort instance that describes the
         # required port, or nil if the port does not exist
         def input_port_model(name)
-            model.each_input_port.find { |p| p.name == name }
+            if port_model = model.each_input_port.find { |p| p.name == name }
+                port_model
+            else model.find_dynamic_input_ports(name, nil).first
+            end
         end
 
         # Returns an object that represents the given port on the remote task
