@@ -463,7 +463,7 @@ module Orocos
         tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
         tasks.each do |t|
             begin
-                t.stop if t.running?
+                t.stop if t.running? && t.process
             rescue
             end
         end
