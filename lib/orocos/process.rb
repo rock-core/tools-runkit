@@ -29,6 +29,12 @@ module Orocos
         Process.spawn(*args, &block)
     end
 
+    # Deprecated. Use Orocos.run instead.
+    def self.spawn(*args, &block)
+        STDERR.puts "#{caller(1)}: Orocos.spawn is deprecated, use Orocos.run instead"
+        run(*args, &block)
+    end
+
     # The representation of an Orocos process. It manages
     # starting the process and cleaning up when the process
     # dies.
