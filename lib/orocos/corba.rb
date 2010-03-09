@@ -20,7 +20,7 @@ module Orocos
                     raise "the maximum message size can only be changed before the CORBA layer is initialized"
                 end
 
-                ENV['ORBgiopMaxMsgSize'] = value.to_int
+                ENV['ORBgiopMaxMsgSize'] = value.to_int.to_s
             end
         end
         @name_service     = "127.0.0.1"
