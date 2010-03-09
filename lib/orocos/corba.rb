@@ -9,8 +9,22 @@ module Orocos
         class << self
             # The address at which to contact the CORBA naming service
             attr_accessor :name_service
+            # The maximum message size, in bytes, allowed by the omniORB. It can
+            # only be set before Orocos.initialize is called
+            #
+            # Orocos.rb sets it to 4MB by default
+            attr_reader :max_message_size
+
+            def max_message_size=(value)
+                if initialized?
+                    raise "the maximum message size can only be changed before the CORBA layer is initialized"
+                end
+
+                ENV['ORBgiopMaxMsgSize'] = value.to_int
+            end
         end
-        @name_service = "127.0.0.1"
+        @name_service     = "127.0.0.1"
+        self.max_message_size = 1024*1024*4
 
         # Removes dangling references from the name server
         #
