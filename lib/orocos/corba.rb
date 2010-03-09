@@ -24,7 +24,6 @@ module Orocos
             end
         end
         @name_service     = "127.0.0.1"
-        self.max_message_size = 1024*1024*4
 
         # Removes dangling references from the name server
         #
