@@ -297,11 +297,15 @@ static VALUE task_context_attribute(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     std::auto_ptr<RAttribute> rattr(new RAttribute);
-    rattr->expr = context.attributes->getProperty( StringValuePtr(name) );
-    if (CORBA::is_nil(rattr->expr))
-        rattr->expr = context.attributes->getAttribute( StringValuePtr(name) );
-    if (CORBA::is_nil(rattr->expr))
-        rb_raise(eNotFound, "no attribute or property named '%s'", StringValuePtr(name));
+    try {
+        rattr->expr = context.attributes->getProperty( StringValuePtr(name) );
+
+        if (CORBA::is_nil(rattr->expr))
+            rattr->expr = context.attributes->getAttribute( StringValuePtr(name) );
+        if (CORBA::is_nil(rattr->expr))
+            rb_raise(eNotFound, "no attribute or property named '%s'", StringValuePtr(name));
+    }
+    CORBA_EXCEPTION_HANDLERS
 
     VALUE type_name = rb_str_new2(rattr->expr->getTypeName());
     VALUE obj = simple_wrap(cAttribute, rattr.release());
