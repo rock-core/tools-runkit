@@ -277,12 +277,21 @@ module Orocos
         #
         #   runtime_states "CUSTOM_RUNTIME"
         #
-        # #state may return :CUSTOM_RUNTIME if the component goes into that
+        # #state will return :CUSTOM_RUNTIME if the component goes into that
         # state.
-        def state
+        def state(return_current = true)
             if model && model.extended_state_support?
                 @state_reader ||= state_reader
-                @state_reader.read
+                if return_current
+                    while new_state = @state_reader.read
+                        @current_state = new_state
+                    end
+                else
+                    if new_state = @state_reader.read
+                        @current_state = new_state
+                    end
+                end
+                @current_state
             else
                 value = CORBA.refine_exceptions(self) { do_state() }
                 @state_symbols[value]
