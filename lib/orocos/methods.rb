@@ -94,7 +94,7 @@ module Orocos
             common_call(args) do |filtered|
                 result = do_call(@args_type_names, filtered, result)
             end
-            result
+            Typelib.to_ruby(result)
         end
     end
 
