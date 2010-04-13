@@ -44,6 +44,14 @@ describe Orocos::RTTMethod do
         end
     end
 
+    it "should be possible to use a shortcut" do
+        Orocos::Process.spawn 'echo' do |echo|
+            echo = echo.task 'Echo'
+            echo.start
+            assert_equal(10, echo.write(10))
+        end
+    end
+
     it "should be possible to recall an already called method" do
         Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task 'Echo'
