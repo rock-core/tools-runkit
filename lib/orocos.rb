@@ -1,4 +1,5 @@
 require 'rorocos_ext'
+require 'orogen'
 
 require 'orocos/base'
 require 'orocos/logging'
