@@ -549,7 +549,6 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
     if (!transport)
     {
         std::cerr << "using the old method to read " << StringValuePtr(type_name) << " " << value.getType().getName() << std::endl;
-        RTT::TypeInfo* ti = get_type_info(value.getType().getName());
         RTT::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
         return local_port.read(ds) ? Qtrue : Qfalse;
