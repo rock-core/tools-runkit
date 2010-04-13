@@ -14,6 +14,8 @@ namespace echo {
     protected:
     
 	int write(int value);
+        void write_opaque(int value);
+        void kill();
     
 	bool asyncWrite(int value, int stop);
 	bool isAsyncWriteCompleted(int value, int stop);

@@ -214,6 +214,24 @@ describe Orocos::OutputReader do
         end
     end
 
+    it "should allow to read opaque types" do
+        Orocos::Process.spawn('echo') do |source|
+            source = source.task('Echo')
+            output = source.port('output_opaque')
+            reader = output.reader
+            source.configure
+            source.start
+            source.write_opaque(42)
+
+            sleep(0.2)
+            
+            # Create a new reader. The default policy is data
+            sample = reader.read
+            assert_equal(42, sample.x)
+            assert_equal(84, sample.y)
+        end
+    end
+
     it "should be able to read data from an output port using a data connection" do
         Orocos::Process.spawn('simple_source') do |source|
             source = source.task('source')
@@ -363,6 +381,31 @@ describe Orocos::InputWriter do
             writer.write(:value => 10)
             sleep(0.1)
             assert_equal(10, reader.read)
+        end
+    end
+
+    it "should allow to write opaque types" do
+        Orocos::Process.spawn('echo') do |echo|
+            echo  = echo.task('Echo')
+            writer = echo.port('input_opaque').writer
+            reader = echo.port('output_opaque').reader
+
+            echo.start
+
+            writer.write(:x => 84, :y => 42)
+            sleep(0.2)
+            sample = reader.read
+            assert_equal(84, sample.x)
+            assert_equal(42, sample.y)
+
+            sample = writer.new_sample
+            sample.x = 20
+            sample.y = 10
+            writer.write(sample)
+            sleep(0.2)
+            sample = reader.read
+            assert_equal(20, sample.x)
+            assert_equal(10, sample.y)
         end
     end
 end
