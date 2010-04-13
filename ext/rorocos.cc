@@ -548,14 +548,12 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
 
     if (!transport)
     {
-        std::cerr << "using the old method to read " << StringValuePtr(type_name) << " " << value.getType().getName() << std::endl;
         RTT::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
         return local_port.read(ds) ? Qtrue : Qfalse;
     }
     else
     {
-        std::cerr << "using the new method to read " << StringValuePtr(type_name) << " " << value.getType().getName() << std::endl;
         orogen_transports::TypelibMarshallerBase::Handle* handle = transport->createSample();
         bool did_read = transport->readPort(local_port, handle);
 
