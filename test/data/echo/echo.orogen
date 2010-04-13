@@ -9,6 +9,9 @@ task_context 'Echo' do
     input_port 'input_struct',   'echo::Int'
     output_port 'output', 'int'
 
+    method(:kill).
+        doc('cause a segmentation fault')
+
     method(:write).
         returns('int').
         argument('value', 'int', 'value_arg').

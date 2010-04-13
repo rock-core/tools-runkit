@@ -115,6 +115,13 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should raise CORBA::ComError when the process crashed during a method call" do
+        Orocos::Process.spawn 'echo' do |echo_p|
+            echo = echo_p.task('Echo')
+            assert_raises(Orocos::CORBA::ComError) { echo.rtt_method(:kill).call }
+        end
+    end
+
     it "should raise CORBA::ComError when #rtt_method has communication errors" do
         Orocos::Process.spawn 'echo' do |echo_p|
             echo = echo_p.task('Echo')

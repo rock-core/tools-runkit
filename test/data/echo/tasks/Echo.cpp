@@ -15,6 +15,11 @@ int Echo::write(int value)
     return value;
 }
 
+void Echo::kill()
+{
+    *((int*)0) = 0;
+}
+
 
 
 bool Echo::asyncWrite(int value, int stop)
