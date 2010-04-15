@@ -119,6 +119,23 @@ describe Orocos::OutputPort do
         end
     end
 
+    it "it should be able to initiate disconnection while running" do
+        Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log") do |p_source, p_sink|
+            source_task = p_source.task("fast_source")
+            source = source_task.port("cycle")
+            sink_task = p_sink.task("sink")
+            sink = sink_task.port("cycle")
+
+            source_task.configure
+            source_task.start
+            sink_task.start
+            1000.times do |i|
+                source.connect_to sink
+                source.disconnect_all
+            end
+        end
+    end
+
     it "it should be able to disconnect all inputs even though some are dead" do
         Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
@@ -187,6 +204,24 @@ describe Orocos::InputPort do
 
             assert(!source.connected?)
             assert_raises(ArgumentError) { source.connect_to source }
+        end
+    end
+
+    it "it should be able to initiate disconnection while running" do
+        Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log"
+                             ) do |p_source, p_sink|
+            source_task = p_source.task("fast_source")
+            source = source_task.port("cycle")
+            sink_task = p_sink.task("sink")
+            sink = sink_task.port("cycle")
+
+            source_task.configure
+            source_task.start
+            sink_task.start
+            1000.times do |i|
+                source.connect_to sink
+                sink.disconnect_all
+            end
         end
     end
 end
