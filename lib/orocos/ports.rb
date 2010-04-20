@@ -16,6 +16,8 @@ module Orocos
         # The port name
         attr_reader :name
         # The port's type name as used by the RTT
+        attr_reader :orocos_type_name
+        # The port's type name as used in Ruby
         attr_reader :type_name
         # The port's type as a Typelib::Type object
         attr_reader :type
@@ -37,7 +39,11 @@ module Orocos
         end
 
         def pretty_print(pp) # :nodoc:
-            pp.text " #{name} (#{type.name})"
+            if type_name != orocos_type_name
+                pp.text " #{name} (#{type_name}/#{orocos_type_name})"
+            else
+                pp.text " #{name} (#{type_name})"
+            end
         end
 
         # Removes this port from all connections it is part of
@@ -129,7 +135,7 @@ module Orocos
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
         def writer(policy = Hash.new)
-            do_writer(type_name, validate_policy(policy))
+            do_writer(orocos_type_name, validate_policy(policy))
         end
 
         # Writes one sample with a default policy.
@@ -191,7 +197,7 @@ module Orocos
         # The policy dictates how data should flow between the port and the
         # reader object. See #validate_policy
         def reader(policy = Hash.new)
-            do_reader(OutputReader, type_name, validate_policy(policy))
+            do_reader(OutputReader, orocos_type_name, validate_policy(policy))
         end
 
         # Connect this output port to an input port. +options+ defines the
@@ -260,7 +266,7 @@ module Orocos
 	    end
 
             value = port.type.new
-            if do_read(port.type_name, value)
+            if do_read(port.orocos_type_name, value)
                 value.to_ruby
             end
         end
@@ -307,7 +313,7 @@ module Orocos
 	    end
 
             data = Typelib.from_ruby(data, port.type)
-            do_write(port.type_name, data)
+            do_write(port.orocos_type_name, data)
         end
     end
 end

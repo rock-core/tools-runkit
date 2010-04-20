@@ -11,5 +11,8 @@ end
 deployment "simple_source" do
     src = task("simple_source_source", "source").
         periodic(0.1)
+
+    src = task("fast_source", "source").
+        periodic(0.001)
 end
 

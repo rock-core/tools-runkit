@@ -5,7 +5,9 @@ task_context "sink" do
 end
 
 deployment "simple_sink" do
-    src = task("simple_sink_sink", "sink").
+    task("fast_sink", "sink").
+        periodic(0.001)
+    task("simple_sink_sink", "sink").
         periodic(0.1)
 end
 

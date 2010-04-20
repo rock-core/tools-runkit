@@ -15,6 +15,17 @@ int Echo::write(int value)
     return value;
 }
 
+void Echo::write_opaque(int value)
+{
+    OpaquePoint p(value, 2 * value);
+    _output_opaque.write(p);
+}
+
+void Echo::kill()
+{
+    *((int*)0) = 0;
+}
+
 
 
 bool Echo::asyncWrite(int value, int stop)
@@ -64,12 +75,17 @@ void Echo::updateHook(std::vector<RTT::PortInterface*> const& updated_ports)
 {
     int val;
     Int str;
+
     if (_input.read(val))
         _output.write(val);
     else if (_input_struct.read(str))
         _output.write(str.value);
     else
 	_output.write(++async_old);
+
+    OpaquePoint point;
+    if (_input_opaque.read(point))
+        _output_opaque.write(point);
 
 }
 
