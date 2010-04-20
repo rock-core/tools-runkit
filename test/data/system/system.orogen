@@ -3,7 +3,7 @@ name 'system_test'
 import_types_from "DataTypes.hpp"
 
 task_context "CanBus" do
-    dynamic_input_port /\w+w/, 'can/Message'
+    dynamic_input_port /w\w+/, 'can/Message'
     dynamic_output_port /\w+/, 'can/Message'
 end
 
