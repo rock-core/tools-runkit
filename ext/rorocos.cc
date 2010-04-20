@@ -590,7 +590,6 @@ static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_
 
     if (!transport)
     {
-        std::cerr << "using the old method to write " << StringValuePtr(type_name) << " " << value.getType().getName() << std::endl;
         RTT::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
 
