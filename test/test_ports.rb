@@ -245,7 +245,7 @@ describe Orocos::OutputReader do
             # Create a new reader. The default policy is data
             reader = output.reader
             assert(reader.kind_of?(Orocos::OutputReader))
-            assert_equal(reader.read, nil) # nothing written yet
+            assert_equal(nil, reader.read) # nothing written yet
         end
     end
 
