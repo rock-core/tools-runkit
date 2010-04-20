@@ -13,6 +13,7 @@ task_context 'Echo' do
     input_port 'input',   'int'
     input_port 'input_struct',   'echo::Int'
     output_port 'output', 'int'
+    output_port 'ondemand', 'int'
 
     input_port  "input_opaque", "/OpaquePoint"
     output_port "output_opaque", "/OpaquePoint"

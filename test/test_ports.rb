@@ -354,6 +354,20 @@ describe Orocos::OutputReader do
 	    assert(!reader.connected?)
 	end
     end
+
+    it "should get an initial value when :init is specified" do
+        Orocos::Process.spawn('echo') do |echo|
+            echo  = echo.task('Echo')
+            echo.start
+
+            reader = echo.ondemand.reader
+            assert(!reader.read, "got data on 'ondemand': #{reader.read}")
+            echo.write(10)
+            assert_equal(10, reader.read)
+            reader = echo.ondemand.reader(:init => true)
+            assert_equal(10, reader.read)
+        end
+    end
 end
 
 describe Orocos::InputWriter do

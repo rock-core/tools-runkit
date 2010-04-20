@@ -7,11 +7,13 @@ Echo::Echo(std::string const& name, TaskCore::TaskState initial_state)
     : EchoBase(name, initial_state)
     , async(false)
 {
+    _ondemand.keepLastWrittenValue(true);
 }
 
 int Echo::write(int value)
 {
     _output.write(value);
+    _ondemand.write(value);
     return value;
 }
 
