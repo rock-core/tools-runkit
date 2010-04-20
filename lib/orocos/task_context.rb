@@ -293,9 +293,13 @@ module Orocos
                 end
                 @current_state
             else
-                value = CORBA.refine_exceptions(self) { do_state() }
-                @state_symbols[value]
+                rtt_state
             end
+        end
+
+        def rtt_state
+            value = CORBA.refine_exceptions(self) { do_state() }
+            @state_symbols[value]
         end
 
         ##
