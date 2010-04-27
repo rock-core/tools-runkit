@@ -77,7 +77,7 @@ module Orocos
                 available_deployments[deployment_name] = pkg
 
                 add_project_from(pkg)
-                end
+            end
         end
 
         # Create a class_name => tasklib mapping for all task models available
