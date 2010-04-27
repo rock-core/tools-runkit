@@ -292,24 +292,16 @@ module Orocos
 	    end
         end
 
-        # Wait for the module to be started. If timeout is 0, the function
-        # returns immediatly, with a false return value if the module is not
-        # started yet and a true return value if it is started.
-        #
-        # Otherwise, it waits for the process to start for the specified amount
-        # of seconds. It will throw Orocos::NotFound if the process was not
-        # started within that time.
-        #
-        # If timeout is nil, the method will wait indefinitely
-	def wait_running(timeout = nil)
+	def self.wait_running(process, timeout = nil)
 	    if timeout == 0
-		return nil if !pid
+		return nil if !process.alive?
                 
                 # Get any task name from that specific deployment, and check we
                 # can access it. If there is none
-                all_reachable = task_names.all? do |task_name|
+                all_reachable = process.task_names.all? do |task_name|
                     begin
-                        task(task_name).ping
+                        t = Orocos::TaskContext.get(task_name)
+                        t.ping
                         Orocos.debug "#{task_name} is reachable"
                         true
                     rescue Orocos::NotFound
@@ -323,21 +315,33 @@ module Orocos
                 all_reachable
 	    else
                 start_time = Time.now
-                got_pid = false
+                got_alive = process.alive?
                 while true
-                    if wait_running(0)
+                    if wait_running(process, 0)
                         return true
                     elsif timeout && timeout < (Time.now - start_time)
                         raise Orocos::NotFound, "cannot get a running #{name} module"
                     end
 
-                    got_pid = true if pid
-                    if got_pid && !pid
-                        raise Orocos::NotFound, "#{name} was started but crashed"
+                    if got_alive && !process.alive?
+                        raise Orocos::NotFound, "#ename} was started but crashed"
                     end
                     sleep 0.1
                 end
 	    end
+	end
+
+        # Wait for the module to be started. If timeout is 0, the function
+        # returns immediatly, with a false return value if the module is not
+        # started yet and a true return value if it is started.
+        #
+        # Otherwise, it waits for the process to start for the specified amount
+        # of seconds. It will throw Orocos::NotFound if the process was not
+        # started within that time.
+        #
+        # If timeout is nil, the method will wait indefinitely
+	def wait_running(timeout = nil)
+            Process.wait_running(self, timeout)
 	end
 
         SIGNAL_NUMBERS = {

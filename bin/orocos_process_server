@@ -1,0 +1,6 @@
+require 'orocos'
+require 'orocos/process_server'
+
+Orocos.logger.level = Logger::DEBUG
+Orocos::ProcessServer.run
+

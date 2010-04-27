@@ -1,12 +1,28 @@
 require 'socket'
 require 'fcntl'
 module Orocos
+    # A remote process management server. The ProcessServer allows to start/stop
+    # and monitor the status of processes on a client/server way.
+    #
+    # Use ProcessClient to access a server
     class ProcessServer
         DEFAULT_OPTIONS = { :wait => false, :output => '%m-%p.log' }
         DEFAULT_PORT = 20202
 
+        # Start a standalone process server using the given options and port.
+        # The options are passed to Orocos.run when a new deployment is started
+        def self.run(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
+            Orocos.disable_sigchld_handler = true
+            Orocos.initialize
+            new(options, port).exec
+        end
+
+        # The startup options to be passed to Orocos.run
         attr_reader :options
+        # The TCP port we should listen to
         attr_reader :port
+        # A mapping from the deployment names to the corresponding Process
+        # object.
         attr_reader :processes
 
         def initialize(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
@@ -15,42 +31,68 @@ module Orocos
             @processes = Hash.new
         end
 
+        def each_client(&block)
+            @all_ios[2..-1].each(&block)
+        end
+
+        # Main server loop. This will block and only return when CTRL+C is hit.
+        #
+        # All started processes are stopped when the server quits
         def exec
             server = TCPServer.new(nil, port)
             com_r, com_w = IO.pipe
-            all_ios = [server, com_r]
+            @all_ios = [server, com_r]
 
             trap 'SIGCHLD' do
                 begin
                     while dead = ::Process.wait(-1, ::Process::WNOHANG)
-                        Marshal.dump(dead, com_w)
+                        Marshal.dump([dead, $?], com_w)
                     end
                 rescue Errno::ECHILD
                 end
             end
 
-            STDERR.puts "READY"
+            Orocos.info "process server listening on port #{port}"
+
             while true
-                readable_sockets, _ = select(all_ios, nil, nil)
+                readable_sockets, _ = select(@all_ios, nil, nil)
                 if readable_sockets.include?(server)
                     readable_sockets.delete(server)
                     socket = server.accept
                     socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
                     socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-                    STDERR.puts "new connection: #{socket}"
-                    all_ios << socket
+                    Orocos.debug "new connection: #{socket}"
+                    @all_ios << socket
                 end
 
                 if readable_sockets.include?(com_r)
-                    pid = Marshal.load(com_r)
-                    Marshal.dump(["D", pid], socket)
+                    readable_sockets.delete(com_r)
+                    pid, exit_status =
+                        begin Marshal.load(com_r)
+                        rescue TypeError
+                        end
+
+                    process = processes.find { |_, p| p.pid == pid }
+                    if process
+                        process_name, process = *process
+                        process.dead!(exit_status)
+                        processes.delete(process_name)
+                        each_client do |socket|
+                            begin
+                                Orocos.debug "announcing death: #{process_name}"
+                                socket.write("D")
+                                Marshal.dump([process_name, exit_status], socket)
+                            rescue IOError
+                            end
+                        end
+                    end
                 end
 
                 readable_sockets.each do |socket|
                     if !handle_command(socket)
-                        STDERR.puts "#{socket} closed"
+                        Orocos.debug "#{socket} closed"
                         socket.close
-                        all_ios.delete(socket)
+                        @all_ios.delete(socket)
                     end
                 end
             end
@@ -58,19 +100,21 @@ module Orocos
             quit_and_join
         end
 
-        def quit_and_join
+        # Helper method that stops all running processes
+        def quit_and_join # :nodoc:
             processes.each_value do |p|
-                STDERR.puts "killing #{p.name}"
+                Orocos.warn "killing #{p.name}"
                 p.kill
             end
         end
 
-        def handle_command(socket)
+        # Helper method that deals with one client request
+        def handle_command(socket) # :nodoc:
             cmd_code = socket.read(1)
             raise EOFError if !cmd_code
 
             if cmd_code == "I"
-                STDERR.puts "#{socket} requested system information"
+                Orocos.debug "#{socket} requested system information"
                 available_projects = Hash.new
                 Orocos.available_projects.each do |name, orogen_path|
                     available_projects[name] = File.read(orogen_path)
@@ -82,25 +126,32 @@ module Orocos
                 Marshal.dump([available_projects, available_deployments], socket)
             elsif cmd_code == "S"
                 name = Marshal.load(socket)
-                STDERR.puts "#{socket} requested startup of #{name}"
+                Orocos.debug "#{socket} requested startup of #{name}"
                 begin
+                    STDERR.puts name.inspect
                     p = Orocos.run(name, options).first
-                    STDERR.puts "#{name} is started"
+                    Orocos.debug "#{name} is started (#{p.pid})"
                     processes[name] = p
                     socket.write("Y")
                 rescue Exception => e
-                    STDERR.puts "failed to start #{name}: #{e.message}"
-                    STDERR.puts "  " + e.backtrace.join("\n  ")
+                    Orocos.debug "failed to start #{name}: #{e.message}"
+                    Orocos.debug "  " + e.backtrace.join("\n  ")
                     socket.write("N")
                 end
             elsif cmd_code == "E"
                 name = Marshal.load(socket)
-                STDERR.puts "#{socket} requested end of #{name}"
-                p = processes.delete(name)
+                Orocos.debug "#{socket} requested end of #{name}"
+                p = processes[name]
                 if p
-                    p.kill(false)
+                    begin
+                        p.kill(false)
+                        socket.write("Y")
+                    rescue Exception => e
+                        socket.write("N")
+                    end
+                else
+                    socket.write("N")
                 end
-                socket.write("Y")
             end
 
             true
@@ -109,13 +160,40 @@ module Orocos
         end
     end
 
+    # Easy access to a ProcessServer instance.
+    #
+    # Process servers allow to start/stop and monitor processes on remote
+    # machines. Instances of this class provides access to remote process
+    # servers.
     class ProcessClient
+        # Emitted when an operation fails
+        class Failed < RuntimeError; end
+
+        # The socket instance used to communicate with the server
         attr_reader :socket
 
+        # Mapping from orogen project names to the corresponding content of the
+        # orogen files. These projects are the ones available to the remote
+        # process server
         attr_reader :available_projects
+        # Mapping from deployment names to the corresponding orogen project
+        # name. It lists the deployments that are available on the remote
+        # process server.
         attr_reader :available_deployments
+        # Mapping from a deployment name to the corresponding RemoteProcess
+        # instance, for processes that have been started by this client.
+        attr_reader :processes
 
-        def initialize(host, port)
+        # Returns the StaticDeployment instance that represents the remote
+        # deployment +deployment_name+
+        def deployment_model(deployment_name)
+            tasklib_name = available_deployments[deployment_name]
+            tasklib = Orocos::Generation.load_task_library(tasklib_name)
+            tasklib.deployers.find { |d| d.name == deployment_name }
+        end
+
+        # Connects to the process server at +host+:+port+
+        def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT)
             @socket = TCPSocket.new(host, port)
             socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
             socket.fcntl(Fcntl::FD_CLOEXEC, 1)
@@ -124,6 +202,7 @@ module Orocos
             info = Marshal.load(socket)
             @available_projects    = info[0]
             @available_deployments = info[1]
+            @processes = Hash.new
         end
 
         # Loads the oroGen project definition called 'name' using the data the
@@ -132,6 +211,13 @@ module Orocos
             Orocos::Generation.load_task_library(name, available_projects[name])
         end
 
+        # Starts the given deployment on the remote server, without waiting for
+        # it to be ready.
+        #
+        # Returns a RemoteProcess instance that represents the process on the
+        # remote side.
+        #
+        # Raises Failed if the server reports a startup failure
         def start(deployment_name)
             project_name = available_deployments[deployment_name]
             if !project_name
@@ -141,10 +227,88 @@ module Orocos
 
             socket.write("S")
             Marshal.dump(deployment_name, socket)
+
             reply = socket.read(1)
             if reply != "Y"
-                raise ArgumentError, "failed to start #{deployment_name}"
+                raise Failed, "failed to start #{deployment_name}"
             end
+
+            processes[deployment_name] = RemoteProcess.new(deployment_name, self)
+        end
+
+        # Waits for processes to terminate. +timeout+ is the number of
+        # milliseconds we should wait. If set to nil, the call will block until
+        # a process terminates
+        #
+        # Returns a hash that maps deployment names to the Process::Status
+        # object that represents their exit status.
+        def wait_termination(timeout = nil)
+            reader = select([socket], nil, nil, timeout)
+            return if !reader
+
+            result = Hash.new
+            while reader
+                data = socket.read(1)
+                if data == "D"
+                    name, status = Marshal.load(socket)
+                    Orocos.debug "#{name} died"
+                    p = processes.delete(name)
+                    p.dead!
+                    result[p] = status
+                end
+
+                reader = select([socket], nil, nil, 0)
+            end
+            result
+        end
+
+        # Requests to stop the given deployment
+        #
+        # The call does not block until the process has quit. You will have to
+        # call #wait_termination to wait for the process end.
+        def stop(deployment_name)
+            socket.write("E")
+            Marshal.dump(deployment_name, socket)
+
+            reply = socket.read(1)
+            if reply != "Y"
+                raise Failed, "failed to quit #{deployment_name} (#{reply})"
+            end
+        end
+    end
+
+    # Representation of a remote process started with ProcessClient#start
+    class RemoteProcess
+        # The deployment name
+        attr_reader :name
+        # The ProcessClient instance that gives us access to the remote process
+        # server
+        attr_reader :process_client
+
+        def initialize(name, process_client)
+            @name = name
+            @process_client = process_client
+            @alive = true
+        end
+
+        # Called to announce that this process has quit
+        def dead!
+            @alive = false
+        end
+
+        # True if the process is running
+        def alive?; @alive end
+
+        # Waits for the deployment to be ready. +timeout+ is the number of
+        # milliseconds we should wait. If it is nil, will wait indefinitely
+	def wait_running(timeout = nil)
+            Orocos::Process.wait_running(self, timeout)
+	end
+
+        # Returns the names of the tasks that are running on this deployment
+        def task_names
+            orogen = process_client.deployment_model(name)
+            orogen.task_activities.map { |act| act.name }
         end
     end
 end
