@@ -40,6 +40,7 @@ module Orocos
         # All started processes are stopped when the server quits
         def exec
             server = TCPServer.new(nil, port)
+            server.fcntl(Fcntl::FD_CLOEXEC, 1)
             com_r, com_w = IO.pipe
             @all_ios = [server, com_r]
 
