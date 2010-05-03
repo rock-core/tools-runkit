@@ -297,8 +297,21 @@ module Orocos
             @alive = false
         end
 
-        # True if the process is running
+        # Stops the process
+        def kill(wait = true)
+            raise ArgumentError, "cannot call RemoteProcess#kill(true)" if wait
+            process_client.stop(name)
+        end
+
+        # Wait for the 
+        def join
+            raise NotImplementedError, "RemoteProcess#join is not implemented"
+        end
+
+        # True if the process is running. This is an alias for running?
         def alive?; @alive end
+        # True if the process is running. This is an alias for alive?
+        def running?; @alive end
 
         # Waits for the deployment to be ready. +timeout+ is the number of
         # milliseconds we should wait. If it is nil, will wait indefinitely
