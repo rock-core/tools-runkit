@@ -1,3 +1,4 @@
+#! /usr/bin/env ruby
 require 'orocos'
 require 'orocos/process_server'
 
