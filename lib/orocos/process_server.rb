@@ -309,6 +309,12 @@ module Orocos
             @alive = false
         end
 
+        # Returns the Orocos::Generation::StaticDeployment object that describes
+        # this process.
+        def model
+            process_client.deployment_model(name)
+        end
+
         # Stops the process
         def kill(wait = true)
             raise ArgumentError, "cannot call RemoteProcess#kill(true)" if wait

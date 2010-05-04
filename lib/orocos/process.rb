@@ -122,15 +122,17 @@ module Orocos
             end
 	end
 
-        def log_all_ports(options = Hash.new)
+        def self.log_all_ports(process, options = Hash.new)
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
 
-            logger = task 'Logger'
+            logger = TaskContext.get "#{process.name}_Logger"
             report = logger.rtt_method 'reportPort'
 
-            each_task do |task|
+            process.model.each_task do |task|
+                task = TaskContext.get(task.name)
                 next if task == logger
+
                 task.each_port do |port|
                     next unless port.kind_of?(OutputPort)
                     next if exclude_ports && exclude_ports === port.name
@@ -143,7 +145,11 @@ module Orocos
             logger.start
 
         rescue Orocos::NotFound
-            Orocos.warn "no logger defined on #{name}"
+            Orocos.warn "no logger defined on #{process.name}"
+        end
+
+        def log_all_ports(options = Hash.new)
+            Process.log_all_ports(self, options)
         end
         
         # Deprecated
