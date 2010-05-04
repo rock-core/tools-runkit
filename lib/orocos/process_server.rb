@@ -220,6 +220,10 @@ module Orocos
             Orocos::Generation.load_task_library(name, available_projects[name])
         end
 
+        def disconnect
+            socket.close
+        end
+
         # Starts the given deployment on the remote server, without waiting for
         # it to be ready.
         #
