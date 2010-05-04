@@ -33,7 +33,10 @@ module Orocos
         end
 
         def each_client(&block)
-            @all_ios[2..-1].each(&block)
+            clients = @all_ios[2..-1]
+            if clients
+                clients.each(&block)
+            end
         end
 
         # Main server loop. This will block and only return when CTRL+C is hit.
