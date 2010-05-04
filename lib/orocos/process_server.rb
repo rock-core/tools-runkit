@@ -112,6 +112,10 @@ module Orocos
                 Orocos.warn "killing #{p.name}"
                 p.kill
             end
+
+            each_client do |socket|
+                socket.close
+            end
         end
 
         # Helper method that deals with one client request
