@@ -134,7 +134,6 @@ module Orocos
                 name = Marshal.load(socket)
                 Orocos.debug "#{socket} requested startup of #{name}"
                 begin
-                    STDERR.puts name.inspect
                     p = Orocos.run(name, options).first
                     Orocos.debug "#{name} is started (#{p.pid})"
                     processes[name] = p
