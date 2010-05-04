@@ -80,12 +80,14 @@ module Orocos
                         process_name, process = *process
                         process.dead!(exit_status)
                         processes.delete(process_name)
+                        Orocos.debug "announcing death: #{process_name}"
                         each_client do |socket|
                             begin
-                                Orocos.debug "announcing death: #{process_name}"
+                                Orocos.debug "  announcing to #{socket}"
                                 socket.write("D")
                                 Marshal.dump([process_name, exit_status], socket)
                             rescue IOError
+                                Orocos.debug "  #{socket}: IOError"
                             end
                         end
                     end
@@ -105,6 +107,7 @@ module Orocos
 
         # Helper method that stops all running processes
         def quit_and_join # :nodoc:
+            Orocos.warn "stopping process server"
             processes.each_value do |p|
                 Orocos.warn "killing #{p.name}"
                 p.kill
