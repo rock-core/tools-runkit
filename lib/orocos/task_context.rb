@@ -248,7 +248,7 @@ module Orocos
         # task's state
         def state_reader(policy = Hash.new)
             p = port('state')
-            policy = p.validate_policy({:init => true}.merge(policy))
+            policy = p.validate_policy({:init => true, :type => :buffer, :size => 1}.merge(policy))
 
             # Create the mapping from state integers to state symbols
             reader = p.do_reader(StateReader, p.type_name, policy)
