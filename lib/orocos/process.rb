@@ -386,6 +386,9 @@ module Orocos
                     end
                 rescue Exception => e
                     Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
+                    e.backtrace.each do |line|
+                        Orocos.warn line
+                    end
                     services = nil
                 end
             end
