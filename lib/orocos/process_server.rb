@@ -6,7 +6,7 @@ module Orocos
     #
     # Use ProcessClient to access a server
     class ProcessServer
-        DEFAULT_OPTIONS = { :wait => false, :output => '%m-%p.log' }
+        DEFAULT_OPTIONS = { :wait => false, :output => '%m-%p.txt' }
         DEFAULT_PORT = 20202
 
         # Start a standalone process server using the given options and port.
