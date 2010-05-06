@@ -95,11 +95,26 @@ module Orocos
         attr_predicate :disable_sigchld_handler, true
     end
 
-    # Initialize the Orocos communication layer and read all the oroGen models
+    # Initialize the Orocos communication layer and load all the oroGen models
     # that are available.
+    #
+    # This method will verify that the pkg-config environment is sane, as it is
+    # demanded by the oroGen deployments. If it is not the case, it will raise
+    # a RuntimeError exception whose message will describe the particular
+    # problem. See the "Error messages" package in the user's guide for more
+    # information on how to fix those.
     def self.initialize
         if !registry
             self.load
+        end
+
+        # oroGen components use pkg-config --list-all to find where all typekit
+        # files are.  Unfortunately, Debian and debian-based system sometime
+        # have pkg-config --list-all broken because of missing dependencies
+        #
+        # Detect it and present an error message to the user if it is the case
+        if !system("pkg-config --list-all > /dev/null 2>&1")
+            raise RuntimeError, "pkg-config --list-all returns an error. Run it in a console and install packages that are reported."
         end
 
         # Install the SIGCHLD handler if it has not been disabled
