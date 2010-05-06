@@ -128,6 +128,7 @@ module Orocos
         def self.log_all_ports(process, options = Hash.new)
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
+            log_dir       = options[:log_dir] || Dir.pwd
 
             logger = TaskContext.get "#{process.name}_Logger"
             report = logger.rtt_method 'reportPort'
@@ -144,7 +145,14 @@ module Orocos
                     report.call task.name, port.name
                 end
             end
-            logger.file = "#{process.name}.log"
+
+            index = 0
+            while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
+                index += 1
+            end
+            filename = "#{process.name}.#{index}.log"
+
+            logger.file = filename
             logger.start
 
         rescue Orocos::NotFound
