@@ -216,6 +216,7 @@ module Orocos
             @available_projects    = info[0]
             @available_deployments = info[1]
             @processes = Hash.new
+            @death_queue = Array.new
         end
 
         # Loads the oroGen project definition called 'name' using the data the
@@ -226,6 +227,18 @@ module Orocos
 
         def disconnect
             socket.close
+        end
+
+        def wait_for_ack
+            reply = socket.read(1)
+            if reply == "D"
+                queue_death_announcement
+                wait_for_ack
+            elsif reply == "Y"
+                return true
+            else
+                return false
+            end
         end
 
         # Starts the given deployment on the remote server, without waiting for
@@ -245,12 +258,15 @@ module Orocos
             socket.write("S")
             Marshal.dump(deployment_name, socket)
 
-            reply = socket.read(1)
-            if reply != "Y"
+            if !wait_for_ack
                 raise Failed, "failed to start #{deployment_name}"
             end
 
             processes[deployment_name] = RemoteProcess.new(deployment_name, self)
+        end
+
+        def queue_death_announcement
+            @death_queue.push Marshal.load(socket)
         end
 
         # Waits for processes to terminate. +timeout+ is the number of
@@ -260,22 +276,33 @@ module Orocos
         # Returns a hash that maps deployment names to the Process::Status
         # object that represents their exit status.
         def wait_termination(timeout = nil)
-            reader = select([socket], nil, nil, timeout)
-            return if !reader
+            if @death_queue.empty?
+                reader = select([socket], nil, nil, timeout)
+                return if !reader
+                while reader
+                    data = socket.read(1)
+                    if !data
+                        return
+                    elsif data != "D"
+                        raise "unexpected message #{data.inspect} from process server"
+                    end
+                    queue_death_announcement
+                    reader = select([socket], nil, nil, 0)
+                end
+            end
 
             result = Hash.new
-            while reader
-                data = socket.read(1)
-                if data == "D"
-                    name, status = Marshal.load(socket)
-                    Orocos.debug "#{name} died"
-                    p = processes.delete(name)
+            @death_queue.each do |name, status|
+                Orocos.debug "#{name} died"
+                if p = processes.delete(name)
                     p.dead!
                     result[p] = status
+                else
+                    Orocos.warn "process server reported the exit of '#{name}', but no process with that name is registered"
                 end
-
-                reader = select([socket], nil, nil, 0)
             end
+            @death_queue.clear
+
             result
         end
 
@@ -287,8 +314,7 @@ module Orocos
             socket.write("E")
             Marshal.dump(deployment_name, socket)
 
-            reply = socket.read(1)
-            if reply != "Y"
+            if !wait_for_ack
                 raise Failed, "failed to quit #{deployment_name} (#{reply})"
             end
         end
