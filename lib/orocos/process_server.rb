@@ -327,11 +327,15 @@ module Orocos
         # The ProcessClient instance that gives us access to the remote process
         # server
         attr_reader :process_client
+        # The Orocos::Generation::StaticDeployment instance that describes this
+        # process
+        attr_reader :model
 
         def initialize(name, process_client)
             @name = name
             @process_client = process_client
             @alive = true
+            @model = process_client.deployment_model(name)
         end
 
         # Called to announce that this process has quit
@@ -339,11 +343,10 @@ module Orocos
             @alive = false
         end
 
-        # Returns the Orocos::Generation::StaticDeployment object that describes
-        # this process.
-        def model
-            process_client.deployment_model(name)
+        def task_names
+            model.task_activities.map(&:name)
         end
+
 
         # Stops the process
         def kill(wait = true)
