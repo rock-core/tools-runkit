@@ -29,7 +29,7 @@ namespace RTT
 {
     class TypeInfo;
 }
-extern RTT::TypeInfo* get_type_info(std::string const& name);
+extern RTT::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
 extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
 
 struct RServices
