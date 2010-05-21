@@ -8,7 +8,16 @@ module Orocos
 
         class << self
             # The address at which to contact the CORBA naming service
-            attr_accessor :name_service
+            attr_reader :name_service
+
+            def name_service=(hostname)
+                if initialized?
+                    raise "the hostname for the CORBA name service can only be changed before the CORBA layer is initialized"
+                end
+
+                @name_service = hostname
+            end
+
             # The maximum message size, in bytes, allowed by the omniORB. It can
             # only be set before Orocos.initialize is called
             #
