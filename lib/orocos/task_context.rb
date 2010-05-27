@@ -248,7 +248,7 @@ module Orocos
         # task's state
         def state_reader(policy = Hash.new)
             p = port('state')
-            policy = p.validate_policy({:init => true}.merge(policy))
+            policy = p.validate_policy({:init => true, :type => :buffer, :size => 1}.merge(policy))
 
             # Create the mapping from state integers to state symbols
             reader = p.do_reader(StateReader, p.type_name, policy)
@@ -277,16 +277,29 @@ module Orocos
         #
         #   runtime_states "CUSTOM_RUNTIME"
         #
-        # #state may return :CUSTOM_RUNTIME if the component goes into that
+        # #state will return :CUSTOM_RUNTIME if the component goes into that
         # state.
-        def state
+        def state(return_current = true)
             if model && model.extended_state_support?
                 @state_reader ||= state_reader
-                @state_reader.read
+                if return_current
+                    while new_state = @state_reader.read
+                        @current_state = new_state
+                    end
+                else
+                    if new_state = @state_reader.read
+                        @current_state = new_state
+                    end
+                end
+                @current_state
             else
-                value = CORBA.refine_exceptions(self) { do_state() }
-                @state_symbols[value]
+                rtt_state
             end
+        end
+
+        def rtt_state
+            value = CORBA.refine_exceptions(self) { do_state() }
+            @state_symbols[value]
         end
 
         ##

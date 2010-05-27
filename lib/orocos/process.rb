@@ -46,7 +46,10 @@ module Orocos
         # The component process ID
         attr_reader :pid
         # The orogen description
-        attr_reader :orogen
+        def orogen; model end
+        # The Orocos::Generation::StaticDeployment instance that represents
+        # this process
+        attr_reader :model
         # The set of task contexts for this process. This is valid only after
         # the process is actually started
         attr_reader :tasks
@@ -69,7 +72,7 @@ module Orocos
 
             # Load the orogen's description
             orogen_project = Orocos::Generation::TaskLibrary.load(@pkg, @pkg.deffile)
-            @orogen = orogen_project.deployers.find do |d|
+            @model = orogen_project.deployers.find do |d|
                 d.name == name
             end
 
@@ -122,15 +125,18 @@ module Orocos
             end
 	end
 
-        def log_all_ports(options = Hash.new)
+        def self.log_all_ports(process, options = Hash.new)
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
+            log_dir       = options[:log_dir] || Dir.pwd
 
-            logger = task 'Logger'
+            logger = TaskContext.get "#{process.name}_Logger"
             report = logger.rtt_method 'reportPort'
 
-            each_task do |task|
+            process.task_names.each do |task_name|
+                task = TaskContext.get(task_name)
                 next if task == logger
+
                 task.each_port do |port|
                     next unless port.kind_of?(OutputPort)
                     next if exclude_ports && exclude_ports === port.name
@@ -139,11 +145,22 @@ module Orocos
                     report.call task.name, port.name
                 end
             end
-            logger.file = "#{name}.log"
+
+            index = 0
+            while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
+                index += 1
+            end
+            filename = "#{process.name}.#{index}.log"
+
+            logger.file = filename
             logger.start
 
         rescue Orocos::NotFound
-            Orocos.warn "no logger defined on #{name}"
+            Orocos.warn "no logger defined on #{process.name}"
+        end
+
+        def log_all_ports(options = Hash.new)
+            Process.log_all_ports(self, options)
         end
         
         # Deprecated
@@ -292,24 +309,16 @@ module Orocos
 	    end
         end
 
-        # Wait for the module to be started. If timeout is 0, the function
-        # returns immediatly, with a false return value if the module is not
-        # started yet and a true return value if it is started.
-        #
-        # Otherwise, it waits for the process to start for the specified amount
-        # of seconds. It will throw Orocos::NotFound if the process was not
-        # started within that time.
-        #
-        # If timeout is nil, the method will wait indefinitely
-	def wait_running(timeout = nil)
+	def self.wait_running(process, timeout = nil)
 	    if timeout == 0
-		return nil if !pid
+		return nil if !process.alive?
                 
                 # Get any task name from that specific deployment, and check we
                 # can access it. If there is none
-                all_reachable = task_names.all? do |task_name|
+                all_reachable = process.task_names.all? do |task_name|
                     begin
-                        task(task_name).ping
+                        t = Orocos::TaskContext.get(task_name)
+                        t.ping
                         Orocos.debug "#{task_name} is reachable"
                         true
                     rescue Orocos::NotFound
@@ -323,21 +332,33 @@ module Orocos
                 all_reachable
 	    else
                 start_time = Time.now
-                got_pid = false
+                got_alive = process.alive?
                 while true
-                    if wait_running(0)
+                    if wait_running(process, 0)
                         return true
                     elsif timeout && timeout < (Time.now - start_time)
                         raise Orocos::NotFound, "cannot get a running #{name} module"
                     end
 
-                    got_pid = true if pid
-                    if got_pid && !pid
-                        raise Orocos::NotFound, "#{name} was started but crashed"
+                    if got_alive && !process.alive?
+                        raise Orocos::NotFound, "#ename} was started but crashed"
                     end
                     sleep 0.1
                 end
 	    end
+	end
+
+        # Wait for the module to be started. If timeout is 0, the function
+        # returns immediatly, with a false return value if the module is not
+        # started yet and a true return value if it is started.
+        #
+        # Otherwise, it waits for the process to start for the specified amount
+        # of seconds. It will throw Orocos::NotFound if the process was not
+        # started within that time.
+        #
+        # If timeout is nil, the method will wait indefinitely
+	def wait_running(timeout = nil)
+            Process.wait_running(self, timeout)
 	end
 
         SIGNAL_NUMBERS = {
@@ -365,6 +386,9 @@ module Orocos
                     end
                 rescue Exception => e
                     Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
+                    e.backtrace.each do |line|
+                        Orocos.warn line
+                    end
                     services = nil
                 end
             end
@@ -410,10 +434,10 @@ module Orocos
         #
         # See also #each_task
         def task_names
-            if !orogen
+            if !model
                 raise Orocos::NotOrogenComponent, "#{name} does not seem to have been generated by orogen"
             end
-            orogen.task_activities.map { |act| act.name }
+            model.task_activities.map(&:name)
         end
 
         # Enumerate the TaskContext instances of the tasks that are running in

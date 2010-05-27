@@ -119,6 +119,23 @@ describe Orocos::OutputPort do
         end
     end
 
+    it "it should be able to initiate disconnection while running" do
+        Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log") do |p_source, p_sink|
+            source_task = p_source.task("fast_source")
+            source = source_task.port("cycle")
+            sink_task = p_sink.task("sink")
+            sink = sink_task.port("cycle")
+
+            source_task.configure
+            source_task.start
+            sink_task.start
+            1000.times do |i|
+                source.connect_to sink
+                source.disconnect_all
+            end
+        end
+    end
+
     it "it should be able to disconnect all inputs even though some are dead" do
         Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
             source = p_source.task("source").port("cycle")
@@ -189,6 +206,24 @@ describe Orocos::InputPort do
             assert_raises(ArgumentError) { source.connect_to source }
         end
     end
+
+    it "it should be able to initiate disconnection while running" do
+        Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log"
+                             ) do |p_source, p_sink|
+            source_task = p_source.task("fast_source")
+            source = source_task.port("cycle")
+            sink_task = p_sink.task("sink")
+            sink = sink_task.port("cycle")
+
+            source_task.configure
+            source_task.start
+            sink_task.start
+            1000.times do |i|
+                source.connect_to sink
+                sink.disconnect_all
+            end
+        end
+    end
 end
 
 describe Orocos::OutputReader do
@@ -210,7 +245,25 @@ describe Orocos::OutputReader do
             # Create a new reader. The default policy is data
             reader = output.reader
             assert(reader.kind_of?(Orocos::OutputReader))
-            assert_equal(reader.read, nil) # nothing written yet
+            assert_equal(nil, reader.read) # nothing written yet
+        end
+    end
+
+    it "should allow to read opaque types" do
+        Orocos::Process.spawn('echo') do |source|
+            source = source.task('Echo')
+            output = source.port('output_opaque')
+            reader = output.reader
+            source.configure
+            source.start
+            source.write_opaque(42)
+
+            sleep(0.2)
+            
+            # Create a new reader. The default policy is data
+            sample = reader.read
+            assert_equal(42, sample.x)
+            assert_equal(84, sample.y)
         end
     end
 
@@ -301,6 +354,20 @@ describe Orocos::OutputReader do
 	    assert(!reader.connected?)
 	end
     end
+
+    it "should get an initial value when :init is specified" do
+        Orocos::Process.spawn('echo') do |echo|
+            echo  = echo.task('Echo')
+            echo.start
+
+            reader = echo.ondemand.reader
+            assert(!reader.read, "got data on 'ondemand': #{reader.read}")
+            echo.write(10)
+            assert_equal(10, reader.read)
+            reader = echo.ondemand.reader(:init => true)
+            assert_equal(10, reader.read)
+        end
+    end
 end
 
 describe Orocos::InputWriter do
@@ -363,6 +430,31 @@ describe Orocos::InputWriter do
             writer.write(:value => 10)
             sleep(0.1)
             assert_equal(10, reader.read)
+        end
+    end
+
+    it "should allow to write opaque types" do
+        Orocos::Process.spawn('echo') do |echo|
+            echo  = echo.task('Echo')
+            writer = echo.port('input_opaque').writer
+            reader = echo.port('output_opaque').reader
+
+            echo.start
+
+            writer.write(:x => 84, :y => 42)
+            sleep(0.2)
+            sample = reader.read
+            assert_equal(84, sample.x)
+            assert_equal(42, sample.y)
+
+            sample = writer.new_sample
+            sample.x = 20
+            sample.y = 10
+            writer.write(sample)
+            sleep(0.2)
+            sample = reader.read
+            assert_equal(20, sample.x)
+            assert_equal(10, sample.y)
         end
     end
 end
