@@ -375,7 +375,11 @@ module Orocos
                 begin
                     services = nil
                     each_task do |task|
-                        begin task.stop
+                        begin
+                            task.stop
+                            if task.model && task.model.needs_configuration?
+                                task.cleanup
+                            end
                         rescue StateTransitionFailed
                         end
 
@@ -484,7 +488,7 @@ module Orocos
     end
 
     # call-seq:
-    #   guard do ... end
+    #   guard { }
     #
     # All processes started in the provided block will be automatically killed
     def self.guard
@@ -493,7 +497,11 @@ module Orocos
         tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
         tasks.each do |t|
             begin
-                t.stop if t.running? && t.process
+                if t.running? && t.process
+                    t.stop
+                    if t.model && t.model.needs_configuration?
+                        t.cleanup 
+                    end
             rescue
             end
         end
