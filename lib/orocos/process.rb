@@ -502,6 +502,7 @@ module Orocos
                     if t.model && t.model.needs_configuration?
                         t.cleanup 
                     end
+		end
             rescue
             end
         end
