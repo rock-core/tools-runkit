@@ -599,7 +599,6 @@ static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_
     }
     else
     {
-        std::cerr << "using the new method to write " << StringValuePtr(type_name) << " " << value.getType().getName() << std::endl;
         orogen_transports::TypelibMarshallerBase::Handle* handle =
             transport->createSample();
 
