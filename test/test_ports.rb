@@ -119,7 +119,7 @@ describe Orocos::OutputPort do
         end
     end
 
-    it "it should be able to initiate disconnection while running" do
+    it "it should be able to modify connections while running" do
         Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log") do |p_source, p_sink|
             source_task = p_source.task("fast_source")
             source = source_task.port("cycle")
@@ -129,8 +129,8 @@ describe Orocos::OutputPort do
             source_task.configure
             source_task.start
             sink_task.start
-            1000.times do |i|
-                source.connect_to sink
+            10_000.times do |i|
+                source.connect_to sink, :pull => (rand > 0.5)
                 source.disconnect_all
             end
         end
@@ -207,7 +207,7 @@ describe Orocos::InputPort do
         end
     end
 
-    it "it should be able to initiate disconnection while running" do
+    it "it should be able to modify connections while running" do
         Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log"
                              ) do |p_source, p_sink|
             source_task = p_source.task("fast_source")
@@ -218,8 +218,8 @@ describe Orocos::InputPort do
             source_task.configure
             source_task.start
             sink_task.start
-            1000.times do |i|
-                source.connect_to sink
+            10_000.times do |i|
+                source.connect_to sink, :pull => (rand > 0.5)
                 sink.disconnect_all
             end
         end
