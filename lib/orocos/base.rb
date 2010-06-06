@@ -20,7 +20,7 @@ module Orocos
         attr_reader :available_projects
 
         # The set of available deployments, as a mapping from the deployment
-        # name into the Utilrb::PkgConfig object that represen it
+        # name into the Utilrb::PkgConfig object that represents it
         attr_reader :available_deployments
 
         # The set of available task libraries, as a mapping from the task
