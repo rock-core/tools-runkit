@@ -1,0 +1,56 @@
+#! /usr/bin/env ruby
+
+if !ARGV.first
+    STDERR.puts "usage: oroinspect <search term>"
+    STDERR.puts "Searches for <search term> in installed oroGen projects"
+    STDERR.puts "and displays the definition of the matching objects"
+    STDERR.puts "it searches for: task context, types and deployments"
+    exit(0)
+end
+
+require 'orocos'
+regexp = /#{ARGV.first}/i
+
+Orocos.load
+
+Orocos.available_task_models.each do |name, project_name|
+    if name =~ regexp
+        puts
+        puts "===== #{name} is a task context defined in #{project_name}"
+        tasklib = Orocos::Generation.load_task_library(project_name)
+        pp tasklib
+    end
+end
+
+Orocos.available_deployments.each do |name, pkg|
+    if name =~ regexp
+        project_name = pkg.project_name
+        puts
+        puts "===== #{name} is a deployment defined in #{project_name}"
+        tasklib = Orocos::Generation.load_task_library(project_name)
+        pp tasklib.deployers.find { |n| n.name == name }
+    end
+end
+
+Orocos.available_projects.each_key do |project_name|
+    project  = Orocos::Generation.load_task_library(project_name)
+    pkg      =
+        begin
+            Utilrb::PkgConfig.new("#{project_name}-toolkit-#{Orocos.orocos_target}")
+        rescue Utilrb::PkgConfig::NotFound
+            next
+        end
+
+    typelist = File.join(pkg.prefix, 'share', 'orogen', "#{project_name}.typelist")
+    matching_types = File.read(typelist).split.grep(regexp)
+    if !matching_types.empty?
+        registry = Typelib::Registry.import(pkg.type_registry)
+        matching_types.each do |type_name|
+            type = registry.get(type_name)
+            puts
+            puts "===== #{type.name} is a type defined by #{project_name}"
+            pp type
+        end
+    end
+end
+
