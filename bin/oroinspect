@@ -18,7 +18,7 @@ Orocos.available_task_models.each do |name, project_name|
         puts
         puts "===== #{name} is a task context defined in #{project_name}"
         tasklib = Orocos::Generation.load_task_library(project_name)
-        pp tasklib
+        pp tasklib.self_tasks.find { |t| t.name == name }
     end
 end
 
