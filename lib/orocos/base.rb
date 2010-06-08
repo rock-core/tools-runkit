@@ -89,6 +89,14 @@ module Orocos
                     each { |class_name| available_task_models[class_name] = tasklib_name }
             end
         end
+
+        # Finally, update the set of available projects
+        Utilrb::PkgConfig.each_package(/^orogen-project-/) do |pkg_name|
+            if !available_projects.has_key?(pkg_name)
+                pkg = Utilrb::PkgConfig.new(pkg_name)
+                add_project_from(pkg)
+            end
+        end
     end
 
     class << self
