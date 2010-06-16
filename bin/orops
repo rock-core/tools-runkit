@@ -1,0 +1,46 @@
+#! /usr/bin/env ruby
+
+require 'orocos'
+require 'pp'
+require 'utilrb/pkgconfig'
+
+if name_server = ARGV.shift
+    Orocos::CORBA.name_service = name_server
+end
+
+Orocos.initialize
+
+all_tasks = []
+sizes = [0, 0]
+Orocos.task_names.each do |name|
+    result = [name]
+    begin
+        task = Orocos::TaskContext.get(name)
+        result << task.state
+    rescue Orocos::NotFound
+        result << "[defunct]"
+    end
+    result.map(&:size).each_with_index do |size, i|
+        sizes[i] = size if sizes[i] < size
+    end
+    all_tasks << result
+end
+
+state_ordering = {
+    :RUNNING => 0,
+    :PRE_OPERATIONAL => 1,
+    :default => 2,
+    :STOPPED => 3
+}
+
+
+all_tasks = all_tasks.sort_by do |name, state|
+    order = state_ordering[state] || state_ordering[:default]
+    [order, name]
+end
+
+format = sizes.map { |s| "% #{s}s" }.join(" ")
+all_tasks.each do |content|
+    puts format % content
+end
+
