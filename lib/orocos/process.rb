@@ -75,6 +75,9 @@ module Orocos
             @model = orogen_project.deployers.find do |d|
                 d.name == name
             end
+	    if !model
+	    	Orocos.warn "cannot locate deployment #{name} in #{orogen_project.name}"
+	    end
 
             # Load the needed toolkits
             Shellwords.split(pkg.toolkits).each do |name|
