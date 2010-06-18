@@ -6,6 +6,48 @@ module Orocos
     #
     # Use ProcessClient to access a server
     class ProcessServer
+        # Returns a unique directory name as a subdirectory of
+        # +base_dir+, based on +path_spec+. The generated name
+        # is of the form
+        #   <base_dir>/a/b/c/YYYYMMDD-HHMM-basename
+        # if <tt>path_spec = "a/b/c/basename"</tt>. A .<number> suffix
+        # is appended if the path already exists.
+        #
+        # Shamelessly taken from Roby
+	def self.unique_dirname(base_dir, path_spec, date_tag = nil)
+	    if path_spec =~ /\/$/
+		basename = ""
+		dirname = path_spec
+	    else
+		basename = File.basename(path_spec)
+		dirname  = File.dirname(path_spec)
+	    end
+
+	    date_tag ||= Time.now.strftime('%Y%m%d-%H%M')
+	    if basename && !basename.empty?
+		basename = date_tag + "-" + basename
+	    else
+		basename = date_tag
+	    end
+
+	    # Check if +basename+ already exists, and if it is the case add a
+	    # .x suffix to it
+	    full_path = File.expand_path(File.join(dirname, basename), base_dir)
+	    base_dir  = File.dirname(full_path)
+
+	    unless File.exists?(base_dir)
+		FileUtils.mkdir_p(base_dir)
+	    end
+
+	    final_path, i = full_path, 0
+	    while File.exists?(final_path)
+		i += 1
+		final_path = full_path + ".#{i}"
+	    end
+
+	    final_path
+	end
+
         DEFAULT_OPTIONS = { :wait => false, :output => '%m-%p.txt' }
         DEFAULT_PORT = 20202
 
@@ -122,12 +164,18 @@ module Orocos
             exit(0)
         end
 
+        COMMAND_GET_INFO   = "I"
+        COMMAND_MOVE_LOG   = "L"
+        COMMAND_CREATE_LOG = "C"
+        COMMAND_START      = "S"
+        COMMAND_END        = "E"
+
         # Helper method that deals with one client request
         def handle_command(socket) # :nodoc:
             cmd_code = socket.read(1)
             raise EOFError if !cmd_code
 
-            if cmd_code == "I"
+            if cmd_code == COMMAND_GET_INFO
                 Orocos.debug "#{socket} requested system information"
                 available_projects = Hash.new
                 Orocos.available_projects.each do |name, orogen_path|
@@ -138,11 +186,46 @@ module Orocos
                     available_deployments[name] = pkg.project_name
                 end
                 Marshal.dump([available_projects, available_deployments], socket)
-            elsif cmd_code == "S"
-                name = Marshal.load(socket)
-                Orocos.debug "#{socket} requested startup of #{name}"
+            elsif cmd_code == COMMAND_MOVE_LOG
+                Orocos.debug "#{socket} requested moving a log directory"
                 begin
-                    p = Orocos.run(name, options).first
+                    log_dir, results_dir = Marshal.load(socket)
+                    log_dir     = File.expand_path(log_dir)
+                    date_tag    = File.read(File.join(log_dir, 'time_tag')).strip
+                    results_dir = File.expand_path(results_dir)
+                    Orocos.debug "  #{log_dir} => #{results_dir}"
+                    if File.directory?(log_dir)
+                        dirname = Orocos::ProcessServer.unique_dirname(results_dir, '', date_tag)
+                        FileUtils.mv log_dir, dirname
+                    end
+                rescue Exception => e
+                    Orocos.warn "failed to move log directory from #{log_dir} to #{results_dir}: #{e.message}"
+                    if dirname
+                        Orocos.warn "   target directory was #{dirname}"
+                    end
+                end
+
+            elsif cmd_code == COMMAND_CREATE_LOG
+                begin
+                    Orocos.debug "#{socket} requested creating a log directory"
+                    log_dir, time_tag = Marshal.load(socket)
+                    log_dir     = File.expand_path(log_dir)
+                    Orocos.debug "  #{log_dir}, time: #{time_tag}"
+                    FileUtils.mkdir_p(log_dir)
+                    File.open(File.join(log_dir, 'time_tag'), 'w') do |io|
+                        io.write(time_tag)
+                    end
+                rescue Exception => e
+                    Orocos.warn "failed to create log directory #{log_dir}: #{e.message}"
+                    Orocos.warn "   #{e.backtrace[0]}"
+                end
+
+            elsif cmd_code == COMMAND_START
+                name, options = Marshal.load(socket)
+                options ||= Hash.new
+                Orocos.debug "#{socket} requested startup of #{name} with #{options.inspect}"
+                begin
+                    p = Orocos.run(name, self.options.merge(options)).first
                     Orocos.debug "#{name} is started (#{p.pid})"
                     processes[name] = p
                     socket.write("Y")
@@ -151,7 +234,7 @@ module Orocos
                     Orocos.debug "  " + e.backtrace.join("\n  ")
                     socket.write("N")
                 end
-            elsif cmd_code == "E"
+            elsif cmd_code == COMMAND_END
                 name = Marshal.load(socket)
                 Orocos.debug "#{socket} requested end of #{name}"
                 p = processes[name]
@@ -210,7 +293,7 @@ module Orocos
             @socket = TCPSocket.new(host, port)
             socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
             socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-            socket.write("I")
+            socket.write(ProcessServer::COMMAND_GET_INFO)
 
             info = Marshal.load(socket)
             @available_projects    = info[0]
@@ -248,21 +331,35 @@ module Orocos
         # remote side.
         #
         # Raises Failed if the server reports a startup failure
-        def start(deployment_name)
+        def start(deployment_name, options = Hash.new)
             project_name = available_deployments[deployment_name]
             if !project_name
                 raise ArgumentError, "unknown deployment #{deployment_name}"
             end
             self.load(project_name)
 
-            socket.write("S")
-            Marshal.dump(deployment_name, socket)
+            socket.write(ProcessServer::COMMAND_START)
+            Marshal.dump([deployment_name, options], socket)
 
             if !wait_for_ack
                 raise Failed, "failed to start #{deployment_name}"
             end
 
             processes[deployment_name] = RemoteProcess.new(deployment_name, self)
+        end
+
+        # Requests that the process server moves the log directory at +log_dir+
+        # to +results_dir+
+        def save_log_dir(log_dir, results_dir)
+            socket.write(ProcessServer::COMMAND_MOVE_LOG)
+            Marshal.dump([log_dir, results_dir], socket)
+        end
+
+        # Creates a new log dir, and save the given time tag in it (used later
+        # on by save_log_dir)
+        def create_log_dir(log_dir, time_tag)
+            socket.write(ProcessServer::COMMAND_CREATE_LOG)
+            Marshal.dump([log_dir, time_tag], socket)
         end
 
         def queue_death_announcement
@@ -311,7 +408,7 @@ module Orocos
         # The call does not block until the process has quit. You will have to
         # call #wait_termination to wait for the process end.
         def stop(deployment_name)
-            socket.write("E")
+            socket.write(ProcessServer::COMMAND_END)
             Marshal.dump(deployment_name, socket)
 
             if !wait_for_ack
