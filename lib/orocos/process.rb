@@ -131,6 +131,7 @@ module Orocos
         def self.log_all_ports(process, options = Hash.new)
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
+            is_remote     = options[:remote]
             log_dir       = options[:log_dir] || Dir.pwd
 
             logger = TaskContext.get "#{process.name}_Logger"
@@ -150,8 +151,15 @@ module Orocos
             end
 
             index = 0
-            while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
-                index += 1
+            if options[:remote]
+                current_file = logger.file
+                if !current_file.empty? && File.basename(current_file) =~ /^#{process.name}\.(\d+)\.log$/
+                    index = Integer($1) + 1
+                end
+            else
+                while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
+                    index += 1
+                end
             end
             filename = "#{process.name}.#{index}.log"
 
@@ -179,7 +187,7 @@ module Orocos
             end
 
             begin
-                options = validate_options options, :wait => 2, :output => nil, :valgrind => false
+                options = validate_options options, :wait => 2, :output => nil, :working_directory => nil, :valgrind => false
 
                 valgrind = options[:valgrind]
                 if valgrind.respond_to?(:to_ary)
@@ -198,7 +206,7 @@ module Orocos
                                  options[:output].gsub '%m', name
                              end
 
-                    p.spawn(:output => output, :valgrind => valgrind.include?(name))
+                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind.include?(name))
                 end
 
                 # Finally, if the user required it, wait for the processes to run
