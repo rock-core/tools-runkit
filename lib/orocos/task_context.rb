@@ -401,6 +401,11 @@ module Orocos
             end
         end
 
+        # Alias for #attribute(name)
+        def property(name)
+            attribute(name)
+        end
+
         # Returns the Orocos::Generation::OutputPort instance that describes the
         # required port, or nil if the port does not exist
         def output_port_model(name)
