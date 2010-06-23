@@ -29,6 +29,14 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should load its own toolkit" do
+        Orocos::Process.spawn('simple_source') do |source, sink|
+            assert(!Orocos::CORBA.loaded_toolkit?("simple_source"))
+            source = source.task("simple_source_source")
+            assert(Orocos::CORBA.loaded_toolkit?("simple_source"))
+        end
+    end
+
     it "should allow enumerating its ports" do
         Orocos::Process.spawn('simple_source', 'simple_sink') do |source, sink|
             source = source.task("simple_source_source")

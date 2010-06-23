@@ -98,6 +98,10 @@ module Orocos
         def initialize
             @ports ||= Hash.new
 
+            # This is important as it will make the system load the task model
+            # (if needed)
+            model = self.model
+
             if model
                 @state_symbols = model.each_state.map { |name, type| name.to_sym }
                 @error_states  = model.each_state.
@@ -109,6 +113,13 @@ module Orocos
                 @fatal_states = model.each_state.
                     map { |name, type| name.to_sym if type == :fatal }.
                     compact.to_set
+
+                if model.component.has_toolkit?
+                    Orocos::CORBA.load_toolkit(model.component.name)
+                end
+                model.used_toolkits.each do |tk|
+                    Orocos::CORBA.load_toolkit(tk.name)
+                end
             else
                 @state_symbols = []
                 @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL
@@ -577,9 +588,6 @@ module Orocos
                 if tasklib_name = Orocos.available_task_models[model_name]
                     tasklib = Orocos.master_project.load_task_library(tasklib_name)
                     @model = tasklib.tasks.find { |t| t.name == model_name }
-                    @model.used_toolkits.each do |tk|
-                        Orocos::CORBA.load_toolkit(tk.name)
-                    end
                 end
             end
         end

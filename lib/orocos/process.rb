@@ -77,11 +77,6 @@ module Orocos
 	    if !model
 	    	Orocos.warn "cannot locate deployment #{name} in #{orogen_project.name}"
 	    end
-
-            # Load the needed toolkits
-            Shellwords.split(pkg.toolkits).each do |name|
-                Orocos::CORBA.load_toolkit(name)
-            end
         end
 
 
