@@ -308,6 +308,14 @@ module Orocos
             Orocos::Generation.load_task_library(name, available_projects[name])
         end
 
+        def load_task_library(name)
+            self.load(name)
+        end
+
+        def load_deployment(name)
+            deployment_model(name)
+        end
+
         def disconnect
             socket.close
         end
