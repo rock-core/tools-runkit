@@ -575,7 +575,7 @@ module Orocos
 
                 # Try to find the tasklib that handles our model
                 if tasklib_name = Orocos.available_task_models[model_name]
-                    tasklib = Orocos::Generation.load_task_library(tasklib_name)
+                    tasklib = Orocos.master_project.load_task_library(tasklib_name)
                     @model = tasklib.tasks.find { |t| t.name == model_name }
                     @model.used_toolkits.each do |tk|
                         Orocos::CORBA.load_toolkit(tk.name)

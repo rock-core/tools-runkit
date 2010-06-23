@@ -185,7 +185,11 @@ module Orocos
                 Orocos.available_deployments.each do |name, pkg|
                     available_deployments[name] = pkg.project_name
                 end
-                Marshal.dump([available_projects, available_deployments], socket)
+                available_toolkits = Hash.new
+                Orocos.available_toolkits.each do |name, pkg|
+                    available_toolkits[name] = File.read(pkg.type_registry)
+                end
+                Marshal.dump([available_projects, available_deployments, available_toolkits], socket)
             elsif cmd_code == COMMAND_MOVE_LOG
                 Orocos.debug "#{socket} requested moving a log directory"
                 begin
@@ -256,6 +260,16 @@ module Orocos
         end
     end
 
+    class RemoteMasterProject < Orocos::Generation::Component
+        def initialize(server)
+            @server = server
+        end
+
+        def orogen_project_description(name)
+            return nil, server.available_projects[name]
+        end
+    end
+
     # Easy access to a ProcessServer instance.
     #
     # Process servers allow to start/stop and monitor processes on remote
@@ -279,18 +293,29 @@ module Orocos
         # Mapping from a deployment name to the corresponding RemoteProcess
         # instance, for processes that have been started by this client.
         attr_reader :processes
+        # The master oroGen project in which we load everything else. It is an
+        # instance of RemoteMasterProject, to use the data we got from the
+        # process server
+        attr_reader :master_project
 
-        # Returns the StaticDeployment instance that represents the remote
-        # deployment +deployment_name+
-        def deployment_model(deployment_name)
-            tasklib_name = available_deployments[deployment_name]
-            tasklib = Orocos::Generation.load_task_library(tasklib_name)
-            tasklib.deployers.find { |d| d.name == deployment_name }
+        # The hostname we are connected to
+        attr_reader :host
+        # The port on which we are connected on +hostname+
+        attr_reader :port
+
+        def to_s
+            "#<Oroocs::ProcessServer #{host}:#{port}>"
         end
 
         # Connects to the process server at +host+:+port+
         def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT)
-            @socket = TCPSocket.new(host, port)
+            @host = host
+            @port = port
+            @socket =
+                begin TCPSocket.new(host, port)
+                rescue Exception => e
+                    raise ArgumentError, "cannot contact process server at '#{host}:#{port}': #{e.message}"
+                end
             socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
             socket.fcntl(Fcntl::FD_CLOEXEC, 1)
             socket.write(ProcessServer::COMMAND_GET_INFO)
@@ -298,22 +323,47 @@ module Orocos
             info = Marshal.load(socket)
             @available_projects    = info[0]
             @available_deployments = info[1]
+            @available_toolkits    = info[2]
+            @master_project = RemoteMasterProject.new
             @processes = Hash.new
             @death_queue = Array.new
         end
 
         # Loads the oroGen project definition called 'name' using the data the
         # process server sent us.
-        def load(name)
-            Orocos::Generation.load_task_library(name, available_projects[name])
+        def load_orogen_project(name)
+            name = name.to_str
+            if !available_projects[name]
+                raise ArgumentError, "there is no orogen project called #{name} on #{host}:#{port}"
+            end
+            orogen = master_project.load_orogen_project(name, :toolkits => false)
+            if orogen.has_toolkit?
+                # Check that the toolkit on the local machine exists and is
+                # compatible
+                local_toolkit = Orocos.master_project.load_orogen_toolkit(name)
+                registry = available_toolkits[name]
+                
+                begin
+                    Typelib::Registry.from_xml(registry).merge(local_toolkit.registry)
+                rescue Exception => e
+                    raise e.class, "failed to load the toolkit of #{name} from #{host}:#{port}: #{e.message}"
+                end
+            end
+
+            # Register it locally ...
+            # TODO: check that any local definition matches
+            Orocos.master_project.loaded_orogen_projects[name] = orogen
         end
 
-        def load_task_library(name)
-            self.load(name)
-        end
-
-        def load_deployment(name)
-            deployment_model(name)
+        # Returns the StaticDeployment instance that represents the remote
+        # deployment +deployment_name+
+        def load_orogen_deployment(deployment_name)
+            project_name = available_deployments[deployment_name]
+            if !project_name
+                raise ArgumentError, "there is not deployment calle #{deployment_name} on #{host}:#{port}"
+            end
+            tasklib = load_orogen_project(project_name)
+            tasklib.deployers.find { |d| d.name == deployment_name }
         end
 
         def disconnect
@@ -344,7 +394,7 @@ module Orocos
             if !project_name
                 raise ArgumentError, "unknown deployment #{deployment_name}"
             end
-            self.load(project_name)
+            self.load_orogen_project(project_name)
 
             socket.write(ProcessServer::COMMAND_START)
             Marshal.dump([deployment_name, options], socket)

@@ -20,6 +20,10 @@ module Orocos
         # component's type registries
         attr_reader :registry
 
+        # The master oroGen project through  which all the other oroGen projects
+        # are imported
+        attr_reader :master_project
+
         # The set of orogen projects that are available, as a mapping from a
         # name into the project's orogen description file
         attr_reader :available_projects
@@ -58,6 +62,7 @@ module Orocos
 
     def self.load
         @registry = Typelib::Registry.new
+        @master_project = Orocos::Generation::Component.new
         registry.import File.join(Orocos::Generation.base_dir, 'orogen', 'orocos.tlb')
 
         @available_projects ||= Hash.new

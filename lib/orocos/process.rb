@@ -64,14 +64,13 @@ module Orocos
         def initialize(name)
             @name  = name
             @tasks = []
-            begin
-                @pkg = Utilrb::PkgConfig.new("orogen-#{name}")
-            rescue Utilrb::PkgConfig::NotFound => e
-                raise NotFound, "#{name} does not exist or isn't found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
+            @pkg = Orocos.available_deployments[name]
+            if !pkg
+                raise NotFound, "deployment #{name} does not exist or its pkg-config orogen-#{name} is not found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
             end
 
             # Load the orogen's description
-            orogen_project = Orocos::Generation::TaskLibrary.load(@pkg, @pkg.deffile)
+            orogen_project = Orocos.master_project.load_orogen_project(pkg.project_name)
             @model = orogen_project.deployers.find do |d|
                 d.name == name
             end
