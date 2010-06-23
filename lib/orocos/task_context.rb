@@ -214,6 +214,18 @@ module Orocos
             result
 	end
 
+        # Returns true if +task_name+ is a TaskContext object that can be
+        # reached through CORBA
+        def self.reachable?(task_name)
+            t = CORBA.refine_exceptions("naming service") do
+                TaskContext.do_get(task_name)
+            end
+            t.ping
+            true
+        rescue Orocos::NotFound
+            false
+        end
+
         # Returns true if the task is in a state where code is executed. This
         # includes of course the running state, but also runtime error states.
         def running?

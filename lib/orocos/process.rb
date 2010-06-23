@@ -327,12 +327,10 @@ module Orocos
                 # Get any task name from that specific deployment, and check we
                 # can access it. If there is none
                 all_reachable = process.task_names.all? do |task_name|
-                    begin
-                        t = Orocos::TaskContext.get(task_name)
-                        t.ping
+                    if TaskContext.reachable?(task_name)
                         Orocos.debug "#{task_name} is reachable"
                         true
-                    rescue Orocos::NotFound
+                    else
                         Orocos.debug "could not access #{task_name}, #{name} is not running yet ..."
                         false
                     end
