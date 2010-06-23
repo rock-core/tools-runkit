@@ -252,6 +252,14 @@ module Orocos
 	    raise "#{name} is already running" if alive?
 	    Orocos.debug { "Spawning module #{name}" }
 
+            # If possible, check that we won't clash with an already running
+            # process
+            task_names.each do |name|
+                if TaskContext.reachable?(name)
+                    raise ArgumentError, "there is already a running task called #{name}, are you starting the same component twice ?"
+                end
+            end
+
             options = Kernel.validate_options options, :output => nil,
                 :valgrind => nil, :working_directory => nil
             output   = options[:output]
