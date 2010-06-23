@@ -85,6 +85,7 @@ module Orocos
         #
         # All started processes are stopped when the server quits
         def exec
+            Orocos.info "starting on port #{port}"
             server = TCPServer.new(nil, port)
             server.fcntl(Fcntl::FD_CLOEXEC, 1)
             com_r, com_w = IO.pipe
@@ -145,6 +146,13 @@ module Orocos
                         @all_ios.delete(socket)
                     end
                 end
+            end
+
+        rescue Exception => e
+            Orocos.fatal "process server exited because of unhandled exception"
+            Orocos.fatal "#{e.message} #{e.class}"
+            e.backtrace.each do |line|
+                Orocos.fatal "  #{line}"
             end
         ensure
             quit_and_join
