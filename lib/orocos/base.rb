@@ -41,6 +41,12 @@ module Orocos
         attr_reader :available_task_models
     end
 
+    # True if there is a toolkit named +name+ on the file system
+    def self.has_toolkit?(name)
+        pkg, _ = available_projects[name]
+        pkg && pkg.type_registry
+    end
+
     def self.orocos_target
         if ENV['OROCOS_TARGET']
             ENV['OROCOS_TARGET']
@@ -56,7 +62,7 @@ module Orocos
         elsif pkg.deffile.empty?
             Orocos.warn "#{pkg_name}.pc does not have a deffile field"
         else
-            available_projects[pkg.project_name] = pkg.deffile
+            available_projects[pkg.project_name] = [pkg, pkg.deffile]
         end
     end
 
