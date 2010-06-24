@@ -12,12 +12,20 @@ require 'orocos'
 regexp = /#{ARGV.first}/i
 
 Orocos.load
+master_project = Orocos::Generation::Project.new
+
+def load_orogen_project(master_project, name)
+    master_project.load_orogen_project(name)
+rescue Exception => e
+    STDERR.puts "WARN: cannot load the installed oroGen project #{name}"
+    STDERR.puts "WARN:     #{e.message}"
+end
 
 Orocos.available_task_models.each do |name, project_name|
     if name =~ regexp
         puts
         puts "===== #{name} is a task context defined in #{project_name}"
-        tasklib = Orocos::Generation.load_task_library(project_name)
+        tasklib = load_orogen_project(master_project, project_name)
         pp tasklib.self_tasks.find { |t| t.name == name }
     end
 end
@@ -27,14 +35,14 @@ Orocos.available_deployments.each do |name, pkg|
         project_name = pkg.project_name
         puts
         puts "===== #{name} is a deployment defined in #{project_name}"
-        tasklib = Orocos::Generation.load_task_library(project_name)
+        tasklib = load_orogen_project(master_project, project_name)
         pp tasklib.deployers.find { |n| n.name == name }
     end
 end
 
 seen_types = ValueSet.new
 Orocos.available_projects.each_key do |project_name|
-    project  = Orocos::Generation.load_task_library(project_name)
+    project  = load_orogen_project(master_project, project_name)
     pkg      =
         begin
             Utilrb::PkgConfig.new("#{project_name}-toolkit-#{Orocos.orocos_target}")
