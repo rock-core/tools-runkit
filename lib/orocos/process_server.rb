@@ -207,7 +207,7 @@ module Orocos
                     results_dir = File.expand_path(results_dir)
                     Orocos.debug "  #{log_dir} => #{results_dir}"
                     if File.directory?(log_dir)
-                        dirname = Orocos::ProcessServer.unique_dirname(results_dir, '', date_tag)
+                        dirname = Orocos::ProcessServer.unique_dirname(results_dir + '/', '', date_tag)
                         FileUtils.mv log_dir, dirname
                     end
                 rescue Exception => e
