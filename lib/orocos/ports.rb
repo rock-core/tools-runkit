@@ -21,6 +21,11 @@ module Orocos
         attr_reader :type_name
         # The port's type as a Typelib::Type object
         attr_reader :type
+        # The port's model as either a Orocos::Generation::InputPort or
+        # Orocos::Generation::OutputPort
+        def model
+            task.model.port(name)
+        end
 
         def initialize
             if @type_name == "string"
