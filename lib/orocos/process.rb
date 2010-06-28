@@ -139,6 +139,8 @@ module Orocos
                     next unless port.kind_of?(OutputPort)
                     next if exclude_ports && exclude_ports === port.name
                     next if exclude_types && exclude_types === port.type.name
+                    next if block_given? && !yield(port)
+
                     Orocos.info "logging % 50s of type %s" % ["#{task.name}:#{port.name}", port.type.name]
                     report.call task.name, port.name
                 end
