@@ -492,7 +492,7 @@ module Orocos
             Marshal.dump(deployment_name, socket)
 
             if !wait_for_ack
-                raise Failed, "failed to quit #{deployment_name} (#{reply})"
+                raise Failed, "failed to quit #{deployment_name}"
             end
         end
     end
