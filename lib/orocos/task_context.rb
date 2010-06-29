@@ -168,6 +168,38 @@ module Orocos
 
         end
 
+        # Find the running tasks from the provided names.
+        def self.find_running(*names)
+            names.map do |name|
+                begin TaskContext.get name
+                rescue Orocos::NotFound
+                end
+            end.compact.map(&:running?)
+        end
+
+        # Find one running tasks from the provided names. Raises if there is not
+        # exactly one
+        def self.find_one_running(*names)
+            candidates = names.map do |name|
+                begin TaskContext.get name
+                rescue Orocos::NotFound
+                end
+            end.compact
+
+            if candidates.empty?
+                raise "cannot find any task in #{names.join(", ")}"
+            end
+
+            running_candidates = candidates.find_all(&:running?)
+            if running_candidates.empty?
+                raise "none of #{running_candidates.map(&:name).join(", ")} is running"
+            elsif running_candidates.size > 1
+                raise "multiple candidates are running: #{running_candidates.map(&:name)}"
+            else
+                running_candidates.first
+            end
+        end
+
         # Returns a task which provides the +type+ interface.
         #
         # Use TaskContext.get(:provides => name) instead.
