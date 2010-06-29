@@ -122,6 +122,8 @@ module Orocos
             end
 	end
 
+	@@logfile_indexes = Hash.new
+
         def self.log_all_ports(process, options = Hash.new)
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
@@ -148,10 +150,8 @@ module Orocos
 
             index = 0
             if options[:remote]
-                current_file = logger.file
-                if !current_file.empty? && File.basename(current_file) =~ /^#{process.name}\.(\d+)\.log$/
-                    index = Integer($1) + 1
-                end
+                index = (@@logfile_indexes[process.name] ||= -1) + 1
+		@@logfile_indexes[process.name] = index
             else
                 while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
                     index += 1
