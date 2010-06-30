@@ -84,7 +84,7 @@ module Orocos
         # The name of this task context
         attr_reader :name
 	# The process that supports it
-	attr_reader :process
+	attr_accessor :process
 
         RUNNING_STATES = []
         RUNNING_STATES[STATE_PRE_OPERATIONAL] = false
