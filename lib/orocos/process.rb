@@ -354,7 +354,7 @@ module Orocos
                     end
 
                     if got_alive && !process.alive?
-                        raise Orocos::NotFound, "#ename} was started but crashed"
+                        raise Orocos::NotFound, "#{name} was started but crashed"
                     end
                     sleep 0.1
                 end
