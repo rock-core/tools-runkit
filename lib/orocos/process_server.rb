@@ -335,6 +335,9 @@ module Orocos
             socket.fcntl(Fcntl::FD_CLOEXEC, 1)
             socket.write(ProcessServer::COMMAND_GET_INFO)
 
+	    if !select([socket], [], [], 2)
+	       raise "timeout while reading process server at '#{host}:#{port}'"
+	    end
             info = Marshal.load(socket)
             @available_projects    = info[0]
             @available_deployments = info[1]
