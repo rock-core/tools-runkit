@@ -247,12 +247,12 @@ module Orocos
                     socket.write("N")
                 end
             elsif cmd_code == COMMAND_END
-                name, options = Marshal.load(socket)
+                name = Marshal.load(socket)
                 Orocos.debug "#{socket} requested end of #{name}"
                 p = processes[name]
                 if p
                     begin
-                        p.kill(options)
+                        p.kill(false)
                         socket.write("Y")
                     rescue Exception => e
                         socket.write("N")
@@ -490,9 +490,9 @@ module Orocos
         #
         # The call does not block until the process has quit. You will have to
         # call #wait_termination to wait for the process end.
-        def stop(deployment_name, options = Hash.new)
+        def stop(deployment_name)
             socket.write(ProcessServer::COMMAND_END)
-            Marshal.dump([deployment_name, options], socket)
+            Marshal.dump(deployment_name, socket)
 
             if !wait_for_ack
                 raise Failed, "failed to quit #{deployment_name}"
@@ -529,12 +529,9 @@ module Orocos
 
 
         # Stops the process
-        def kill(options = Hash.new)
-            wait, options = Kernel.filter_options options, :wait => nil
-            if wait[:wait]
-                raise ArgumentError, "cannot call RemoteProcess#kill(:wait => true)"
-            end
-            process_client.stop(name, options.merge(:wait => false))
+        def kill(wait = true)
+            raise ArgumentError, "cannot call RemoteProcess#kill(true)" if wait
+            process_client.stop(name)
         end
 
         # Wait for the 
