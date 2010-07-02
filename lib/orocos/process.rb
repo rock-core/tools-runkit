@@ -380,13 +380,40 @@ module Orocos
             'KILL' => 9,
             'SEGV' => 11
         }
+
         # Kills the process either cleanly by requesting a shutdown if signal ==
         # nil, or forcefully by using UNIX signals if signal is a signal name.
-        def kill(wait = true, signal = nil)
-            # Stop all tasks and disconnect the ports
-            if !signal
+        def kill(options = Hash.new)
+            if !options.kind_of?(Hash)
+                options = { :wait => options }
+            end
+            options = Kernel.validate_options options,
+                :wait => true, :kill_tasks => true, :signal => nil
+
+            if options[:signal] && options[:kill_tasks]
+                raise ArgumentError, "cannot request cleanly killing the tasks but signalling the process"
+            end
+
+            # Try to get an access to the CORBA control interface
+            if !options[:signal]
+                services = nil
+                each_task do |task|
+                    begin
+                        services ||= task.do_services
+                    rescue Exception => e
+                        STDERR.puts e.message
+                    end
+                end
+
+                if !services
+                    options[:signal] = 'KILL'
+                    options[:kill_tasks] = false
+                    Orocos.warn "failed to find the CORBA services"
+                end
+            end
+
+            if options[:kill_tasks]
                 begin
-                    services = nil
                     each_task do |task|
                         begin
                             task.stop
@@ -396,7 +423,6 @@ module Orocos
                         rescue StateTransitionFailed
                         end
 
-                        services ||= task.do_services
                         task.each_port do |port|
                             port.disconnect_all
                         end
@@ -406,12 +432,11 @@ module Orocos
                     e.backtrace.each do |line|
                         Orocos.warn line
                     end
-                    services = nil
+                    options[:signal] = 'KILL'
                 end
             end
 
-            expected_exit = nil
-            if !signal && services
+            if services
                 begin
                     if !services.shutdown
                         raise InternalError, "the deployment refused to shutdown"
@@ -419,12 +444,13 @@ module Orocos
                     Orocos.info "requested shut down of #{name}"
                 rescue Exception => e
                     Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
-                    services = nil
+                    options[:signal] = 'KILL'
                 end
             end
 
-            if signal || !services
-                signal ||= 'KILL'
+            expected_exit = nil
+            if options[:signal]
+                signal = options[:signal]
                 Orocos.warn "sending #{signal} to #{name}"
                 begin
                     ::Process.kill("SIG#{signal}", pid)
@@ -432,12 +458,13 @@ module Orocos
                     # Already exited
                     return
                 end
-                expected_exit = if signal.kind_of?(Integer) then signal
-                                else SIGNAL_NUMBERS[signal] || signal
-                                end
+                expected_exit =
+                    if signal.kind_of?(Integer) then signal
+                    else SIGNAL_NUMBERS[signal] || signal
+                    end
             end
 
-            if wait
+            if options[:wait]
                 join
                 if @exit_status.signaled? && !expected_exit
                     Orocos.warn "#{name} unexpectedly exited with signal #{@exit_status.termsig}"
