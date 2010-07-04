@@ -23,20 +23,22 @@ end
 
 Orocos.available_task_models.each do |name, project_name|
     if name =~ regexp
-        puts
-        puts "===== #{name} is a task context defined in #{project_name}"
-        tasklib = load_orogen_project(master_project, project_name)
-        pp tasklib.self_tasks.find { |t| t.name == name }
+        if tasklib = load_orogen_project(master_project, project_name)
+            puts
+            puts "===== #{name} is a task context defined in #{project_name}"
+            pp tasklib.self_tasks.find { |t| t.name == name }
+        end
     end
 end
 
 Orocos.available_deployments.each do |name, pkg|
     if name =~ regexp
         project_name = pkg.project_name
-        puts
-        puts "===== #{name} is a deployment defined in #{project_name}"
-        tasklib = load_orogen_project(master_project, project_name)
-        pp tasklib.deployers.find { |n| n.name == name }
+        if tasklib = load_orogen_project(master_project, project_name)
+            puts
+            puts "===== #{name} is a deployment defined in #{project_name}"
+            pp tasklib.deployers.find { |n| n.name == name }
+        end
     end
 end
 
