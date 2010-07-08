@@ -388,7 +388,11 @@ module Orocos
                 raise ArgumentError, "there is not deployment calle #{deployment_name} on #{host}:#{port}"
             end
             tasklib = load_orogen_project(project_name)
-            tasklib.deployers.find { |d| d.name == deployment_name }
+            deployment = tasklib.deployers.find { |d| d.name == deployment_name }
+            if !deployment
+                raise InternalError, "cannot find the deployment called #{deployment_name.inspect} in #{tasklib}. Candidates were #{tasklib.deployers.map(&:name).join(", ")}"
+            end
+            deployment
         end
 
         def disconnect
