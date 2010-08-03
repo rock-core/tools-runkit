@@ -681,10 +681,19 @@ VALUE services_shutdown(VALUE self)
     return services.services->requestShutdown() ? Qtrue : Qfalse;
 }
 
+static VALUE orocos_do_initialize(VALUE mod)
+{
+    // load the default toolkit and the CORBA transport
+    RTT::Toolkit::Import(RTT::RealTimeToolkit);
+    loadCorbaLib();
+    return Qnil;
+}
+
 extern "C" void Init_rorocos_ext()
 {
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");
+    rb_define_singleton_method(mOrocos, "do_initialize", RUBY_METHOD_FUNC(orocos_do_initialize), 0);
 
     cServices    = rb_define_class_under(mOrocos, "Services", rb_cObject);
     rb_define_method(cServices, "shutdown", RUBY_METHOD_FUNC(services_shutdown), 0);
@@ -740,10 +749,6 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cOutputReader, "do_read", RUBY_METHOD_FUNC(do_output_reader_read), 2);
     rb_define_method(cOutputReader, "clear", RUBY_METHOD_FUNC(output_reader_clear), 0);
     rb_define_method(cInputWriter, "do_write", RUBY_METHOD_FUNC(do_input_writer_write), 2);
-
-    // load the default toolkit and the CORBA transport
-    RTT::Toolkit::Import(RTT::RealTimeToolkit);
-    loadCorbaLib();
 
     Orocos_init_CORBA();
     Orocos_init_data_handling();

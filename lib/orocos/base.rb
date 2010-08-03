@@ -132,6 +132,9 @@ module Orocos
             self.load
         end
 
+        # Set up the RTT itself
+        do_initialize
+
         # oroGen components use pkg-config --list-all to find where all typekit
         # files are.  Unfortunately, Debian and debian-based system sometime
         # have pkg-config --list-all broken because of missing dependencies
