@@ -411,6 +411,19 @@ module Orocos
         # transition (but can take an arbitrarily long time to do it).
         corba_wrap :cleanup
 
+        # Returns true if this task context has either a property or an attribute with the given name
+        def has_property?(name)
+            name = name.to_s
+            CORBA.refine_exceptions(self) do
+                do_has_property?(name)
+            end
+        end
+
+        # Alias for has_property?
+        def has_attribute?(name)
+            has_property?(name)
+        end
+
         # Returns true if this task context has a command with the given name
         def has_method?(name)
             name = name.to_s

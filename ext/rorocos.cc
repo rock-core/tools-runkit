@@ -156,6 +156,37 @@ static VALUE task_context_has_method_p(VALUE self, VALUE name)
     return Qtrue;
 }
 
+static VALUE task_context_has_property_p(VALUE self, VALUE name)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    std::string const expected_name = StringValuePtr(name);
+    try {
+        {
+            RTT::Corba::AttributeInterface::AttributeNames_var names =
+                context.attributes->getAttributeList();
+            for (int i = 0; i != names->length(); ++i)
+            {
+                CORBA::String_var name = names[i];
+                if (expected_name == std::string(name))
+                    return Qtrue;
+            }
+        }
+
+        {
+            RTT::Corba::AttributeInterface::PropertyNames_var names =
+                context.attributes->getPropertyList();
+            for (int i = 0; i != names->length(); ++i)
+            {
+                CORBA::String_var name = names[i].name;
+                if (expected_name == std::string(name))
+                    return Qtrue;
+            }
+        }
+    }
+    CORBA_EXCEPTION_HANDLERS
+    return Qfalse;
+}
+
 // call-seq:
 //   task.do_port(name) => port
 //
@@ -690,6 +721,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
     rb_define_method(cTaskContext, "do_has_method?", RUBY_METHOD_FUNC(task_context_has_method_p), 1);
     rb_define_method(cTaskContext, "do_has_command?", RUBY_METHOD_FUNC(task_context_has_command_p), 1);
+    rb_define_method(cTaskContext, "do_has_property?", RUBY_METHOD_FUNC(task_context_has_property_p), 1);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "do_each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
     rb_define_method(cTaskContext, "do_attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
