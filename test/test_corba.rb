@@ -17,17 +17,17 @@ describe "the Orocos::CORBA module" do
         assert(types.include?("int"), "'int' is not part of #{types.join(", ")}")
     end
 
-    it "should be able to load toolkit plugins" do
-        assert(! Orocos::CORBA.loaded_toolkit?('process'))
-        Orocos::CORBA.load_toolkit 'process'
-        assert( Orocos::CORBA.loaded_toolkit?('process'))
+    it "should be able to load typekit plugins" do
+        assert(! Orocos::CORBA.loaded_typekit?('process'))
+        Orocos::CORBA.load_typekit 'process'
+        assert( Orocos::CORBA.loaded_typekit?('process'))
         types = Orocos::CORBA.transportable_type_names
         assert(types.include?("/process/Simple"))
     end
 
     it "should load type registries associated with the plugins" do
         assert_raises(Typelib::NotFound) { Orocos.registry.get("/process/Simple") }
-        Orocos::CORBA.load_toolkit 'process'
+        Orocos::CORBA.load_typekit 'process'
         assert(Orocos.registry.get("/process/Simple"))
     end
 end

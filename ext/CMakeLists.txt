@@ -34,7 +34,7 @@ endif()
 execute_process(COMMAND ${OROGEN} --base-dir
     OUTPUT_VARIABLE OROGEN_BASE_DIR
     OUTPUT_STRIP_TRAILING_WHITESPACE)
-include_directories("${OROGEN_BASE_DIR}/orogen/templates/toolkit")
+include_directories("${OROGEN_BASE_DIR}/orogen/templates/typekit/typelib")
 
 FIND_PACKAGE(PkgConfig)
 pkg_check_modules(RTT REQUIRED orocos-rtt-${OROCOS_TARGET})
@@ -43,7 +43,10 @@ INCLUDE_DIRECTORIES( ${RTT_INCLUDE_DIRS} )
 LINK_DIRECTORIES( ${RTT_LIBRARY_DIRS} )
 
 pkg_check_modules(RTT_CORBA REQUIRED orocos-rtt-corba-${OROCOS_TARGET})
-FIND_PATH(IDL_DIR ControlTask.idl ${RTT_CORBA_INCLUDE_DIRS})
+FIND_PATH(IDL_DIR TaskContext.idl ${RTT_CORBA_INCLUDE_DIRS})
+if (NOT IDL_DIR)
+    message(FATAL_ERROR "cannot find the Orocos/CORBA IDL files")
+endif()
 FILE(GLOB IDL_FILES ${IDL_DIR}/*.idl)
 
 pkg_check_modules(TYPELIB REQUIRED typelib)
@@ -53,6 +56,9 @@ LINK_DIRECTORIES( ${TYPELIB_LIBRARY_DIRS} )
 pkg_check_modules(TYPELIB_RUBY REQUIRED typelib_ruby)
 INCLUDE_DIRECTORIES( ${TYPELIB_RUBY_INCLUDE_DIRS} )
 LINK_DIRECTORIES( ${TYPELIB_RUBY_LIBRARY_DIRS} )
+
+list(APPEND CMAKE_PREFIX_PATH ${RTT_PREFIX})
+find_package(RTTPlugin COMPONENTS rtt-typekit rtt-transport-corba)
 
 ADD_DEFINITIONS( -DOROCOS_TARGET=${OROCOS_TARGET} )
 INCLUDE_DIRECTORIES( ${RTT_CORBA_INCLUDE_DIRS} )
@@ -102,9 +108,11 @@ ENDMACRO(OMNIORB)
 OMNIORB()
 ADD_RUBY_EXTENSION(rorocos_ext 
     rorocos.cc corba.cc datahandling.cc methods.cc ${ORB_IDL_FILES}
-    ${OROGEN_BASE_DIR}/orogen/templates/toolkit/TypelibMarshallerBase.cpp)
-TARGET_LINK_LIBRARIES(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
-    ${RTT_CORBA_LIBRARIES} ${TYPELIB_LIBRARIES})
+    ${OROGEN_BASE_DIR}/orogen/templates/typekit/typelib/TypelibMarshallerBase.cpp)
+target_link_libraries(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
+    ${RTT_CORBA_LIBRARIES} ${TYPELIB_LIBRARIES}
+    ${RTT_PLUGIN_rtt-typekit_LIBRARY}
+    ${RTT_PLUGIN_rtt-transport-corba_LIBRARY})
 
 INSTALL(TARGETS rorocos_ext LIBRARY DESTINATION ".")
 

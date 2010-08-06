@@ -1,11 +1,11 @@
 #include "rorocos.hh"
 #include <list>
 #include <typeinfo>
-#include <rtt/Types.hpp>
+#include <rtt/types/Types.hpp>
 
-#include <rtt/corba/CorbaLib.hpp>
-#include <rtt/corba/ControlTaskProxy.hpp>
-#include <rtt/corba/ControlTaskServer.hpp>
+#include <rtt/transports/corba/TransportPlugin.hpp>
+#include <rtt/transports/corba/CorbaLib.hpp>
+#include <rtt/transports/corba/TaskContextServer.hpp>
 #include <boost/lexical_cast.hpp>
 using namespace CORBA;
 using namespace std;
@@ -36,10 +36,10 @@ void CorbaAccess::deinit()
 CorbaAccess::CorbaAccess(int argc, char* argv[])
     : port_id_counter(0)
 {
-    // First initialize the ORB. We use ControlTaskProxy::InitORB as we will
+    // First initialize the ORB. We use TaskContextProxy::InitORB as we will
     // have to create a servant for our local DataFlowInterface object.
-    RTT::Corba::ControlTaskProxy::InitOrb(argc, argv);
-    orb = RTT::Corba::ApplicationServer::orb;
+    RTT::corba::TaskContextServer::InitOrb(argc, argv);
+    orb = RTT::corba::ApplicationServer::orb;
 
     // Now, get the name service once and for all
     CORBA::Object_var rootObj = orb->resolve_initial_references("NameService");
@@ -49,17 +49,17 @@ CorbaAccess::CorbaAccess(int argc, char* argv[])
 
     // Finally, create a dataflow interface and export it to CORBA. This is
     // needed to use the port interface. Since we're lazy, we just create a
-    // normal TaskContext and use ControlTaskProxy to create the necessary
+    // normal TaskContext and use TaskContextServer to create the necessary
     // interfaces.
     m_task   = new RTT::TaskContext("__orocos_rb__");
-    m_task_server = RTT::Corba::ControlTaskServer::Create(m_task, false);
-    RTT::Corba::ControlTask_var corba_ref = m_task_server->server();
+    m_task_server = RTT::corba::TaskContextServer::Create(m_task, false);
+    RTT::corba::CTaskContext_var corba_ref = m_task_server->server();
     m_corba_dataflow = corba_ref->ports();
 }
 
 CorbaAccess::~CorbaAccess()
 {
-    m_corba_dataflow = RTT::Corba::DataFlowInterface::_nil();
+    m_corba_dataflow = RTT::corba::CDataFlowInterface::_nil();
     delete m_task_server;
     delete m_task;
 
@@ -67,7 +67,7 @@ CorbaAccess::~CorbaAccess()
     orb->destroy();
 }
 
-RTT::Corba::DataFlowInterface_ptr CorbaAccess::getDataFlowInterface() const
+RTT::corba::CDataFlowInterface_ptr CorbaAccess::getDataFlowInterface() const
 { return m_corba_dataflow.in(); }
 
 string CorbaAccess::getLocalPortName(VALUE port)
@@ -77,12 +77,12 @@ string CorbaAccess::getLocalPortName(VALUE port)
     return std::string(StringValuePtr(task_name)) + "/" + StringValuePtr(port_name) + "/" + boost::lexical_cast<string>(++port_id_counter);
 }
 
-void CorbaAccess::addPort(RTT::PortInterface* local_port)
+void CorbaAccess::addPort(RTT::base::PortInterface* local_port)
 {
-    m_task->ports()->addPort(local_port);
+    m_task->ports()->addPort(*local_port);
 }
 
-void CorbaAccess::removePort(RTT::PortInterface* local_port)
+void CorbaAccess::removePort(RTT::base::PortInterface* local_port)
 {
     m_task->ports()->removePort(local_port->getName());
 }
@@ -91,7 +91,7 @@ list<string> CorbaAccess::knownTasks()
 {
     CosNaming::Name serverName;
     serverName.length(1);
-    serverName[0].id = CORBA::string_dup("ControlTasks");
+    serverName[0].id = CORBA::string_dup("TaskContexts");
 
     list<string> names;
     try {
@@ -118,12 +118,12 @@ list<string> CorbaAccess::knownTasks()
     return names;
 }
 
-RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
+RTT::corba::CTaskContext_ptr CorbaAccess::findByName(std::string const& name)
 {
     // First thing, try to get a reference from the name server
     CosNaming::Name serverName;
     serverName.length(2);
-    serverName[0].id = CORBA::string_dup("ControlTasks");
+    serverName[0].id = CORBA::string_dup("TaskContexts");
     serverName[1].id = CORBA::string_dup( name.c_str() );
 
     CORBA::Object_var task_object;
@@ -133,8 +133,8 @@ RTT::Corba::ControlTask_ptr CorbaAccess::findByName(std::string const& name)
     CORBA_EXCEPTION_HANDLERS 
 
     // Then check we can actually access it
-    RTT::Corba::ControlTask_var mtask;
-    try { mtask = RTT::Corba::ControlTask::_narrow (task_object.in ()); }
+    RTT::corba::CTaskContext_var mtask;
+    try { mtask = RTT::corba::CTaskContext::_narrow (task_object.in ()); }
     catch(CORBA::Exception&)
     { rb_raise(eNotFound, "task context '%s' is registered but the registered object is of wrong type", name.c_str()); }
 
@@ -157,7 +157,7 @@ void CorbaAccess::unbind(std::string const& name)
     CosNaming::Name serverName;
     try {
         serverName.length(2);
-        serverName[0].id = CORBA::string_dup( "ControlTasks" );
+        serverName[0].id = CORBA::string_dup( "TaskContexts" );
         serverName[1].id = CORBA::string_dup( name.c_str() );
         rootContext->unbind(serverName);
     } catch(CosNaming::NamingContext::NotFound) {}
@@ -230,14 +230,14 @@ static VALUE corba_is_initialized(VALUE mod)
  */
 static VALUE corba_transportable_type_names(VALUE mod)
 {
-    RTT::TypeInfoRepository::shared_ptr rtt_types =
-        RTT::types();
+    RTT::types::TypeInfoRepository::shared_ptr rtt_types =
+        RTT::types::TypeInfoRepository::Instance();
 
     VALUE result = rb_ary_new();
     vector<string> all_types = rtt_types->getTypes();
     for (vector<string>::iterator it = all_types.begin(); it != all_types.end(); ++it)
     {
-        RTT::TypeInfo* ti = rtt_types->type(*it);
+        RTT::types::TypeInfo* ti = rtt_types->type(*it);
         vector<int> transports = ti->getTransportNames();
         if (find(transports.begin(), transports.end(), ORO_CORBA_PROTOCOL_ID) != transports.end())
             rb_ary_push(result, rb_str_new2(it->c_str()));

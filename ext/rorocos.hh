@@ -1,8 +1,9 @@
 #ifndef OROCOS_EXT_RB_ROROCOS_HH
 #define OROCOS_EXT_RB_ROROCOS_HH
 
-#include "ControlTaskC.h"
+#include "TaskContextC.h"
 #include "DataFlowC.h"
+#include "ServicesC.h"
 #include "corba.hh"
 #include <boost/tuple/tuple.hpp>
 
@@ -10,31 +11,26 @@ extern VALUE eNotFound;
 
 struct RTaskContext
 {
-    RTT::Corba::ControlTask_var        task;
-    RTT::Corba::DataFlowInterface_var  ports;
-    RTT::Corba::AttributeInterface_var attributes;
-    RTT::Corba::MethodInterface_var    methods;
-    RTT::Corba::CommandInterface_var   commands;
+    RTT::corba::CTaskContext_var         task;
+    RTT::corba::CServiceProvider_var     main_service;
+    RTT::corba::CDataFlowInterface_var   ports;
 };
 
 struct RInputPort { };
 struct ROutputPort { };
 
-struct RAttribute
-{
-    RTT::Corba::Expression_var expr;
-};
-
 namespace RTT
 {
-    class TypeInfo;
+    namespace types {
+        class TypeInfo;
+    }
 }
-extern RTT::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
+extern RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
 extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
 
 struct RServices
 {
-    RTT::Corba::ServiceInterface_var services;
+    RTT::corba::CServiceInterface_var services;
 };
 
 namespace

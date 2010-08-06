@@ -41,8 +41,8 @@ module Orocos
         attr_reader :available_task_models
     end
 
-    # True if there is a toolkit named +name+ on the file system
-    def self.has_toolkit?(name)
+    # True if there is a typekit named +name+ on the file system
+    def self.has_typekit?(name)
         pkg, _ = available_projects[name]
         pkg && pkg.type_registry
     end

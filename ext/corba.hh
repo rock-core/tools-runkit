@@ -4,7 +4,7 @@
 #include <omniORB4/CORBA.h>
 
 #include <exception>
-#include "ControlTaskC.h"
+#include "TaskContextC.h"
 #include "DataFlowC.h"
 #include <iostream>
 #include <string>
@@ -22,15 +22,17 @@ extern VALUE eComError;
 namespace RTT
 {
     class TaskContext;
-    class PortInterface;
-    namespace Corba
+    namespace base {
+        class PortInterface;
+    }
+    namespace corba
     {
-        class ControlTaskServer;
+        class TaskContextServer;
     }
 }
 
 /**
- * This class locates and connects to a Corba ControlTask.
+ * This class locates and connects to a Corba TaskContext.
  * It can do that through an IOR or through the NameService.
  */
 class CorbaAccess
@@ -39,8 +41,8 @@ class CorbaAccess
     static CosNaming::NamingContext_var rootContext;
 
     RTT::TaskContext* m_task;
-    RTT::Corba::ControlTaskServer* m_task_server;
-    RTT::Corba::DataFlowInterface_var m_corba_dataflow;
+    RTT::corba::TaskContextServer* m_task_server;
+    RTT::corba::CDataFlowInterface_var m_corba_dataflow;
 
     CorbaAccess(int argc, char* argv[] );
     ~CorbaAccess();
@@ -56,7 +58,7 @@ public:
 
     std::string getLocalPortName(VALUE remote_port);
 
-    RTT::Corba::DataFlowInterface_ptr getDataFlowInterface() const;
+    RTT::corba::CDataFlowInterface_ptr getDataFlowInterface() const;
 
     /** Reference a local port as a local manipulation interface to a given
      * remote port. The method adds the port on the local data flow interface,
@@ -65,11 +67,11 @@ public:
      *
      * @returns the new port's name
      */
-    void addPort(RTT::PortInterface* local_port);
+    void addPort(RTT::base::PortInterface* local_port);
 
     /** De-references a port that had been added by addPort
      */
-    void removePort(RTT::PortInterface* local_port);
+    void removePort(RTT::base::PortInterface* local_port);
 
     /** Returns the list of tasks that are registered on the name service. Some
      * of them can be invalid references, as for instance a process crashed and
@@ -77,10 +79,10 @@ public:
      */
     std::list<std::string> knownTasks();
 
-    /** Returns a ControlTask reference to a remote control task. The reference
+    /** Returns a TaskContext reference to a remote control task. The reference
      * is assured to be valid.
      */
-    RTT::Corba::ControlTask_ptr findByName(std::string const& name);
+    RTT::corba::CTaskContext_ptr findByName(std::string const& name);
 
     /** Unbinds a particular control task on the name server
      */

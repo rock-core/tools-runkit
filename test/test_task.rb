@@ -29,11 +29,11 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should load its own toolkit" do
+    it "should load its own typekit" do
         Orocos::Process.spawn('simple_source') do |source, sink|
-            assert(!Orocos::CORBA.loaded_toolkit?("simple_source"))
+            assert(!Orocos::CORBA.loaded_typekit?("simple_source"))
             source = source.task("simple_source_source")
-            assert(Orocos::CORBA.loaded_toolkit?("simple_source"))
+            assert(Orocos::CORBA.loaded_typekit?("simple_source"))
         end
     end
 

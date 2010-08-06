@@ -77,20 +77,20 @@ module Orocos
                 @connect_timeout = value
             end
 
-            # The set of toolkits that are loaded in this Ruby instance, as an
-            # array toolkit names.
+            # The set of typekits that are loaded in this Ruby instance, as an
+            # array typekit names.
             #
-            # See also load_toolkit and loaded_toolkit?
-            attr_reader :loaded_toolkits
+            # See also load_typekit and loaded_typekit?
+            attr_reader :loaded_typekits
 
-            # True if the toolkit whose name is given in argument is loaded
+            # True if the typekit whose name is given in argument is loaded
             #
-            # See also load_toolkit and loaded_toolkits
-            def loaded_toolkit?(name)
-                loaded_toolkits.include?(name)
+            # See also load_typekit and loaded_typekits
+            def loaded_typekit?(name)
+                loaded_typekits.include?(name)
             end
         end
-        @loaded_toolkits = []
+        @loaded_typekits = []
 
         # Initialize the CORBA layer
         # 
@@ -110,31 +110,28 @@ module Orocos
             end
 
             if !libpath
-                raise NotFound, "cannot find toolkit shared library for #{name} (searched for #{libname} in #{pkg.libdirs.join(", ")})"
+                raise NotFound, "cannot find typekit shared library for #{name} (searched for #{libname} in #{pkg.libdirs.split(" ").join(", ")})"
             end
 
-            lib = Typelib::Library.open(libpath, nil, false)
-            factory = lib.find('loadRTTPlugin').
-                with_arguments('void*')
-            factory[nil]
+            Orocos.load_rtt_plugin(libpath)
             true
         end
 
-        # Load the toolkit whose name is given
+        # Load the typekit whose name is given
         #
-        # Toolkits are shared libraries that include marshalling/demarshalling
+        # Typekits are shared libraries that include marshalling/demarshalling
         # code. It gets automatically loaded in orocos.rb whenever you start
         # processes.
-        def self.load_toolkit(name)
-            return if loaded_toolkit?(name)
+        def self.load_typekit(name)
+            return if loaded_typekit?(name)
 
-            toolkit_pkg =
+            typekit_pkg =
                 begin
-                    Utilrb::PkgConfig.new("#{name}-toolkit-#{Orocos.orocos_target}")
+                    Utilrb::PkgConfig.new("#{name}-typekit-#{Orocos.orocos_target}")
                 rescue Utilrb::PkgConfig::NotFound
-                    raise NotFound, "the '#{name}' toolkit is not available to pkgconfig"
+                    raise NotFound, "the '#{name}' typekit is not available to pkgconfig"
                 end
-            load_plugin_library(toolkit_pkg, name, "lib#{name}-toolkit-#{Orocos.orocos_target}.so")
+            load_plugin_library(typekit_pkg, name, "lib#{name}-typekit-#{Orocos.orocos_target}.so")
 
             if Orocos::Generation::VERSION >= "0.8"
                 corba_transport_pkg =
@@ -146,12 +143,12 @@ module Orocos
                 load_plugin_library(corba_transport_pkg, name, "lib#{name}-transport-corba-#{Orocos.orocos_target}.so")
             end
 
-            @loaded_toolkits << name
+            @loaded_typekits << name
 
-            # Now, if this is an orogen toolkit, then load the corresponding
+            # Now, if this is an orogen typekit, then load the corresponding
             # data types. orogen defines a type_registry field in the pkg-config
             # file for that purpose.
-            tlb = toolkit_pkg.type_registry
+            tlb = typekit_pkg.type_registry
             if tlb
                 Orocos.registry.import(tlb)
             end

@@ -80,7 +80,7 @@ module Orocos
             super
             Orocos::CORBA.connect_timeout = @old_timeout if @old_timeout
             Orocos.instance_variable_set :@registry, nil
-            Orocos::CORBA.instance_variable_set :@loaded_toolkits, []
+            Orocos::CORBA.instance_variable_set :@loaded_typekits, []
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
         end
     end

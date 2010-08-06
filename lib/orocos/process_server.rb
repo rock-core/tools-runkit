@@ -186,18 +186,18 @@ module Orocos
             if cmd_code == COMMAND_GET_INFO
                 Orocos.debug "#{socket} requested system information"
                 available_projects = Hash.new
-                available_toolkits = Hash.new
+                available_typekits = Hash.new
                 Orocos.available_projects.each do |name, (pkg, deffile)|
                     available_projects[name] = File.read(deffile)
                     if pkg && !pkg.type_registry.empty?
-                        available_toolkits[name] = File.read(pkg.type_registry)
+                        available_typekits[name] = File.read(pkg.type_registry)
                     end
                 end
                 available_deployments = Hash.new
                 Orocos.available_deployments.each do |name, pkg|
                     available_deployments[name] = pkg.project_name
                 end
-                Marshal.dump([available_projects, available_deployments, available_toolkits], socket)
+                Marshal.dump([available_projects, available_deployments, available_typekits], socket)
             elsif cmd_code == COMMAND_MOVE_LOG
                 Orocos.debug "#{socket} requested moving a log directory"
                 begin
@@ -302,8 +302,8 @@ module Orocos
         # process server.
         attr_reader :available_deployments
         # Mapping from deployment names to the corresponding XML type registry
-        # for the toolkits available on the process server
-        attr_reader :available_toolkits
+        # for the typekits available on the process server
+        attr_reader :available_typekits
         # Mapping from a deployment name to the corresponding RemoteProcess
         # instance, for processes that have been started by this client.
         attr_reader :processes
@@ -341,7 +341,7 @@ module Orocos
             info = Marshal.load(socket)
             @available_projects    = info[0]
             @available_deployments = info[1]
-            @available_toolkits    = info[2]
+            @available_typekits    = info[2]
             @master_project = RemoteMasterProject.new(self)
             @processes = Hash.new
             @death_queue = Array.new
@@ -356,21 +356,21 @@ module Orocos
             end
 
             orogen = master_project.load_orogen_project(name)
-            if orogen.has_toolkit?
-                # Check that the toolkit on the local machine exists and is
+            if orogen.has_typekit?
+                # Check that the typekit on the local machine exists and is
                 # compatible
                 local_project, _ = Orocos.available_projects[name]
-                local_toolkit =
+                local_typekit =
                     if (registry_path = local_project.type_registry) && !registry_path.empty?
                         Typelib::Registry.import(registry_path, 'tlb')
                     end
 
-                if local_toolkit
-                    registry = available_toolkits[name]
+                if local_typekit
+                    registry = available_typekits[name]
                     begin
-                        Typelib::Registry.from_xml(registry).merge(local_toolkit)
+                        Typelib::Registry.from_xml(registry).merge(local_typekit)
                     rescue Exception => e
-                        raise e.class, "failed to load the toolkit of #{name} from #{host}:#{port}: #{e.message}"
+                        raise e.class, "failed to load the typekit of #{name} from #{host}:#{port}: #{e.message}"
                     end
                 end
             end

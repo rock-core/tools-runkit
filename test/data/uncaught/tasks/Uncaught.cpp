@@ -1,13 +1,6 @@
 #include "Uncaught.hpp"
 
-#include <rtt/NonPeriodicActivity.hpp>
-
-
 using namespace uncaught;
-
-
-RTT::NonPeriodicActivity* Uncaught::getNonPeriodicActivity()
-{ return dynamic_cast< RTT::NonPeriodicActivity* >(getActivity().get()); }
 
 
 Uncaught::Uncaught(std::string const& name, TaskCore::TaskState initial_state)

@@ -1,7 +1,7 @@
 name 'process'
 version '1.0'
 
-toolkit do
+typekit do
     load "simple_types.h"
 end
 

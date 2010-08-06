@@ -4,17 +4,20 @@
 #include <memory>
 #include <boost/tuple/tuple.hpp>
 
-#include <rtt/Types.hpp>
-#include <rtt/Toolkit.hpp>
-#include <rtt/RealTimeToolkit.hpp>
-#include <rtt/PortInterface.hpp>
+#include <rtt/types/Types.hpp>
+#include <rtt/types/TypekitPlugin.hpp>
+#include <rtt/types/TypekitRepository.hpp>
+#include <rtt/typekit/RealTimeTypekit.hpp>
+#include <rtt/base/PortInterface.hpp>
+#include <rtt/transports/corba/TransportPlugin.hpp>
+#include <rtt/plugin/PluginLoader.hpp>
 
 #include <typelib_ruby.hh>
 #include <TypelibMarshaller.hpp>
 
 using namespace std;
 using namespace boost;
-using namespace RTT::Corba;
+using namespace RTT::corba;
 
 static VALUE mOrocos;
 static VALUE cTaskContext;
@@ -24,21 +27,20 @@ static VALUE cPortAccess;
 static VALUE cInputWriter;
 static VALUE cOutputReader;
 static VALUE cPort;
-static VALUE cAttribute;
 static VALUE cServices;
 VALUE eNotFound;
 static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
 
 extern void Orocos_init_CORBA();
-extern void Orocos_init_data_handling();
+extern void Orocos_init_data_handling(VALUE cTaskContext);
 extern void Orocos_init_methods();
-static RTT::Corba::ConnPolicy policyFromHash(VALUE options);
+static RTT::corba::CConnPolicy policyFromHash(VALUE options);
 
-extern RTT::TypeInfo* get_type_info(std::string const& name, bool do_check)
+extern RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check)
 {
-    RTT::TypeInfoRepository::shared_ptr type_registry = RTT::types();
-    RTT::TypeInfo* ti = type_registry->type(name);
+    RTT::types::TypeInfoRepository::shared_ptr type_registry = RTT::types::TypeInfoRepository::Instance();
+    RTT::types::TypeInfo* ti = type_registry->type(name);
     if (do_check && ! ti)
         rb_raise(rb_eArgError, "type '%s' is not registered in the RTT type system", name.c_str());
     return ti;
@@ -82,10 +84,8 @@ static VALUE task_context_get(VALUE klass, VALUE name)
     try {
         std::auto_ptr<RTaskContext> new_context( new RTaskContext );
         new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
+        new_context->main_service = new_context->task->getProvider("");
         new_context->ports      = new_context->task->ports();
-        new_context->attributes = new_context->task->attributes();
-        new_context->methods    = new_context->task->methods();
-        new_context->commands   = new_context->task->commands();
 
         VALUE obj = simple_wrap(cTaskContext, new_context.release());
         return obj;
@@ -95,15 +95,15 @@ static VALUE task_context_get(VALUE klass, VALUE name)
 
 static VALUE task_context_get_services(VALUE self)
 {
-    RTaskContext& context = get_wrapped<RTaskContext>(self);
-    try {
-        RTT::Corba::ServiceInterface_var services = context.task->services();
-        RServices* obj = new RServices;
-        obj->services = services;
-        return simple_wrap(cServices, obj);
-    }
-    catch(RTT::Corba::NoSuchPortException) { return Qfalse; }
-    CORBA_EXCEPTION_HANDLERS
+//    RTaskContext& context = get_wrapped<RTaskContext>(self);
+//    try {
+//        RTT::corba::CServiceInterface_var services = context.task->services();
+//        RServices* obj = new RServices;
+//        obj->services = services;
+//        return simple_wrap(cServices, obj);
+//    }
+//    catch(RTT::corba::CNoSuchPortException) { return Qfalse; }
+//    CORBA_EXCEPTION_HANDLERS
     return Qnil;
 }
 
@@ -129,62 +129,83 @@ static VALUE task_context_has_port_p(VALUE self, VALUE name)
     try {
         context.ports->getPortType(StringValuePtr(name));
     }
-    catch(RTT::Corba::NoSuchPortException) { return Qfalse; }
+    catch(RTT::corba::CNoSuchPortException) { return Qfalse; }
     CORBA_EXCEPTION_HANDLERS
     return Qtrue;
 }
 
-static VALUE task_context_has_command_p(VALUE self, VALUE name)
+static VALUE task_context_has_operation_p(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     try {
-        context.commands->getResultType(StringValuePtr(name));
+        context.main_service->getResultType(StringValuePtr(name));
     }
-    catch(RTT::Corba::NoSuchNameException) { return Qfalse; }
+    catch(RTT::corba::CNoSuchNameException) { return Qfalse; }
     CORBA_EXCEPTION_HANDLERS
     return Qtrue;
 }
 
-static VALUE task_context_has_method_p(VALUE self, VALUE name)
-{
-    RTaskContext& context = get_wrapped<RTaskContext>(self);
-    try {
-        context.methods->getResultType(StringValuePtr(name));
-    }
-    catch(RTT::Corba::NoSuchNameException) { return Qfalse; }
-    CORBA_EXCEPTION_HANDLERS
-    return Qtrue;
-}
-
-static VALUE task_context_has_property_p(VALUE self, VALUE name)
+static VALUE task_context_property_type_name(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     std::string const expected_name = StringValuePtr(name);
     try {
         {
-            RTT::Corba::AttributeInterface::AttributeNames_var names =
-                context.attributes->getAttributeList();
-            for (int i = 0; i != names->length(); ++i)
-            {
-                CORBA::String_var name = names[i];
-                if (expected_name == std::string(name))
-                    return Qtrue;
-            }
+            CORBA::String_var attribute_type_name =
+                context.main_service->getAttributeTypeName(StringValuePtr(name));
+            std::string type_name = std::string(attribute_type_name);
+            if (type_name != "na")
+                return rb_str_new(type_name.c_str(), type_name.length());
         }
 
         {
-            RTT::Corba::AttributeInterface::PropertyNames_var names =
-                context.attributes->getPropertyList();
-            for (int i = 0; i != names->length(); ++i)
-            {
-                CORBA::String_var name = names[i].name;
-                if (expected_name == std::string(name))
-                    return Qtrue;
-            }
+            CORBA::String_var attribute_type_name =
+                context.main_service->getPropertyTypeName(StringValuePtr(name));
+            std::string type_name = std::string(attribute_type_name);
+            if (type_name != "na")
+                return rb_str_new(type_name.c_str(), type_name.length());
         }
+
+        rb_raise(rb_eArgError, "no such property %s", StringValuePtr(name));
     }
     CORBA_EXCEPTION_HANDLERS
     return Qfalse;
+}
+
+static VALUE task_context_property_names(VALUE self)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+
+    VALUE result = rb_ary_new();
+    try {
+        RTT::corba::CAttributeRepository::CPropertyNames_var names =
+            context.main_service->getPropertyList();
+        for (int i = 0; i != names->length(); ++i)
+        {
+            CORBA::String_var name = names[i].name;
+            rb_ary_push(result, rb_str_new2(name));
+        }
+    }
+    CORBA_EXCEPTION_HANDLERS
+    return result;
+}
+
+static VALUE task_context_attribute_names(VALUE self)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+
+    VALUE result = rb_ary_new();
+    try {
+        RTT::corba::CAttributeRepository::CAttributeNames_var names =
+            context.main_service->getAttributeList();
+        for (int i = 0; i != names->length(); ++i)
+        {
+            CORBA::String_var name = names[i];
+            rb_ary_push(result, rb_str_new2(name));
+        }
+    }
+    CORBA_EXCEPTION_HANDLERS
+    return result;
 }
 
 // call-seq:
@@ -197,13 +218,13 @@ static VALUE task_context_has_property_p(VALUE self, VALUE name)
 static VALUE task_context_do_port(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
-    RTT::Corba::PortType port_type;
+    RTT::corba::CPortType port_type;
     CORBA::String_var    type_name;
     try {
         port_type = context.ports->getPortType(StringValuePtr(name));
         type_name = context.ports->getDataType(StringValuePtr(name));
     }
-    catch(RTT::Corba::NoSuchPortException)
+    catch(RTT::corba::CNoSuchPortException)
     { 
         VALUE task_name = rb_iv_get(self, "@name");
         rb_raise(eNotFound, "task %s does not have a '%s' port",
@@ -213,12 +234,12 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
     CORBA_EXCEPTION_HANDLERS
 
     VALUE obj = Qnil;
-    if (port_type == RTT::Corba::Input)
+    if (port_type == RTT::corba::CInput)
     {
         auto_ptr<RInputPort> rport( new RInputPort );
         obj = simple_wrap(cInputPort, rport.release());
     }
-    else if (port_type == RTT::Corba::Output)
+    else if (port_type == RTT::corba::COutput)
     {
         auto_ptr<ROutputPort> rport( new ROutputPort );
         obj = simple_wrap(cOutputPort, rport.release());
@@ -228,7 +249,7 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
     rb_iv_set(obj, "@task", self);
     rb_iv_set(obj, "@orocos_type_name", rb_str_new2(type_name));
 
-    RTT::TypeInfo* ti = get_type_info(static_cast<char const*>(type_name), false);
+    RTT::types::TypeInfo* ti = get_type_info(static_cast<char const*>(type_name), false);
     if (!ti)
         rb_raise(rb_eArgError, "the type of %s (%s) is not registered in the RTT type system, has the typekit been generated by orogen ?",
                 static_cast<char const*>(StringValuePtr(name)),
@@ -249,7 +270,7 @@ static VALUE task_context_each_port(VALUE self)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     try {
-        RTT::Corba::DataFlowInterface::PortNames_var ports = context.ports->getPorts();
+        RTT::corba::CDataFlowInterface::CPortNames_var ports = context.ports->getPorts();
 
         for (unsigned int i = 0; i < ports->length(); ++i)
             rb_yield(task_context_do_port(self, rb_str_new2(ports[i])));
@@ -259,7 +280,7 @@ static VALUE task_context_each_port(VALUE self)
     return self;
 }
 
-static void delete_port(RTT::PortInterface* port)
+static void delete_port(RTT::base::PortInterface* port)
 {
     port->disconnect();
     CorbaAccess::instance()->removePort(port);
@@ -273,18 +294,19 @@ static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
     // Get the port and create an anti-clone of it
     RTaskContext* task; VALUE port_name;
     tie(task, tuples::ignore, port_name) = getPortReference(port);
-    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
 
     std::string local_name = corba->getLocalPortName(port);
-    RTT::PortInterface* local_port = ti->outputPort(local_name);
+    RTT::base::PortInterface* local_port = ti->outputPort(local_name);
 
     // Register this port on our data flow interface, and call CORBA to connect
     // both ports
     corba->addPort(local_port);
     try {
+        RTT::corba::CConnPolicy corba_policy = policyFromHash(policy);
 	bool result = corba->getDataFlowInterface()->createConnection(local_name.c_str(),
 		task->ports, StringValuePtr(port_name),
-		policyFromHash(policy));
+		corba_policy);
         if (!local_port->connected() || !result)
         {
             corba->removePort(local_port);
@@ -306,18 +328,19 @@ static VALUE do_output_port_reader(VALUE port, VALUE klass, VALUE type_name, VAL
     // Get the port and create an anti-clone of it
     RTaskContext* task; VALUE port_name;
     tie(task, tuples::ignore, port_name) = getPortReference(port);
-    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
 
     std::string local_name = corba->getLocalPortName(port);
-    RTT::PortInterface* local_port = ti->inputPort(local_name);
+    RTT::base::PortInterface* local_port = ti->inputPort(local_name);
 
     // Register this port on our data flow interface, and call CORBA to connect
     // both ports
     corba->addPort(local_port);
     try {
+        RTT::corba::CConnPolicy corba_policy = policyFromHash(policy);
         bool result = task->ports->createConnection(StringValuePtr(port_name),
                 corba->getDataFlowInterface(), local_name.c_str(),
-                policyFromHash(policy));
+                corba_policy);
         if (!result)
         {
             corba->removePort(local_port);
@@ -330,66 +353,6 @@ static VALUE do_output_port_reader(VALUE port, VALUE klass, VALUE type_name, VAL
     VALUE robj = Data_Wrap_Struct(klass, 0, delete_port, local_port);
     rb_iv_set(robj, "@port", port);
     return robj;
-}
-
-// call-seq:
-//  task.attribute(name) => attribute
-//
-// Returns the Attribute object which represents the remote task's
-// Attribute or Property of the given name. There is no difference on the CORBA
-// side (and honestly I don't know the difference on the C++ side either).
-///
-static VALUE task_context_attribute(VALUE self, VALUE name)
-{
-    RTaskContext& context = get_wrapped<RTaskContext>(self);
-    std::auto_ptr<RAttribute> rattr(new RAttribute);
-    try {
-        rattr->expr = context.attributes->getProperty( StringValuePtr(name) );
-
-        if (CORBA::is_nil(rattr->expr))
-            rattr->expr = context.attributes->getAttribute( StringValuePtr(name) );
-        if (CORBA::is_nil(rattr->expr))
-            rb_raise(eNotFound, "no attribute or property named '%s'", StringValuePtr(name));
-    }
-    CORBA_EXCEPTION_HANDLERS
-
-    VALUE type_name = rb_str_new2(rattr->expr->getTypeName());
-    VALUE obj = simple_wrap(cAttribute, rattr.release());
-    rb_iv_set(obj, "@name", rb_str_dup(name));
-    rb_iv_set(obj, "@task", self);
-    rb_iv_set(obj, "@type_name", type_name);
-    rb_funcall(obj, rb_intern("initialize"), 0);
-    return obj;
-}
-
-// call-seq:
-//  task.each_attribute { |a| ... } => task
-//
-// Enumerates the attributes and properties that are available on
-// this task, as instances of Orocos::Attribute
-///
-static VALUE task_context_each_attribute(VALUE self)
-{
-    RTaskContext& context = get_wrapped<RTaskContext>(self);
-
-    try
-    {
-        {
-            RTT::Corba::AttributeInterface::AttributeNames_var
-                attributes = context.attributes->getAttributeList();
-            for (unsigned int i = 0; i < attributes->length(); ++i)
-                rb_yield(task_context_attribute(self, rb_str_new2(attributes[i])));
-        }
-
-        {
-            RTT::Corba::AttributeInterface::PropertyNames_var
-                properties = context.attributes->getPropertyList();
-            for (unsigned int i = 0; i < properties->length(); ++i)
-                rb_yield(task_context_attribute(self, rb_str_new2(properties[i].name)));
-        }
-    }
-    CORBA_EXCEPTION_HANDLERS
-    return Qnil;
 }
 
 // call-seq:
@@ -415,12 +378,12 @@ static VALUE task_context_state(VALUE task)
     CORBA_EXCEPTION_HANDLERS
 }
 
-static VALUE call_checked_state_change(VALUE task, char const* msg, bool (RTT::Corba::_objref_ControlTask::*m)())
+static VALUE call_checked_state_change(VALUE task, char const* msg, bool (RTT::corba::_objref_CTaskContext::*m)())
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
     try
     {
-        RTT::Corba::_objref_ControlTask& obj = *context.task;
+        RTT::corba::_objref_CTaskContext& obj = *context.task;
         if (!((obj.*m)()))
             rb_raise(eStateTransitionFailed, msg);
         return Qnil;
@@ -431,30 +394,30 @@ static VALUE call_checked_state_change(VALUE task, char const* msg, bool (RTT::C
 // Do the transition between STATE_PRE_OPERATIONAL and STATE_STOPPED
 static VALUE task_context_configure(VALUE task)
 {
-    return call_checked_state_change(task, "failed to configure", &RTT::Corba::_objref_ControlTask::configure);
+    return call_checked_state_change(task, "failed to configure", &RTT::corba::_objref_CTaskContext::configure);
 }
 
 // Do the transition between STATE_STOPPED and STATE_RUNNING
 static VALUE task_context_start(VALUE task)
 {
-    return call_checked_state_change(task, "failed to start", &RTT::Corba::_objref_ControlTask::start);
+    return call_checked_state_change(task, "failed to start", &RTT::corba::_objref_CTaskContext::start);
 }
 
 // Do the transition between STATE_RUNNING and STATE_STOPPED
 static VALUE task_context_stop(VALUE task)
 {
-    return call_checked_state_change(task, "failed to stop", &RTT::Corba::_objref_ControlTask::stop);
+    return call_checked_state_change(task, "failed to stop", &RTT::corba::_objref_CTaskContext::stop);
 }
 
 // Do the transition between STATE_STOPPED and STATE_PRE_OPERATIONAL
 static VALUE task_context_cleanup(VALUE task)
 {
-    return call_checked_state_change(task, "failed to cleanup", &RTT::Corba::_objref_ControlTask::cleanup);
+    return call_checked_state_change(task, "failed to cleanup", &RTT::corba::_objref_CTaskContext::cleanup);
 }
 
-static VALUE task_context_reset_error(VALUE task)
+static VALUE task_context_recover_exception(VALUE task)
 {
-    return call_checked_state_change(task, "failed to reset the error state", &RTT::Corba::_objref_ControlTask::resetError);
+    return call_checked_state_change(task, "failed to recover from the Exception state", &RTT::corba::_objref_CTaskContext::recoverException);
 }
 
 /* call-seq:
@@ -469,19 +432,19 @@ static VALUE port_connected_p(VALUE self)
 
     try
     { return task->ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse; }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // is refined on the Ruby side
+    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // is refined on the Ruby side
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
 
-static RTT::Corba::ConnPolicy policyFromHash(VALUE options)
+static RTT::corba::CConnPolicy policyFromHash(VALUE options)
 {
-    RTT::Corba::ConnPolicy result;
+    RTT::corba::CConnPolicy result;
     VALUE conn_type = SYM2ID(rb_hash_aref(options, ID2SYM(rb_intern("type"))));
     if (conn_type == rb_intern("data"))
-        result.type = RTT::Corba::Data;
+        result.type = RTT::corba::CData;
     else if (conn_type == rb_intern("buffer"))
-        result.type = RTT::Corba::Buffer;
+        result.type = RTT::corba::CBuffer;
     else
     {
         VALUE obj_as_str = rb_funcall(conn_type, rb_intern("inspect"), 0);
@@ -502,9 +465,9 @@ static RTT::Corba::ConnPolicy policyFromHash(VALUE options)
 
     VALUE lock_type = SYM2ID(rb_hash_aref(options, ID2SYM(rb_intern("lock"))));
     if (lock_type == rb_intern("locked"))
-        result.lock_policy = RTT::Corba::Locked;
+        result.lock_policy = RTT::corba::CLocked;
     else if (lock_type == rb_intern("lock_free"))
-        result.lock_policy = RTT::Corba::LockFree;
+        result.lock_policy = RTT::corba::CLockFree;
     else
     {
         VALUE obj_as_str = rb_funcall(lock_type, rb_intern("to_s"), 0);
@@ -523,7 +486,7 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
     RTaskContext* in_task; VALUE in_name;
     tie(in_task, tuples::ignore, in_name) = getPortReference(rinput_port);
 
-    RTT::Corba::ConnPolicy policy = policyFromHash(options);
+    RTT::corba::CConnPolicy policy = policyFromHash(options);
 
     try
     {
@@ -533,7 +496,7 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
             rb_raise(eConnectionFailed, "failed to connect ports");
         return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
+    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
@@ -545,10 +508,10 @@ static VALUE do_port_disconnect_all(VALUE port)
 
     try
     {
-        task->ports->disconnect(StringValuePtr(name));
+        task->ports->disconnectPort(StringValuePtr(name));
         return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
+    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
@@ -562,21 +525,21 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
 
     try
     {
-        bool ret = self_task->ports->disconnectPort(StringValuePtr(self_name), other_task->ports, StringValuePtr(other_name));
-        return ret ? Qtrue : Qfalse;
+        self_task->ports->removeConnection(StringValuePtr(self_name), other_task->ports, StringValuePtr(other_name));
+        return Qnil;
     }
-    catch(RTT::Corba::NoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
+    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
 
 static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_typelib_value)
 {
-    RTT::InputPortInterface& local_port = get_wrapped<RTT::InputPortInterface>(port_access);
+    RTT::base::InputPortInterface& local_port = get_wrapped<RTT::base::InputPortInterface>(port_access);
     Typelib::Value value = typelib_get(rb_typelib_value);
 
     orogen_transports::TypelibMarshallerBase* transport = 0;
-    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
     if (ti)
     {
         transport =
@@ -585,7 +548,7 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
 
     if (!transport)
     {
-        RTT::DataSourceBase::shared_ptr ds =
+        RTT::base::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
         return local_port.read(ds) ? Qtrue : Qfalse;
     }
@@ -603,18 +566,18 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
 }
 static VALUE output_reader_clear(VALUE port_access)
 {
-    RTT::InputPortInterface& local_port = get_wrapped<RTT::InputPortInterface>(port_access);
+    RTT::base::InputPortInterface& local_port = get_wrapped<RTT::base::InputPortInterface>(port_access);
     local_port.clear();
     return Qnil;
 }
 
 static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_typelib_value)
 {
-    RTT::OutputPortInterface& local_port = get_wrapped<RTT::OutputPortInterface>(port_access);
+    RTT::base::OutputPortInterface& local_port = get_wrapped<RTT::base::OutputPortInterface>(port_access);
     Typelib::Value value = typelib_get(rb_typelib_value);
 
     orogen_transports::TypelibMarshallerBase* transport = 0;
-    RTT::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
     if (ti)
     {
         transport =
@@ -623,7 +586,7 @@ static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_
 
     if (!transport)
     {
-        RTT::DataSourceBase::shared_ptr ds =
+        RTT::base::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
 
         local_port.write(ds);
@@ -642,14 +605,14 @@ static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_
 
 static VALUE do_local_port_disconnect(VALUE port_access)
 {
-    RTT::PortInterface& local_port = get_wrapped<RTT::PortInterface>(port_access);
+    RTT::base::PortInterface& local_port = get_wrapped<RTT::base::PortInterface>(port_access);
     local_port.disconnect();
     return Qnil;
 }
 
 static VALUE do_local_port_connected(VALUE port_access)
 {
-    RTT::PortInterface& local_port = get_wrapped<RTT::PortInterface>(port_access);
+    RTT::base::PortInterface& local_port = get_wrapped<RTT::base::PortInterface>(port_access);
     return local_port.connected() ? Qtrue : Qfalse;
 }
 
@@ -684,9 +647,20 @@ VALUE services_shutdown(VALUE self)
 static VALUE orocos_do_initialize(VALUE mod)
 {
     // load the default toolkit and the CORBA transport
-    RTT::Toolkit::Import(RTT::RealTimeToolkit);
-    loadCorbaLib();
+    RTT::types::TypekitRepository::Import(new RTT::types::RealTimeTypekitPlugin);
+    RTT::types::TypekitRepository::Import(new RTT::corba::CorbaLibPlugin);
+    //TODO loadCorbaLib();
     return Qnil;
+}
+
+static VALUE orocos_load_rtt_typekit(VALUE orocos, VALUE path)
+{
+    RTT::plugin::PluginLoader::Instance()->loadTypekit(StringValuePtr(path), "typekit");
+}
+
+static VALUE orocos_load_rtt_plugin(VALUE orocos, VALUE path)
+{
+    RTT::plugin::PluginLoader::Instance()->loadPlugin(StringValuePtr(path), "plugin");
 }
 
 extern "C" void Init_rorocos_ext()
@@ -694,18 +668,19 @@ extern "C" void Init_rorocos_ext()
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");
     rb_define_singleton_method(mOrocos, "do_initialize", RUBY_METHOD_FUNC(orocos_do_initialize), 0);
+    rb_define_singleton_method(mOrocos, "load_rtt_plugin",  RUBY_METHOD_FUNC(orocos_load_rtt_plugin), 1);
+    rb_define_singleton_method(mOrocos, "load_rtt_typekit", RUBY_METHOD_FUNC(orocos_load_rtt_typekit), 1);
 
     cServices    = rb_define_class_under(mOrocos, "Services", rb_cObject);
     rb_define_method(cServices, "shutdown", RUBY_METHOD_FUNC(services_shutdown), 0);
 
     cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
-    rb_const_set(cTaskContext, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::Corba::PreOperational));
-    rb_const_set(cTaskContext, rb_intern("STATE_FATAL_ERROR"),          INT2FIX(RTT::Corba::FatalError));
-    rb_const_set(cTaskContext, rb_intern("STATE_STOPPED"),              INT2FIX(RTT::Corba::Stopped));
-    rb_const_set(cTaskContext, rb_intern("STATE_ACTIVE"),               INT2FIX(RTT::Corba::Active));
-    rb_const_set(cTaskContext, rb_intern("STATE_RUNNING"),              INT2FIX(RTT::Corba::Running));
-    rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_WARNING"),      INT2FIX(RTT::Corba::RunTimeWarning));
-    rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::Corba::RunTimeError));
+    rb_const_set(cTaskContext, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::corba::PreOperational));
+    rb_const_set(cTaskContext, rb_intern("STATE_FATAL_ERROR"),          INT2FIX(RTT::corba::FatalError));
+    rb_const_set(cTaskContext, rb_intern("STATE_EXCEPTION"),            INT2FIX(RTT::corba::ExceptionState));
+    rb_const_set(cTaskContext, rb_intern("STATE_STOPPED"),              INT2FIX(RTT::corba::Stopped));
+    rb_const_set(cTaskContext, rb_intern("STATE_RUNNING"),              INT2FIX(RTT::corba::Running));
+    rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::corba::RunTimeError));
     
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
     cOutputPort   = rb_define_class_under(mOrocos, "OutputPort", cPort);
@@ -713,7 +688,6 @@ extern "C" void Init_rorocos_ext()
     cPortAccess   = rb_define_class_under(mOrocos, "PortAccess", rb_cObject);
     cOutputReader = rb_define_class_under(mOrocos, "OutputReader", cPortAccess);
     cInputWriter  = rb_define_class_under(mOrocos, "InputWriter", cPortAccess);
-    cAttribute    = rb_define_class_under(mOrocos, "Attribute", rb_cObject);
     eNotFound     = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
     eStateTransitionFailed = rb_define_class_under(mOrocos, "StateTransitionFailed", rb_eRuntimeError);
     eConnectionFailed = rb_define_class_under(mOrocos, "ConnectionFailed", rb_eRuntimeError);
@@ -724,17 +698,16 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);
     rb_define_method(cTaskContext, "do_start", RUBY_METHOD_FUNC(task_context_start), 0);
-    rb_define_method(cTaskContext, "do_reset_error", RUBY_METHOD_FUNC(task_context_reset_error), 0);
+    rb_define_method(cTaskContext, "do_recover_exception", RUBY_METHOD_FUNC(task_context_recover_exception), 0);
     rb_define_method(cTaskContext, "do_stop", RUBY_METHOD_FUNC(task_context_stop), 0);
     rb_define_method(cTaskContext, "do_cleanup", RUBY_METHOD_FUNC(task_context_cleanup), 0);
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
-    rb_define_method(cTaskContext, "do_has_method?", RUBY_METHOD_FUNC(task_context_has_method_p), 1);
-    rb_define_method(cTaskContext, "do_has_command?", RUBY_METHOD_FUNC(task_context_has_command_p), 1);
-    rb_define_method(cTaskContext, "do_has_property?", RUBY_METHOD_FUNC(task_context_has_property_p), 1);
+    rb_define_method(cTaskContext, "do_has_operation?", RUBY_METHOD_FUNC(task_context_has_operation_p), 1);
+    rb_define_method(cTaskContext, "do_property_type_name", RUBY_METHOD_FUNC(task_context_property_type_name), 1);
+    rb_define_method(cTaskContext, "do_attribute_names", RUBY_METHOD_FUNC(task_context_attribute_names), 0);
+    rb_define_method(cTaskContext, "do_property_names", RUBY_METHOD_FUNC(task_context_property_names), 0);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "do_each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
-    rb_define_method(cTaskContext, "do_attribute", RUBY_METHOD_FUNC(task_context_attribute), 1);
-    rb_define_method(cTaskContext, "do_each_attribute", RUBY_METHOD_FUNC(task_context_each_attribute), 0);
     rb_define_method(cTaskContext, "do_services", RUBY_METHOD_FUNC(task_context_get_services), 0);
 
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
@@ -751,7 +724,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cInputWriter, "do_write", RUBY_METHOD_FUNC(do_input_writer_write), 2);
 
     Orocos_init_CORBA();
-    Orocos_init_data_handling();
+    Orocos_init_data_handling(cTaskContext);
     Orocos_init_methods();
 }
 

@@ -2,7 +2,7 @@ require 'utilrb/object/attribute'
 
 module Orocos
     # This class represents both RTT attributes and properties
-    class Attribute
+    class AttributeBase
 	class << self
 	    # The only way to create an Attribute object is
 	    # TaskContext#attribute
@@ -16,12 +16,13 @@ module Orocos
         # The attribute type, as a subclass of Typelib::Type
         attr_reader :type
 
-        def initialize
-            if @type_name == "string"
-                @type_name = "/std/string"
+        def initialize(task, name, type_name)
+            @task, @name = task, name
+            if type_name == "string"
+                type_name = "/std/string"
             end
-            if !(@type = Orocos.registry.get(@type_name))
-                raise "can not find #{@type_name} in the registry"
+            if !(@type = Orocos.registry.get(type_name))
+                raise "can not find #{type_name} in the registry"
             end
         end
 
@@ -48,6 +49,36 @@ module Orocos
 
         def pretty_print(pp) # :nodoc:
             pp.text "attribute #{name} (#{type.name})"
+        end
+    end
+
+    class Property < AttributeBase
+        def do_write_string(type_name, value)
+            task.do_property_write(name, type_name, value)
+        end
+        def do_write(type_name, value)
+            task.do_property_write(name, type_name, value)
+        end
+        def do_read_string(type_name, value)
+            task.do_property_read(name, type_name, value)
+        end
+        def do_read(type_name, value)
+            task.do_property_read(name, type_name, value)
+        end
+    end
+
+    class Attribute < AttributeBase
+        def do_write_string(type_name, value)
+            task.do_attribute_write(name, type_name, value)
+        end
+        def do_write(type_name, value)
+            task.do_attribute_write(name, type_name, value)
+        end
+        def do_read_string(type_name, value)
+            task.do_attribute_read(name, type_name, value)
+        end
+        def do_read(type_name, value)
+            task.do_attribute_read(name, type_name, value)
         end
     end
 
@@ -88,12 +119,11 @@ module Orocos
 
         RUNNING_STATES = []
         RUNNING_STATES[STATE_PRE_OPERATIONAL] = false
-        RUNNING_STATES[STATE_ACTIVE]          = false
         RUNNING_STATES[STATE_STOPPED]         = false
         RUNNING_STATES[STATE_RUNNING]         = true
         RUNNING_STATES[STATE_RUNTIME_ERROR]   = true
-        RUNNING_STATES[STATE_RUNTIME_WARNING] = true
         RUNNING_STATES[STATE_FATAL_ERROR]     = false
+        RUNNING_STATES[STATE_EXCEPTION]     = false
 
         def initialize
             @ports ||= Hash.new
@@ -114,29 +144,30 @@ module Orocos
                     map { |name, type| name.to_sym if type == :fatal }.
                     compact.to_set
 
-                if model.component.has_toolkit?
-                    Orocos::CORBA.load_toolkit(model.component.name)
+                if model.component.has_typekit?
+                    Orocos::CORBA.load_typekit(model.component.name)
                 end
-                model.used_toolkits.each do |tk|
-                    Orocos::CORBA.load_toolkit(tk.name)
+                model.used_typekits.each do |tk|
+                    Orocos::CORBA.load_typekit(tk.name)
                 end
             else
                 @state_symbols = []
                 @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL
-                @state_symbols[STATE_ACTIVE]          = :ACTIVE
                 @state_symbols[STATE_STOPPED]         = :STOPPED
                 @state_symbols[STATE_RUNNING]         = :RUNNING
                 @state_symbols[STATE_RUNTIME_ERROR]   = :RUNTIME_ERROR
-                @state_symbols[STATE_RUNTIME_WARNING] = :RUNTIME_WARNING
+                @state_symbols[STATE_EXCEPTION]       = :EXCEPTION
                 @state_symbols[STATE_FATAL_ERROR]     = :FATAL_ERROR
-                @error_states   = Set.new
-                @runtime_states = Set.new
-                @fatal_states   = Set.new
+                @error_states     = Set.new
+                @runtime_states   = Set.new
+                @exception_states = Set.new
+                @fatal_states     = Set.new
             end
 
-            @error_states << :RUNTIME_ERROR << :FATAL_ERROR
+            @error_states   << :RUNTIME_ERROR << :FATAL_ERROR << :EXCEPTION
             @runtime_states << :RUNNING << :RUNTIME_ERROR
-            @fatal_states << :FATAL_ERROR
+            @exception_states << :EXCEPTION
+            @fatal_states     << :FATAL_ERROR
         end
 
         def ping
@@ -425,18 +456,10 @@ module Orocos
         end
 
         # Returns true if this task context has a command with the given name
-        def has_method?(name)
+        def has_operation?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
-                do_has_method?(name)
-            end
-        end
-
-        # Returns true if this task context has a command with the given name
-        def has_command?(name)
-            name = name.to_s
-            CORBA.refine_exceptions(self) do
-                do_has_command?(name)
+                do_has_operation?(name)
             end
         end
 
@@ -448,25 +471,78 @@ module Orocos
             end
         end
 
-        # Returns an Attribute object representing the given attribute or
-        # property.
+        # Returns the array of the names of available properties on this task
+        # context
+        def property_names
+            CORBA.refine_exceptions(self) do
+                do_property_names(name)
+            end
+        end
+
+        # Returns the array of the names of available attributes on this task
+        # context
+        def attribute_names
+            CORBA.refine_exceptions(self) do
+                do_attribute_names(name)
+            end
+        end
+
+        # Returns true if +name+ is the name of a property on this task context
+        def has_property?(name)
+            property_names.include?(name.to_str)
+        end
+
+        # Returns true if +name+ is the name of a attribute on this task context
+        def has_attribute?(name)
+            attribute_names.include?(name.to_str)
+        end
+
+        # Returns an Attribute object representing the given attribute
         #
-        # Raises NotFound if no such attribute or property exists.
+        # Raises NotFound if no such attribute exists.
         #
-        # Ports can also be accessed by calling directly the relevant
-        # method on the task context:
+        # Attributes can also be read and written by calling directly the
+        # relevant method on the task context:
         #
-        #   task.attribute("myProperty")
+        #   task.attribute("myProperty").get
+        #   task.attribute("myProperty").set(value)
         #
         # is equivalent to
         #
         #   task.myProperty
+        #   task.myProperty = value
         #
         def attribute(name)
             name = name.to_s
-            CORBA.refine_exceptions(self) do
-                do_attribute(name)
+            type_name = CORBA.refine_exceptions(self) do
+                do_property_type_name(name)
             end
+
+            Attribute.new(self, name, type_name)
+        end
+
+        # Returns a Property object representing the given property
+        #
+        # Raises NotFound if no such property exists.
+        #
+        # Ports can also be accessed by calling directly the relevant
+        # method on the task context:
+        #
+        #   task.property("myProperty").get
+        #   task.property("myProperty").set(value)
+        #
+        # is equivalent to
+        #
+        #   task.myProperty
+        #   task.myProperty = value
+        #
+        def property(name)
+            name = name.to_s
+            type_name = CORBA.refine_exceptions(self) do
+                do_property_type_name(name)
+            end
+
+            Property.new(self, name, type_name)
         end
 
         # Alias for #attribute(name)

@@ -16,9 +16,6 @@ namespace echo {
 	int write(int value);
         void write_opaque(int value);
         void kill();
-    
-	bool asyncWrite(int value, int stop);
-	bool isAsyncWriteCompleted(int value, int stop);
 
     public:
         Echo(std::string const& name = "echo::Echo", TaskCore::TaskState initial_state = Stopped);
@@ -59,12 +56,8 @@ namespace echo {
          * the errorHook() will be called instead of updateHook() and in the
          * third case the component is stopped and resetError() needs to be
          * called before starting it again.
-         *
-         * The \a updated_ports argument is the set of ports that have triggered
-         * this call. If the trigger is caused by something different (for
-         * instance, a periodic update), then this set is empty.
          */
-        void updateHook(std::vector<RTT::PortInterface*> const& updated_ports);
+        void updateHook();
         
 
         /** This hook is called by Orocos when the component is in the

@@ -2,7 +2,7 @@ name 'echo'
 
 import_types_from "echo.h"
 
-toolkit do
+typekit do
     opaque_type '/OpaquePoint', 'echo/Point',
             :includes => [File.expand_path('opaques.h', File.dirname(component.deffile))]
 end
@@ -18,24 +18,16 @@ task_context 'Echo' do
     input_port  "input_opaque", "/OpaquePoint"
     output_port "output_opaque", "/OpaquePoint"
 
-    method(:kill).
+    operation(:kill).
         doc('cause a segmentation fault')
 
-    method(:write).
+    operation(:write).
         returns('int').
         argument('value', 'int', 'value_arg').
         doc('write_method')
 
-    method(:write_opaque).
+    operation(:write_opaque).
         argument('value', 'int')
-
-    # This command starts at value and writes it on the output port. Then, it
-    # increments the value at each cycle, until stop_value is found on the
-    # input port
-    command(:AsyncWrite).
-	argument('value',  'int', 'value_arg').
-	argument('stop', 'int', 'stop_value').
-	doc('async_write_command')
 
     port_driven :input
 end

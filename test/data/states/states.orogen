@@ -8,14 +8,14 @@ task_context "Task" do
     error_states "CUSTOM_ERROR"
     fatal_states "CUSTOM_FATAL"
 
-    method "do_runtime_warning"
-    method "do_runtime_error"
-    method "do_nominal_running"
-    method "do_fatal_error"
-    method "do_custom_runtime"
-    method "do_custom_error"
-    method "do_custom_fatal"
-    method "do_recover"
+    operation "do_runtime_warning"
+    operation "do_runtime_error"
+    operation "do_nominal_running"
+    operation "do_fatal_error"
+    operation "do_custom_runtime"
+    operation "do_custom_error"
+    operation "do_custom_fatal"
+    operation "do_recover"
 end
 
 deployment "states" do

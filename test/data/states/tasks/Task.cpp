@@ -1,13 +1,6 @@
 #include "Task.hpp"
 
-#include <rtt/NonPeriodicActivity.hpp>
-
-
 using namespace states;
-
-
-RTT::NonPeriodicActivity* Task::getNonPeriodicActivity()
-{ return dynamic_cast< RTT::NonPeriodicActivity* >(getActivity().get()); }
 
 
 Task::Task(std::string const& name)
