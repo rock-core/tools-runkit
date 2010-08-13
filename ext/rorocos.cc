@@ -670,12 +670,12 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cServices, "shutdown", RUBY_METHOD_FUNC(services_shutdown), 0);
 
     cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
-    rb_const_set(cTaskContext, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::corba::PreOperational));
-    rb_const_set(cTaskContext, rb_intern("STATE_FATAL_ERROR"),          INT2FIX(RTT::corba::FatalError));
-    rb_const_set(cTaskContext, rb_intern("STATE_EXCEPTION"),            INT2FIX(RTT::corba::ExceptionState));
-    rb_const_set(cTaskContext, rb_intern("STATE_STOPPED"),              INT2FIX(RTT::corba::Stopped));
-    rb_const_set(cTaskContext, rb_intern("STATE_RUNNING"),              INT2FIX(RTT::corba::Running));
-    rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::corba::RunTimeError));
+    rb_const_set(cTaskContext, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::corba::CPreOperational));
+    rb_const_set(cTaskContext, rb_intern("STATE_FATAL_ERROR"),          INT2FIX(RTT::corba::CFatalError));
+    rb_const_set(cTaskContext, rb_intern("STATE_EXCEPTION"),            INT2FIX(RTT::corba::CException));
+    rb_const_set(cTaskContext, rb_intern("STATE_STOPPED"),              INT2FIX(RTT::corba::CStopped));
+    rb_const_set(cTaskContext, rb_intern("STATE_RUNNING"),              INT2FIX(RTT::corba::CRunning));
+    rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::corba::CRunTimeError));
     
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
     cOutputPort   = rb_define_class_under(mOrocos, "OutputPort", cPort);
