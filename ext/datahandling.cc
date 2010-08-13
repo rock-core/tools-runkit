@@ -22,7 +22,7 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
         rb_raise(rb_eArgError, "trying to unmarshal %s, but it is not supported by the CORBA transport", type_name.c_str());
 
     DataSourceBase::shared_ptr data_source = ti->buildReference(dest.getData());
-    if (!transport->updateAny(data_source, src))
+    if (!transport->updateFromAny(&src, data_source))
         rb_raise(eCORBA, "failed to unmarshal %s", type_name.c_str());
 
     return Qnil;
