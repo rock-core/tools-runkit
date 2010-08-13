@@ -453,16 +453,9 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
         rb_raise(rb_eArgError, "invalid connection type %s", StringValuePtr(obj_as_str));
     }
 
-    if (RTEST(rb_hash_aref(options, ID2SYM(rb_intern("init")))))
-        result.init = true;
-    else
-        result.init = false;
-
-    if (RTEST(rb_hash_aref(options, ID2SYM(rb_intern("pull")))))
-        result.pull = true;
-    else
-        result.pull = false;
-
+    result.transport = NUM2INT(rb_hash_aref(options, ID2SYM(rb_intern("transport"))));
+    result.init = RTEST(rb_hash_aref(options, ID2SYM(rb_intern("init"))));
+    result.pull = RTEST(rb_hash_aref(options, ID2SYM(rb_intern("pull"))));
     result.size = NUM2INT(rb_hash_aref(options, ID2SYM(rb_intern("size"))));
 
     VALUE lock_type = SYM2ID(rb_hash_aref(options, ID2SYM(rb_intern("lock"))));
