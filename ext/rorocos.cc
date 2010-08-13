@@ -417,9 +417,9 @@ static VALUE task_context_cleanup(VALUE task)
     return call_checked_state_change(task, "failed to cleanup", &RTT::corba::_objref_CTaskContext::cleanup);
 }
 
-static VALUE task_context_recover_exception(VALUE task)
+static VALUE task_context_reset_exception(VALUE task)
 {
-    return call_checked_state_change(task, "failed to recover from the Exception state", &RTT::corba::_objref_CTaskContext::recoverException);
+    return call_checked_state_change(task, "failed to transition from the Exception state to Stopped", &RTT::corba::_objref_CTaskContext::resetException);
 }
 
 /* call-seq:
@@ -700,7 +700,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);
     rb_define_method(cTaskContext, "do_start", RUBY_METHOD_FUNC(task_context_start), 0);
-    rb_define_method(cTaskContext, "do_recover_exception", RUBY_METHOD_FUNC(task_context_recover_exception), 0);
+    rb_define_method(cTaskContext, "do_reset_exception", RUBY_METHOD_FUNC(task_context_reset_exception), 0);
     rb_define_method(cTaskContext, "do_stop", RUBY_METHOD_FUNC(task_context_stop), 0);
     rb_define_method(cTaskContext, "do_cleanup", RUBY_METHOD_FUNC(task_context_cleanup), 0);
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
