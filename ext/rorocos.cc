@@ -255,10 +255,12 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
                 static_cast<char const*>(StringValuePtr(name)),
                 static_cast<char const*>(type_name));
 
-    orogen_transports::TypelibMarshallerBase* transport =
-        dynamic_cast<orogen_transports::TypelibMarshallerBase*>(ti->getProtocol(orogen_transports::TYPELIB_MARSHALLER_ID));
-    if (transport)
-        rb_iv_set(obj, "@type_name", rb_str_new2(transport->getMarshallingType()));
+    if (ti->hasProtocol(orogen_transports::TYPELIB_MARSHALLER_ID))
+    {
+        orogen_transports::TypelibMarshallerBase* transport =
+            dynamic_cast<orogen_transports::TypelibMarshallerBase*>(ti->getProtocol(orogen_transports::TYPELIB_MARSHALLER_ID));
+            rb_iv_set(obj, "@type_name", rb_str_new2(transport->getMarshallingType()));
+    }
     else
         rb_iv_set(obj, "@type_name", rb_str_new2(type_name));
 
@@ -540,7 +542,7 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
 
     orogen_transports::TypelibMarshallerBase* transport = 0;
     RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
-    if (ti)
+    if (ti && ti->hasProtocol(orogen_transports::TYPELIB_MARSHALLER_ID))
     {
         transport =
             dynamic_cast<orogen_transports::TypelibMarshallerBase*>(ti->getProtocol(orogen_transports::TYPELIB_MARSHALLER_ID));
@@ -578,7 +580,7 @@ static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_
 
     orogen_transports::TypelibMarshallerBase* transport = 0;
     RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
-    if (ti)
+    if (ti && ti->hasProtocol(orogen_transports::TYPELIB_MARSHALLER_ID))
     {
         transport =
             dynamic_cast<orogen_transports::TypelibMarshallerBase*>(ti->getProtocol(orogen_transports::TYPELIB_MARSHALLER_ID));
