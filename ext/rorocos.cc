@@ -84,7 +84,7 @@ static VALUE task_context_get(VALUE klass, VALUE name)
     try {
         std::auto_ptr<RTaskContext> new_context( new RTaskContext );
         new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
-        new_context->main_service = new_context->task->getProvider("");
+        new_context->main_service = new_context->task->getProvider("this");
         new_context->ports      = new_context->task->ports();
 
         VALUE obj = simple_wrap(cTaskContext, new_context.release());
