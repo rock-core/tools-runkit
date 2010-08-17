@@ -97,6 +97,12 @@ module Orocos
                 @state_symbols[value]
             end
         end
+
+        def read_new
+            if value = super
+                @state_symbols[value]
+            end
+        end
     end
 
     # A proxy for a remote task context. The communication between Ruby and the
@@ -369,11 +375,11 @@ module Orocos
             if model && model.extended_state_support?
                 @state_reader ||= state_reader
                 if return_current
-                    while new_state = @state_reader.read
+                    while new_state = @state_reader.read_new
                         @current_state = new_state
                     end
                 else
-                    if new_state = @state_reader.read
+                    if new_state = @state_reader.read_new
                         @current_state = new_state
                     end
                 end

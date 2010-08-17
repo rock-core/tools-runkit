@@ -197,6 +197,19 @@ module Orocos
         # Use #writer if you need to read the same port repeatedly.
         def read; reader.read end
 
+        # Reads one sample with a default policy.
+        #
+        # While convenient, this is quite ressource consuming, as each time one
+        # will need to create a new connection between the ruby interpreter and
+        # the remote component.
+        #
+        # This is defined for consistency with OutputReader
+        #
+        # Use #reader if you need to read the same port repeatedly.
+        def read_new
+            read
+        end
+
         # Returns an OutputReader object that is connected to that port
         #
         # The policy dictates how data should flow between the port and the
@@ -244,8 +257,25 @@ module Orocos
 	    private :new
 	end
 
+        OLD_DATA = 0
+        NEW_DATA = 1
+
         # The OutputPort object this reader is linked to
         attr_reader :port
+
+        def read_helper
+	    if process = port.task.process
+		if !process.alive?
+		    disconnect
+		    raise CORBA::ComError, "remote end is dead"
+		end
+	    end
+
+            value = port.type.new
+            if result = do_read(port.orocos_type_name, value)
+                return [value.to_ruby, result]
+            end
+        end
 
         # Reads a sample on the associated output port.
         #
@@ -263,16 +293,32 @@ module Orocos
         #   
         # Raises CORBA::ComError if the communication is broken.
         def read
-	    if process = port.task.process
-		if !process.alive?
-		    disconnect
-		    raise CORBA::ComError, "remote end is dead"
-		end
-	    end
+            if value = read_helper
+                value[0]
+            end
+        end
 
-            value = port.type.new
-            if do_read(port.orocos_type_name, value)
-                value.to_ruby
+        # Reads a new sample on the associated output port.
+        #
+        # Unlike #read, it will return a non-nil value only if it it different
+        # from the last time #read or #read_new has been called
+        #
+        # For simple types, the returned value is the Ruby representation of the
+        # C value.  For instance, C++ strings are represented as String objects,
+        # integers as Integer, ...
+        #
+        # For structures and vectors, the returned value is a representation of
+        # that type that Ruby can understand. Field access is transparent:
+        #
+        #   struct = reader.read
+        #   struct.a_field # returns either a simple value or another structure
+        #   struct.an_array.each do |element|
+        #   end
+        #   
+        # Raises CORBA::ComError if the communication is broken.
+        def read_new
+            if value = read_helper
+                value[0] if value[1] == NEW_DATA
             end
         end
     end

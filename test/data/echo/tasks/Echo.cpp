@@ -49,15 +49,15 @@ void Echo::updateHook()
     int val;
     Int str;
 
-    if (_input.read(val))
+    if (_input.read(val) == RTT::NewData)
         _output.write(val);
-    else if (_input_struct.read(str))
+    else if (_input_struct.read(str) == RTT::NewData)
         _output.write(str.value);
-    else
+    else if (async)
 	_output.write(++async_old);
 
     OpaquePoint point;
-    if (_input_opaque.read(point))
+    if (_input_opaque.read(point) == RTT::NewData)
         _output_opaque.write(point);
 
 }

@@ -545,7 +545,12 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
     {
         RTT::base::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
-        return local_port.read(ds) ? Qtrue : Qfalse;
+        switch(local_port.read(ds))
+        {
+            case RTT::NoData:  return Qfalse;
+            case RTT::OldData: return INT2FIX(0);
+            case RTT::NewData: return INT2FIX(1);
+        }
     }
     else
     {

@@ -292,7 +292,7 @@ describe Orocos::OutputReader do
             source.stop
 
             values = []
-            while v = reader.read
+            while v = reader.read_new
                 values << v
             end
             assert(values.size > 1)
@@ -313,7 +313,7 @@ describe Orocos::OutputReader do
             source.stop
 
             values = []
-            while v = reader.read
+            while v = reader.read_new
                 values << v.value
             end
             assert(values.size > 1)
