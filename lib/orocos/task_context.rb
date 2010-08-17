@@ -628,51 +628,35 @@ module Orocos
             self
         end
 
-        # Returns a RTTMethod object that represents the given method on the
+        # Returns an Operation object that represents the given method on the
         # remote component.
         #
-        # Raises NotFound if no such method exists.
-        def rtt_method(name)
+        # Raises NotFound if no such operation exists.
+        def operation(name)
             CORBA.refine_exceptions(self) do
-                do_rtt_method(name.to_s)
+                return_type, *arguments = operation_signature(name)
+                Operation.new(self, name, return_type, arguments)
             end
         end
-        # Returns a Command object that represents the given command on the
-        # remote component.
-        #
-        # Raises NotFound if no such command exists.
-        #
-        # See also #rtt_command
-	def command(name)
-            CORBA.refine_exceptions(self) do
-                do_command(name.to_s)
-            end
-	end
-        # Like #command. Provided for consistency with #rtt_method
-        def rtt_command(name); command(name) end
 
         def method_missing(m, *args) # :nodoc:
             m = m.to_s
             if m =~ /^(\w+)=/
                 name = $1
                 begin
-                    return attribute(name).write(*args)
+                    return property(name).write(*args)
                 rescue Orocos::NotFound
                 end
 
             else
                 if has_port?(m)
                     return port(m)
-                elsif has_method?(m)
-                    return rtt_method(m).call(*args)
-                elsif has_command?(m)
-                    command = rtt_command(m)
-                    command.call(*args)
-                    return command
+                elsif has_operation?(m)
+                    return operation(m).call(*args)
                 end
 
                 begin
-                    return attribute(m).read(*args)
+                    return property(m).read(*args)
                 rescue Orocos::NotFound
                 end
             end
@@ -708,7 +692,7 @@ module Orocos
                 @model
             elsif info
                 @model = info.context
-            elsif has_method?("getModelName")
+            elsif has_operation?("getModelName")
                 model_name = self.getModelName
 
                 # Try to find the tasklib that handles our model

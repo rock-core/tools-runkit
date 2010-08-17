@@ -8,6 +8,10 @@ module Orocos
         attr_reader :name
         # The method description
         attr_reader :description
+        # The type name of the return value
+        attr_reader :return_spec
+        # The subclass of Typelib::Type that represents the type of the return value
+        attr_reader :return_type
         # An array describing the arguments. Each element is a <tt>[name, doc,
         # type_name]</tt> tuple
         attr_reader :arguments_spec
@@ -16,13 +20,11 @@ module Orocos
         # element in #arguments_spec
         attr_reader :arguments_types
 
-        class << self
-            # The only way to create an instance of RTTMethod or Command is to
-            # call the corresponding method on TaskContext
-            private :new
-        end
+        def initialize(task, name, return_spec, arguments_spec)
+            @task, @name, @return_spec, @arguments_spec =
+                task, name, return_spec, arguments_spec
 
-        def initialize
+            @return_type = Orocos.registry.get(return_spec)
             @arguments_types = []
             arguments_spec.each do |_, _, type_name|
 		type_name.gsub! /\s+.*$/, ''
@@ -51,16 +53,6 @@ module Orocos
             end
         end
 
-        # The type name of the return value
-        attr_reader :return_spec
-        # The subclass of Typelib::Type that represents the type of the return value
-        attr_reader :return_type
-
-        def initialize
-            super
-            @return_type = Orocos.registry.get(return_spec)
-        end
-
         # Calls the method with the provided arguments, and returns the value
         # returned by the remote method.
         def call(*args)
@@ -74,7 +66,7 @@ module Orocos
                      end
 
             common_call(args) do |filtered|
-                result = task.do_operation_call(@return_spec, @args_type_names, filtered, result)
+                result = task.do_operation_call(name, return_spec, @args_type_names, filtered, result)
             end
             Typelib.to_ruby(result)
         end

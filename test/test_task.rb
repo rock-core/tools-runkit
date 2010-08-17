@@ -66,19 +66,11 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should allow to check a method availability" do
+    it "should allow to check an operation availability" do
         Orocos::Process.spawn('states') do |p|
             t = p.task "Task"
-            assert(!t.has_method?("does_not_exist"))
-            assert(t.has_method?("do_runtime_warning"))
-        end
-    end
-
-    it "should allow to check a command availability" do
-        Orocos::Process.spawn('echo') do |p|
-            t = p.task "Echo"
-            assert(!t.has_command?("does_not_exist"))
-            assert(t.has_command?("AsyncWrite"))
+            assert(!t.has_operation?("does_not_exist"))
+            assert(t.has_operation?("do_runtime_warning"))
         end
     end
 
@@ -105,10 +97,10 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should allow getting a method object" do
+    it "should allow getting an operation object" do
         Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task('Echo')
-            m = echo.rtt_method(:write)
+            m = echo.operation(:write)
             assert_equal "write", m.name
             assert_equal "write_method", m.description
             assert_equal "int", m.return_spec
@@ -116,50 +108,25 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should raise NotFound on an unknown method object" do
+    it "should raise NotFound on an unknown operation object" do
         Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task('Echo')
-            assert_raises(Orocos::NotFound) { echo.rtt_method(:unknown) }
+            assert_raises(Orocos::NotFound) { echo.operation(:unknown) }
         end
     end
 
-    it "should raise CORBA::ComError when the process crashed during a method call" do
+    it "should raise CORBA::ComError when the process crashed during a operation call" do
         Orocos::Process.spawn 'echo' do |echo_p|
             echo = echo_p.task('Echo')
-            assert_raises(Orocos::CORBA::ComError) { echo.rtt_method(:kill).call }
+            assert_raises(Orocos::CORBA::ComError) { echo.operation(:kill).call }
         end
     end
 
-    it "should raise CORBA::ComError when #rtt_method has communication errors" do
-        Orocos::Process.spawn 'echo' do |echo_p|
-            echo = echo_p.task('Echo')
-            echo_p.kill
-            assert_raises(Orocos::CORBA::ComError) { echo.rtt_method(:write) }
-        end
-    end
-
-    it "should allow getting a command object" do
-        Orocos::Process.spawn 'echo' do |echo|
-            echo = echo.task('Echo')
-            m = echo.command(:AsyncWrite)
-            assert_equal "AsyncWrite", m.name
-            assert_equal "async_write_command", m.description
-            assert_equal [["value", "value_arg", "int"], ["stop", "stop_value", "int"]], m.arguments_spec
-        end
-    end
-
-    it "should raise NotFound on an unknown method object" do
-        Orocos::Process.spawn 'echo' do |echo|
-            echo = echo.task('Echo')
-            assert_raises(Orocos::NotFound) { echo.command(:unknown) }
-        end
-    end
-
-    it "should raise CORBA::ComError when #command has communication errors" do
+    it "should raise CORBA::ComError when #operation has communication errors" do
         Orocos::Process.spawn 'echo' do |echo_p|
             echo = echo_p.task('Echo')
             echo_p.kill
-            assert_raises(Orocos::CORBA::ComError) { echo.command(:write) }
+            assert_raises(Orocos::CORBA::ComError) { echo.operation(:write) }
         end
     end
 
@@ -192,7 +159,7 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should raise CORBA::ComError when state-related methods are called on a dead process" do
+    it "should raise CORBA::ComError when state-related operations are called on a dead process" do
         Orocos::Process.spawn('simple_source') do |source_p|
             source = source_p.task("simple_source_source")
             source_p.kill
