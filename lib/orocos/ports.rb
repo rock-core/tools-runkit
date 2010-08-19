@@ -195,8 +195,13 @@ module Orocos
         # will need to create a new connection between the ruby interpreter and
         # the remote component.
         #
-        # Use #writer if you need to read the same port repeatedly.
-        def read; reader.read end
+        # Use #reader if you need to read the same port repeatedly.
+        def read
+            reader = self.reader
+            reader.read
+        ensure
+            reader.disconnect
+        end
 
         # Reads one sample with a default policy.
         #
