@@ -3,12 +3,6 @@ require 'utilrb/object/attribute'
 module Orocos
     # This class represents both RTT attributes and properties
     class AttributeBase
-	class << self
-	    # The only way to create an Attribute object is
-	    # TaskContext#attribute
-	    private :new
-	end
-
         # The underlying TaskContext instance
         attr_reader :task
         # The property/attribute name
@@ -24,6 +18,7 @@ module Orocos
             if !(@type = Orocos.registry.get(type_name))
                 raise "can not find #{type_name} in the registry"
             end
+            @type_name = type_name
         end
 
         # Read the current value of the property/attribute
@@ -44,6 +39,7 @@ module Orocos
             else
                 value = Typelib.from_ruby(value, type)
                 do_write(@type_name, value)
+                value
             end
         end
 
@@ -53,14 +49,14 @@ module Orocos
     end
 
     class Property < AttributeBase
-        def do_write_string(type_name, value)
-            task.do_property_write(name, type_name, value)
+        def do_write_string(value)
+            task.do_property_write_string(name, value)
         end
         def do_write(type_name, value)
             task.do_property_write(name, type_name, value)
         end
-        def do_read_string(type_name, value)
-            task.do_property_read(name, type_name, value)
+        def do_read_string
+            task.do_property_read_string(name)
         end
         def do_read(type_name, value)
             task.do_property_read(name, type_name, value)
@@ -68,14 +64,14 @@ module Orocos
     end
 
     class Attribute < AttributeBase
-        def do_write_string(type_name, value)
-            task.do_attribute_write(name, type_name, value)
+        def do_write_string(value)
+            task.do_attribute_write_string(name, value)
         end
         def do_write(type_name, value)
             task.do_attribute_write(name, type_name, value)
         end
-        def do_read_string(type_name, value)
-            task.do_attribute_read(name, type_name, value)
+        def do_read_string
+            task.do_attribute_read_string(name)
         end
         def do_read(type_name, value)
             task.do_attribute_read(name, type_name, value)
@@ -521,7 +517,7 @@ module Orocos
         def attribute(name)
             name = name.to_s
             type_name = CORBA.refine_exceptions(self) do
-                do_property_type_name(name)
+                do_attribute_type_name(name)
             end
 
             Attribute.new(self, name, type_name)
@@ -549,11 +545,6 @@ module Orocos
             end
 
             Property.new(self, name, type_name)
-        end
-
-        # Alias for #attribute(name)
-        def property(name)
-            attribute(name)
         end
 
         # Returns the Orocos::Generation::OutputPort instance that describes the

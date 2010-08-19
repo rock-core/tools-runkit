@@ -11,6 +11,8 @@ Test::Test(std::string const& name, TaskCore::TaskState initial_state)
     _prop1.set(val);
 
     _prop2.set(84);
+
+    _prop3.set("42");
 }
 
 
