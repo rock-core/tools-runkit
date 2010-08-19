@@ -176,7 +176,7 @@ module Orocos
         end
 
         def ping
-            getModelName
+            operation_signature('start')
             nil
         end
 
