@@ -12,7 +12,7 @@ extern VALUE eNotFound;
 struct RTaskContext
 {
     RTT::corba::CTaskContext_var         task;
-    RTT::corba::CServiceProvider_var     main_service;
+    RTT::corba::CService_var     main_service;
     RTT::corba::CDataFlowInterface_var   ports;
 };
 

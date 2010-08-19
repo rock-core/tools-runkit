@@ -178,7 +178,7 @@ static VALUE task_context_property_names(VALUE self)
 
     VALUE result = rb_ary_new();
     try {
-        RTT::corba::CAttributeRepository::CPropertyNames_var names =
+        RTT::corba::CConfigurationInterface::CPropertyNames_var names =
             context.main_service->getPropertyList();
         for (int i = 0; i != names->length(); ++i)
         {
@@ -196,7 +196,7 @@ static VALUE task_context_attribute_names(VALUE self)
 
     VALUE result = rb_ary_new();
     try {
-        RTT::corba::CAttributeRepository::CAttributeNames_var names =
+        RTT::corba::CConfigurationInterface::CAttributeNames_var names =
             context.main_service->getAttributeList();
         for (int i = 0; i != names->length(); ++i)
         {
