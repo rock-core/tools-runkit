@@ -134,6 +134,14 @@ module Orocos
             load_plugin_library(typekit_pkg, name, "lib#{name}-typekit-#{Orocos.orocos_target}.so")
 
             if Orocos::Generation::VERSION >= "0.8"
+                typelib_transport_pkg =
+                    begin
+                        Utilrb::PkgConfig.new("#{name}-transport-typelib-#{Orocos.orocos_target}")
+                    rescue Utilrb::PkgConfig::NotFound
+                        raise NotFound, "the '#{name}' typelib transport is not available to pkgconfig"
+                    end
+                load_plugin_library(typelib_transport_pkg, name, "lib#{name}-transport-typelib-#{Orocos.orocos_target}.so")
+
                 corba_transport_pkg =
                     begin
                         Utilrb::PkgConfig.new("#{name}-transport-corba-#{Orocos.orocos_target}")
