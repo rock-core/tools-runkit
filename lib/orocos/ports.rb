@@ -67,8 +67,9 @@ module Orocos
             :type => :data,
             :init => false,
             :pull => false,
-            :size => nil,
-            :lock => :lock_free
+            :size => 0,
+            :lock => :lock_free,
+            :transport => 0
         }
 
         # A connection policy is represented by a hash whose elements are each
