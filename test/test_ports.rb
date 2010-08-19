@@ -85,10 +85,9 @@ describe Orocos::OutputPort do
             source.connect_to sink
             assert(sink.connected?)
             assert(source.connected?)
-            assert(source.disconnect_from(sink))
+            source.disconnect_from(sink)
             assert(!sink.connected?)
             assert(!source.connected?)
-            assert(!source.disconnect_from(sink))
         end
     end
 
