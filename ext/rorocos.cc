@@ -555,13 +555,18 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
     else
     {
         orogen_transports::TypelibMarshallerBase::Handle* handle = transport->createSample();
-        bool did_read = transport->readPort(local_port, handle);
+        RTT::FlowStatus did_read = transport->readPort(local_port, handle);
 
-        if (did_read)
+        if (did_read != RTT::NoData)
             Typelib::copy(value, Typelib::Value(transport->getTypelibSample(handle), value.getType()));
 
         transport->deleteHandle(handle);
-        return did_read ? Qtrue : Qfalse;
+        switch(did_read)
+        {
+            case RTT::NoData:  return Qfalse;
+            case RTT::OldData: return INT2FIX(0);
+            case RTT::NewData: return INT2FIX(1);
+        }
     }
 }
 static VALUE output_reader_clear(VALUE port_access)
