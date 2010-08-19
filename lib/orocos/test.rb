@@ -33,7 +33,7 @@ module Orocos
             ruby_bin   = RbConfig::CONFIG['RUBY_INSTALL_NAME']
             orogen_bin = File.expand_path('../bin/orogen', Orocos::Generation.base_dir)
             Dir.chdir(work_dir) do
-                if !system(ruby_bin, orogen_bin, '--corba', File.basename(src))
+                if !system(ruby_bin, orogen_bin, '--corba', '--transports=corba,typelib', File.basename(src))
                     raise "failed to build"
                 end
 
