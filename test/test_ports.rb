@@ -362,8 +362,10 @@ describe Orocos::OutputReader do
             reader = echo.ondemand.reader
             assert(!reader.read, "got data on 'ondemand': #{reader.read}")
             echo.write(10)
+            sleep 0.1
             assert_equal(10, reader.read)
             reader = echo.ondemand.reader(:init => true)
+            sleep 0.1
             assert_equal(10, reader.read)
         end
     end
