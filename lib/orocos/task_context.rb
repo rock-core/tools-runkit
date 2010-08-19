@@ -139,6 +139,9 @@ module Orocos
                 @error_states  = model.each_state.
                     map { |name, type| name.to_sym if (type == :error || type == :fatal) }.
                     compact.to_set
+                @exception_states  = model.each_state.
+                    map { |name, type| name.to_sym if type == :exception }.
+                    compact.to_set
                 @runtime_states = model.each_state.
                     map { |name, type| name.to_sym if (type == :error || type == :runtime) }.
                     compact.to_set

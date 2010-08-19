@@ -9,14 +9,14 @@ Task::Task(std::string const& name)
 }
 
 
-void Task::do_runtime_warning()
-{
-    warning();
-}
-
 void Task::do_runtime_error()
 {
     error();
+}
+
+void Task::do_exception()
+{
+    exception();
 }
 
 void Task::do_nominal_running()
@@ -39,6 +39,11 @@ void Task::do_custom_error()
     error(CUSTOM_ERROR);
 }
 
+void Task::do_custom_exception()
+{
+    fatal(CUSTOM_EXCEPTION);
+}
+
 void Task::do_custom_fatal()
 {
     fatal(CUSTOM_FATAL);
@@ -46,7 +51,7 @@ void Task::do_custom_fatal()
 
 void Task::do_recover()
 {
-    recovered();
+    recover();
 }
 
 

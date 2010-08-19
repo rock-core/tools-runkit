@@ -16,22 +16,17 @@ namespace states {
 	friend class TaskBase;
     protected:
     
-	void do_runtime_warning();
-    
+	void do_nominal_running();
 	void do_runtime_error();
-    
+	void do_exception();
 	void do_fatal_error();
     
-	void do_nominal_running();
 	void do_custom_runtime();
-    
 	void do_custom_error();
-    
+	void do_custom_exception();
 	void do_custom_fatal();
     
 	void do_recover();
-    
-    
 
     public:
         Task(std::string const& name = "states::Task");
