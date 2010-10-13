@@ -260,10 +260,11 @@ module Orocos
         # Returns true if +task_name+ is a TaskContext object that can be
         # reached through CORBA
         def self.reachable?(task_name)
+            # TaskContext.do_get already checks if the remote task is
+            # accessible, so no need to do it again
             t = CORBA.refine_exceptions("naming service") do
                 TaskContext.do_get(task_name)
             end
-            t.ping
             true
         rescue Orocos::NotFound
             false
