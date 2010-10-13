@@ -270,6 +270,15 @@ module Orocos
             false
         end
 
+        # Returns true if the remote task context can still be reached through
+        # CORBA, and false otherwise.
+        def reachable?
+            ping
+            true
+        rescue CORBA::ComError
+            false
+        end
+
         # Returns true if the task is in a state where code is executed. This
         # includes of course the running state, but also runtime error states.
         def running?
