@@ -306,7 +306,7 @@ module Orocos
             elsif state < STATE_SENT
                 return false
             elsif Command.state_auto_update?
-                !terminal_State?(update_state)
+                !terminal_state?(update_state)
             else
                 true
             end
