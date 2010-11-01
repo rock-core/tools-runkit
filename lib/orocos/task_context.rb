@@ -701,6 +701,74 @@ module Orocos
                 pp.breakable
             end
         end
+
+        # Searches for a port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_all_ports(port_set, type, port_name)
+            candidates = port_set.dup
+
+            # Filter out on type
+            if type
+                type_name =
+                    if !type.respond_to?(:to_str)
+                        type.name
+                    else type.to_str
+                    end
+                candidates.delete_if { |port| port.type_name != type_name }
+            end
+
+            # Filter out on name
+            if port_name
+                if !port_name.kind_of?(Regexp)
+                    port_name = Regexp.new(port_name) 
+                end
+                candidates.delete_if { |port| port.full_name !~ port_name }
+            end
+            candidates
+        end
+
+        # Searches for a port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_port(port_set, type, port_name)
+            candidates = find_all_ports(port_set, type, port_name)
+            if candidates.size > 1
+                type_name =
+                    if !type.respond_to?(:to_str)
+                        type.name
+                    else type.to_str
+                    end
+                if port_name
+                    raise ArgumentError, "#{type_name} is provided by multiple streams that match #{port_name}: #{candidates.map(&:stream).map(&:name).join(", ")}"
+                else
+                    raise ArgumentError, "#{type_name} is provided by multiple streams: #{candidates.map(&:stream).map(&:name).join(", ")}"
+                end
+            else candidates.first
+            end
+        end
+
+        # Returns the set of ports in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        #
+        # See also #find_port and TaskContext.find_all_ports
+        def find_all_ports(type_name, port_name)
+            TaskContext.find_all_ports(@ports.values, type_name, port_name)
+        end
+
+        # Returns a single port in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        #
+        # Raises ArgumentError if multiple candidates are available
+        #
+        # See also #find_all_ports and TaskContext.find_port
+        def find_port(type_name, port_name)
+            TaskContext.find_port(@ports.values, type_name, port_name)
+        end
     end
 end
 
