@@ -633,13 +633,13 @@ module Orocos
             end
 
             #Returns the current position of the replayed sample.
-            def current_pos
-                @stream.current_pos
+            def sample_index
+                @stream.sample_index
             end
 
             #Returns the number of samples.
-            def count_samples
-                return @stream.count_samples
+            def size
+                return @stream.size
             end
 
             #Returns the time of the current sample.
@@ -649,7 +649,7 @@ module Orocos
 
             #Returns true if the end of file is reached.
             def eof?
-                return @stream.eof
+                return @stream.eof?
             end
 
             #Seeks to the given position
