@@ -98,6 +98,11 @@ module Orocos
                 end
             end
 
+            # Give the full name for this port. It is the stream name.
+            def full_name
+                stream.name
+            end
+
             #Creates a new object of OutputPort
             #
             #task => simulated task for which the port shall be created
@@ -336,7 +341,7 @@ module Orocos
                 m = m.to_s
                 if m =~ /^(\w+)=/
                     name = $1
-                    puts_yellow "Warning: Setting the property #{name} the TaskContext #{@name} is not supported"
+                    puts "Warning: Setting the property #{name} the TaskContext #{@name} is not supported"
                     return
                 end
                 return port(m )if has_port?(m)
@@ -495,7 +500,7 @@ module Orocos
                 end
 
                 puts ""
-                puts "Aligning streams --> all ports which are unused will not be loaded!!!".yellow
+                puts "Aligning streams --> all ports which are unused will not be loaded!!!"
                 puts ""
                 puts "Replayed Ports:"
                 @used_ports.each {|port| port.pp}
