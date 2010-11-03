@@ -159,7 +159,7 @@ module Orocos
                 raise "can not connect the unused port #{stream.name} to #{port.name} after the replay has started" if !used? && replay
                 raise "Cannot connect to #{port.class}" if(!port.instance_of?(Orocos::InputPort))
                 @connections << Connection.new(port,policy)
-                puts "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}".green
+                puts "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
             end
 
             #Feeds data to the connected ports
