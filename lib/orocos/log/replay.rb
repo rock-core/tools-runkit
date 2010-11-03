@@ -465,10 +465,9 @@ module Orocos
 
                 task.each_port do |port|
                     if port.kind_of?(Orocos::InputPort) && !ports_ignored.include?(port.name)
-                        target_port = find_port(port.type_name,port_mappings[port.name]||port.name).connect_to(port,port_policies[port.name])
-                        if !target_port
-                            raise ArgumentError, "cannot find an output port for #{port.name}: #{e.message}"
-                        end
+                        target_port = find_port(port.type_name,port_mappings[port.name]||port.name)
+                        raise ArgumentError, "cannot find an output port for #{port.name}"  if !target_port
+                        target_port.connect_to(port,port_policies[port.name])
                     end
                 end
             end
