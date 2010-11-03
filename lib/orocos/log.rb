@@ -1,3 +1,3 @@
-require 'simlog'
+require 'pocolog'
 require 'orocos'
 require 'orocos/log/replay'

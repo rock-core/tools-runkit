@@ -108,7 +108,7 @@ module Orocos
             #task => simulated task for which the port shall be created
             #stream => stream from which the port shall be created 
             def initialize(task,stream)
-                raise "Cannot create OutputPort out of #{stream.class}" if !stream.instance_of?(Pocosim::DataStream)
+                raise "Cannot create OutputPort out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
                 raise 'Stream name does not follow the convention TASKNAME.PORTNAME' if @name == nil
@@ -505,7 +505,7 @@ module Orocos
                 puts ""
 
                 #join streams 
-                @stream = Pocosim::StreamAligner.new(false, *@used_streams)
+                @stream = Pocolog::StreamAligner.new(false, *@used_streams)
                 @stream.rewind
 
                 reset_time_sync
@@ -715,13 +715,13 @@ module Orocos
                         end
                         args << Orocos.registry
 
-                        logfile = Pocosim::Logfiles.new(*args.compact)
+                        logfile = Pocolog::Logfiles.new(*args.compact)
                         new_tasks = load_log_file(logfile, files.first)
                         tasks.concat(new_tasks)
                     end
 
                 elsif File.file?(path)
-                    file = Pocosim::Logfiles.open(path, Orocos.registry)
+                    file = Pocolog::Logfiles.open(path, Orocos.registry)
                     tasks.concat(load_log_file(file, path))
                 else
                     raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
