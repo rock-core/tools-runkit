@@ -5,7 +5,12 @@ module Orocos
         # It has the same behavior like an OutputReader
         class OutputReader
             #Handle to the port the reader is reading from
-            attr_reader :port  
+            attr_reader :port
+
+            #filter for log data 
+            #the filter is applied during read
+            #the buffer is not effected 
+            attr_accessor :filter
 
             #Creates a new OutputReader
             #
@@ -13,16 +18,15 @@ module Orocos
             #policy => policy for reading data 
             #
             #see project orocos.rb for more information
-            def initialize(port,policy=Hash.new)
+            def initialize(port,policy=default_policy)
+                policy = default_policy if !policy
                 @port = port
                 @buffer = Array.new
-
+                @filter, policy = Kernel.filter_options(policy,[:filter])
+                @filter = @filter[:filter]
                 policy = Orocos::Port.validate_policy(policy)
                 @policy_type = policy[:type]
                 @buffer_size = policy[:size]
-                if ![:buffer, :data].include?(@policy_type)
-                    raise ArgumentError, "type policy #{@policy_type} is not supported by OutputReader"
-                end
             end
 
             #This method is called each time new data are availabe.
@@ -40,8 +44,13 @@ module Orocos
 
             #Reads data from the associated port.
             def read
-                return port.read if @policy_type == :data
-                return @buffer.shift
+                if @policy_type == :data
+                  return @filter.call(port.read) if @filter
+                  return port.read
+                else
+                  return @filter.call(@buffer.shift) if @filter
+                  return @buffer.shift
+                end
             end
         end
 
@@ -74,17 +83,40 @@ module Orocos
             attr_reader :readers        
 
             #returns true if replay has started
-            attr_reader :replay         
+            attr_reader :replay
 
-            @@default_policy = Hash.new         
-            @@default_policy[:type] = :data
+            #filter for log data
+            #the filter is applied before all connections and readers are updated 
+            #if you want to apply a filter only for one connection or one reader do not set 
+            #the filter here.
+            #the filter must be a proc, lambda, method or object with a function named call.
+            #the signature must be:
+            #new_massage call(old_message)
+            attr_accessor :filter
+
+            class << self
+              attr_accessor :default_policy
+            end
+            self.default_policy = Hash.new
+            self.default_policy[:type] = :data
 
             #Defines a connection which is set through connect_to
             class Connection #:nodoc:
-                attr_accessor :port,:writer
+                attr_accessor :port,:writer,:filter
                 def initialize(port,policy=Hash.new)
                     @port = port
+                    policy =  OutputPort::default_policy if !policy
+                    @filter, policy = Kernel.filter_options(policy,[:filter])
+                    @filter = @filter[:filter]
                     @writer = port.writer(policy)
+                end
+
+                def update(data)
+                  if @filter 
+                    @writer.write(@filter.call data)
+                  else
+                    @writer.write(data)
+                  end
                 end
             end
 
@@ -93,8 +125,9 @@ module Orocos
                 puts prefix + "#{task.name}.#{name}"
                 puts prefix + "  tracked = #{@tracked}"
                 puts prefix + "  readers = #{@readers.size}"
+                puts prefix + "  filtered = #{(@filter!=nil).to_s}"
                 @connections.each do |connection|
-                    puts prefix + "  connected to #{connection.port.task.name}.#{connection.port.name}"
+                    puts prefix + "  connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
                 end
             end
 
@@ -123,13 +156,9 @@ module Orocos
                 @replay = false
             end
 
-            #Sets the default policy for all ports.
-            def  self.default_policy=(policy)
-                @@default_policy = policy
-            end
-
             #Creates a new reader for the port.
-            def reader(policy = Hash.new)
+            def reader(policy = OutputPort::default_policy,&block)
+                policy[:filter] = block if block
                 raise "can not initialize a reader for the unused port #{stream.name} after the replay has started" if !used? && replay==true
                 new_reader = OutputReader.new(self,policy)
                 @readers << new_reader
@@ -145,6 +174,7 @@ module Orocos
 
             #Returns the current sample data.
             def read()
+                return yield @current_data if block_given?
                 return @current_data
             end
 
@@ -155,21 +185,23 @@ module Orocos
             end
 
             #Register InputPort which is updated each time write is called
-            def connect_to(port,policy = @@default_policy)
+            def connect_to(port,policy = OutputPort::default_policy,&block)
+                puts policy
+                policy[:filter] = block if block
                 raise "can not connect the unused port #{stream.name} to #{port.name} after the replay has started" if !used? && replay
                 raise "Cannot connect to #{port.class}" if(!port.instance_of?(Orocos::InputPort))
                 @connections << Connection.new(port,policy)
                 puts "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
             end
 
-            #Feeds data to the connected ports
+            #Feeds data to the connected ports and readers
             def write(data)
-                @current_data = data
+                @current_data = @filter ? @filter.call(data) : data
                 @connections.each do |connection|
-                    connection.writer.write(@current_data)
+                    connection.update(@current_data)
                 end
                 @readers.each do |reader|
-                    reader.update(data)
+                    reader.update(@current_data)
                 end
             end
 
