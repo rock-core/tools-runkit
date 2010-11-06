@@ -247,14 +247,14 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should allow to restart after a fatal error if resetError has been called" do
+    it "should allow to restart after an exception error if resetException has been called" do
         Orocos::Process.spawn('states') do |p|
             t = p.task("Task")
 
             t.configure
             t.start
-            t.do_fatal_error
-            t.reset_error
+            t.do_exception
+            t.reset_exception
             t.configure
             t.start
         end
