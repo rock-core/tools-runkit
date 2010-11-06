@@ -544,7 +544,11 @@ module Orocos
         def property(name)
             name = name.to_s
             type_name = CORBA.refine_exceptions(self) do
-                do_property_type_name(name)
+                begin
+                    do_property_type_name(name)
+                rescue ArgumentError
+                    raise Orocos::NotFound, "no such property #{name}"
+                end
             end
 
             Property.new(self, name, type_name)
