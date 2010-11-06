@@ -137,7 +137,7 @@ module Orocos
             if model
                 @state_symbols = model.each_state.map { |name, type| name.to_sym }
                 @error_states  = model.each_state.
-                    map { |name, type| name.to_sym if (type == :error || type == :fatal) }.
+                    map { |name, type| name.to_sym if (type == :error || type == :exception || type == :fatal) }.
                     compact.to_set
                 @exception_states  = model.each_state.
                     map { |name, type| name.to_sym if type == :exception }.
@@ -182,6 +182,8 @@ module Orocos
 
         # True if the given symbol is the name of an error state
         def error_state?(sym); @error_states.include?(sym) end
+        # True if the given symbol is the name of an exception state
+        def exception_state?(sym); @exception_states.include?(sym) end
         # True if the given symbol is the name of a fatal error state
         def fatal_error_state?(sym); @fatal_states.include?(sym) end
         # True if the given symbol is the name of a runtime state
@@ -324,11 +326,15 @@ module Orocos
         def ready?;   state != :PRE_OPERATIONAL end
         # Returns true if the task is in an error state (runtime or fatal)
         def error?
-            @error_states.include?(state)
+            error_state?(state)
         end
         # Returns true if the task is in a runtime error state
         def runtime_error?
-            error_state?(state) && !fatal_error_state?(state)
+            error_state?(state) && !exception_state?(state) && !fatal_error_state?(state)
+        end
+        # Returns true if the task is in an exceptional state
+        def exception?
+            exception_state?(state)
         end
         # Returns true if the task is in a fatal error state
         def fatal_error?

@@ -266,42 +266,50 @@ describe Orocos::TaskContext do
 
             state = t.state_reader :type => :buffer, :size => 20
 
-            assert !t.ready?
-            assert !t.running?
-            assert !t.error?
+            sleep 0.05
+            assert !t.ready?, "expected to be in state PRE_OPERATIONAL but is in #{t.state}"
+            assert !t.running?, "expected to be in state PRE_OPERATIONAL but is in #{t.state}"
+            assert !t.error?, "expected to be in state PRE_OPERATIONAL but is in #{t.state}"
             t.configure
-            assert t.ready?
-            assert !t.running?
-            assert !t.error?
+            sleep 0.05
+            assert t.ready?, "expected to be in state STOPPED but is in #{t.state} (RTT reports #{t.rtt_state})"
+            assert !t.running?, "expected to be in state STOPPED but is in #{t.state}"
+            assert !t.error?, "expected to be in state STOPPED but is in #{t.state}"
             t.start
+            sleep 0.05
             assert t.ready?
             assert t.running?
             assert !t.error?
             t.do_custom_runtime
+            sleep 0.05
             assert t.ready?
             assert t.running?
             assert !t.error?
             t.do_nominal_running
+            sleep 0.05
             assert t.ready?
             assert t.running?
             assert !t.error?
             t.do_custom_error
+            sleep 0.05
             assert t.ready?
             assert t.running?
             assert t.error?
+            assert !t.exception?
+            assert !t.fatal_error?
             t.do_recover
+            sleep 0.05
             assert t.ready?
             assert t.running?
             assert !t.error?
-            t.do_custom_fatal
+            t.do_custom_exception
+            sleep 0.05
             assert t.ready?
             assert !t.running?
             assert t.error?
-            t.reset_error
-            assert t.ready?
-            assert !t.running?
-            assert !t.error?
-            t.cleanup
+            assert t.exception?
+            t.reset_exception
+            sleep 0.05
             assert !t.ready?
             assert !t.running?
             assert !t.error?
@@ -313,8 +321,7 @@ describe Orocos::TaskContext do
             assert_equal :RUNNING, state.read
             assert_equal :CUSTOM_ERROR, state.read
             assert_equal :RUNNING, state.read
-            assert_equal :CUSTOM_FATAL, state.read
-            assert_equal :STOPPED, state.read
+            assert_equal :CUSTOM_EXCEPTION, state.read
             assert_equal :PRE_OPERATIONAL, state.read
         end
     end

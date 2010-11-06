@@ -41,7 +41,7 @@ void Task::do_custom_error()
 
 void Task::do_custom_exception()
 {
-    fatal(CUSTOM_EXCEPTION);
+    exception(CUSTOM_EXCEPTION);
 }
 
 void Task::do_custom_fatal()
