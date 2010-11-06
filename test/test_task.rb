@@ -118,7 +118,7 @@ describe Orocos::TaskContext do
     it "should raise CORBA::ComError when the process crashed during a operation call" do
         Orocos::Process.spawn 'echo' do |echo_p|
             echo = echo_p.task('Echo')
-            assert_raises(Orocos::CORBA::ComError) { echo.operation(:kill).call }
+            assert_raises(Orocos::CORBA::ComError) { echo.operation(:kill).callop }
         end
     end
 
