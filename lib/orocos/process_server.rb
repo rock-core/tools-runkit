@@ -149,11 +149,17 @@ module Orocos
             end
 
         rescue Exception => e
+            if e.class == Interrupt # normal procedure
+                Orocos.fatal "process server exited normally"
+                return
+            end
+
             Orocos.fatal "process server exited because of unhandled exception"
             Orocos.fatal "#{e.message} #{e.class}"
             e.backtrace.each do |line|
                 Orocos.fatal "  #{line}"
             end
+
         ensure
             quit_and_join
         end

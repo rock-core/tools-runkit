@@ -15,6 +15,8 @@ module Orocos
         attr_reader :task
         # The port name
         attr_reader :name
+        # The port full name. It is task_name.port_name
+        def full_name; "#{task.name}.#{name}" end
         # The port's type name as used by the RTT
         attr_reader :orocos_type_name
         # The port's type name as used in Ruby

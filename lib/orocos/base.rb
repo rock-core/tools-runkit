@@ -69,7 +69,7 @@ module Orocos
     def self.load
         @registry = Typelib::Registry.new
         @master_project = Orocos::Generation::Component.new
-        registry.import File.join(Orocos::Generation.base_dir, 'orogen', 'orocos.tlb')
+        registry.merge Orocos::Generation::Component.rtt_registry
 
         @available_projects ||= Hash.new
 
