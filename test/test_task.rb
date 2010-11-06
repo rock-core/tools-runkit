@@ -70,7 +70,7 @@ describe Orocos::TaskContext do
         Orocos::Process.spawn('states') do |p|
             t = p.task "Task"
             assert(!t.has_operation?("does_not_exist"))
-            assert(t.has_operation?("do_runtime_warning"))
+            assert(t.has_operation?("do_runtime_error"))
         end
     end
 
@@ -199,30 +199,24 @@ describe Orocos::TaskContext do
             # Then test the error states
             t.configure
             t.start
-            t.do_runtime_warning
             t.do_recover
             t.do_runtime_error
             t.do_recover
-            t.do_runtime_warning
             t.do_runtime_error
             t.do_recover
-            t.do_fatal_error
-            t.reset_error
-            t.cleanup
+            t.do_exception
+            t.reset_exception
 
             # Note: we don't have state_pre_operational as we already read it
             # once
             assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
             assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNTIME_WARNING, state.read
             assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
             assert_equal Orocos::TaskContext::STATE_RUNTIME_ERROR, state.read
             assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNTIME_WARNING, state.read
             assert_equal Orocos::TaskContext::STATE_RUNTIME_ERROR, state.read
             assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
-            assert_equal Orocos::TaskContext::STATE_FATAL_ERROR, state.read
-            assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
+            assert_equal Orocos::TaskContext::STATE_EXCEPTION, state.read
             assert_equal Orocos::TaskContext::STATE_PRE_OPERATIONAL, state.read
         end
     end
