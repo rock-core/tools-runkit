@@ -9,10 +9,12 @@ Test::Test(std::string const& name, TaskCore::TaskState initial_state)
     val.a = 21;
     val.b = 42;
     _prop1.set(val);
-
     _prop2.set(84);
-
     _prop3.set("42");
+
+    _att1.set(val);
+    _att2.set(84);
+    _att3.set("42");
 }
 
 

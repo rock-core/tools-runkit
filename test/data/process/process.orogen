@@ -9,6 +9,10 @@ task_context 'Test' do
     property "prop1", "/process/Simple"
     property "prop2", "int"
     property 'prop3', 'string'
+
+    attribute "att1", "/process/Simple"
+    attribute "att2", "int"
+    attribute 'att3', 'string'
 end
 
 deployment "process" do

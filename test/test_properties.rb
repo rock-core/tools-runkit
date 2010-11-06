@@ -12,6 +12,17 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 describe "reading and writing properties on TaskContext" do
     include Orocos::Spec
 
+    it "should be able to enumerate its properties" do
+        Orocos::Process.spawn('process') do |process|
+            t = process.task('Test')
+            assert_equal %w{prop1 prop2 prop3}, t.property_names.sort
+            assert_equal %w{prop1 prop2 prop3}, t.each_property.map(&:name).sort
+            %w{prop1 prop2 prop3}.each do |name|
+                t.has_property?(name)
+            end
+        end
+    end
+
     it "should be able to read string property values" do
         Orocos::Process.spawn('process') do |process|
             prop = process.task('Test').property('prop3')
@@ -62,6 +73,76 @@ describe "reading and writing properties on TaskContext" do
             prop.write(value)
 
             value = prop.read
+            assert_equal(22, value.a)
+            assert_equal(43, value.b)
+        end
+    end
+end
+
+describe "reading and writing attributes on TaskContext" do
+    include Orocos::Spec
+
+    it "should be able to enumerate its attributes" do
+        Orocos::Process.spawn('process') do |process|
+            t = process.task('Test')
+            assert_equal %w{att1 att2 att3}, t.attribute_names.sort
+            assert_equal %w{att1 att2 att3}, t.each_attribute.map(&:name).sort
+            %w{att1 att2 att3}.each do |name|
+                t.has_attribute?(name)
+            end
+        end
+    end
+
+    it "should be able to read string attribute values" do
+        Orocos::Process.spawn('process') do |process|
+            att = process.task('Test').attribute('att3')
+            assert_equal('42', att.read)
+        end
+    end
+
+    it "should be able to read attribute values from a simple type" do
+        Orocos::Process.spawn('process') do |process|
+            att = process.task('Test').attribute('att2')
+            assert_equal(84, att.read)
+        end
+    end
+
+    it "should be able to read attribute values from a complex type" do
+        Orocos::Process.spawn('process') do |process|
+            att1 = process.task('Test').attribute('att1')
+
+            value = att1.read
+            assert_equal(21, value.a)
+            assert_equal(42, value.b)
+        end
+    end
+
+    it "should be able to write a attribute of a simple type" do
+        Orocos::Process.spawn('process') do |process|
+            att = process.task('Test').attribute('att2')
+            att.write(80)
+            assert_equal(80, att.read)
+        end
+    end
+
+    it "should be able to write string attribute values" do
+        Orocos::Process.spawn('process') do |process|
+            att = process.task('Test').attribute('att3')
+            att.write('84')
+            assert_equal('84', att.read)
+        end
+    end
+
+    it "should be able to write a attribute of a complex type" do
+        Orocos::Process.spawn('process') do |process|
+            att = Orocos::TaskContext.get('process_Test').attribute('att1')
+
+            value = att.type.new
+            value.a = 22
+            value.b = 43
+            att.write(value)
+
+            value = att.read
             assert_equal(22, value.a)
             assert_equal(43, value.b)
         end

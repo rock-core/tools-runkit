@@ -490,7 +490,7 @@ module Orocos
         # context
         def property_names
             CORBA.refine_exceptions(self) do
-                do_property_names(name)
+                do_property_names
             end
         end
 
@@ -498,7 +498,7 @@ module Orocos
         # context
         def attribute_names
             CORBA.refine_exceptions(self) do
-                do_attribute_names(name)
+                do_attribute_names
             end
         end
 
@@ -625,15 +625,39 @@ module Orocos
         end
 
         # call-seq:
+        #  task.each_property { |a| ... } => task
+        # 
+        # Enumerates the properties that are available on
+        # this task, as instances of Orocos::Attribute
+        def each_property(&block)
+            if !block_given?
+                return enum_for(:each_property)
+            end
+
+            names = CORBA.refine_exceptions(self) do
+                do_property_names
+            end
+            names.each do |name|
+                yield(property(name))
+            end
+        end
+
+        # call-seq:
         #  task.each_attribute { |a| ... } => task
         # 
-        # Enumerates the attributes and properties that are available on
+        # Enumerates the attributes that are available on
         # this task, as instances of Orocos::Attribute
         def each_attribute(&block)
-            CORBA.refine_exceptions(self) do
-                do_each_attribute(&block)
+            if !block_given?
+                return enum_for(:each_attribute)
             end
-            self
+
+            names = CORBA.refine_exceptions(self) do
+                do_attribute_names
+            end
+            names.each do |name|
+                yield(attribute(name))
+            end
         end
 
         # Returns an Operation object that represents the given method on the
@@ -732,21 +756,23 @@ module Orocos
             pp.text "  state: #{state}"
             pp.breakable
 
-            attributes = enum_for(:each_attribute).to_a
-            if attributes.empty?
-                pp.text "No attributes"
-                pp.breakable
-            else
-                pp.text "Attributes:"
-                pp.breakable
-                pp.nest(2) do
-                    pp.text "  "
-                    each_attribute do |attribute|
-                        attribute.pretty_print(pp)
-                        pp.breakable
+            [['attributes', each_attribute], ['properties', each_property]].each do |kind, enum|
+                objects = enum.to_a
+                if objects.empty?
+                    pp.text "No #{kind}"
+                    pp.breakable
+                else
+                    pp.text "#{kind.capitalize}:"
+                    pp.breakable
+                    pp.nest(2) do
+                        pp.text "  "
+                        objects.each do |o|
+                            o.pretty_print(pp)
+                            pp.breakable
+                        end
                     end
+                    pp.breakable
                 end
-                pp.breakable
             end
 
             ports = enum_for(:each_port).to_a

@@ -145,26 +145,33 @@ static VALUE task_context_has_operation_p(VALUE self, VALUE name)
     return Qtrue;
 }
 
+static VALUE task_context_attribute_type_name(VALUE self, VALUE name)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    std::string const expected_name = StringValuePtr(name);
+    try {
+        CORBA::String_var attribute_type_name =
+            context.main_service->getAttributeTypeName(StringValuePtr(name));
+        std::string type_name = std::string(attribute_type_name);
+        if (type_name != "na")
+            return rb_str_new(type_name.c_str(), type_name.length());
+
+        rb_raise(rb_eArgError, "no such attribute %s", StringValuePtr(name));
+    }
+    CORBA_EXCEPTION_HANDLERS
+    return Qfalse;
+}
+
 static VALUE task_context_property_type_name(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     std::string const expected_name = StringValuePtr(name);
     try {
-        {
-            CORBA::String_var attribute_type_name =
-                context.main_service->getAttributeTypeName(StringValuePtr(name));
-            std::string type_name = std::string(attribute_type_name);
-            if (type_name != "na")
-                return rb_str_new(type_name.c_str(), type_name.length());
-        }
-
-        {
-            CORBA::String_var attribute_type_name =
-                context.main_service->getPropertyTypeName(StringValuePtr(name));
-            std::string type_name = std::string(attribute_type_name);
-            if (type_name != "na")
-                return rb_str_new(type_name.c_str(), type_name.length());
-        }
+        CORBA::String_var attribute_type_name =
+            context.main_service->getPropertyTypeName(StringValuePtr(name));
+        std::string type_name = std::string(attribute_type_name);
+        if (type_name != "na")
+            return rb_str_new(type_name.c_str(), type_name.length());
 
         rb_raise(rb_eArgError, "no such property %s", StringValuePtr(name));
     }
@@ -709,6 +716,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_has_port?", RUBY_METHOD_FUNC(task_context_has_port_p), 1);
     rb_define_method(cTaskContext, "do_has_operation?", RUBY_METHOD_FUNC(task_context_has_operation_p), 1);
     rb_define_method(cTaskContext, "do_property_type_name", RUBY_METHOD_FUNC(task_context_property_type_name), 1);
+    rb_define_method(cTaskContext, "do_attribute_type_name", RUBY_METHOD_FUNC(task_context_attribute_type_name), 1);
     rb_define_method(cTaskContext, "do_attribute_names", RUBY_METHOD_FUNC(task_context_attribute_names), 0);
     rb_define_method(cTaskContext, "do_property_names", RUBY_METHOD_FUNC(task_context_property_names), 0);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
