@@ -107,7 +107,7 @@ ENDMACRO(OMNIORB)
 
 OMNIORB()
 ADD_RUBY_EXTENSION(rorocos_ext 
-    rorocos.cc corba.cc datahandling.cc methods.cc ${ORB_IDL_FILES}
+    rorocos.cc corba.cc datahandling.cc operations.cc ${ORB_IDL_FILES}
     ${OROGEN_BASE_DIR}/orogen/templates/typekit/typelib/TypelibMarshallerBase.cpp)
 target_link_libraries(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
     ${RTT_CORBA_LIBRARIES} ${TYPELIB_LIBRARIES}

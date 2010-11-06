@@ -1,4 +1,9 @@
 module Orocos
+    # OperationHandle instances represent asynchronous operation calls. They are
+    # returned by Operation#sendop and TaskContext#sendop
+    class OperationHandle
+    end
+
     # Base class for RTTMethod and Command
     class Operation
         # The task this method is part of
@@ -53,20 +58,32 @@ module Orocos
             end
         end
 
-        # Calls the method with the provided arguments, and returns the value
-        # returned by the remote method.
-        def call(*args)
-            result = if return_type.null?
-                     elsif return_type.name == "string" || return_type.name == "/std/string"
+        # Returns a Typelib value that can store the result of this operation
+        def new_result
+            if return_type.null?
+            elsif return_type.name == "string" || return_type.name == "/std/string"
                          ""
-                     elsif return_type.opaque?
-                         raise ArgumentError, "I don't know how to handle #{return_type.name}"
-                     else
-                         return_type.new
-                     end
+            elsif return_type.opaque?
+                raise ArgumentError, "I don't know how to handle #{return_type.name}"
+            else
+                return_type.new
+            end
+        end
 
+        # Requests the operation to be started. It does not wait for it to
+        # finish, returning instead an OperationHandle object that can be used
+        # to query the operation status and return value
+        def sendop(*args)
             common_call(args) do |filtered|
-                result = task.do_operation_call(name, return_spec, @args_type_names, filtered, result)
+                task.do_operation_call(name, return_spec, @args_type_names, filtered, new_result)
+            end
+        end
+
+        # Calls the method with the provided arguments, waiting for the method
+        # to finish. It returns the value returned by the remote method.
+        def callop(*args)
+            result = common_call(args) do |filtered|
+                task.do_operation_call(name, return_spec, @args_type_names, filtered, new_result)
             end
             Typelib.to_ruby(result)
         end

@@ -38,6 +38,25 @@ static CAnyArguments* init_corba_args(VALUE type_names, VALUE args)
     return corba_args._retn();
 }
 
+static VALUE result_to_ruby(CORBA::Any_var corba_result, VALUE result_type_name, VALUE result_)
+{
+    if (!RTEST(result_))
+        return Qnil;
+
+    if (rb_obj_is_kind_of(result_, rb_cString))
+    {
+        char const* result_str;
+        corba_result >>= result_str;
+        return rb_str_new2(result_str);
+    }
+    else
+    {
+        Typelib::Value result = typelib_get(result_);
+        corba_to_ruby(StringValuePtr(result_type_name), result, corba_result);
+        return result_;
+    }
+}
+
 static VALUE operation_call(VALUE task_, VALUE name, VALUE result_type_name, VALUE args_type_names, VALUE args, VALUE result_)
 {
     RTaskContext& task = get_wrapped<RTaskContext>(task_);
@@ -45,22 +64,7 @@ static VALUE operation_call(VALUE task_, VALUE name, VALUE result_type_name, VAL
 
     try {
 	CORBA::Any_var corba_result = task.main_service->callOperation(StringValuePtr(name), corba_args);
-
-        if (RTEST(result_))
-        {
-            if (rb_obj_is_kind_of(result_, rb_cString))
-            {
-                char const* result_str;
-                corba_result >>= result_str;
-                return rb_str_new2(result_str);
-            }
-            else
-            {
-                Typelib::Value result = typelib_get(result_);
-                corba_to_ruby(StringValuePtr(result_type_name), result, corba_result);
-            }
-        }
-	return Qnil;
+        return result_to_ruby(corba_result, result_type_name, result_);
     }
     CORBA_EXCEPTION_HANDLERS;
     return Qnil;
@@ -83,6 +87,25 @@ static VALUE operation_send(VALUE task_, VALUE name, VALUE args_type_names, VALU
     try {
 	RTT::corba::CSendHandle_var corba_result = task.main_service->sendOperation(StringValuePtr(name), corba_args);
 	return simple_wrap(cSendHandle, new RSendHandle(corba_result));
+    }
+    CORBA_EXCEPTION_HANDLERS;
+    return Qnil;
+}
+
+static VALUE send_handle_check_status(VALUE handle_)
+{
+    RSendHandle& handle = get_wrapped<RSendHandle>(handle_);
+    RTT::corba::CSendStatus status = handle.handle->checkStatus();
+    return FIX2INT(status);
+}
+
+static VALUE send_handle_return_value(VALUE handle_, VALUE result_type_name, VALUE result_)
+{
+    RSendHandle& handle = get_wrapped<RSendHandle>(handle_);
+
+    try {
+	CORBA::Any_var corba_result = handle.handle->ret();
+        return result_to_ruby(corba_result, result_type_name, result_);
     }
     CORBA_EXCEPTION_HANDLERS;
     return Qnil;
@@ -130,6 +153,9 @@ void Orocos_init_methods()
     rb_define_method(cTaskContext, "operation_signature", RUBY_METHOD_FUNC(operation_signature), 1);
     rb_define_method(cTaskContext, "do_operation_call", RUBY_METHOD_FUNC(operation_call), 5);
     rb_define_method(cTaskContext, "do_operation_send", RUBY_METHOD_FUNC(operation_send), 3);
+
+    rb_define_method(cSendHandle, "do_check_status", RUBY_METHOD_FUNC(send_handle_check_status), 0);
+    rb_define_method(cSendHandle, "do_return_value", RUBY_METHOD_FUNC(send_handle_return_value), 2);
 
     rb_const_set(cSendHandle, rb_intern("SEND_SUCCESS"),       INT2FIX(RTT::corba::CSendSuccess));
     rb_const_set(cSendHandle, rb_intern("SEND_NOT_READY"),     INT2FIX(RTT::corba::CSendNotReady));

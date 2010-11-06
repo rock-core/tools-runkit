@@ -627,6 +627,7 @@ module Orocos
         #
         # Raises NotFound if no such operation exists.
         def operation(name)
+            name = name.to_s
             CORBA.refine_exceptions(self) do
                 return_type, *arguments = operation_signature(name)
                 Operation.new(self, name, return_type, arguments)
@@ -646,7 +647,7 @@ module Orocos
                 if has_port?(m)
                     return port(m)
                 elsif has_operation?(m)
-                    return operation(m).call(*args)
+                    return operation(m).callop(*args)
                 end
 
                 begin
