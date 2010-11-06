@@ -183,15 +183,20 @@ module Orocos
             end
 
             begin
-                options = validate_options options, :wait => 2, :output => nil, :working_directory => nil, :valgrind => false
+                options = validate_options options, :wait => 2, :output => nil, :working_directory => nil, :valgrind => false, :valgrind_options => []
 
                 valgrind = options[:valgrind]
-                if valgrind.respond_to?(:to_ary)
-                    valgrind = valgrind.dup
-                elsif valgrind
-                    valgrind = names.dup
-                else
-                    valgrind = []
+                if !valgrind.respond_to?(:to_hash)
+                    if !valgrind
+                        valgrind = Array.new
+                    elsif valgrind.respond_to?(:to_str)
+                        valgrind = [valgrind]
+                    elsif !valgrind.respond_to?(:to_ary)
+                        valgrind = names.dup
+                    end
+
+                    valgrind_options = options[:valgrind_options]
+                    valgrind = valgrind.inject(Hash.new) { |h, name| h[name] = valgrind_options; h }
                 end
 
                 # First thing, do create all the named processes
@@ -202,7 +207,7 @@ module Orocos
                                  options[:output].gsub '%m', name
                              end
 
-                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind.include?(name))
+                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind[name])
                 end
 
                 # Finally, if the user required it, wait for the processes to run
@@ -265,7 +270,15 @@ module Orocos
             options = Kernel.validate_options options, :output => nil,
                 :valgrind => nil, :working_directory => nil
             output   = options[:output]
-            valgrind = !!options[:valgrind]
+            if options[:valgrind]
+                valgrind = true
+                valgrind_options =
+                    if options[:valgrind].respond_to?(:to_ary)
+                        options[:valgrind]
+                    else []
+                    end
+            end
+
             workdir  = options[:working_directory]
 
             ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
@@ -302,6 +315,7 @@ module Orocos
                     if output_file_name
                         cmdline.unshift "--log-file=#{output_file_name}.valgrind"
                     end
+                    cmdline = valgrind_options + cmdline
                     cmdline.unshift "valgrind"
                 end
 
