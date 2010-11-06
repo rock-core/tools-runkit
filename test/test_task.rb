@@ -228,24 +228,27 @@ describe Orocos::TaskContext do
             t = p.task("Uncaught")
 
             assert_raises(Orocos::StateTransitionFailed) { t.configure }
+            t.reset_exception
             t.exception_level = 1
             t.configure
 
             assert_raises(Orocos::StateTransitionFailed) { t.start }
+            t.reset_exception
             t.exception_level = 2
             t.start
 
             sleep 0.1
-            assert(t.fatal_error?)
+            assert(t.exception?)
 
-            t.reset_error
+            t.reset_exception
             t.exception_level = 3
+            t.configure
             t.start
             sleep 0.2
             assert(t.running?)
             t.do_runtime_error
             sleep 0.2
-            assert(t.fatal_error?)
+            assert(t.exception?)
         end
     end
 
