@@ -190,6 +190,7 @@ describe Orocos::TaskContext do
             t.start
             t.stop
             t.cleanup
+            sleep 0.05
             assert_equal Orocos::TaskContext::STATE_PRE_OPERATIONAL, state.read
             assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
             assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
@@ -206,6 +207,7 @@ describe Orocos::TaskContext do
             t.do_recover
             t.do_exception
             t.reset_exception
+            sleep 0.05
 
             # Note: we don't have state_pre_operational as we already read it
             # once
