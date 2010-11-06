@@ -423,7 +423,7 @@ module Orocos
         #
         # Raises StateTransitionFailed if the component was not in a proper
         # state before the call.
-        corba_wrap :reset_error
+        corba_wrap :reset_exception
 
         ##
         # :method: stop
