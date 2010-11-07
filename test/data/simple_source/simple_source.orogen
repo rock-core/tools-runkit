@@ -6,6 +6,10 @@ task_context "source" do
     needs_configuration
     output_port "cycle", "int"
     output_port "cycle_struct", "simple_source/Int"
+
+    4.times do |i|
+        output_port "out#{i}", "int"
+    end
 end
 
 deployment "simple_source" do

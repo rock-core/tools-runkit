@@ -12,6 +12,11 @@ TEST_DIR = File.expand_path(File.dirname(__FILE__))
 DATA_DIR = File.join(TEST_DIR, 'data')
 WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+DATAFLOW_STRESS_TEST =
+    if ENV['DATAFLOW_STRESS_TEST']
+        Integer(ENV['DATAFLOW_STRESS_TEST'])
+    end
+
 describe Orocos::Port do
     include Orocos::Spec
 
@@ -119,18 +124,39 @@ describe Orocos::OutputPort do
     end
 
     it "it should be able to modify connections while running" do
-        Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log") do |p_source, p_sink|
-            source_task = p_source.task("fast_source")
-            source = source_task.port("cycle")
-            sink_task = p_sink.task("sink")
-            sink = sink_task.port("cycle")
+        last = nil
+        Orocos::Process.spawn('simple_sink', 'simple_source', :output => "%m.log") do
+            source_task = Orocos::TaskContext.get("fast_source")
+            sources = (0...4).map { |i| source_task.port("out#{i}") }
+            sink_task = Orocos::TaskContext.get("fast_sink")
+            sinks   = (0...4).map { |i| sink_task.port("in#{i}") }
+
+            count, display = nil
+            if DATAFLOW_STRESS_TEST
+                count   = DATAFLOW_STRESS_TEST
+                display = true
+            else
+                count = 10_000
+            end
 
             source_task.configure
             source_task.start
             sink_task.start
-            10_000.times do |i|
-                source.connect_to sink, :pull => (rand > 0.5)
-                source.disconnect_all
+            count.times do |i|
+                p_out = sources[rand(4)]
+                p_in  = sinks[rand(4)]
+                p_out.connect_to p_in, :pull => (rand > 0.5)
+                if rand > 0.8
+                    p_out.disconnect_all
+                end
+
+                if display && (i % 1000 == 0)
+                    if last
+                        delay = Time.now - last
+                    end
+                    last = Time.now
+                    STDERR.puts "#{i} #{delay}"
+                end
             end
         end
     end
@@ -207,19 +233,39 @@ describe Orocos::InputPort do
     end
 
     it "it should be able to modify connections while running" do
-        Orocos::Process.spawn('simple_source', 'simple_sink', :output => "%m.log"
-                             ) do |p_source, p_sink|
-            source_task = p_source.task("fast_source")
-            source = source_task.port("cycle")
-            sink_task = p_sink.task("sink")
-            sink = sink_task.port("cycle")
+        last = nil
+        Orocos::Process.spawn('simple_sink', 'simple_source', :output => "%m.log") do
+            source_task = Orocos::TaskContext.get("fast_source")
+            sources = (0...4).map { |i| source_task.port("out#{i}") }
+            sink_task = Orocos::TaskContext.get("fast_sink")
+            sinks   = (0...4).map { |i| sink_task.port("in#{i}") }
+
+            count, display = nil
+            if DATAFLOW_STRESS_TEST
+                count   = DATAFLOW_STRESS_TEST
+                display = true
+            else
+                count = 10_000
+            end
 
             source_task.configure
             source_task.start
             sink_task.start
-            10_000.times do |i|
-                source.connect_to sink, :pull => (rand > 0.5)
-                sink.disconnect_all
+            count.times do |i|
+                p_out = sources[rand(4)]
+                p_in  = sinks[rand(4)]
+                p_out.connect_to p_in, :pull => (rand > 0.5)
+                if rand > 0.8
+                    p_in.disconnect_all
+                end
+
+                if display && (i % 1000 == 0)
+                    if last
+                        delay = Time.now - last
+                    end
+                    last = Time.now
+                    STDERR.puts "#{i} #{delay}"
+                end
             end
         end
     end
