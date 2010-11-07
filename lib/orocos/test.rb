@@ -41,7 +41,7 @@ module Orocos
                     FileUtils.mkdir 'build'
                 end
                 Dir.chdir 'build' do
-                    if !system 'cmake', "-DCMAKE_INSTALL_PREFIX=#{prefix}", ".."
+                    if !system 'cmake', "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DCMAKE_BUILD_TYPE=Debug", ".."
                         raise "failed to configure"
                     elsif !system "make", "install"
                         raise "failed to install"
