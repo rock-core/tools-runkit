@@ -102,6 +102,8 @@ module Orocos
             self.connect_timeout = 100
 	end
 
+        @loaded_plugins = Set.new
+
         # Generic loading of a RTT plugin
         def self.load_plugin_library(pkg, name, libname) # :nodoc:
             libpath = pkg.library_dirs.find do |dir|
@@ -113,7 +115,10 @@ module Orocos
                 raise NotFound, "cannot find typekit shared library for #{name} (searched for #{libname} in #{pkg.libdirs.split(" ").join(", ")})"
             end
 
+            return if @loaded_plugins.include?(libpath)
+
             Orocos.load_rtt_plugin(libpath)
+            @loaded_plugins << libpath
             true
         end
 
