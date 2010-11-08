@@ -663,9 +663,9 @@ module Orocos
             end
 
             #Runs through the log files until the end is reached.
-            def run(&block)
-                start()
-                while step(true,&block) do
+            def run(time_sync = false,speed=1,&block)
+                @speed = speed
+                while step(time_sync,&block) do
                 end
             end
 
