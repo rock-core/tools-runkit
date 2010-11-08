@@ -255,6 +255,16 @@ module Orocos
                 @state = :replay
             end
 
+            #pretty print for TaskContext
+            def pp(prefix = "  ")
+                puts prefix + "#{name}:"
+                puts prefix + "  log file: #{file_path}"
+                puts prefix + "  port(s):"
+                @ports.each_value do |port|
+                  puts prefix + "    #{port.name}"
+                end
+            end
+
             #Adds a new port to the TaskContext
             #
             #* file_path = path of the log file
@@ -433,6 +443,17 @@ module Orocos
                 @ports = Hash.new
                 @process_qt_events = false
                 @out_of_sync_delta = 0
+            end
+
+            #pretty print for Replay
+            def pp(prefix = "  ")
+                puts
+                puts prefix + "Orocos::Log::Replay:"
+                puts prefix + "  replay speed = #{@speed}"
+                puts prefix + "  TaskContext(s):"
+                @tasks.each_value do |task|
+                   task.pp(prefix+"    ")
+                end
             end
 
             #Sets a code block to calculate the default timestamp duricng replay.
