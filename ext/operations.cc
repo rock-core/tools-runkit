@@ -96,7 +96,7 @@ static VALUE send_handle_check_status(VALUE handle_)
 {
     RSendHandle& handle = get_wrapped<RSendHandle>(handle_);
     RTT::corba::CSendStatus status = handle.handle->checkStatus();
-    return FIX2INT(status);
+    return INT2FIX(status);
 }
 
 static VALUE send_handle_return_value(VALUE handle_, VALUE result_type_name, VALUE result_)
