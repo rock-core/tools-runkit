@@ -632,7 +632,7 @@ module Orocos
 
                 #write sample to connected ports
                 @used_ports[index].write(data)
-                yield(@used_ports[index].stream.name) if block_given?
+                yield(@used_ports[index],data) if block_given?
                 return @current_sample
             end
 
@@ -652,7 +652,7 @@ module Orocos
 
                 #write sample to connected ports
                 @used_ports[index].write(data)
-                yield(@used_ports[index].stream.name) if block_given?
+                yield(@used_ports[index],data) if block_given?
                 return @current_sample
             end
 
@@ -709,7 +709,6 @@ module Orocos
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
                     @used_ports[index].write(@stream.single_data(index))
-                    yield(@used_ports[index].stream.name) if block_given?
                 end
             end
 
