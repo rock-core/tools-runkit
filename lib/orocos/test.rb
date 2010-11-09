@@ -34,7 +34,7 @@ module Orocos
             orogen_bin = File.expand_path('../bin/orogen', Orocos::Generation.base_dir)
             Dir.chdir(work_dir) do
                 if !system(ruby_bin, orogen_bin, '--corba', '--transports=corba,typelib', File.basename(src))
-                    raise "failed to build"
+                    raise "failed to build #{src} in #{work_basedir}"
                 end
 
                 if !File.directory? 'build'
