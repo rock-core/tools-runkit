@@ -120,6 +120,11 @@ module Orocos
                 end
             end
 
+            def filter=(filter)
+              @filter=filter
+              self.tracked=true
+            end
+
             #Pretty print for OutputPort.
             def pp(prefix = "  ")
                 puts prefix + "#{task.name}.#{name}"
@@ -159,7 +164,7 @@ module Orocos
             #Creates a new reader for the port.
             def reader(policy = OutputPort::default_policy,&block)
                 policy[:filter] = block if block
-                raise "can not initialize a reader for the unused port #{stream.name} after the replay has started" if !used? && replay==true
+                self.tracked = true
                 new_reader = OutputReader.new(self,policy)
                 @readers << new_reader
                 return new_reader
@@ -168,8 +173,7 @@ module Orocos
             #Returns true if the port has at least one connection or 
             #tracked is set to true.
             def used?
-                return true if (!@connections.empty? || @tracked || !@readers.empty?)
-                return false
+                return @tracked
             end
 
             #Returns the current sample data.
@@ -186,9 +190,8 @@ module Orocos
 
             #Register InputPort which is updated each time write is called
             def connect_to(port,policy = OutputPort::default_policy,&block)
-                puts policy
+                self.tracked = true
                 policy[:filter] = block if block
-                raise "can not connect the unused port #{stream.name} to #{port.name} after the replay has started" if !used? && replay
                 raise "Cannot connect to #{port.class}" if(!port.instance_of?(Orocos::InputPort))
                 @connections << Connection.new(port,policy)
                 puts "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
@@ -379,14 +382,20 @@ module Orocos
 
             #This is used to allow the following syntax
             #task.port_name.connect_to(other_port)
-            def method_missing(m, *args) #:nodoc:
+            def method_missing(m, *args,&block) #:nodoc:
                 m = m.to_s
                 if m =~ /^(\w+)=/
                     name = $1
                     puts "Warning: Setting the property #{name} the TaskContext #{@name} is not supported"
                     return
                 end
-                return port(m )if has_port?(m)
+                if has_port?(m) 
+                  _port = port(m)
+                  _port.filter = block if block         #overwirte filer
+                  puts _port.name 
+                  puts block
+                  return _port
+                end
                 super(m.to_sym, *args)
             end
         end
@@ -556,6 +565,11 @@ module Orocos
                 puts "Replayed Ports:"
                 @used_ports.each {|port| port.pp}
                 puts ""
+
+                if @used_ports.size == 0
+                  puts "No log data are marked for replay !!!"
+                  return
+                end
 
                 #join streams 
                 @stream = Pocolog::StreamAligner.new(false, *@used_streams)
@@ -792,7 +806,8 @@ module Orocos
             #This is used to support the syntax.
             #log_replay.task 
             def method_missing(m,*args,&block) #:nodoc:
-                return @tasks[m.to_s] if @tasks.has_key?(m.to_s)
+                task = @tasks[m.to_s]
+                return task if task
                 super
             end
         end
