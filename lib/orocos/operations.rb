@@ -104,11 +104,7 @@ module Orocos
 
             filtered = []
             args.each_with_index do |v, i|
-                if arguments_types[i].name == "/std/string"
-                    filtered << v.to_str
-                else
-                    filtered << Typelib.from_ruby(v, arguments_types[i])
-                end
+                filtered << Typelib.from_ruby(v, arguments_types[i])
             end
             CORBA.refine_exceptions(self) do
                 yield(filtered)
@@ -116,9 +112,7 @@ module Orocos
         end
 
         def result_value_for(type)
-            if type.name == "string" || type.name == "/std/string"
-                ""
-            elsif type.opaque?
+            if type.opaque?
                 raise ArgumentError, "I don't know how to handle #{type.name}"
             else
                 type.new
