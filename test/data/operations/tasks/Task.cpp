@@ -47,6 +47,13 @@ int Task::simple(::Test::Parameters const& b)
     
 }
 
+::std::string Task::string_handling(::std::string const& b)
+{
+    
+    return b + "ret";
+    
+}
+
 
 /// The following lines are template definitions for the various state machine
 // hooks defined by Orocos::RTT. See Task.hpp for more detailed

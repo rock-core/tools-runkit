@@ -41,6 +41,10 @@ task_context "Task" do
         arg('a', 'Test::Parameters&').
         arg('b', 'Test::Opaque const&')
 
+    operation('string_handling').
+        returns('string').
+        arg('b', 'string const&')
+
 end
 
 # Declares a deployment, i.e. an actual executable that contains various tasks.

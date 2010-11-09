@@ -20,7 +20,7 @@ namespace operations {
     
 	void empty();
     
-	int simple(::Test::Parameters const& b);
+	boost::int32_t simple(::Test::Parameters const& b);
     
 	::Test::Parameters simple_with_return(::Test::Parameters const& b);
     
@@ -29,6 +29,7 @@ namespace operations {
 	::Test::Parameters with_opaque_argument(::Test::Opaque const& b);
     
 	::Test::Parameters with_returned_parameter(::Test::Parameters& a, ::Test::Opaque const& b);
+	::std::string string_handling(::std::string const& b);
     
 
     public:

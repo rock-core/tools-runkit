@@ -81,6 +81,10 @@ describe Orocos::Operation do
         assert_call_returns nil, 'empty'
     end
 
+    it "synchronous call with a string return value" do
+        assert_call_returns "testret", 'string_handling', "test"
+    end
+
     it "synchronous call with a structure argument" do
         arg = find_type('/Test/Parameters').new
         arg.set_point = 10
