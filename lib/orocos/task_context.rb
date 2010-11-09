@@ -358,7 +358,7 @@ module Orocos
             policy = p.validate_policy({:init => true, :type => :buffer, :size => 10}.merge(policy))
 
             # Create the mapping from state integers to state symbols
-            reader = p.do_reader(StateReader, p.type_name, policy)
+            reader = p.do_reader(StateReader, p.orocos_type_name, policy)
             reader.instance_variable_set :@state_symbols, @state_symbols
             reader
         end

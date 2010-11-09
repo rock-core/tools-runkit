@@ -30,13 +30,8 @@ module Orocos
         end
 
         def initialize
-            @type_name = Orocos.typelib_type_for(@orocos_type_name)
-            if @type_name == "string"
-                @type_name = "/std/string"
-            end
-            if !(@type = Orocos.registry.get(type_name))
-                raise "cannot find type #{type_name} in the registry"
-            end
+            @type = Orocos.typelib_type_for(@orocos_type_name)
+            @type_name = @type.name
         end
 
         # True if +self+ and +other+ represent the same port
