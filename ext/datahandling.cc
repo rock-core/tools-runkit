@@ -4,7 +4,6 @@
 #include <rtt/types/TypeTransporter.hpp>
 #include <rtt/base/PortInterface.hpp>
 #include <rtt/transports/corba/CorbaLib.hpp>
-#include <rtt/transports/corba/CorbaTypeTransporter.hpp>
 
 using namespace RTT;
 using namespace RTT::base;
@@ -12,18 +11,39 @@ using namespace RTT::types;
 
 // Unmarshals the data that is included in the given any into the memory held in
 // +dest+. +dest+ must be holding a memory zone that is valid to hold a value of
-// the given type.
+// the given type (i.e. either directly of type type_name, or if type_name is
+// opaque, to the type used to represent this particular opaque)
 VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::Any& src)
 {
+    // First, get both the CORBA and typelib transports
     TypeInfo* ti = get_type_info(type_name);
-    RTT::corba::CorbaTypeTransporter* transport =
-        dynamic_cast<RTT::corba::CorbaTypeTransporter*>(ti->getProtocol(ORO_CORBA_PROTOCOL_ID));
-    if (! transport)
+    RTT::corba::CorbaTypeTransporter* corba_transport = get_corba_transport(ti, false);
+    if (! corba_transport)
         rb_raise(rb_eArgError, "trying to unmarshal %s, but it is not supported by the CORBA transport", type_name.c_str());
+    orogen_transports::TypelibMarshallerBase* typelib_transport = get_typelib_transport(ti, false);
 
-    DataSourceBase::shared_ptr data_source = ti->buildReference(dest.getData());
-    if (!transport->updateFromAny(&src, data_source))
-        rb_raise(eCORBA, "failed to unmarshal %s", type_name.c_str());
+    // Fall back to normal typelib behaviour if there is not typelib transport.
+    // Do it for plain types as well, as it requires less operations
+    if (!typelib_transport || typelib_transport->isPlainTypelibType())
+    {
+        RTT::base::DataSourceBase::shared_ptr ds =
+            ti->buildReference(dest.getData());
+        if (!corba_transport->updateFromAny(&src, ds))
+            rb_raise(eCORBA, "failed to unmarshal %s", type_name.c_str());
+    }
+    else
+    {
+        orogen_transports::TypelibMarshallerBase::Handle* handle = typelib_transport->createHandle();
+        typelib_transport->setTypelibSample(handle, dest);
+        RTT::base::DataSourceBase::shared_ptr ds =
+            typelib_transport->getDataSource(handle);
+        if (!corba_transport->updateFromAny(&src, ds))
+            rb_raise(eCORBA, "failed to unmarshal %s", type_name.c_str());
+        typelib_transport->refreshTypelibSample(handle);
+
+        Typelib::copy(dest, Typelib::Value(typelib_transport->getTypelibSample(handle), dest.getType()));
+        typelib_transport->deleteHandle(handle);
+    }
 
     return Qnil;
 }
@@ -32,15 +52,28 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
 CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src)
 {
     TypeInfo* ti = get_type_info(type_name);
-    RTT::corba::CorbaTypeTransporter* transport =
-        dynamic_cast<RTT::corba::CorbaTypeTransporter*>(ti->getProtocol(ORO_CORBA_PROTOCOL_ID));
-    if (! transport)
+    RTT::corba::CorbaTypeTransporter* corba_transport = get_corba_transport(ti, false);
+    if (! corba_transport)
         rb_raise(rb_eArgError, "trying to unmarshal %s, but it is not supported by the CORBA transport", type_name.c_str());
+    orogen_transports::TypelibMarshallerBase* typelib_transport = get_typelib_transport(ti, false);
 
-    DataSourceBase::shared_ptr data_source = ti->buildReference(src.getData());
-    CORBA::Any* result = transport->createAny(data_source);
-    if (! result)
-        rb_raise(eCORBA, "failed to marshal %s", type_name.c_str());
+    CORBA::Any* result;
+    if (!typelib_transport || typelib_transport->isPlainTypelibType())
+    {
+        DataSourceBase::shared_ptr data_source = ti->buildReference(src.getData());
+        result = corba_transport->createAny(data_source);
+        if (! result)
+            rb_raise(eCORBA, "failed to marshal %s", type_name.c_str());
+    }
+    else
+    {
+        orogen_transports::TypelibMarshallerBase::Handle* handle = typelib_transport->createHandle();
+        typelib_transport->setTypelibSample(handle, src);
+        RTT::base::DataSourceBase::shared_ptr ds =
+            typelib_transport->getDataSource(handle);
+        result = corba_transport->createAny(ds);
+        typelib_transport->deleteHandle(handle);
+    }
 
     return result;
 }

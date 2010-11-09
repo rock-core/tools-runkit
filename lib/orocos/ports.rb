@@ -30,6 +30,7 @@ module Orocos
         end
 
         def initialize
+            @type_name = Orocos.typelib_type_for(@orocos_type_name)
             if @type_name == "string"
                 @type_name = "/std/string"
             end

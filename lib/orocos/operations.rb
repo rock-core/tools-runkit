@@ -1,7 +1,31 @@
 module Orocos
     # OperationHandle instances represent asynchronous operation calls. They are
     # returned by Operation#sendop and TaskContext#sendop
-    class OperationHandle
+    class SendHandle
+        attr_reader :orocos_return_types
+        attr_reader :return_values
+
+        def collect
+            CORBA.refine_exceptions(self) do
+                status = do_operation_collect(orocos_return_types, return_values)
+                if return_values.empty?
+                    return status
+                else
+                    return [status, *return_values]
+                end
+            end
+        end
+
+        def collect_if_done
+            CORBA.refine_exceptions(self) do
+                status = do_operation_collect_if_done(orocos_return_types, return_values)
+                if return_values.empty?
+                    return status
+                else
+                    return [status, *return_values]
+                end
+            end
+        end
     end
 
     # Base class for RTTMethod and Command
@@ -15,34 +39,67 @@ module Orocos
         attr_reader :description
         # The type name of the return value
         attr_reader :return_spec
-        # The subclass of Typelib::Type that represents the type of the return value
-        attr_reader :return_type
+        # The subclass of Typelib::Type that represents the type of the return value, as declared by the Orocos
+        attr_reader :orocos_return_typenames
+        # The subclass of Typelib::Type that will be manipulated by the Ruby
+        # code
+        attr_reader :return_types
         # An array describing the arguments. Each element is a <tt>[name, doc,
         # type_name]</tt> tuple
         attr_reader :arguments_spec
         # The typelib types for the arguments. This is an array of subclasses of
         # Typelib::Type, with each element being the type of the corresponding
-        # element in #arguments_spec
+        # element in #arguments_spec. It describes the types that the C++ side
+        # manipulates (i.e. declared in the Orocos component)
+        attr_reader :orocos_arguments_typenames
+        # The typelib types for the arguments. This is an array of subclasses of
+        # Typelib::Type, with each element being the type of the corresponding
+        # element in #arguments_spec. It describes the types that the Ruby side
+        # will manipulate
         attr_reader :arguments_types
+
+        attr_reader :inout_arguments
 
         def initialize(task, name, return_spec, arguments_spec)
             @task, @name, @return_spec, @arguments_spec =
                 task, name, return_spec, arguments_spec
 
-            @return_type = Orocos.registry.get(return_spec)
-            @arguments_types = []
-            arguments_spec.each do |_, _, type_name|
-		type_name.gsub! /\s+.*$/, ''
-                arg_type = Orocos.registry.get(type_name)
-                arguments_types << arg_type
+            @orocos_return_typenames = return_spec.map do |type_name|
+                Orocos::Generation.unqualified_cxx_type(type_name)
             end
-            @args_type_names = arguments_spec.map { |name, doc, type| type }
+            @orocos_arguments_typenames = arguments_spec.map do |_, _, type_name|
+                Orocos::Generation.unqualified_cxx_type(type_name)
+            end
+            @inout_arguments = arguments_spec.each_with_index.map do |(_, _, type_name), i|
+                if type_name =~ /&/ && type_name !~ /(^|[^\w])const($|[^\w])/
+                    i
+                end
+            end.compact
+
+            # Remove a void return type
+            if Orocos.registry.get(orocos_return_typenames.first).null?
+                @void_return = true
+                orocos_return_typenames.shift 
+            else
+                @void_return = false
+            end
+
+            @return_types    = typelib_types_for(orocos_return_typenames)
+            @arguments_types = typelib_types_for(orocos_arguments_typenames)
+        end
+
+        # Replaces in +types+ the opaque types by the types that should be used
+        # on the Ruby side
+        def typelib_types_for(types)
+            types.map do |t|
+                Orocos.typelib_type_for(t)
+            end
         end
 
         # Helper method for RTTMethod and Command
         def common_call(args) # :nodoc:
-            if args.size() != arguments_spec.size()
-                raise ArgumentError, "not enough arguments"
+            if args.size != arguments_spec.size
+                raise ArgumentError, "expected #{arguments_spec.size} arguments but got #{args.size}"
             end
 
             filtered = []
@@ -58,15 +115,20 @@ module Orocos
             end
         end
 
+        def result_value_for(type)
+            if type.name == "string" || type.name == "/std/string"
+                ""
+            elsif type.opaque?
+                raise ArgumentError, "I don't know how to handle #{type.name}"
+            else
+                type.new
+            end
+        end
+
         # Returns a Typelib value that can store the result of this operation
         def new_result
-            if return_type.null?
-            elsif return_type.name == "string" || return_type.name == "/std/string"
-                         ""
-            elsif return_type.opaque?
-                raise ArgumentError, "I don't know how to handle #{return_type.name}"
-            else
-                return_type.new
+            return_types.map do |type|
+                result_value_for(type)
             end
         end
 
@@ -75,7 +137,11 @@ module Orocos
         # to query the operation status and return value
         def sendop(*args)
             common_call(args) do |filtered|
-                task.do_operation_call(name, return_spec, @args_type_names, filtered, new_result)
+                handle = task.do_operation_send(name, orocos_arguments_typenames, filtered)
+                handle.instance_variable_set :@operation, self
+                handle.instance_variable_set :@orocos_return_types, @orocos_return_typenames.dup
+                handle.instance_variable_set :@return_values, new_result
+                handle
             end
         end
 
@@ -83,9 +149,30 @@ module Orocos
         # to finish. It returns the value returned by the remote method.
         def callop(*args)
             result = common_call(args) do |filtered|
-                task.do_operation_call(name, return_spec, @args_type_names, filtered, new_result)
+                return_typename, return_value = nil
+                if !@void_return
+                    return_typename = orocos_return_typenames[0]
+                    return_value = result_value_for(return_types.first)
+                end
+
+                task.do_operation_call(name, return_typename, return_value,
+                           orocos_arguments_typenames, filtered)
+
+                result = []
+                if return_value
+                    result << return_value
+                end
+                inout_arguments.each do |index|
+                    result << filtered[index]
+                end
+                result
             end
-            Typelib.to_ruby(result)
+
+            result.map! { |v| Typelib.to_ruby(v) }
+            if result.empty? then nil
+            elsif result.size == 1 then result.first
+            else result
+            end
         end
     end
 end

@@ -7,6 +7,9 @@
 #include "corba.hh"
 #include <boost/tuple/tuple.hpp>
 
+#include <TypelibMarshallerBase.hpp>
+#include <rtt/transports/corba/CorbaTypeTransporter.hpp>
+
 extern VALUE eNotFound;
 
 struct RTaskContext
@@ -26,6 +29,10 @@ namespace RTT
     }
 }
 extern RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
+extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(RTT::types::TypeInfo* type, bool do_check = true);
+extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(std::string const& name, bool do_check = true);
+extern RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* type, bool do_check = true);
+extern RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name, bool do_check = true);
 extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
 
 struct RServices

@@ -673,8 +673,9 @@ module Orocos
         def operation(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
-                return_type, *arguments = operation_signature(name)
-                Operation.new(self, name, return_type, arguments)
+                return_types = operation_return_types(name)
+                arguments = operation_argument_types(name)
+                Operation.new(self, name, return_types, arguments)
             end
         end
 

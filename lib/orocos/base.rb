@@ -47,6 +47,14 @@ module Orocos
         pkg && pkg.type_registry
     end
 
+    def self.typelib_type_for(t)
+        if t.respond_to?(:name)
+            return t if t < Typelib::NumericType
+            t = t.name
+        end
+        registry.get(do_typelib_type_for(t))
+    end
+
     def self.orocos_target
         if ENV['OROCOS_TARGET']
             ENV['OROCOS_TARGET']
