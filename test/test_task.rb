@@ -62,13 +62,13 @@ describe Orocos::TaskContext do
             source_p.must_be_kind_of(Orocos::OutputPort)
             source_p.name.must_equal("cycle")
             source_p.task.must_equal(source)
-            source_p.type_name.must_equal("int")
+            source_p.orocos_type_name.must_equal("int")
 
             assert(sink_p   = sink.port('cycle'))
             sink_p.must_be_kind_of(Orocos::InputPort)
             sink_p.name.must_equal("cycle")
             sink_p.task.must_equal(sink)
-            sink_p.type_name.must_equal("int")
+            sink_p.orocos_type_name.must_equal("int")
         end
     end
 
