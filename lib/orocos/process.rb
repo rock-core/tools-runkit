@@ -108,9 +108,15 @@ module Orocos
             elsif exit_status.success?
                 Orocos.info "deployment #{name} exited normally"
             elsif exit_status.signaled?
-                Orocos.warn "deployment #{name} terminated with signal #{exit_status.termsig}"
+                if @expected_exit == exit_status.termsig
+                    Orocos.info "deployment #{name} terminated with signal #{exit_status.termsig}"
+                elsif @expected_exit
+                    Orocos.info "deployment #{name} terminated with signal #{exit_status.termsig} but #{@expected_exit} was expected"
+                else
+                    Orocos.warn "deployment #{name} unexpectedly terminated with signal #{exit_status.termsig}"
+                end
             else
-                Orocos.warn "deployment #{name} terminated with signal #{exit_status.to_i}"
+                Orocos.warn "deployment #{name} terminated with code #{exit_status.to_i}"
             end
 
 	    @pid = nil 
@@ -434,15 +440,16 @@ module Orocos
                     Orocos.warn "sending #{signal} to #{name}"
                 end
 
+                if signal.respond_to?(:to_str) && signal !~ /^SIG/
+                    signal = "SIG#{signal}"
+                end
+
                 expected_exit ||=
                     if signal.kind_of?(Integer) then signal
                     else SIGNAL_NUMBERS[signal] || signal
                     end
 
-                if signal.respond_to?(:to_str) && signal !~ /^SIG/
-                    signal = "SIG#{signal}"
-                end
-
+                @expected_exit = expected_exit
                 begin
                     ::Process.kill(signal, pid)
                 rescue Errno::ESRCH
