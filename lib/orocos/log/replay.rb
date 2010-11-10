@@ -411,8 +411,12 @@ module Orocos
             #array of all simulated tasks
             attr_reader :tasks
 
-            #array of all simulated ports  
+            #array of all log ports  
             attr_accessor :ports
+
+            #array of all replayed ports  
+            #this array is filled after align was called
+            attr_accessor :replayed_ports
 
             #set it to true if processing of qt events is needed during synced replay
             attr_accessor :process_qt_events             
@@ -424,8 +428,8 @@ module Orocos
             #indicates if the replayed data are replayed synchronously 
             #<0 means the replayed samples are behind the simulated times
             #>0 means that the replayed samples are replayed to fast
-            attr_reader :out_of_sync_delta         
-
+            attr_reader :out_of_sync_delta
+          
             def self.open(*path)
                 replay = new
                 replay.load(path)
@@ -445,7 +449,7 @@ module Orocos
                 @timestamps = Hash.new
                 @tasks = Hash.new
                 @speed = 1
-                @used_ports = Array.new
+                @replayed_ports = Array.new
                 @used_streams = Array.new
                 @stream = nil
                 @current_sample = nil
@@ -547,13 +551,13 @@ module Orocos
             #
             #After calling this method no more ports can be tracked.
             def align()
-                @used_ports = Array.new
+                @replayed_ports = Array.new
                 @used_streams = Array.new
 
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
-                        @used_ports << port
+                        @replayed_ports << port
                         @used_streams << port.stream
                     end
                     port.set_replay
@@ -563,10 +567,10 @@ module Orocos
                 puts "Aligning streams --> all ports which are unused will not be loaded!!!"
                 puts ""
                 puts "Replayed Ports:"
-                @used_ports.each {|port| port.pp}
+                @replayed_ports.each {|port| port.pp}
                 puts ""
 
-                if @used_ports.size == 0
+                if @replayed_ports.size == 0
                   puts "No log data are marked for replay !!!"
                   return
                 end
@@ -645,8 +649,8 @@ module Orocos
                 end
 
                 #write sample to connected ports
-                @used_ports[index].write(data)
-                yield(@used_ports[index],data) if block_given?
+                @replayed_ports[index].write(data)
+                yield(@replayed_ports[index],data) if block_given?
                 return @current_sample
             end
 
@@ -665,8 +669,8 @@ module Orocos
                 index, time, data = @current_sample
 
                 #write sample to connected ports
-                @used_ports[index].write(data)
-                yield(@used_ports[index],data) if block_given?
+                @replayed_ports[index].write(data)
+                yield(@replayed_ports[index],data) if block_given?
                 return @current_sample
             end
 
@@ -722,7 +726,7 @@ module Orocos
                 @stream.seek(pos)
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
-                    @used_ports[index].write(@stream.single_data(index))
+                    @replayed_ports[index].write(@stream.single_data(index))
                 end
             end
 
