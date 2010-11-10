@@ -458,6 +458,19 @@ module Orocos
                 @out_of_sync_delta = 0
             end
 
+            #returns false if no ports are or will be replayed
+            def replay? 
+              #check if stream was initialized
+              if @steam 
+                return true
+              else
+                each_port do |port|
+                  return true if port.used?
+                end
+              end
+              return false
+            end
+
             #pretty print for Replay
             def pp(prefix = "  ")
                 puts
