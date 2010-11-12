@@ -1,29 +1,50 @@
 #! /usr/bin/env ruby
 
-if !ARGV.first
-    STDERR.puts "usage: oroinspect <search term>"
-    STDERR.puts "Searches for <search term> in installed oroGen projects"
-    STDERR.puts "and displays the definition of the matching objects"
-    STDERR.puts "it searches for: task context, types and deployments"
-    exit(0)
+require 'optparse'
+require 'orocos'
+
+debug = false
+parser = OptionParser.new do |opt|
+    opt.banner = <<-EOT
+usage: oroinspect <search term>"
+ Searches for <search term> in installed oroGen projects
+ and displays the definition of the matching objects
+ it searches for: task context, types and deployments
+    EOT
+
+    opt.on('--help') do
+        puts self
+        exit(0)
+    end
+    opt.on('--debug') do
+        debug = true
+    end
 end
 
-require 'orocos'
-regexp = /#{ARGV.first}/i
+pattern = parser.parse(ARGV)
+if !pattern
+    puts parser
+    exit(1)
+end
+
+regexp = /#{pattern}/i
 
 Orocos.load
 master_project = Orocos::Generation::Project.new
 
-def load_orogen_project(master_project, name)
+def load_orogen_project(master_project, name, debug)
     master_project.load_orogen_project(name)
 rescue Exception => e
+    if debug
+        raise
+    end
     STDERR.puts "WARN: cannot load the installed oroGen project #{name}"
     STDERR.puts "WARN:     #{e.message}"
 end
 
 Orocos.available_task_models.each do |name, project_name|
     if name =~ regexp
-        if tasklib = load_orogen_project(master_project, project_name)
+        if tasklib = load_orogen_project(master_project, project_name, debug)
             puts
             puts "===== #{name} is a task context defined in #{project_name}"
             pp tasklib.self_tasks.find { |t| t.name == name }
@@ -34,7 +55,7 @@ end
 Orocos.available_deployments.each do |name, pkg|
     if name =~ regexp
         project_name = pkg.project_name
-        if tasklib = load_orogen_project(master_project, project_name)
+        if tasklib = load_orogen_project(master_project, project_name, debug)
             puts
             puts "===== #{name} is a deployment defined in #{project_name}"
             pp tasklib.deployers.find { |n| n.name == name }
@@ -44,20 +65,15 @@ end
 
 seen_types = ValueSet.new
 Orocos.available_projects.each_key do |project_name|
-    project  = load_orogen_project(master_project, project_name)
-    pkg      =
-        begin
-            Utilrb::PkgConfig.new("#{project_name}-toolkit-#{Orocos.orocos_target}")
-        rescue Utilrb::PkgConfig::NotFound
-            next
-        end
+    next if !master_project.has_typekit?(project_name)
+    puts "#{project_name} has a typekit"
 
-    typelist = File.join(pkg.prefix, 'share', 'orogen', "#{project_name}.typelist")
-    matching_types = File.read(typelist).split("\n").grep(regexp)
+    typekit = load_orogen_project(master_project, project_name, debug).typekit
+    matching_types = typekit.typelist.grep(regexp)
     if !matching_types.empty?
-        registry = Typelib::Registry.import(pkg.type_registry)
+        master_project.using_typekit(project_name)
         matching_types.each do |type_name|
-            type = registry.get(type_name)
+            type = master_project.find_type(type_name)
             if !seen_types.include?(type)
                 puts
                 puts "===== #{type.name} is a type defined by #{project_name}"
