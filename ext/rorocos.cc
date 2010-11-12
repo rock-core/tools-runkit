@@ -30,7 +30,6 @@ static VALUE cPortAccess;
 static VALUE cInputWriter;
 static VALUE cOutputReader;
 static VALUE cPort;
-static VALUE cServices;
 VALUE eNotFound;
 static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
@@ -128,20 +127,6 @@ static VALUE task_context_get(VALUE klass, VALUE name)
         return obj;
     }
     CORBA_EXCEPTION_HANDLERS;
-}
-
-static VALUE task_context_get_services(VALUE self)
-{
-//    RTaskContext& context = get_wrapped<RTaskContext>(self);
-//    try {
-//        RTT::corba::CServiceInterface_var services = context.task->services();
-//        RServices* obj = new RServices;
-//        obj->services = services;
-//        return simple_wrap(cServices, obj);
-//    }
-//    catch(RTT::corba::CNoSuchPortException) { return Qfalse; }
-//    CORBA_EXCEPTION_HANDLERS
-    return Qnil;
 }
 
 static VALUE task_context_equal_p(VALUE self, VALUE other)
@@ -695,12 +680,6 @@ namespace RTT
     }
 }
 
-VALUE services_shutdown(VALUE self)
-{
-    RServices& services = get_wrapped<RServices>(self);
-    return services.services->requestShutdown() ? Qtrue : Qfalse;
-}
-
 static VALUE orocos_do_initialize(VALUE mod)
 {
     // load the default toolkit and the CORBA transport
@@ -728,9 +707,6 @@ extern "C" void Init_rorocos_ext()
     rb_define_singleton_method(mOrocos, "load_rtt_plugin",  RUBY_METHOD_FUNC(orocos_load_rtt_plugin), 1);
     rb_define_singleton_method(mOrocos, "load_rtt_typekit", RUBY_METHOD_FUNC(orocos_load_rtt_typekit), 1);
     rb_define_singleton_method(mOrocos, "do_typelib_type_for", RUBY_METHOD_FUNC(orocos_typelib_type_for), 1);
-
-    cServices    = rb_define_class_under(mOrocos, "Services", rb_cObject);
-    rb_define_method(cServices, "shutdown", RUBY_METHOD_FUNC(services_shutdown), 0);
 
     cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
     rb_const_set(cTaskContext, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::corba::CPreOperational));
@@ -767,7 +743,6 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_property_names", RUBY_METHOD_FUNC(task_context_property_names), 0);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
     rb_define_method(cTaskContext, "do_each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
-    rb_define_method(cTaskContext, "do_services", RUBY_METHOD_FUNC(task_context_get_services), 0);
 
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);

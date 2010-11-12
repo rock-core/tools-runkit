@@ -3,7 +3,6 @@
 
 #include "TaskContextC.h"
 #include "DataFlowC.h"
-#include "ServicesC.h"
 #include "corba.hh"
 #include <boost/tuple/tuple.hpp>
 
@@ -34,11 +33,6 @@ extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(std::stri
 extern RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* type, bool do_check = true);
 extern RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name, bool do_check = true);
 extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
-
-struct RServices
-{
-    RTT::corba::CServiceInterface_var services;
-};
 
 namespace
 {
