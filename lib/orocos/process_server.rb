@@ -362,7 +362,7 @@ module Orocos
             end
 
             orogen = master_project.load_orogen_project(name)
-            if orogen.has_typekit?
+            if master_project.has_typekit?(name)
                 # Check that the typekit on the local machine exists and is
                 # compatible
                 local_project, _ = Orocos.available_projects[name]

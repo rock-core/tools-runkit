@@ -149,7 +149,7 @@ module Orocos
                     map { |name, type| name.to_sym if type == :fatal }.
                     compact.to_set
 
-                if model.component.has_typekit?
+                if model.component.typekit
                     Orocos::CORBA.load_typekit(model.component.name)
                 end
                 model.used_typekits.each do |tk|
