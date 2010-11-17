@@ -10,13 +10,13 @@
      */
 
 
-void operations::to_intermediate(::Test::Parameters& intermediate, ::Test::Opaque const& real_type)
+void orogen_typekits::toIntermediate(::Test::Parameters& intermediate, ::Test::Opaque const& real_type)
 {
     intermediate.set_point = real_type.getSetPoint();
     intermediate.threshold = real_type.getThreshold();
 }
 
-void operations::from_intermediate(::Test::Opaque& real_type, ::Test::Parameters const& intermediate)
+void orogen_typekits::fromIntermediate(::Test::Opaque& real_type, ::Test::Parameters const& intermediate)
 {
     real_type = Test::Opaque(intermediate.set_point, intermediate.threshold);
 }

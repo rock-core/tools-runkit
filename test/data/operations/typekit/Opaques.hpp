@@ -5,13 +5,13 @@
 
 #include <operations/Types.hpp>
 
-namespace operations
+namespace orogen_typekits
 {
     
     /** Converts \c real_type into \c intermediate */
-    void to_intermediate(::Test::Parameters& intermediate, ::Test::Opaque const& real_type);
+    void toIntermediate(::Test::Parameters& intermediate, ::Test::Opaque const& real_type);
     /** Converts \c intermediate into \c real_type */
-    void from_intermediate(::Test::Opaque& real_type, ::Test::Parameters const& intermediate);
+    void fromIntermediate(::Test::Opaque& real_type, ::Test::Parameters const& intermediate);
         
     
 }

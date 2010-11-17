@@ -8,13 +8,13 @@
      */
 
 
-void echo::to_intermediate(echo::Point& intermediate, OpaquePoint const& real_type)
+void orogen_typekits::toIntermediate(echo::Point& intermediate, OpaquePoint const& real_type)
 {
     intermediate.x = real_type.x();
     intermediate.y = real_type.y();
 }
 
-void echo::from_intermediate(OpaquePoint& real_type, echo::Point const& intermediate)
+void orogen_typekits::fromIntermediate(OpaquePoint& real_type, echo::Point const& intermediate)
 {
     real_type = OpaquePoint(intermediate.x, intermediate.y);
 }
