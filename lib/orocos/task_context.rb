@@ -421,10 +421,11 @@ module Orocos
         corba_wrap :start
 
         ##
-        # :method: reset_error
+        # :method: reset_exception
         #
-        # Recover from a fatal error. It does the transition from
-        # STATE_FATAL_ERROR to STATE_STOPPED.
+        # Recover from the exception state. It does the transition from
+        # STATE_EXCEPTION to either STATE_STOPPED if the component does not
+        # need any configuration or STATE_PRE_OPERATIONAL otherwise
         #
         # Raises StateTransitionFailed if the component was not in a proper
         # state before the call.
