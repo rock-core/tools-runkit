@@ -141,6 +141,7 @@ module Orocos
                     Orocos::CORBA.load_typekit(model.component.name)
                 end
                 model.used_typekits.each do |tk|
+                    next if tk.virtual?
                     Orocos::CORBA.load_typekit(tk.name)
                 end
             else
