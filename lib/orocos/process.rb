@@ -416,7 +416,6 @@ module Orocos
                         rescue StateTransitionFailed
                         end
 
-                        services ||= task.do_services
                         task.each_port do |port|
                             port.disconnect_all
                         end
