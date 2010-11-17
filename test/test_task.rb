@@ -108,7 +108,7 @@ describe Orocos::TaskContext do
             echo = echo.task('Echo')
             m = echo.operation(:write)
             assert_equal "write", m.name
-            assert_equal "int", m.return_spec
+            assert_equal ["int"], m.return_spec
             assert_equal [["value", "value_arg", "int"]], m.arguments_spec
         end
     end
