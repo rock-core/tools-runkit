@@ -64,11 +64,28 @@ module Orocos
             @task, @name, @return_spec, @arguments_spec =
                 task, name, return_spec, arguments_spec
 
+            # In the code below, we convert /std/string to string.
+            #
+            # This is because, until we have loaded one oroGen-generated
+            # typekit, /std/string does not exist. However, in
+            # TaskContext#initialize, we must call the getModel operation
+            # *before* we can load the typekit. Chicken and egg, isn't it ?
+            #
+            # So, we convert /std/string to string so that we can use the RTT
+            # typekit by default until we have the oroGen-generated version.
             @orocos_return_typenames = return_spec.map do |type_name|
-                Orocos::Generation.unqualified_cxx_type(type_name)
+                result = Orocos::Generation.unqualified_cxx_type(type_name)
+                if result == "/std/string"
+                    "string"
+                else result
+                end
             end
             @orocos_arguments_typenames = arguments_spec.map do |_, _, type_name|
                 Orocos::Generation.unqualified_cxx_type(type_name)
+                if result == "/std/string"
+                    "string"
+                else result
+                end
             end
             @inout_arguments = arguments_spec.each_with_index.map do |(_, _, type_name), i|
                 if type_name =~ /&/ && type_name !~ /(^|[^\w])const($|[^\w])/
