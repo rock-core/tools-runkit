@@ -10,37 +10,25 @@ module Orocos
         # The attribute type, as a subclass of Typelib::Type
         attr_reader :type
 
-        def initialize(task, name, type_name)
+        def initialize(task, name, orocos_type_name)
             @task, @name = task, name
-            if type_name == "string"
-                type_name = "/std/string"
-            end
-            if !(@type = Orocos.registry.get(type_name))
-                raise "can not find #{type_name} in the registry"
-            end
-            @type_name = type_name
+            @orocos_type_name = orocos_type_name
+            @type = Orocos.typelib_type_for(orocos_type_name)
+            @type_name = type.name
         end
 
         # Read the current value of the property/attribute
         def read
-            if @type_name == "/std/string"
-                do_read_string
-            else
-                value = type.new
-                do_read(@type_name, value)
-                value.to_ruby
-            end
+            value = type.new
+            do_read(@orocos_type_name, value)
+            value.to_ruby
         end
 
         # Sets a new value for the property/attribute
         def write(value)
-            if @type_name == "/std/string"
-                do_write_string(value.to_str)
-            else
-                value = Typelib.from_ruby(value, type)
-                do_write(@type_name, value)
-                value
-            end
+            value = Typelib.from_ruby(value, type)
+            do_write(@orocos_type_name, value)
+            value
         end
 
         def pretty_print(pp) # :nodoc:
