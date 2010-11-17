@@ -75,10 +75,8 @@ module Orocos
     end
 
     def self.load
-        @registry = Typelib::Registry.new
         @master_project = Orocos::Generation::Component.new
-        registry.merge Orocos::Generation::Component.rtt_registry
-
+        @registry = master_project.registry
         @available_projects ||= Hash.new
 
         # Load the name of all available task libraries
