@@ -81,7 +81,7 @@ module Orocos
                 end
             end
             @orocos_arguments_typenames = arguments_spec.map do |_, _, type_name|
-                Orocos::Generation.unqualified_cxx_type(type_name)
+                result = Orocos::Generation.unqualified_cxx_type(type_name)
                 if result == "/std/string"
                     "string"
                 else result
