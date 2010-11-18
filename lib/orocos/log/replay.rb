@@ -620,7 +620,7 @@ module Orocos
                     return align
                 end
                 @current_sample = @stream.step
-                return nil if @current_sample == nil
+                return if !@current_sample
                 index, time, data = @current_sample
 
                 #wait if replay is faster than the desired speed and time_sync is set to true
@@ -664,7 +664,7 @@ module Orocos
                 #write sample to connected ports
                 @replayed_ports[index].write(data)
                 yield(@replayed_ports[index],data) if block_given?
-                return @current_sample
+                @current_sample
             end
 
             #Gets the previous sample and writes it to the ports which are connected
