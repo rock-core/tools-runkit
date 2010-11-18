@@ -6,6 +6,4 @@ require 'test_process'
 require 'test_properties'
 require 'test_task'
 require 'test_ports'
-
-# require 'test_commands'
-# require 'test_methods'
+require 'test_operations'
