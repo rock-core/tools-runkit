@@ -124,10 +124,10 @@ module Orocos
             end
 
         rescue NotFound
-            if !other || task.has_task?(name)
-                raise CORBA::NotFound, "port '#{name}' disappeared from task '#{task.name}'"
+            if !other || task.has_port?(name)
+                raise NotFound, "port '#{name}' disappeared from task '#{task.name}'"
             else
-                raise CORBA::NotFound, "port '#{other.name}' disappeared from task '#{other.task.name}'"
+                raise NotFound, "port '#{other.name}' disappeared from task '#{other.task.name}'"
             end
         end
     end
