@@ -90,7 +90,22 @@ describe Orocos::OutputPort do
             source.connect_to sink
             assert(sink.connected?)
             assert(source.connected?)
-            source.disconnect_from(sink)
+            assert(source.disconnect_from(sink))
+            assert(!sink.connected?)
+            assert(!source.connected?)
+        end
+    end
+
+    it "should be able to selectively disconnect a in-process connection" do
+        Orocos::Process.spawn('system') do
+            source = Orocos::TaskContext.get('control').cmd_out
+            sink   = Orocos::TaskContext.get('motor_controller').command
+
+            assert(!source.disconnect_from(sink))
+            source.connect_to sink
+            assert(sink.connected?)
+            assert(source.connected?)
+            assert(source.disconnect_from(sink))
             assert(!sink.connected?)
             assert(!source.connected?)
         end
@@ -104,7 +119,7 @@ describe Orocos::OutputPort do
             assert(source.connected?)
             p_sink.kill(true, 'KILL')
             assert(source.connected?)
-            source.disconnect_from sink
+            assert(source.disconnect_from(sink))
             assert(!source.connected?)
         end
     end
