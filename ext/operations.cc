@@ -108,6 +108,15 @@ struct RSendHandle
     RSendHandle(RTT::corba::CSendHandle_var handle)
 	: handle(handle) {}
 
+    ~RSendHandle()
+    {
+        if (!CORBA::is_nil(handle))
+        {
+            try { handle->dispose(); }
+            catch(...) {}
+        }
+    }
+
     RTT::corba::CSendHandle_var handle;
 };
 
