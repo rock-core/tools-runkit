@@ -563,7 +563,15 @@ module Orocos
             # *or track set to true.
             #
             #After calling this method no more ports can be tracked.
-            def align()
+	    #
+	    # option is passed through to the StreamAligner and can 
+	    # be one off the following
+	    #
+	    # true - use rt
+	    # false - use lg
+	    # :use_sample_time - use the timestamp in the data sample
+	    #
+            def align( option = false )
                 @replayed_ports = Array.new
                 @used_streams = Array.new
 
@@ -589,7 +597,7 @@ module Orocos
                 end
 
                 #join streams 
-                @stream = Pocolog::StreamAligner.new(false, *@used_streams)
+                @stream = Pocolog::StreamAligner.new(option, *@used_streams)
                 @stream.rewind
 
                 reset_time_sync
