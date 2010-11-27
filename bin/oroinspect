@@ -3,6 +3,8 @@
 require 'optparse'
 require 'orocos'
 
+search_for = []
+
 debug = false
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOT
@@ -16,6 +18,15 @@ usage: oroinspect <search term>"
         puts self
         exit(0)
     end
+    opt.on('-t', '--tasks', 'if given, will search only for tasks. Can be combined with --deployments and --types to search for the other categories as well.') do
+        search_for << :tasks
+    end
+    opt.on('-T', '--types', 'if given, will search only for types. Can be combined with --deployments and --tasks to search for the other categories as well.') do
+        search_for << :types
+    end
+    opt.on('-d', '--deployments', 'if given, will search only for deployments. Can be combined with --tasks and --types to search for the other categories as well.') do
+        search_for << :deployments
+    end
     opt.on('--debug') do
         debug = true
     end
@@ -25,6 +36,10 @@ pattern = parser.parse(ARGV)
 if !pattern
     puts parser
     exit(1)
+end
+
+if search_for.empty?
+    search_for = [:tasks, :types, :deployments]
 end
 
 regexp = /#{pattern}/i
@@ -42,45 +57,65 @@ rescue Exception => e
     STDERR.puts "WARN:     #{e.message}"
 end
 
-Orocos.available_task_models.each do |name, project_name|
-    if name =~ regexp
-        if tasklib = load_orogen_project(master_project, project_name, debug)
-            puts
-            puts "===== #{name} is a task context defined in #{project_name}"
-            pp tasklib.self_tasks.find { |t| t.name == name }
-        end
-    end
-end
-
-Orocos.available_deployments.each do |name, pkg|
-    if name =~ regexp
-        project_name = pkg.project_name
-        if tasklib = load_orogen_project(master_project, project_name, debug)
-            puts
-            puts "===== #{name} is a deployment defined in #{project_name}"
-            pp tasklib.deployers.find { |n| n.name == name }
-        end
-    end
-end
-
-seen_types = ValueSet.new
-Orocos.available_projects.each_key do |project_name|
-    next if !master_project.has_typekit?(project_name)
-    puts "#{project_name} has a typekit"
-
-    typekit = load_orogen_project(master_project, project_name, debug).typekit
-    matching_types = typekit.typelist.grep(regexp)
-    if !matching_types.empty?
-        master_project.using_typekit(project_name)
-        matching_types.each do |type_name|
-            type = master_project.find_type(type_name)
-            if !seen_types.include?(type)
-                puts
-                puts "===== #{type.name} is a type defined by #{project_name}"
-                pp type
-                seen_types << type
+if search_for.include?(:tasks)
+    found = []
+    Orocos.available_task_models.each do |name, project_name|
+        if name =~ regexp
+            if tasklib = load_orogen_project(master_project, project_name, debug)
+                found << [tasklib.self_tasks.find { |t| t.name == name }, project_name]
             end
         end
     end
+
+    found.sort_by { |t, _| t.name }.each do |tasklib, project_name|
+        puts
+        puts "===== #{tasklib.name} is a task context defined in #{project_name}"
+        pp tasklib
+    end
 end
 
+if search_for.include?(:deployments)
+    found = []
+    Orocos.available_deployments.each do |name, pkg|
+        if name =~ regexp
+            project_name = pkg.project_name
+            if tasklib = load_orogen_project(master_project, project_name, debug)
+                found << [tasklib.deployers.find { |n| n.name == name }, project_name]
+            end
+        end
+    end
+
+    found.sort_by { |d, _| d.name }.each do |deployment, project_name|
+        puts
+        puts "===== #{deployment.name} is a deployment defined in #{project_name}"
+        pp deployment
+    end
+end
+
+if search_for.include?(:types)
+    Orocos.available_projects.each_key do |project_name|
+        seen = Set.new
+        found = ValueSet.new
+        next if !master_project.has_typekit?(project_name)
+
+        project = load_orogen_project(master_project, project_name, debug)
+        next if !project
+        typekit = project.typekit
+        matching_types = typekit.typelist.grep(regexp)
+        if !matching_types.empty?
+            master_project.using_typekit(project_name)
+            matching_types.each do |type_name|
+                if !seen.include?(type_name)
+                    found << [master_project.find_type(type_name), project_name]
+                    seen << type_name
+                end
+            end
+        end
+
+        found.to_a.sort_by { |t, _| t.name }.each do |type, project_name|
+            puts
+            puts "===== #{type.name} is a type defined in #{project_name}"
+            pp type
+        end
+    end
+end
