@@ -85,6 +85,14 @@ module Orocos
         @registry = master_project.registry
         @available_projects ||= Hash.new
 
+        # Finally, update the set of available projects
+        Utilrb::PkgConfig.each_package(/^orogen-project-/) do |pkg_name|
+            if !available_projects.has_key?(pkg_name)
+                pkg = Utilrb::PkgConfig.new(pkg_name)
+                add_project_from(pkg)
+            end
+        end
+
         # Load the name of all available task libraries
         if !available_task_libraries
             @available_task_libraries = Hash.new
@@ -115,14 +123,6 @@ module Orocos
             available_task_libraries.each do |tasklib_name, tasklib_pkg|
                 tasklib_pkg.task_models.split(",").
                     each { |class_name| available_task_models[class_name] = tasklib_name }
-            end
-        end
-
-        # Finally, update the set of available projects
-        Utilrb::PkgConfig.each_package(/^orogen-project-/) do |pkg_name|
-            if !available_projects.has_key?(pkg_name)
-                pkg = Utilrb::PkgConfig.new(pkg_name)
-                add_project_from(pkg)
             end
         end
     end
