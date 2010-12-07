@@ -65,9 +65,15 @@ module Orocos
 
     # Helper method for initialize
     def self.add_project_from(pkg) # :nodoc:
-        if pkg.project_name.empty?
+        project = pkg.project_name
+        if project.empty?
             Orocos.warn "#{pkg.name}.pc does not have a project_name field"
-        elsif pkg.deffile.empty?
+        end
+        if description = available_projects[project]
+            return description
+        end
+
+        if pkg.deffile.empty?
             Orocos.warn "#{pkg.name}.pc does not have a deffile field"
         else
             available_projects[pkg.project_name] = [pkg, pkg.deffile]
