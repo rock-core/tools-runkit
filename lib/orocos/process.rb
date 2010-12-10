@@ -137,7 +137,6 @@ module Orocos
             log_dir       = options[:log_dir] || Dir.pwd
 
             logger = TaskContext.get "#{process.name}_Logger"
-            report = logger.rtt_method 'reportPort'
 
             process.task_names.each do |task_name|
                 task = TaskContext.get(task_name)
@@ -150,7 +149,7 @@ module Orocos
                     next if block_given? && !yield(port)
 
                     Orocos.info "logging % 50s of type %s" % ["#{task.name}:#{port.name}", port.type.name]
-                    report.call task.name, port.name
+                    logger.reportPort(task.name, port.name)
                 end
             end
 
