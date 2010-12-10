@@ -241,7 +241,7 @@ module Orocos
             elsif cmd_code == COMMAND_START
                 name, options = Marshal.load(socket)
                 options ||= Hash.new
-                Orocos.debug "#{socket} requested startup of #{name} with #{options.inspect}"
+                Orocos.debug "#{socket} requested startup of #{name} with #{options}"
                 begin
                     p = Orocos.run(name, self.options.merge(options)).first
                     Orocos.debug "#{name} is started (#{p.pid})"
@@ -396,7 +396,7 @@ module Orocos
             tasklib = load_orogen_project(project_name)
             deployment = tasklib.deployers.find { |d| d.name == deployment_name }
             if !deployment
-                raise InternalError, "cannot find the deployment called #{deployment_name.inspect} in #{tasklib}. Candidates were #{tasklib.deployers.map(&:name).join(", ")}"
+                raise InternalError, "cannot find the deployment called #{deployment_name} in #{tasklib}. Candidates were #{tasklib.deployers.map(&:name).join(", ")}"
             end
             deployment
         end
@@ -474,7 +474,7 @@ module Orocos
                     if !data
                         return
                     elsif data != "D"
-                        raise "unexpected message #{data.inspect} from process server"
+                        raise "unexpected message #{data} from process server"
                     end
                     queue_death_announcement
                     reader = select([socket], nil, nil, 0)
