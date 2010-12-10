@@ -1,6 +1,18 @@
 require 'utilrb/object/attribute'
 
 module Orocos
+    # Emitted when an interface object is requested, that does not exist
+    class InterfaceObjectNotFound < Orocos::NotFound
+        attr_reader :task
+        attr_reader :name
+
+        def initialize(task, name)
+            @task = task
+            @name = name
+            super()
+        end
+    end
+
     # This class represents both RTT attributes and properties
     class AttributeBase
         # The underlying TaskContext instance
@@ -526,7 +538,11 @@ module Orocos
         def attribute(name)
             name = name.to_s
             type_name = CORBA.refine_exceptions(self) do
-                do_attribute_type_name(name)
+                begin
+                    do_attribute_type_name(name)
+                rescue ArgumentError => e
+                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an attribute named #{name}", e.backtrace
+                end
             end
 
             Attribute.new(self, name, type_name)
@@ -552,8 +568,8 @@ module Orocos
             type_name = CORBA.refine_exceptions(self) do
                 begin
                     do_property_type_name(name)
-                rescue ArgumentError
-                    raise Orocos::NotFound, "no such property #{name}"
+                rescue ArgumentError => e
+                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
                 end
             end
 
@@ -606,6 +622,9 @@ module Orocos
                     @ports[name] = do_port(name)
                 end
             end
+
+        rescue Orocos::NotFound => e
+            raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
         end
 
         # call-seq:
@@ -667,6 +686,9 @@ module Orocos
                 arguments = operation_argument_types(name)
                 Operation.new(self, name, return_types, arguments)
             end
+
+        rescue Orocos::NotFound => e
+            raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an operation named #{name}", e.backtrace
         end
 
         def method_missing(m, *args) # :nodoc:
