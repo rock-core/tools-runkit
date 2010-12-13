@@ -131,13 +131,17 @@ module Orocos
 	@@logfile_indexes = Hash.new
 
         def self.log_all_ports(process, options = Hash.new)
+            options, logger_options = Kernel.filter_options options,
+                :exclude_ports => nil, :exclude_types => nil
+
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
-            is_remote     = options[:remote]
-            log_dir       = options[:log_dir] || Dir.pwd
 
-            logger = TaskContext.get "#{process.name}_Logger"
+            if !process.setup_logger(logger_options)
+                return Set.new
+            end
 
+            logged_ports = Set.new
             process.task_names.each do |task_name|
                 task = TaskContext.get(task_name)
                 next if task == logger
@@ -149,9 +153,34 @@ module Orocos
                     next if block_given? && !yield(port)
 
                     Orocos.info "logging % 50s of type %s" % ["#{task.name}:#{port.name}", port.type.name]
+                    logged_ports << [task.name, port.name]
                     logger.reportPort(task.name, port.name)
                 end
             end
+            logged_ports
+        end
+
+        # The set of [task_name, port_name] that represent the ports being
+        # currently logged by this process' default logger
+        attr_reader :logged_ports
+
+        # Sets up this process' default logger component
+        #
+        # Returns true if there is a logger on this process, and false otherwise
+        def setup_logger(options)
+            options = Kernel.validate_options options,
+                :remote => false, :log_dir => Dir.pwd
+
+            is_remote     = options[:remote]
+            log_dir       = options[:log_dir]
+
+            logger =
+                begin
+                    TaskContext.get "#{process.name}_Logger"
+                rescue Orocos::NotFound
+                    Orocos.warn "no logger defined on #{process.name}"
+                    return
+                end
 
             index = 0
             if options[:remote]
@@ -162,17 +191,14 @@ module Orocos
                     index += 1
                 end
             end
-            filename = "#{process.name}.#{index}.log"
-
-            logger.file = filename
+            logger.file = "#{process.name}.#{index}.log"
             logger.start
-
-        rescue Orocos::NotFound
-            Orocos.warn "no logger defined on #{process.name}"
         end
 
+        # Requires all known ports of this process to be logged by the process'
+        # default logger
         def log_all_ports(options = Hash.new)
-            Process.log_all_ports(self, options)
+            @logged_ports |= Process.log_all_ports(self, options)
         end
         
         # Deprecated
