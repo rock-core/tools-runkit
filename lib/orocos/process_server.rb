@@ -203,7 +203,7 @@ module Orocos
                 Orocos.available_deployments.each do |name, pkg|
                     available_deployments[name] = pkg.project_name
                 end
-                Marshal.dump([available_projects, available_deployments, available_typekits], socket)
+                Marshal.dump([available_projects, available_deployments, available_typekits, ::Process.pid], socket)
             elsif cmd_code == COMMAND_MOVE_LOG
                 Orocos.debug "#{socket} requested moving a log directory"
                 begin
@@ -323,6 +323,8 @@ module Orocos
         attr_reader :host
         # The port on which we are connected on +hostname+
         attr_reader :port
+        # The PID of the server process
+        attr_reader :server_pid
 
         def to_s
             "#<Oroocs::ProcessServer #{host}:#{port}>"
@@ -349,9 +351,11 @@ module Orocos
                    rescue EOFError
                        raise StartupFailed, "process server failed at '#{host}:#{port}'"
                    end
+
             @available_projects    = info[0]
             @available_deployments = info[1]
             @available_typekits    = info[2]
+            @server_pid            = info[3]
             @master_project = RemoteMasterProject.new(self)
             @processes = Hash.new
             @death_queue = Array.new
