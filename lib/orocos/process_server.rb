@@ -185,13 +185,37 @@ module Orocos
         COMMAND_CREATE_LOG = "C"
         COMMAND_START      = "S"
         COMMAND_END        = "E"
+        COMMAND_LOAD_PROJECT = "P"
+        COMMAND_PRELOAD_TYPEKIT = "T"
 
         # Helper method that deals with one client request
         def handle_command(socket) # :nodoc:
             cmd_code = socket.read(1)
             raise EOFError if !cmd_code
 
-            if cmd_code == COMMAND_GET_INFO
+            if cmd_code == COMMAND_LOAD_PROJECT
+                project_name, _ = Marshal.load(socket)
+                Orocos.debug "#{socket} requested project loading for project #{project_name}"
+                begin
+                    project = Orocos.master_project.load_orogen_project(project_name)
+                    socket.write("Y")
+                rescue Exception => e
+                    Orocos.debug "loading project #{project_name} failed with #{e.message}"
+                    socket.write("N")
+                end
+
+            elsif cmd_code == COMMAND_PRELOAD_TYPEKIT
+                typekit_name, _ = Marshal.load(socket)
+                Orocos.debug "#{socket} requested typekit loading for typekit #{typekit_name}"
+                begin
+                    Orocos::CORBA.load_typekit(typekit_name)
+                    socket.write("Y")
+                rescue Exception => e
+                    Orocos.debug "loading typekit #{typekit_name} failed with #{e.message}"
+                    socket.write("N")
+                end
+
+            elsif cmd_code == COMMAND_GET_INFO
                 Orocos.debug "#{socket} requested system information"
                 available_projects = Hash.new
                 available_typekits = Hash.new
@@ -372,6 +396,14 @@ module Orocos
                 raise ArgumentError, "there is no orogen project called #{name} on #{host}:#{port}"
             end
 
+            # Ask the process server to load the information about that project.
+            # This reduces the process startup overhead quite heavily
+            socket.write(ProcessServer::COMMAND_LOAD_PROJECT)
+            Marshal.dump([name], socket)
+            if !wait_for_ack
+                raise ArgumentError, "process server could not load information about the project #{name}"
+            end
+
             orogen = master_project.load_orogen_project(name)
             if master_project.has_typekit?(name)
                 # Check that the typekit on the local machine exists and is
@@ -404,12 +436,21 @@ module Orocos
             if !project_name
                 raise ArgumentError, "there is not deployment calle #{deployment_name} on #{host}:#{port}"
             end
+
             tasklib = load_orogen_project(project_name)
             deployment = tasklib.deployers.find { |d| d.name == deployment_name }
             if !deployment
                 raise InternalError, "cannot find the deployment called #{deployment_name} in #{tasklib}. Candidates were #{tasklib.deployers.map(&:name).join(", ")}"
             end
             deployment
+        end
+
+        def preload_typekit(name)
+            socket.write(ProcessServer::COMMAND_PRELOAD_TYPEKIT)
+            Marshal.dump([name], socket)
+            if !wait_for_ack
+                raise ArgumentError, "process server could not load information about the project #{name}"
+            end
         end
 
         def disconnect
@@ -444,7 +485,6 @@ module Orocos
 
             socket.write(ProcessServer::COMMAND_START)
             Marshal.dump([deployment_name, options], socket)
-
             if !wait_for_ack
                 raise Failed, "failed to start #{deployment_name}"
             end
