@@ -295,6 +295,7 @@ module Orocos
     class ProcessClient
         # Emitted when an operation fails
         class Failed < RuntimeError; end
+        class StartupFailed < RuntimeError; end
 
         # The socket instance used to communicate with the server
         attr_reader :socket
@@ -344,7 +345,10 @@ module Orocos
 	    if !select([socket], [], [], 2)
 	       raise "timeout while reading process server at '#{host}:#{port}'"
 	    end
-            info = Marshal.load(socket)
+            info = begin Marshal.load(socket)
+                   rescue EOFError
+                       raise StartupFailed, "process server failed at '#{host}:#{port}'"
+                   end
             @available_projects    = info[0]
             @available_deployments = info[1]
             @available_typekits    = info[2]
