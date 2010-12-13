@@ -331,6 +331,7 @@ module Orocos
         def to_s
             "#<Oroocs::ProcessServer #{host}:#{port}>"
         end
+        def inspect; to_s end
 
         # Connects to the process server at +host+:+port+
         def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT)
