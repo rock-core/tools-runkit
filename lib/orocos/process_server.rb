@@ -532,6 +532,14 @@ module Orocos
             @model = process_client.load_orogen_deployment(name)
         end
 
+        def log_all_ports(options = Hash.new)
+            Process.setup_logger(self, options)
+        end
+
+        def setup_logger(options = Hash.new)
+            Process.setup_logger(self, options)
+        end
+
         # Called to announce that this process has quit
         def dead!
             @alive = false

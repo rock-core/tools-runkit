@@ -140,7 +140,7 @@ module Orocos
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
 
-            if !(logger = process.setup_logger(logger_options))
+            if !(logger = setup_logger(process, logger_options))
                 return Set.new
             end
 
@@ -159,17 +159,17 @@ module Orocos
                     logger.reportPort(task.name, port.name)
                 end
             end
+            if !logger.running?
+                logger.start
+            end
+
             logged_ports
         end
-
-        # The set of [task_name, port_name] that represent the ports being
-        # currently logged by this process' default logger
-        attr_reader :logged_ports
 
         # Sets up this process' default logger component
         #
         # Returns true if there is a logger on this process, and false otherwise
-        def setup_logger(options)
+        def self.setup_logger(process, options)
             options = Kernel.validate_options options,
                 :remote => false, :log_dir => Dir.pwd
 
@@ -178,29 +178,36 @@ module Orocos
 
             logger =
                 begin
-                    TaskContext.get "#{name}_Logger"
+                    TaskContext.get "#{process.name}_Logger"
                 rescue Orocos::NotFound
-                    Orocos.warn "no logger defined on #{name}"
+                    Orocos.warn "no logger defined on #{process.name}"
                     return
                 end
 
             index = 0
             if options[:remote]
-                index = (@@logfile_indexes[name] ||= -1) + 1
-		@@logfile_indexes[name] = index
+                index = (@@logfile_indexes[process.name] ||= -1) + 1
+		@@logfile_indexes[process.name] = index
             else
-                while File.file?(File.join(log_dir, "#{name}.#{index}.log"))
+                while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
                     index += 1
                 end
             end
-            logger.file = "#{name}.#{index}.log"
-            logger.start
+            logger.file = "#{process.name}.#{index}.log"
             logger
         end
+
+        # The set of [task_name, port_name] that represent the ports being
+        # currently logged by this process' default logger
+        attr_reader :logged_ports
 
         # Requires all known ports of +self+ to be logged by the default logger
         def log_all_ports(options = Hash.new)
             @logged_ports |= Process.log_all_ports(self, options)
+        end
+
+        def setup_logger(options)
+            Process.setup_logger(self, options)
         end
         
         # Deprecated
