@@ -195,7 +195,7 @@ module Orocos
                 available_typekits = Hash.new
                 Orocos.available_projects.each do |name, (pkg, deffile)|
                     available_projects[name] = File.read(deffile)
-                    if pkg && !pkg.type_registry.empty?
+                    if pkg && pkg.type_registry && !pkg.type_registry.empty?
                         available_typekits[name] = File.read(pkg.type_registry)
                     end
                 end
