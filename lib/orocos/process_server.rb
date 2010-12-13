@@ -57,6 +57,8 @@ module Orocos
             Orocos.disable_sigchld_handler = true
             Orocos.initialize
             new({ :wait => false }.merge(options), port).exec
+
+        rescue Interrupt
         end
 
         # The startup options to be passed to Orocos.run
