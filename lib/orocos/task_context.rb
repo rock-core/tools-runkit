@@ -640,6 +640,28 @@ module Orocos
         end
 
         # call-seq:
+        #  task.each_input_port { |p| ... } => task
+        # 
+        # Enumerates the input ports that are available on this task, as
+        # instances of Orocos::InputPort
+        def each_input_port
+            each_port do |p|
+                yield(p) if p.kind_of?(InputPort)
+            end
+        end
+
+        # call-seq:
+        #  task.each_output_port { |p| ... } => task
+        # 
+        # Enumerates the input ports that are available on this task, as
+        # instances of Orocos::OutputPort
+        def each_output_port
+            each_port do |p|
+                yield(p) if p.kind_of?(OutputPort)
+            end
+        end
+
+        # call-seq:
         #  task.each_property { |a| ... } => task
         # 
         # Enumerates the properties that are available on
