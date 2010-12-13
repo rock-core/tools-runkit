@@ -130,6 +130,9 @@ module Orocos
 
 	@@logfile_indexes = Hash.new
 
+        # Common implementation of log_all_ports.
+        #
+        # This is shared by local and remote processes alike
         def self.log_all_ports(process, options = Hash.new)
             options, logger_options = Kernel.filter_options options,
                 :exclude_ports => nil, :exclude_types => nil
@@ -137,7 +140,7 @@ module Orocos
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
 
-            if !process.setup_logger(logger_options)
+            if !(logger = process.setup_logger(logger_options))
                 return Set.new
             end
 
@@ -146,8 +149,7 @@ module Orocos
                 task = TaskContext.get(task_name)
                 next if task == logger
 
-                task.each_port do |port|
-                    next unless port.kind_of?(OutputPort)
+                task.each_output_port do |port|
                     next if exclude_ports && exclude_ports === port.name
                     next if exclude_types && exclude_types === port.type.name
                     next if block_given? && !yield(port)
@@ -176,27 +178,27 @@ module Orocos
 
             logger =
                 begin
-                    TaskContext.get "#{process.name}_Logger"
+                    TaskContext.get "#{name}_Logger"
                 rescue Orocos::NotFound
-                    Orocos.warn "no logger defined on #{process.name}"
+                    Orocos.warn "no logger defined on #{name}"
                     return
                 end
 
             index = 0
             if options[:remote]
-                index = (@@logfile_indexes[process.name] ||= -1) + 1
-		@@logfile_indexes[process.name] = index
+                index = (@@logfile_indexes[name] ||= -1) + 1
+		@@logfile_indexes[name] = index
             else
-                while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
+                while File.file?(File.join(log_dir, "#{name}.#{index}.log"))
                     index += 1
                 end
             end
-            logger.file = "#{process.name}.#{index}.log"
+            logger.file = "#{name}.#{index}.log"
             logger.start
+            logger
         end
 
-        # Requires all known ports of this process to be logged by the process'
-        # default logger
+        # Requires all known ports of +self+ to be logged by the default logger
         def log_all_ports(options = Hash.new)
             @logged_ports |= Process.log_all_ports(self, options)
         end
