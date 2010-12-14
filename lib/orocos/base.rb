@@ -81,7 +81,8 @@ module Orocos
     end
 
     def self.load
-        @master_project = Orocos::Generation::Component.new
+        @master_project = Orocos::Generation::Project.new
+        master_project.name "main"
         @registry = master_project.registry
         @available_projects ||= Hash.new
 
