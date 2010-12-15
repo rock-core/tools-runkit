@@ -493,7 +493,7 @@ module Orocos
 
             if wait
                 join
-                if @exit_status.signaled?
+                if @exit_status && @exit_status.signaled?
                     if !expected_exit
                         Orocos.warn "#{name} unexpectedly exited with signal #{@exit_status.termsig}"
                     elsif @exit_status.termsig != expected_exit
