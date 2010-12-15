@@ -113,6 +113,11 @@ module Orocos
             end
         end
 
+        # Returns a new Typelib value for the Nth argument
+        def new_argument(index)
+            arguments_types[index].new
+        end
+
         # Helper method for RTTMethod and Command
         def common_call(args) # :nodoc:
             if args.size != arguments_spec.size
