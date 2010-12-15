@@ -43,6 +43,10 @@ module Orocos
             value
         end
 
+        def new_sample
+            type.new
+        end
+
         def pretty_print(pp) # :nodoc:
             pp.text "attribute #{name} (#{type.name})"
         end
