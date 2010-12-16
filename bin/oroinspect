@@ -33,7 +33,7 @@ usage: oroinspect <search term>"
 end
 
 pattern = parser.parse(ARGV)
-if !pattern
+if pattern.empty?
     puts parser
     exit(1)
 end
@@ -42,7 +42,7 @@ if search_for.empty?
     search_for = [:tasks, :types, :deployments]
 end
 
-regexp = /#{pattern}/i
+regexp = /#{pattern.first}/i
 
 Orocos.load
 master_project = Orocos::Generation::Project.new
