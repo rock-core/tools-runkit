@@ -16,7 +16,7 @@ Orocos.task_names.each do |name|
     result = [name]
     begin
         task = Orocos::TaskContext.get(name)
-        result << task.state
+        result << (task.state || '[unknown]')
     rescue Orocos::NotFound
         result << "[defunct]"
     end
