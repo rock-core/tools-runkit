@@ -445,7 +445,7 @@ module Orocos
           
             def self.open(*path)
                 replay = new
-                replay.load(path)
+                replay.load(*path)
                 replay
             end
 
@@ -794,7 +794,7 @@ module Orocos
             #Loads a log files and creates TaskContexts which simulates the recorded tasks.
             #You can either specify a single file or a hole directory. If you want to load
             #more than one directory or file simultaneously you can use an array.
-            def load(path)
+            def load(path, logreg = Orocos.registry)
                 tasks = Array.new
                 return tasks if path == nil
 
@@ -820,7 +820,7 @@ module Orocos
                         args = files.compact.map do |path|
                             File.open(path)
                         end
-                        args << Orocos.registry
+                        args << logreg
 
                         logfile = Pocolog::Logfiles.new(*args.compact)
                         new_tasks = load_log_file(logfile, files.first)
@@ -828,7 +828,7 @@ module Orocos
                     end
 
                 elsif File.file?(path)
-                    file = Pocolog::Logfiles.open(path, Orocos.registry)
+                    file = Pocolog::Logfiles.open(path, logreg)
                     tasks.concat(load_log_file(file, path))
                 else
                     raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
