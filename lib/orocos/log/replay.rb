@@ -126,14 +126,20 @@ module Orocos
             end
 
             #Pretty print for OutputPort.
-            def pp(prefix = "  ")
-                puts prefix + "#{task.name}.#{name}"
-                puts prefix + "  tracked = #{@tracked}"
-                puts prefix + "  readers = #{@readers.size}"
-                puts prefix + "  filtered = #{(@filter!=nil).to_s}"
-                @connections.each do |connection|
-                    puts prefix + "  connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
-                end
+	    def pretty_print(pp)
+                pp.text "#{task.name}.#{name}"
+		pp.nest(2) do
+		    pp.breakable
+		    pp.text "tracked = #{@tracked}"
+		    pp.breakable
+		    pp.text "readers = #{@readers.size}"
+		    pp.breakable
+		    pp.text "filtered = #{(@filter!=nil).to_s}"
+		    @connections.each do |connection|
+			pp.breakable
+			pp.text "connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
+		    end
+		end
             end
 
             # Give the full name for this port. It is the stream name.
@@ -259,13 +265,20 @@ module Orocos
             end
 
             #pretty print for TaskContext
-            def pp(prefix = "  ")
-                puts prefix + "#{name}:"
-                puts prefix + "  log file: #{file_path}"
-                puts prefix + "  port(s):"
-                @ports.each_value do |port|
-                  puts prefix + "    #{port.name}"
-                end
+	    def pretty_print(pp)
+                pp.text "#{name}:"
+		pp.nest(2) do
+		    pp.breakable
+		    pp.text "log file: #{file_path}"
+		    pp.breakable
+		    pp.text "port(s):"
+		    pp.nest(2) do
+			@ports.each_value do |port|
+			    pp.breakable
+			    pp.text port.name
+			end
+		    end
+		end
             end
 
             #Adds a new port to the TaskContext
@@ -472,14 +485,18 @@ module Orocos
             end
 
             #pretty print for Replay
-            def pp(prefix = "  ")
-                puts
-                puts prefix + "Orocos::Log::Replay:"
-                puts prefix + "  replay speed = #{@speed}"
-                puts prefix + "  TaskContext(s):"
-                @tasks.each_value do |task|
-                   task.pp(prefix+"    ")
-                end
+	    def pretty_print(pp)
+                pp.text "Orocos::Log::Replay"
+		pp.nest(2) do
+		    pp.breakable
+		    pp.text "replay speed = #{@speed}"
+		    pp.breakable
+		    pp.text "TaskContext(s):"
+		    @tasks.each_value do |task|
+			pp.breakable
+			task.pretty_print(pp)
+		    end
+		end
             end
 
             #Sets a code block to calculate the default timestamp duricng replay.
