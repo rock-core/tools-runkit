@@ -605,7 +605,7 @@ module Orocos
                 puts "Aligning streams --> all ports which are unused will not be loaded!!!"
                 puts ""
                 puts "Replayed Ports:"
-                @replayed_ports.each {|port| port.pp}
+                @replayed_ports.each {|port| pp port}
                 puts ""
 
                 if @replayed_ports.size == 0
@@ -816,7 +816,6 @@ module Orocos
                         h
                     end
 
-                    pp by_basename
                     by_basename.each_value do |files|
                         args = files.compact.map do |path|
                             File.open(path)
