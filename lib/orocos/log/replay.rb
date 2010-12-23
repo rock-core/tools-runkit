@@ -565,7 +565,7 @@ module Orocos
             #After calling this method no more ports can be tracked.
 	    #
 	    # option is passed through to the StreamAligner and can 
-	    # be one off the following
+	    # be one of the following
 	    #
 	    # true - use rt
 	    # false - use lg
