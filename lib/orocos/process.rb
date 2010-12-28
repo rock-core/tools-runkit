@@ -135,8 +135,9 @@ module Orocos
         # This is shared by local and remote processes alike
         def self.log_all_ports(process, options = Hash.new)
             options, logger_options = Kernel.filter_options options,
-                :exclude_ports => nil, :exclude_types => nil
+                :tasks => nil, :exclude_ports => nil, :exclude_types => nil
 
+            tasks = options[:tasks]
             exclude_ports = options[:exclude_ports]
             exclude_types = options[:exclude_types]
 
@@ -148,6 +149,7 @@ module Orocos
             process.task_names.each do |task_name|
                 task = TaskContext.get(task_name)
                 next if task == logger
+		next if tasks && !(tasks === task_name)
 
                 task.each_output_port do |port|
                     next if exclude_ports && exclude_ports === port.name
