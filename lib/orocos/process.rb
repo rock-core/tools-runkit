@@ -188,12 +188,13 @@ module Orocos
             if options[:remote]
                 index = (@@logfile_indexes[process.name] ||= -1) + 1
 		@@logfile_indexes[process.name] = index
+		logger.file = "#{process.name}.#{index}.log"
             else
-                while File.file?(File.join(log_dir, "#{process.name}.#{index}.log"))
+                while File.file?( logfile = File.join(log_dir, "#{process.name}.#{index}.log"))
                     index += 1
                 end
+		logger.file = logfile 
             end
-            logger.file = "#{process.name}.#{index}.log"
             logger
         end
 
