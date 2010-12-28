@@ -621,6 +621,10 @@ module Orocos
                 return step
             end
 
+	    def aligned?
+		return @stream != nil
+	    end
+
             #Resets the simulated time.
             #This should be called after the replay was paused.
             def reset_time_sync
