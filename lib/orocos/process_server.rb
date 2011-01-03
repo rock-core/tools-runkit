@@ -580,11 +580,11 @@ module Orocos
         end
 
         def log_all_ports(options = Hash.new)
-            Process.setup_logger(self, options)
+            Orocos.log_all_ports(self, options)
         end
 
         def setup_logger(options = Hash.new)
-            Process.setup_logger(self, options)
+            Orocos.setup_default_logger(self, options)
         end
 
         # Called to announce that this process has quit

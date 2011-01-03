@@ -173,17 +173,6 @@ module Orocos
         Orocos::CORBA.init
     end
 
-    # This method assumes that #add_logger has been called at the end of each
-    # static_deployment block.
-    def self.log_all_ports(options = Hash.new)
-        exclude_ports = options[:exclude_ports]
-        exclude_types = options[:exclude_types]
-
-        each_process do |process|
-            process.log_all_ports(options)
-        end
-    end
-
     # call-seq:
     #   Orocos.each_task do |task| ...
     #   end

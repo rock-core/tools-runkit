@@ -21,6 +21,9 @@ module Orocos
         attr_reader :name
         # The attribute type, as a subclass of Typelib::Type
         attr_reader :type
+        # If set, this is a Pocolog::DataStream object in which new values set
+        # from within Ruby are set
+        attr_accessor :log_stream
 
         def initialize(task, name, orocos_type_name)
             @task, @name = task, name
@@ -40,7 +43,17 @@ module Orocos
         def write(value)
             value = Typelib.from_ruby(value, type)
             do_write(@orocos_type_name, value)
+            if log_stream
+                log_stream.write(Time.now, Time.now, value)
+            end
             value
+        end
+
+        # Write the current value of the property or attribute to #log_stream
+        def log_current_value
+            if log_stream
+                log_stream.write(Time.now, Time.now, read)
+            end
         end
 
         def new_sample
@@ -131,8 +144,17 @@ module Orocos
         RUNNING_STATES[STATE_FATAL_ERROR]     = false
         RUNNING_STATES[STATE_EXCEPTION]     = false
 
+        # If set, this is a Pocolog::Logfiles object in which the values of
+        # properties and attributes should be logged.
+        #
+        # Orocos.rb only logs the values that are set from within Ruby. There
+        # are no ways to log the values changed from within the task context.
+        attr_reader :configuration_log
+
         def initialize
-            @ports ||= Hash.new
+            @ports = Hash.new
+            @properties = Hash.new
+            @attributes = Hash.new
             @state_queue = Array.new
 
             # This is important as it will make the system load the task model
@@ -312,6 +334,24 @@ module Orocos
             true
         rescue CORBA::ComError
             false
+        end
+
+        # Waits for the task to be in state +state_name+ for the specified
+        # amount of time
+        #
+        # Raises RuntimeError on timeout
+        def wait_state(state_name, timeout = nil, polling = 0.1)
+            state_name = state_name.to_sym
+
+            start = Time.now
+            peek_state
+            while !state_queue.include?(state_name)
+                if timeout && (Time.now - start) > timeout
+                    raise "timing out while waiting for #{self} to be in state #{state_name}. It currently is in state #{current_state}"
+                end
+                sleep polling
+                peek_state
+            end
         end
 
         # True if the given symbol is the name of a runtime state
@@ -571,6 +611,9 @@ module Orocos
             attribute_names.include?(name.to_str)
         end
 
+        # A name => Attribute instance mapping of cached attribute objects
+        attr_reader :attributes
+
         # Returns an Attribute object representing the given attribute
         #
         # Raises NotFound if no such attribute exists.
@@ -587,6 +630,15 @@ module Orocos
         #   task.myProperty = value
         #
         def attribute(name)
+            if a = attributes[name]
+                if has_attribute?(name)
+                    return a
+                else
+                    attributes.delete(name)
+                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an attribute named #{name}", e.backtrace
+                end
+            end
+
             name = name.to_s
             type_name = CORBA.refine_exceptions(self) do
                 begin
@@ -596,8 +648,15 @@ module Orocos
                 end
             end
 
-            Attribute.new(self, name, type_name)
+            a = Attribute.new(self, name, type_name)
+            if configuration_log
+                a.log_stream = a.stream("#{self.name}.#{a.name}", a.type, true)
+            end
+            attributes[name] = a
         end
+
+        # A name => Property instance mapping of cached properties
+        attr_reader :properties
 
         # Returns a Property object representing the given property
         #
@@ -615,6 +674,15 @@ module Orocos
         #   task.myProperty = value
         #
         def property(name)
+            if p = properties[name]
+                if has_property?(name)
+                    return p
+                else
+                    properties.delete(name)
+                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
+                end
+            end
+
             name = name.to_s
             type_name = CORBA.refine_exceptions(self) do
                 begin
@@ -624,7 +692,22 @@ module Orocos
                 end
             end
 
-            Property.new(self, name, type_name)
+            p = Property.new(self, name, type_name)
+            if configuration_log
+                p.log_stream = configuration_log.stream("#{self.name}.#{name}", p.type, true)
+                p.log_current_value
+            end
+            properties[name] = p
+        end
+
+        # Tell the task to use the given Pocolog::Logfile object to log all
+        # changes to its properties
+        def log_all_configuration(logfile)
+            @configuration_log = logfile
+            each_property do |p|
+                p.log_stream = configuration_log.stream("#{self.name}.#{p.name}", p.type, true)
+                p.log_current_value
+            end
         end
 
         # Returns the Orocos::Generation::OutputPort instance that describes the
