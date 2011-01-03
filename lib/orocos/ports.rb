@@ -277,7 +277,7 @@ module Orocos
 
             value = port.type.new
             if result = do_read(port.orocos_type_name, value)
-                return [value.to_ruby, result]
+                return [Typelib.to_ruby(value), result]
             end
         end
 

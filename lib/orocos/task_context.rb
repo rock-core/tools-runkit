@@ -33,7 +33,7 @@ module Orocos
         def read
             value = type.new
             do_read(@orocos_type_name, value)
-            value.to_ruby
+            Typelib.to_ruby(value)
         end
 
         # Sets a new value for the property/attribute
