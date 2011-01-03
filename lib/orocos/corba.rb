@@ -1,7 +1,7 @@
 require 'rorocos_ext'
 require 'typelib'
-module Orocos
 
+module Orocos
     module CORBA
         extend Logger::Forward
         extend Logger::Hierarchy
@@ -76,21 +76,12 @@ module Orocos
                 do_connect_timeout(value)
                 @connect_timeout = value
             end
-
-            # The set of typekits that are loaded in this Ruby instance, as an
-            # array typekit names.
-            #
-            # See also load_typekit and loaded_typekit?
-            attr_reader :loaded_typekits
-
-            # True if the typekit whose name is given in argument is loaded
-            #
-            # See also load_typekit and loaded_typekits
-            def loaded_typekit?(name)
-                loaded_typekits.include?(name)
-            end
         end
-        @loaded_typekits = []
+
+        # For backward compatibility reasons. Use Orocos.load_typekit instead
+        def self.load_typekit(name)
+            Orocos.load_typekit(name)
+        end
 
         # Initialize the CORBA layer
         # 
@@ -101,73 +92,6 @@ module Orocos
             do_init
             self.connect_timeout = 100
 	end
-
-        @loaded_plugins = Set.new
-
-        # Generic loading of a RTT plugin
-        def self.load_plugin_library(pkg, name, libname) # :nodoc:
-            libpath = pkg.library_dirs.find do |dir|
-                full_path = File.join(dir, libname)
-                break(full_path) if File.file?(full_path)
-            end
-
-            if !libpath
-                raise NotFound, "cannot find typekit shared library for #{name} (searched for #{libname} in #{pkg.libdirs.split(" ").join(", ")})"
-            end
-
-            return if @loaded_plugins.include?(libpath)
-
-            Orocos.load_rtt_plugin(libpath)
-            @loaded_plugins << libpath
-            true
-        end
-
-        # Load the typekit whose name is given
-        #
-        # Typekits are shared libraries that include marshalling/demarshalling
-        # code. It gets automatically loaded in orocos.rb whenever you start
-        # processes.
-        def self.load_typekit(name)
-            return if loaded_typekit?(name)
-
-            typekit_pkg =
-                begin
-                    Utilrb::PkgConfig.new("#{name}-typekit-#{Orocos.orocos_target}")
-                rescue Utilrb::PkgConfig::NotFound
-                    raise NotFound, "the '#{name}' typekit is not available to pkgconfig"
-                end
-            load_plugin_library(typekit_pkg, name, "lib#{name}-typekit-#{Orocos.orocos_target}.so")
-
-            if Orocos::Generation::VERSION >= "0.8"
-                typelib_transport_pkg =
-                    begin
-                        Utilrb::PkgConfig.new("#{name}-transport-typelib-#{Orocos.orocos_target}")
-                    rescue Utilrb::PkgConfig::NotFound
-                        raise NotFound, "the '#{name}' typelib transport is not available to pkgconfig"
-                    end
-                load_plugin_library(typelib_transport_pkg, name, "lib#{name}-transport-typelib-#{Orocos.orocos_target}.so")
-
-                corba_transport_pkg =
-                    begin
-                        Utilrb::PkgConfig.new("#{name}-transport-corba-#{Orocos.orocos_target}")
-                    rescue Utilrb::PkgConfig::NotFound
-                        raise NotFound, "the '#{name}' CORBA transport is not available to pkgconfig"
-                    end
-                load_plugin_library(corba_transport_pkg, name, "lib#{name}-transport-corba-#{Orocos.orocos_target}.so")
-            end
-
-            @loaded_typekits << name
-
-            # Now, if this is an orogen typekit, then load the corresponding
-            # data types. orogen defines a type_registry field in the pkg-config
-            # file for that purpose.
-            tlb = typekit_pkg.type_registry
-            if tlb
-                Orocos.registry.import(tlb)
-            end
-
-            nil
-        end
 
         # Improves exception messages for exceptions that are raised from the
         # C++ extension
