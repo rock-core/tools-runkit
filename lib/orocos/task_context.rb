@@ -360,6 +360,24 @@ module Orocos
             EOD
         end
 
+        def self.state_transition_call(m)
+            class_eval <<-EOD
+            def #{m}(wait_for_completion = true, polling = 0.05)
+                if wait_for_completion
+                    current_state = peek_current_state
+                end
+                CORBA.refine_exceptions(self) do
+                    do_#{m}
+                end
+                if wait_for_completion
+                    while current_state == peek_current_state
+                        sleep polling
+                    end
+                end
+            end
+            EOD
+        end
+
         # Returns a StateReader object that allows to flexibly monitor the
         # task's state
         def state_reader(policy = Hash.new)
@@ -457,7 +475,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in
         # STATE_PRE_OPERATIONAL state before the call, or if the component
         # refused to do the transition (startHook() returned false)
-        corba_wrap :configure
+        state_transition_call :configure
 
         ##
         # :method: start
@@ -468,7 +486,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_STOPPED
         # state before the call, or if the component refused to do the
         # transition (startHook() returned false)
-        corba_wrap :start
+        state_transition_call :start
 
         ##
         # :method: reset_exception
@@ -479,7 +497,7 @@ module Orocos
         #
         # Raises StateTransitionFailed if the component was not in a proper
         # state before the call.
-        corba_wrap :reset_exception
+        state_transition_call :reset_exception
 
         ##
         # :method: stop
@@ -490,7 +508,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_RUNNING
         # state before the call. The component cannot refuse to perform the
         # transition (but can take an arbitrarily long time to do it).
-        corba_wrap :stop
+        state_transition_call :stop
 
         ##
         # :method: cleanup
@@ -501,7 +519,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_STOPPED
         # state before the call. The component cannot refuse to perform the
         # transition (but can take an arbitrarily long time to do it).
-        corba_wrap :cleanup
+        state_transition_call :cleanup
 
         # Returns true if this task context has either a property or an attribute with the given name
         def has_property?(name)
