@@ -133,6 +133,7 @@ module Orocos
 
         def initialize
             @ports ||= Hash.new
+            @state_queue = Array.new
 
             # This is important as it will make the system load the task model
             # (if needed)
@@ -184,15 +185,6 @@ module Orocos
             operation_signature('start')
             nil
         end
-
-        # True if the given symbol is the name of an error state
-        def error_state?(sym); @error_states.include?(sym) end
-        # True if the given symbol is the name of an exception state
-        def exception_state?(sym); @exception_states.include?(sym) end
-        # True if the given symbol is the name of a fatal error state
-        def fatal_error_state?(sym); @fatal_states.include?(sym) end
-        # True if the given symbol is the name of a runtime state
-        def runtime_state?(sym); @runtime_states.include?(sym) end
 
         def to_s
             "#<TaskContext: #{self.class.name}/#{name}>"
@@ -322,28 +314,40 @@ module Orocos
             false
         end
 
+        # True if the given symbol is the name of a runtime state
+        def runtime_state?(sym); @runtime_states.include?(sym) end
+        # True if the given symbol is the name of an error state
+        def error_state?(sym); @error_states.include?(sym) end
+        # True if the given symbol is the name of an exception state
+        def exception_state?(sym); @exception_states.include?(sym) end
+        # True if the given symbol is the name of a fatal error state
+        def fatal_error_state?(sym); @fatal_states.include?(sym) end
+
         # Returns true if the task is in a state where code is executed. This
         # includes of course the running state, but also runtime error states.
         def running?
-            @runtime_states.include?(state)
+            runtime_state?(peek_current_state)
         end
         # Returns true if the task has been configured.
-        def ready?;   state != :PRE_OPERATIONAL end
+        def ready?; peek_current_state && (peek_current_state != :PRE_OPERATIONAL) end
         # Returns true if the task is in an error state (runtime or fatal)
         def error?
-            error_state?(state)
+            error_state?(peek_current_state)
         end
         # Returns true if the task is in a runtime error state
         def runtime_error?
-            error_state?(state) && !exception_state?(state) && !fatal_error_state?(state)
+            state = self.peek_current_state
+            error_state?(state) &&
+                !exception_state?(state) &&
+                !fatal_error_state?(state)
         end
         # Returns true if the task is in an exceptional state
         def exception?
-            exception_state?(state)
+            exception_state?(peek_current_state)
         end
         # Returns true if the task is in a fatal error state
         def fatal_error?
-            fatal_error_state?(state)
+            fatal_error_state?(peek_current_state)
         end
 
         # Automated wrapper to handle CORBA exceptions coming from the C
@@ -366,6 +370,40 @@ module Orocos
             reader = p.do_reader(StateReader, p.orocos_type_name, policy)
             reader.instance_variable_set :@state_symbols, @state_symbols
             reader
+        end
+
+        # Returns the current task's state without "hiding" any state change to
+        # the task's user.
+        #
+        # This is meant to be used internally
+        def peek_current_state
+            peek_state.last || @current_state
+        end
+
+        # Reads all state transitions that have been announced by the task and
+        # pushes them to @state_queue
+        #
+        # The following call to #state will first look at @state_queue before
+        # accessing the task context
+        def peek_state
+            if model && model.extended_state_support?
+                @state_reader ||= state_reader
+                while new_state = @state_reader.read_new
+                    @state_queue << new_state
+                end
+            else
+                current_state = rtt_state
+                if current_state != @current_state
+                    @state_queue << current_state
+                end
+            end
+            @state_queue
+        end
+
+        # True if we got a state change announcement
+        def state_changed?
+            peek_state
+            !@state_queue.empty?
         end
 
         # :method: state
@@ -392,23 +430,19 @@ module Orocos
         # #state will return :CUSTOM_RUNTIME if the component goes into that
         # state.
         def state(return_current = true)
-            if model && model.extended_state_support?
-                @state_reader ||= state_reader
-                if return_current
-                    while new_state = @state_reader.read_new
-                        @current_state = new_state
-                    end
-                else
-                    if new_state = @state_reader.read_new
-                        @current_state = new_state
-                    end
-                end
+            peek_state
+            if @state_queue.empty?
                 @current_state
+            elsif return_current
+                @current_state = @state_queue.last
+                @state_queue.clear 
             else
-                rtt_state
+                @current_state = @state_queue.shift
             end
+            @current_state
         end
 
+        # Reads the state announced by the task's getState() operation
         def rtt_state
             value = CORBA.refine_exceptions(self) { do_state() }
             @state_symbols[value]
@@ -793,7 +827,7 @@ module Orocos
 
             pp.text "Component #{name}"
             pp.breakable
-            pp.text "  state: #{state}"
+            pp.text "  state: #{peek_current_state}"
             pp.breakable
 
             [['attributes', each_attribute], ['properties', each_property]].each do |kind, enum|
