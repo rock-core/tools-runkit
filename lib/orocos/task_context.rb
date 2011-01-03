@@ -477,11 +477,6 @@ module Orocos
             end
         end
 
-        # Alias for has_property?
-        def has_attribute?(name)
-            has_property?(name)
-        end
-
         # Returns true if this task context has a command with the given name
         def has_operation?(name)
             name = name.to_s
