@@ -9,6 +9,11 @@ module Orocos
     extend Logger::Forward
     extend Logger::Hierarchy
 
+    def self.log_all
+        log_all_ports
+        log_all_configuration
+    end
+
     # This method assumes that #add_logger has been called at the end of each
     # static_deployment block.
     def self.log_all_ports(options = Hash.new)
