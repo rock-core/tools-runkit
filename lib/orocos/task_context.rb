@@ -340,12 +340,12 @@ module Orocos
         # amount of time
         #
         # Raises RuntimeError on timeout
-        def wait_state(state_name, timeout = nil, polling = 0.1)
+        def wait_for_state(state_name, timeout = nil, polling = 0.1)
             state_name = state_name.to_sym
 
             start = Time.now
             peek_state
-            while !state_queue.include?(state_name)
+            while !@state_queue.include?(state_name)
                 if timeout && (Time.now - start) > timeout
                     raise "timing out while waiting for #{self} to be in state #{state_name}. It currently is in state #{current_state}"
                 end
