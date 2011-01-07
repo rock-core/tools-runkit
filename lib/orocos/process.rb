@@ -195,10 +195,16 @@ module Orocos
                               end
                     processes.each { |_, p| p.wait_running(timeout) }
                 end
-            rescue Exception
+
+            rescue Exception => original_error
                 # Kill the processes that are already running
                 if processes
-                    kill(processes.map { |name, p| p if p.running? }.compact)
+		    begin
+			kill(processes.map { |name, p| p if p.running? }.compact)
+		    rescue Exception => e
+			STDERR.puts "WARN: failed to kill the started processes, you will have to kill them yourself"
+			raise original_error
+		    end
                 end
                 raise
             end
@@ -404,6 +410,8 @@ module Orocos
             expected_exit = nil
             if clean_shutdown
                 expected_exit = signal = SIGNAL_NUMBERS['SIGINT']
+	    else
+                signal = SIGNAL_NUMBERS['SIGINT']
             end
 
             if signal 
