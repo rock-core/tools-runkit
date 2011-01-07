@@ -25,6 +25,10 @@ module Orocos
     #   processes to start (if they are not already in it) and will be
     #   started under valgrind. In the second case, all processes are
     #   started under valgrind.
+    # valgrind_options::
+    #   an array of options that should be passed to valgrind, e.g.
+    #
+    #     :valgrind_options => ["--track-origins=yes"]
     def self.run(*args, &block)
         Process.spawn(*args, &block)
     end
