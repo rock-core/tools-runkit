@@ -400,7 +400,7 @@ module Orocos
             EOD
         end
 
-        def self.state_transition_call(m)
+        def self.state_transition_call(m, target_state = nil)
             class_eval <<-EOD
             def #{m}(wait_for_completion = true, polling = 0.05)
                 if wait_for_completion
@@ -410,7 +410,7 @@ module Orocos
                     do_#{m}
                 end
                 if wait_for_completion
-                    while current_state == peek_current_state
+                    while current_state == peek_current_state#{" && current_state != :#{target_state}" if target_state}
                         sleep polling
                     end
                 end
@@ -515,7 +515,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in
         # STATE_PRE_OPERATIONAL state before the call, or if the component
         # refused to do the transition (startHook() returned false)
-        state_transition_call :configure
+        state_transition_call :configure, 'STOPPED'
 
         ##
         # :method: start
