@@ -405,8 +405,6 @@ module Orocos
                 if has_port?(m) 
                   _port = port(m)
                   _port.filter = block if block         #overwirte filer
-                  puts _port.name 
-                  puts block
                   return _port
                 end
                 super(m.to_sym, *args)
