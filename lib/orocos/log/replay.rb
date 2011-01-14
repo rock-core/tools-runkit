@@ -27,6 +27,7 @@ module Orocos
                 policy = Orocos::Port.validate_policy(policy)
                 @policy_type = policy[:type]
                 @buffer_size = policy[:size]
+                @last_update = Time.now
             end
 
             #This method is called each time new data are availabe.
@@ -44,6 +45,7 @@ module Orocos
 
             #Reads data from the associated port.
             def read
+                @last_update = port.last_update
                 if @policy_type == :data
                   return @filter.call(port.read) if @filter
                   return port.read
@@ -51,6 +53,13 @@ module Orocos
                   return @filter.call(@buffer.shift) if @filter
                   return @buffer.shift
                 end
+            end
+           
+            #Reads data from the associated port.
+            #Return nil if no new data are available
+            def read_new
+              return nil if @last_update == port.last_update 
+              read
             end
         end
 
@@ -84,6 +93,9 @@ module Orocos
 
             #returns true if replay has started
             attr_reader :replay
+
+            #returns the system time when the port was updated with new data
+            attr_reader :last_update
 
             #filter for log data
             #the filter is applied before all connections and readers are updated 
@@ -165,6 +177,7 @@ module Orocos
                 @tracked = false
                 @readers = Array.new
                 @replay = false
+                @last_update = Time.now
             end
 
             #Creates a new reader for the port.
@@ -205,6 +218,7 @@ module Orocos
 
             #Feeds data to the connected ports and readers
             def write(data)
+                @last_update = Time.now
                 @current_data = @filter ? @filter.call(data) : data
                 @connections.each do |connection|
                     connection.update(@current_data)
@@ -703,7 +717,6 @@ module Orocos
                     start
                     return
                 end
-
                 @current_sample = @stream.step_back
                 return nil if @current_sample == nil
                 index, time, data = @current_sample
