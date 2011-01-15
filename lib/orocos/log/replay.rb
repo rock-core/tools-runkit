@@ -371,10 +371,10 @@ module Orocos
                 return ports
             end
 
-            def find_all_ports(type_name, port_name)
+            def find_all_ports(type_name, port_name=nil)
                 Orocos::TaskContext.find_all_ports(@ports.values, type_name, port_name)
             end
-            def find_port(type_name, port_name)
+            def find_port(type_name, port_name=nil)
                 Orocos::TaskContext.find_port(@ports.values, type_name, port_name)
             end
 
@@ -532,10 +532,10 @@ module Orocos
                 end
             end
 
-            def find_all_ports(type_name, port_name)
+            def find_all_ports(type_name, port_name=nil)
                 Orocos::TaskContext.find_all_ports(@ports.values, type_name, port_name)
             end
-            def find_port(type_name, port_name)
+            def find_port(type_name, port_name=nil)
                 Orocos::TaskContext.find_port(@ports.values, type_name, port_name)
             end
 
@@ -616,6 +616,13 @@ module Orocos
                 puts ""
                 puts "Aligning streams --> all ports which are unused will not be loaded!!!"
                 puts ""
+
+                if @used_streams.size == 0
+                  puts "No ports are replayed."
+                  puts "Connect replay ports or set their track flag to true."
+                  return
+                end
+
                 puts "Replayed Ports:"
                 @replayed_ports.each {|port| pp port}
                 puts ""
