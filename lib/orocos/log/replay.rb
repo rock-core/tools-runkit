@@ -469,7 +469,7 @@ module Orocos
 
             def self.open(*path)
                 replay = new
-                replay.load(*path)
+	        replay.load(*path)
                 replay
             end
 
@@ -860,46 +860,46 @@ module Orocos
             #Loads a log files and creates TaskContexts which simulates the recorded tasks.
             #You can either specify a single file or a hole directory. If you want to load
             #more than one directory or file simultaneously you can use an array.
-            def load(path, logreg = Orocos.registry)
-                tasks = Array.new
-                return tasks if path == nil
+            def load(*paths)
+               paths.flatten!
 
-                #check if path is an array
-                if path.instance_of?(Array)
-                    path.each do |p|
-                        tasks.concat(load(p))
-                    end
-                    tasks.flatten
-                #check if path is a directory
-                elsif File.directory?(path)
-                    path = File.expand_path(path)
-                    all_files = Dir.enum_for(:glob, File.join(path, '*.*.log'))
-                    by_basename = all_files.inject(Hash.new) do |h, path|
-                        split = path.match(/^(.*)\.(\d+)\.log$/)
-                        basename, number = split[1], Integer(split[2])
-                        h[basename] ||= Array.new
-                        h[basename][number] = path
-                        h
-                    end
+               logreg = Orocos.registry
+               if paths.last.kind_of?(Typelib::Registry)
+		logreg = paths.pop
+	       end
+               
+               tasks = Array.new
+               paths.each do |path| 
+                  #check if path is a directory
+                  if File.directory?(path)
+                      path = File.expand_path(path)
+                      all_files = Dir.enum_for(:glob, File.join(path, '*.*.log'))
+                      by_basename = all_files.inject(Hash.new) do |h, path|
+                          split = path.match(/^(.*)\.(\d+)\.log$/)
+                          basename, number = split[1], Integer(split[2])
+                          h[basename] ||= Array.new
+                          h[basename][number] = path
+                          h
+                      end
 
-                    by_basename.each_value do |files|
-                        args = files.compact.map do |path|
-                            File.open(path)
-                        end
-                        args << logreg
+                      by_basename.each_value do |files|
+                          args = files.compact.map do |path|
+                              File.open(path)
+                          end
+                          args << logreg
 
-                        logfile = Pocolog::Logfiles.new(*args.compact)
-                        new_tasks = load_log_file(logfile, files.first)
-                        tasks.concat(new_tasks)
-                    end
-
-                elsif File.file?(path)
-                    file = Pocolog::Logfiles.open(path, logreg)
-                    tasks.concat(load_log_file(file, path))
-                else
-                    raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
-                end
-                return tasks
+                          logfile = Pocolog::Logfiles.new(*args.compact)
+                          new_tasks = load_log_file(logfile, files.first)
+                          tasks.concat(new_tasks)
+                      end
+                  elsif File.file?(path)
+                      file = Pocolog::Logfiles.open(path, logreg)
+                      tasks.concat(load_log_file(file, path))
+                  else
+                      raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
+                  end
+               end
+               return tasks
             end
 
             #Clears all reader buffers.
