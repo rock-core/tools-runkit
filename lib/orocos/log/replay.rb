@@ -362,6 +362,11 @@ module Orocos
                 return ports
             end
 
+            #Returns true if the task has used tasks
+            def used?
+              !used_ports.empty?
+            end
+
             #Returns an array of unused ports
             def unused_ports
                 ports = Array.new
@@ -717,8 +722,7 @@ module Orocos
 
                 #wait if replay is faster than the desired speed and time_sync is set to true
                 if time_sync
-                   wait = @time_sync_proc.call(time,actual_delta,required_delta)
-                   if wait > 0.001
+                   while (wait = @time_sync_proc.call(time,actual_delta,required_delta)) > 0.001
                       #process qt events every 0.1 sec
                       if @process_qt_events == true
                           start_wait = Time.now
@@ -735,6 +739,7 @@ module Orocos
                       else
                           sleep(wait)
                       end
+                      actual_delta   = Time.now - @start_time
                     end
                     actual_delta = @start_time ? Time.now - @start_time : required_delta
                     @out_of_sync_delta = required_delta - actual_delta
