@@ -430,8 +430,11 @@ module Orocos
         #
         #This class creates TaskContexts and OutputPorts to simulate the recorded tasks.
         class Replay
-            #replay speed = 1 --> record time
+            #desired replay speed = 1 --> record time
             attr_accessor :speed            
+            
+            #last replayed sample
+            attr_reader :current_sample
 
             #array of all simulated tasks
             attr_reader :tasks
@@ -454,7 +457,11 @@ module Orocos
             #<0 means the replayed samples are behind the simulated times
             #>0 means that the replayed samples are replayed to fast
             attr_reader :out_of_sync_delta
-          
+
+            #actual replay speed 
+            #this can be different to speed if the hard disk is too slow  
+            attr_reader :actual_speed
+
             def self.open(*path)
                 replay = new
                 replay.load(*path)
@@ -480,8 +487,10 @@ module Orocos
                 @current_sample = nil
                 @ports = Hash.new
                 @process_qt_events = false
-                @out_of_sync_delta = 0
+                reset_time_sync
+                time_sync
             end
+
 
             #returns false if no ports are or will be replayed
             def replay? 
@@ -649,7 +658,34 @@ module Orocos
             def reset_time_sync
                 @start_time = nil 
                 @base_time  = nil
-                @last_display = nil
+                @actual_speed = 0
+                @out_of_sync_delta = 0
+            end
+
+            #this can be used to set a different time sync logic
+            #the code block has three parameters
+            #time = current sample time
+            #actual_delta = time between start of replay and now
+            #required_delta = time which should have elapsed between start and now
+            #to replay at the desired speed 
+            #the code block must return the number of seconds which 
+            #the replay shall wait before the sample is repalyed 
+            #
+            #Do not block the program otherwise qt events are no longer processed!!!
+            #
+            #Example
+            #time_sync do |time,actual_delta,required_delta|
+            #   my_object.busy? ? 1 : 0
+            #end
+            #
+            def time_sync(&block)
+              if block_given?
+                @time_sync_proc = block
+              else
+                 @time_sync_proc = Proc.new do |time,actual_delta,required_delta|
+                    required_delta - actual_delta
+                 end
+              end
             end
 
             #Gets the next sample and writes it to the ports which are connected
@@ -671,43 +707,39 @@ module Orocos
                 return if !@current_sample
                 index, time, data = @current_sample
 
+                if getter = (timestamps[data.class.name] || default_timestamp)
+                  time = getter[data]
+                end
+                @base_time ||= time
+                @start_time ||= Time.now
+                required_delta = (time - @base_time)/@speed
+                actual_delta   = Time.now - @start_time
+
                 #wait if replay is faster than the desired speed and time_sync is set to true
                 if time_sync
-                    if getter = (timestamps[data.class.name] || default_timestamp)
-                        time = getter[data]
+                   wait = @time_sync_proc.call(time,actual_delta,required_delta)
+                   if wait > 0.001
+                      #process qt events every 0.1 sec
+                      if @process_qt_events == true
+                          start_wait = Time.now
+                          while true
+                              $qApp.processEvents()
+                              break if !@start_time                           #break if start_time was reseted throuh processEvents
+                              wait2 =wait -(Time.now - start_wait)
+                              if wait2 > 0.001
+                                  sleep [0.1,wait2].min
+                              else
+                                  break
+                              end
+                          end
+                      else
+                          sleep(wait)
+                      end
                     end
-                    @base_time ||= time
-                    @start_time ||= Time.now
-                    required_delta = time - @base_time
-                    actual_delta   = Time.now - @start_time
-                    wait = required_delta / @speed - actual_delta
-                    if wait > 0.001
-                        #process qt events every 0.1 sec
-                        if @process_qt_events == true
-                            while true
-                                $qApp.processEvents()
-                                break if !@start_time     #break if start_time was reseted throuh processEvents
-                                actual_delta   = Time.now - @start_time
-                                wait = required_delta / @speed - actual_delta
-                                if wait > 0.001
-                                    sleep [0.1,wait].min
-                                else
-                                    break
-                                end
-                            end
-                        else
-                            sleep(wait)
-                        end
-                    end
-
-                    if !@last_display || (required_delta - @last_display > 0.1)
-                        print "replayed %.1fs of log data\r" % [required_delta]
-                        @last_display = required_delta
-                    end
-
-                    actual_delta   = @start_time ? Time.now - @start_time : 0
-                    @out_of_sync_delta = required_delta / @speed - actual_delta
+                    actual_delta = @start_time ? Time.now - @start_time : required_delta
+                    @out_of_sync_delta = required_delta - actual_delta
                 end
+                @actual_speed = required_delta/actual_delta*@speed
 
                 #write sample to connected ports
                 @replayed_ports[index].write(data)
@@ -738,6 +770,12 @@ module Orocos
             def rewind()
                 @stream.rewind
                 step
+            end
+
+            #returns the last port which recieved data
+            def current_port
+              index,_,_ = @current_sample
+              replayed_ports[index]
             end
 
             #Runs through the log files until the end is reached.
