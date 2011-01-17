@@ -739,6 +739,7 @@ module Orocos
                       else
                           sleep(wait)
                       end
+                      break if !@start_time        # if time was resetted go out 
                       actual_delta   = Time.now - @start_time
                     end
                     actual_delta = @start_time ? Time.now - @start_time : required_delta
