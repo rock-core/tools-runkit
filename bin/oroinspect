@@ -80,7 +80,9 @@ if search_for.include?(:deployments)
         if name =~ regexp
             project_name = pkg.project_name
             if tasklib = load_orogen_project(master_project, project_name, debug)
-                found << [tasklib.deployers.find { |n| n.name == name }, project_name]
+		if deployer = tasklib.deployers.find { |n| n.name == name }
+		    found << [deployer, project_name]
+		end
             end
         end
     end
