@@ -780,8 +780,10 @@ module Orocos
 
             #returns the last port which recieved data
             def current_port
-              index,_,_ = @current_sample
-              replayed_ports[index]
+              if @current_sample
+                index,_,_ = @current_sample
+                replayed_ports[index]
+              end
             end
 
             #Runs through the log files until the end is reached.
