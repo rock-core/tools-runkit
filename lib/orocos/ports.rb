@@ -65,6 +65,7 @@ module Orocos
             :type => :data,
             :init => false,
             :pull => false,
+            :data_size => 0,
             :size => 0,
             :lock => :lock_free,
             :transport => 0

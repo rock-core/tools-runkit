@@ -486,6 +486,7 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
     }
 
     result.transport = NUM2INT(rb_hash_aref(options, ID2SYM(rb_intern("transport"))));
+    result.data_size = NUM2INT(rb_hash_aref(options, ID2SYM(rb_intern("data_size"))));
     result.init = RTEST(rb_hash_aref(options, ID2SYM(rb_intern("init"))));
     result.pull = RTEST(rb_hash_aref(options, ID2SYM(rb_intern("pull"))));
     result.size = NUM2INT(rb_hash_aref(options, ID2SYM(rb_intern("size"))));
