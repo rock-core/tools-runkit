@@ -176,6 +176,61 @@ module Orocos
     #
     # They are obtained from TaskContext#port or TaskContext#each_port
     class OutputPort
+        def initialize
+            super
+            @max_sizes = task.model.find_output_port(name).max_sizes.dup
+        end
+
+        ##
+        # :method: max_sizes
+        #
+        # :call-seq:
+        #   max_sizes('name.to[].field' => value, 'name.other' => value) => self
+        #   max_sizes => current size specification
+        #
+        # Sets the maximum allowed size for the variable-size containers in
+        # +type+. If the type is a compound, the mapping is given as
+        # path.to.field => size. If it is a container, the size of the
+        # container itself is given as first argument, and the sizes for the
+        # contained values as a second map argument.
+        #
+        # For instance, with the types
+        #
+        #   struct A
+        #   {
+        #       std::vector<int> values;
+        #   };
+        #   struct B
+        #   {
+        #       std::vector<A> field;
+        #   };
+        #
+        # Then sizes on a port of type B would be given with
+        #
+        #   port.max_sizes('field' => 10, 'field[].values' => 20)
+        #
+        # while the sizes on a port of type std::vector<A> would be given
+        # with
+        #
+        #   port.max_sizes(10, 'values' => 20)
+        #
+        dsl_attribute :max_sizes do |*values|
+            # Validate that all values are integers and all names map to
+            # known types
+            value = Orocos::Spec::OutputPort.validate_max_sizes_spec(type, values)
+            max_sizes.merge(value)
+        end
+
+        # Returns the maximum marshalled size of a sample from this port, as
+        # marshalled by typelib
+        #
+        # If the type contains variable-size containers, the result is dependent
+        # on the values given to #max_sizes. If not enough is known, this method
+        # will return nil.
+        def max_marshalling_size
+            Orocos::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
+        end
+
         # Require this port to disconnect from the provided input port
         def disconnect_from(input)
             refine_exceptions(input) do
@@ -249,7 +304,25 @@ module Orocos
                 raise ArgumentError, "trying to connect an output port of type #{type_name} to an input port of type #{input_port.type_name}"
             end
 
-            do_connect_to(input_port, validate_policy(options))
+            policy = validate_policy(options)
+            if policy[:transport] == 0 && Orocos.use_mq?
+                puts TRANSPORT_MQ
+                if task.process.host_id == input_port.task.process.host_id
+                    policy[:transport] = TRANSPORT_MQ
+                end
+            end
+
+            if policy[:transport] == TRANSPORT_MQ && policy[:data_size] == 0
+                size = max_marshalling_size
+                if size
+                    policy[:data_size] = size
+                elsif Orocos.use_mq_warning?
+                    Orocos.warn "the MQ transport is selected, but the marshalling size of samples from the output port #{name} is unknown, switching back to CORBA"
+                    policy[:transport] = 0
+                end
+            end
+
+            do_connect_to(input_port, policy)
             self
         end
     end

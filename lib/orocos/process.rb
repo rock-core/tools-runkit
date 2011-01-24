@@ -62,6 +62,12 @@ module Orocos
 	    ObjectSpace.enum_for(:each_object, Orocos::Process).find { |mod| mod.pid == pid }
 	end
 
+        # A string describing the host. It can be used to check if two processes
+        # are running on the same host
+        def host_id
+            'localhost'
+        end
+
         # Creates a new Process instance which will be able to
         # start and supervise the execution of the given Orocos
         # component

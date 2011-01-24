@@ -386,6 +386,7 @@ module Orocos
             @master_project = RemoteMasterProject.new(self)
             @processes = Hash.new
             @death_queue = Array.new
+            @host_id = "#{host}:#{port}:#{server_pid}"
         end
 
         # Loads the oroGen project definition called 'name' using the data the
@@ -571,6 +572,11 @@ module Orocos
         # The Orocos::Generation::StaticDeployment instance that describes this
         # process
         attr_reader :model
+        # A string describing the host. It can be used to check if two processes
+        # are running on the same host
+        def host_id
+            process_client.host_id
+        end
 
         def initialize(name, process_client)
             @name = name
