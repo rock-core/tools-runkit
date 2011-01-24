@@ -584,7 +584,9 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
     {
         orogen_transports::TypelibMarshallerBase::Handle* handle =
             typelib_transport->createHandle();
-        typelib_transport->setTypelibSample(handle, value);
+        // Set the typelib sample using the value passed from ruby to avoid
+        // unnecessary convertions. Don't touch the orocos sample though.
+        typelib_transport->setTypelibSample(handle, value, false);
         RTT::base::DataSourceBase::shared_ptr ds =
             typelib_transport->getDataSource(handle);
         RTT::FlowStatus did_read = local_port.read(ds);

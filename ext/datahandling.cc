@@ -34,7 +34,9 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
     else
     {
         orogen_transports::TypelibMarshallerBase::Handle* handle = typelib_transport->createHandle();
-        typelib_transport->setTypelibSample(handle, dest);
+        // Set the typelib sample but don't copy it to the orocos sample as we
+        // will copy back anyway
+        typelib_transport->setTypelibSample(handle, dest, false);
         RTT::base::DataSourceBase::shared_ptr ds =
             typelib_transport->getDataSource(handle);
         if (!corba_transport->updateFromAny(&src, ds))
