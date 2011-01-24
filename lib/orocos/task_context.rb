@@ -177,11 +177,11 @@ module Orocos
                     compact.to_set
 
                 if model.component.typekit
-                    Orocos::CORBA.load_typekit(model.component.name)
+                    Orocos.load_typekit(model.component.name)
                 end
                 model.used_typekits.each do |tk|
                     next if tk.virtual?
-                    Orocos::CORBA.load_typekit(tk.name)
+                    Orocos.load_typekit(tk.name)
                 end
             else
                 @state_symbols = []
