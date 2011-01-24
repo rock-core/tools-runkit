@@ -179,6 +179,7 @@ module Orocos
         def initialize
             super
             @max_sizes = task.model.find_output_port(name).max_sizes.dup
+            @max_sizes.merge!(Orocos.max_sizes_for(type))
         end
 
         ##

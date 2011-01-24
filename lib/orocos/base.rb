@@ -75,6 +75,10 @@ module Orocos
     end
     @use_mq_warning = true
 
+    def self.max_sizes_for(type)
+        Orocos.master_project.max_sizes[type.name]
+    end
+
     # True if there is a typekit named +name+ on the file system
     def self.has_typekit?(name)
         pkg, _ = available_projects[name]
