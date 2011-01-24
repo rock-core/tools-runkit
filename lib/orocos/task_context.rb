@@ -905,7 +905,7 @@ module Orocos
 
                 # Try to find the tasklib that handles our model
                 if tasklib_name = Orocos.available_task_models[model_name]
-                    tasklib = Orocos.master_project.load_task_library(tasklib_name)
+                    tasklib = Orocos.master_project.using_task_library(tasklib_name)
                     @model = tasklib.tasks[model_name]
                 end
             end

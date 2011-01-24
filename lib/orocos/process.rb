@@ -80,7 +80,7 @@ module Orocos
             end
 
             # Load the orogen's description
-            orogen_project = Orocos.master_project.load_orogen_project(pkg.project_name)
+            orogen_project = Orocos.master_project.using_project(pkg.project_name)
             @model = orogen_project.deployers.find do |d|
                 d.name == name
             end
