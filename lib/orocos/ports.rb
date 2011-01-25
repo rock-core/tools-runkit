@@ -328,6 +328,8 @@ module Orocos
 
             do_connect_to(input_port, policy)
             self
+        rescue Orocos::ConnectionFailed => e
+            raise e, "failed to connect #{task.name}:#{name} => #{input_port.task.name}:#{input_port.name} with policy #{policy.inspect}"
         end
     end
 
