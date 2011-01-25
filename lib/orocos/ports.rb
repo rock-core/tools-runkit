@@ -319,6 +319,9 @@ module Orocos
             if policy[:transport] == TRANSPORT_MQ && policy[:data_size] == 0
                 size = max_marshalling_size
                 if size
+                    Orocos.info do
+                        "using MQ transport for #{task.name}:#{name} => #{input_port.task.name}:#{input_port.name}, data_size == #{size}"
+                    end
                     policy[:data_size] = size
                 elsif Orocos.use_mq_warning?
                     Orocos.warn "the MQ transport is selected, but the marshalling size of samples from the output port #{name} is unknown, switching back to CORBA"
