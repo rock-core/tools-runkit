@@ -307,7 +307,6 @@ module Orocos
 
             policy = validate_policy(options)
             if policy[:transport] == 0 && Orocos.use_mq?
-                puts TRANSPORT_MQ
                 if task.process.host_id == input_port.task.process.host_id
                     policy[:transport] = TRANSPORT_MQ
                 end
