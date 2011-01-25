@@ -351,6 +351,8 @@ module Orocos
         attr_reader :port
         # The PID of the server process
         attr_reader :server_pid
+        # A string that allows to uniquely identify this process server
+        attr_reader :host_id
 
         def to_s
             "#<Oroocs::ProcessServer #{host}:#{port}>"
