@@ -17,7 +17,9 @@
 
 #include <typelib_ruby.hh>
 #include <rtt/transports/corba/CorbaLib.hpp>
+#ifdef HAS_MQUEUE
 #include <rtt/transports/mqueue/MQLib.hpp>
+#endif
 
 using namespace std;
 using namespace boost;
@@ -721,7 +723,9 @@ extern "C" void Init_rorocos_ext()
     rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::corba::CRunTimeError));
 
     rb_const_set(mOrocos, rb_intern("TRANSPORT_CORBA"), INT2FIX(ORO_CORBA_PROTOCOL_ID));
+#ifdef HAS_MQUEUE
     rb_const_set(mOrocos, rb_intern("TRANSPORT_MQ"),    INT2FIX(ORO_MQUEUE_PROTOCOL_ID));
+#endif
     
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
     cOutputPort   = rb_define_class_under(mOrocos, "OutputPort", cPort);

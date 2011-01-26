@@ -33,6 +33,10 @@ ADD_DEFINITIONS( ${RTT_CFLAGS} )
 INCLUDE_DIRECTORIES( ${RTT_INCLUDE_DIRS} )
 LINK_DIRECTORIES( ${RTT_LIBRARY_DIRS} )
 
+pkg_check_modules(RTT_MQUEUE orocos-rtt-mqueue-${OROCOS_TARGET})
+include_directories( ${RTT_MQUEUE_INCLUDE_DIRS} )
+add_definitions(-DHAS_MQUEUE)
+
 pkg_check_modules(RTT_CORBA REQUIRED orocos-rtt-corba-${OROCOS_TARGET})
 FIND_PATH(IDL_DIR TaskContext.idl ${RTT_CORBA_INCLUDE_DIRS})
 if (NOT IDL_DIR)

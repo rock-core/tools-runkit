@@ -39,39 +39,6 @@ module Orocos
         # The set of available task models, as a mapping from the model name
         # into the task library name that defines it
         attr_reader :available_task_models
-
-        ##
-        # :method:use_mq?
-        # :call-seq:
-        #   Orocos.use_mq? => true or false
-        #   Orocos.use_mq = new_value
-        #
-        # If true, orocos.rb will try to use the MQ transport when
-        # * the max sample size on the output port is known. If the port type
-        #   contains variable-sized containers, it means that
-        #   Orocos::OutputPort#max_size and/or Orocos::Spec::OutputPort#max_size
-        #   have been used on resp. the port object or the model that describes
-        #   it.
-        # * it is known that the two involved tasks are on the same host (this
-        #   is possible only if orocos.rb is used to start the processes)
-        #
-        # It is false by default. Additionally, the Orocos.use_mq_warning?
-        # predicate tells if a warning should be used for connections that can't
-        # use MQ
-        attr_predicate :use_mq?, true
-
-        ##
-        # :method:use_mq_warning?
-        # :call-seq:
-        #   Orocos.use_mq_warning? => true or false
-        #   Orocos.use_mq_warning = new_value
-        #
-        # Controls whether orocos.rb should issue a warning if use_mq? is true
-        # but some connection cannot use the message queues
-        #
-        # See the documentation of Orocos.use_mq? for the constraints on MQ
-        # usage.
-        attr_predicate :use_mq_warning?, true
     end
     @use_mq_warning = true
 
