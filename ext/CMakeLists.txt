@@ -22,23 +22,14 @@ MACRO(CMAKE_USE_FULL_RPATH install_rpath)
 ENDMACRO(CMAKE_USE_FULL_RPATH)
 CMAKE_USE_FULL_RPATH("")
 
-# Find out where oroGen is. This is needed to get the TypelibMarshaller
-# definitions
-#
-# This sucks. It will be fixed when the typelib marshaller gets included as a
-# marshaller in the RTT codebase (probably post-2.0)
-find_program(OROGEN orogen)
-if (NOT OROGEN)
-    message(FATAL_ERROR "cannot find oroGen")
-endif()
-execute_process(COMMAND ${OROGEN} --base-dir
-    OUTPUT_VARIABLE OROGEN_BASE_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-include_directories("${OROGEN_BASE_DIR}/orogen/templates/typekit/typelib")
+include(FindPkgConfig)
 
-FIND_PACKAGE(PkgConfig)
+pkg_check_modules(RTT_Typelib REQUIRED rtt-typelib)
+include_directories( ${RTT_Typelib_INCLUDE_DIRS} )
+link_directories( ${RTT_Typelib_LIBRARY_DIRS} )
+
 pkg_check_modules(RTT REQUIRED orocos-rtt-${OROCOS_TARGET})
-ADD_DEFINITIONS( -DOROCOS_TARGET=${OROCOS_TARGET} )
+ADD_DEFINITIONS( ${RTT_CFLAGS} )
 INCLUDE_DIRECTORIES( ${RTT_INCLUDE_DIRS} )
 LINK_DIRECTORIES( ${RTT_LIBRARY_DIRS} )
 
@@ -107,12 +98,12 @@ ENDMACRO(OMNIORB)
 
 OMNIORB()
 ADD_RUBY_EXTENSION(rorocos_ext 
-    rorocos.cc corba.cc datahandling.cc operations.cc ${ORB_IDL_FILES}
-    ${OROGEN_BASE_DIR}/orogen/templates/typekit/typelib/TypelibMarshallerBase.cpp)
+    rorocos.cc corba.cc datahandling.cc operations.cc ${ORB_IDL_FILES})
 target_link_libraries(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
     ${RTT_CORBA_LIBRARIES} ${TYPELIB_LIBRARIES}
     ${RTT_PLUGIN_rtt-typekit_LIBRARY}
-    ${RTT_PLUGIN_rtt-transport-corba_LIBRARY})
+    ${RTT_PLUGIN_rtt-transport-corba_LIBRARY}
+    ${RTT_Typelib_LIBRARIES})
 
 INSTALL(TARGETS rorocos_ext LIBRARY DESTINATION ".")
 

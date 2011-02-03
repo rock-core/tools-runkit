@@ -6,7 +6,7 @@
 #include "corba.hh"
 #include <boost/tuple/tuple.hpp>
 
-#include <TypelibMarshallerBase.hpp>
+#include <rtt/typelib/TypelibMarshallerBase.hpp>
 #include <rtt/transports/corba/CorbaTypeTransporter.hpp>
 
 extern VALUE eNotFound;
