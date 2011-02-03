@@ -562,7 +562,7 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
     return Qnil; // never reached
 }
 
-static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_typelib_value)
+static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_typelib_value, VALUE copy_old_data)
 {
     RTT::base::InputPortInterface& local_port = get_wrapped<RTT::base::InputPortInterface>(port_access);
     Typelib::Value value = typelib_get(rb_typelib_value);
@@ -591,7 +591,7 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
         typelib_transport->setTypelibSample(handle, value, false);
         RTT::base::DataSourceBase::shared_ptr ds =
             typelib_transport->getDataSource(handle);
-        RTT::FlowStatus did_read = local_port.read(ds);
+        RTT::FlowStatus did_read = local_port.read(ds, RTEST(copy_old_data));
 
         if (did_read != RTT::NoData)
         {
@@ -760,7 +760,7 @@ extern "C" void Init_rorocos_ext()
 
     rb_define_method(cPortAccess, "disconnect", RUBY_METHOD_FUNC(do_local_port_disconnect), 0);
     rb_define_method(cPortAccess, "connected?", RUBY_METHOD_FUNC(do_local_port_connected), 0);
-    rb_define_method(cOutputReader, "do_read", RUBY_METHOD_FUNC(do_output_reader_read), 2);
+    rb_define_method(cOutputReader, "do_read", RUBY_METHOD_FUNC(do_output_reader_read), 3);
     rb_define_method(cOutputReader, "clear", RUBY_METHOD_FUNC(output_reader_clear), 0);
     rb_define_method(cInputWriter, "do_write", RUBY_METHOD_FUNC(do_input_writer_write), 2);
 

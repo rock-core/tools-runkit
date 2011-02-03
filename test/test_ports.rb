@@ -327,6 +327,26 @@ describe Orocos::OutputReader do
         end
     end
 
+    it "should allow reusing a sample" do
+        Orocos::Process.spawn('echo') do |source|
+            source = source.task('Echo')
+            output = source.port('output_opaque')
+            reader = output.reader
+            source.configure
+            source.start
+            source.write_opaque(42)
+
+            sleep(0.2)
+            
+            # Create a new reader. The default policy is data
+            sample = output.new_sample
+            returned_sample = reader.read(sample)
+            assert_same returned_sample, sample
+            assert_equal(42, sample.x)
+            assert_equal(84, sample.y)
+        end
+    end
+
     it "should be able to read data from an output port using a data connection" do
         Orocos::Process.spawn('simple_source') do |source|
             source = source.task('source')

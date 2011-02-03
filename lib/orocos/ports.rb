@@ -350,7 +350,7 @@ module Orocos
         # The OutputPort object this reader is linked to
         attr_reader :port
 
-        def read_helper
+        def read_helper(sample, copy_old_data)
 	    if process = port.task.process
 		if !process.alive?
 		    disconnect
@@ -358,8 +358,16 @@ module Orocos
 		end
 	    end
 
-            value = port.type.new
-            if result = do_read(port.orocos_type_name, value)
+            if sample
+                if sample.class != port.type
+                    raise ArgumentError, "wrong sample type #{sample.class}, expected #{port.type}"
+                end
+                value = sample
+            else
+                value = port.type.new
+            end
+
+            if result = do_read(port.orocos_type_name, value, copy_old_data)
                 return [Typelib.to_ruby(value), result]
             end
         end
@@ -379,8 +387,8 @@ module Orocos
         #   end
         #   
         # Raises CORBA::ComError if the communication is broken.
-        def read
-            if value = read_helper
+        def read(sample = nil)
+            if value = read_helper(sample, true)
                 value[0]
             end
         end
@@ -403,8 +411,8 @@ module Orocos
         #   end
         #   
         # Raises CORBA::ComError if the communication is broken.
-        def read_new
-            if value = read_helper
+        def read_new(sample = nil)
+            if value = read_helper(sample, false)
                 value[0] if value[1] == NEW_DATA
             end
         end
