@@ -31,9 +31,9 @@ describe Orocos::TaskContext do
 
     it "should load its own typekit" do
         Orocos::Process.spawn('simple_source') do |source, sink|
-            assert(!Orocos::CORBA.loaded_typekit?("simple_source"))
+            assert(!Orocos.loaded_typekit?("simple_source"))
             source = source.task("simple_source_source")
-            assert(Orocos::CORBA.loaded_typekit?("simple_source"))
+            assert(Orocos.loaded_typekit?("simple_source"))
         end
     end
 
@@ -91,7 +91,7 @@ describe Orocos::TaskContext do
     it "should raise NotFound if a port does not exist" do
         Orocos::Process.spawn('simple_source') do |source|
             task = source.task("simple_source_source")
-            assert_raises(Orocos::NotFound) { task.port("does_not_exist") }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.port("does_not_exist") }
         end
     end
 
@@ -125,7 +125,7 @@ describe Orocos::TaskContext do
     it "should raise NotFound on an unknown operation object" do
         Orocos::Process.spawn 'echo' do |echo|
             echo = echo.task('Echo')
-            assert_raises(Orocos::NotFound) { echo.operation(:unknown) }
+            assert_raises(Orocos::InterfaceObjectNotFound) { echo.operation(:unknown) }
         end
     end
 

@@ -18,9 +18,9 @@ describe "the Orocos::CORBA module" do
     end
 
     it "should be able to load typekit plugins" do
-        assert(! Orocos::CORBA.loaded_typekit?('process'))
+        assert(! Orocos.loaded_typekit?('process'))
         Orocos::CORBA.load_typekit 'process'
-        assert( Orocos::CORBA.loaded_typekit?('process'))
+        assert( Orocos.loaded_typekit?('process'))
         types = Orocos::CORBA.transportable_type_names
         assert(types.include?("/process/Simple"))
     end
