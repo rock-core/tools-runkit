@@ -7,6 +7,9 @@ module Orocos
         attr_reader :processes
 
         def setup
+            # Since we are loading typekits over and over again, we need to
+            # disable type export
+            Orocos.export_types = false
             @processes = Array.new
             super if defined? super
         end
@@ -70,6 +73,7 @@ module Orocos
         def setup
             ENV['PKG_CONFIG_PATH'] = "#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
             Orocos.initialize
+            Orocos.export_types = false
 
             @old_timeout = Orocos::CORBA.connect_timeout
             Orocos::CORBA.connect_timeout = 50

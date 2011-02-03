@@ -22,7 +22,7 @@ module Orocos
         #
         # The export can be done in a sub-namespace by setting
         # Orocos.type_export_namespace
-        attr_predicate :export_types?
+        attr_predicate :export_types?, true
 
         # The namespace in which the types should be exported if
         # Orocos.export_types? is true. It defaults to Types
