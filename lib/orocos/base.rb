@@ -122,6 +122,7 @@ module Orocos
         @master_project = Orocos::Generation::Component.new
         @registry = master_project.registry
         @available_projects ||= Hash.new
+        @loaded_typekits.clear
 
         # Finally, update the set of available projects
         Utilrb::PkgConfig.each_package(/^orogen-project-/) do |pkg_name|
