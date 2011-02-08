@@ -416,6 +416,9 @@ module Orocos
                 value[0] if value[1] == NEW_DATA
             end
         end
+        
+        # Returns a new sample that can be used with read_new 
+        def new_sample; port.new_sample end
     end
 
     # Instances of InputWriter allows to write data to a component's input port.
