@@ -85,12 +85,14 @@ module Orocos
             end
 
             if buffer_size > msg_max
-                Orocos.warn "required buffer size #{buffer_size} is greater than the maximum that the system allows (#{msg_max}). On linux systems, you can use /proc/sys/fs/mqueue/msg_max to change this limit"
+                msg = yield if block_given?
+                Orocos.warn "#{msg}: required buffer size #{buffer_size} is greater than the maximum that the system allows (#{msg_max}). On linux systems, you can use /proc/sys/fs/mqueue/msg_max to change this limit"
                 return false
             end
 
             if data_size > msgsize_max
-                Orocos.warn "required sample size #{data_size} is greater than the maximum that the system allows (#{msgsize_max}). On linux systems, you can use /proc/sys/fs/mqueue/msgsize_max to change this limit"
+                msg = yield if block_given?
+                Orocos.warn "#{msg}: required sample size #{data_size} is greater than the maximum that the system allows (#{msgsize_max}). On linux systems, you can use /proc/sys/fs/mqueue/msgsize_max to change this limit"
                 return false
             end
             return true

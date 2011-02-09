@@ -334,7 +334,11 @@ module Orocos
                        else policy[:size]
                        end
 
-                if !Orocos::MQueue.valid_sizes?(size, policy[:data_size])
+                valid = Orocos::MQueue.valid_sizes?(size, policy[:data_size]) do
+                    "while connecting #{task.name}.#{name} to #{input_port.task.name}.#{input_port.name} of type #{type_name}"
+                end
+
+                if !valid
                     policy[:transport] = 0
                 end
             end
