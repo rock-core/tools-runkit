@@ -355,7 +355,7 @@ module Orocos
         attr_reader :host_id
 
         def to_s
-            "#<Oroocs::ProcessServer #{host}:#{port}>"
+            "#<Orocos::ProcessServer #{host}:#{port}>"
         end
         def inspect; to_s end
 
