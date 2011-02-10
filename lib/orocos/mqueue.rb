@@ -25,7 +25,16 @@ module Orocos
             # It is false by default. Additionally, the Orocos::MQueue.warn?
             # predicate tells if a warning should be used for connections that can't
             # use MQ
-            attr_predicate :auto?, true
+            if MQueue.available?
+                attr_predicate :auto?, true
+            else
+                def auto?; false end
+                def auto=(value)
+                    if value
+                        raise ArgumentError, "cannot turn automatic MQ handling as it is not built in the RTT"
+                    end
+                end
+            end
 
             ##
             # :method:warn?
