@@ -68,6 +68,12 @@ module Orocos
             'localhost'
         end
 
+        # Returns true if the process is located on the same host than the Ruby
+        # interpreter
+        def on_localhost?
+            host_id == 'localhost'
+        end
+
         # Creates a new Process instance which will be able to
         # start and supervise the execution of the given Orocos
         # component

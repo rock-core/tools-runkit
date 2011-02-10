@@ -140,7 +140,11 @@ module Orocos
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
         def writer(policy = Hash.new)
-            do_writer(orocos_type_name, validate_policy(policy))
+            policy = validate_policy(policy)
+            policy = OutputPort.handle_mq_transport(self, "#{full_name}.writer", policy) do
+                task.process && task.process.on_localhost?
+            end
+            do_writer(orocos_type_name, policy)
         end
 
         # Writes one sample with a default policy.
@@ -280,7 +284,68 @@ module Orocos
         # The policy dictates how data should flow between the port and the
         # reader object. See #validate_policy
         def reader(policy = Hash.new)
-            do_reader(OutputReader, orocos_type_name, validate_policy(policy))
+            policy = validate_policy(policy)
+            policy = OutputPort.handle_mq_transport(self, "#{full_name}.reader", policy) do
+                task.process && task.process.on_localhost?
+            end
+            do_reader(OutputReader, orocos_type_name, policy)
+        end
+
+        # Helper method for #connect_to, to handle the MQ transport (in
+        # particular, the validation of the parameters)
+        #
+        # A block must be given, that should return true if the MQ transport
+        # should be used for this particular connection and false otherwise
+        # (i.e. true if the two ports are located on the same machine, false
+        # otherwise)
+        def handle_mq_transport(input_name, policy) # :nodoc:
+            if policy[:transport] == TRANSPORT_MQ && !Orocos::MQueue.available?
+                raise ArgumentError, "cannot select the MQueue transport as it is not built into the RTT"
+            end
+
+            if Orocos::MQueue.auto? && policy[:transport] == 0
+                if yield
+                    switched = true
+                    Orocos.info do
+                        "#{full_name} => #{input_name}: using MQ transport"
+                    end
+                    policy[:transport] = TRANSPORT_MQ
+                else
+                    Orocos.debug do
+                        "#{full_name} => #{input_name}: cannot use MQ as the two ports are located on different machines"
+                    end
+                end
+            end
+
+            if Orocos::MQueue.auto_sizes? && policy[:transport] == TRANSPORT_MQ && policy[:data_size] == 0
+                size = max_marshalling_size
+                if size
+                    Orocos.info do
+                        "#{full_name} => #{input_name}: MQ data_size == #{size}"
+                    end
+                    policy[:data_size] = size
+                else
+                    policy[:transport] = 0
+                    if Orocos::MQueue.warn?
+                        Orocos.warn "the MQ transport could be selected, but the marshalling size of samples from the output port #{full_name}, of type #{type_name}, is unknown"
+                    end
+                end
+            end
+
+            if Orocos::MQueue.validate_sizes? && policy[:transport] == TRANSPORT_MQ
+                size = if policy[:size] == 0 then 10 # 10 is the default size in the RTT's MQ transport for data samples
+                       else policy[:size]
+                       end
+
+                valid = Orocos::MQueue.valid_sizes?(size, policy[:data_size]) do
+                    "#{full_name} => #{input_name} of type #{type_name}: "
+                end
+
+                if !valid
+                    policy[:transport] = 0
+                end
+            end
+
         end
 
         # Connect this output port to an input port. +options+ defines the
@@ -310,43 +375,13 @@ module Orocos
             end
 
             policy = validate_policy(options)
-            if Orocos::MQueue.auto? && policy[:transport] == 0
-                if task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id
-                    policy[:transport] = TRANSPORT_MQ
-                end
+            policy = handle_mq_transport(input_port.full_name, policy) do
+                task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id
             end
-
-            if Orocos::MQueue.auto_sizes? && policy[:transport] == TRANSPORT_MQ && policy[:data_size] == 0
-                size = max_marshalling_size
-                if size
-                    Orocos.info do
-                        "using MQ transport for #{task.name}:#{name} => #{input_port.task.name}:#{input_port.name}, data_size == #{size}"
-                    end
-                    policy[:data_size] = size
-                elsif Orocos::MQueue.warn?
-                    Orocos.warn "the MQ transport is selected, but the marshalling size of samples from the output port #{name} is unknown, switching back to CORBA"
-                    policy[:transport] = 0
-                end
-            end
-
-            if Orocos::MQueue.validate_sizes? && policy[:transport] == TRANSPORT_MQ
-                size = if policy[:size] == 0 then 10
-                       else policy[:size]
-                       end
-
-                valid = Orocos::MQueue.valid_sizes?(size, policy[:data_size]) do
-                    "while connecting #{task.name}.#{name} to #{input_port.task.name}.#{input_port.name} of type #{type_name}"
-                end
-
-                if !valid
-                    policy[:transport] = 0
-                end
-            end
-
             do_connect_to(input_port, policy)
             self
         rescue Orocos::ConnectionFailed => e
-            raise e, "failed to connect #{task.name}:#{name} => #{input_port.task.name}:#{input_port.name} with policy #{policy.inspect}"
+            raise e, "failed to connect #{full_name} => #{input_port.full_name} with policy #{policy.inspect}"
         end
     end
 
@@ -358,13 +393,17 @@ module Orocos
 	    private :new
 	end
 
+        def full_name
+            "#{port.full_name}.reader"
+        end
+
         OLD_DATA = 0
         NEW_DATA = 1
 
         # The OutputPort object this reader is linked to
         attr_reader :port
 
-        def read_helper(sample, copy_old_data)
+        def read_helper(sample, copy_old_data) # :nodoc:
 	    if process = port.task.process
 		if !process.alive?
 		    disconnect
@@ -443,6 +482,10 @@ module Orocos
 	    # The only way to create an InputWriter object is InputPort#writer
 	    private :new
 	end
+
+        def full_name
+            "#{port.full_name}.writer"
+        end
 
         # The InputPort object this writer is linked to
         attr_reader :port

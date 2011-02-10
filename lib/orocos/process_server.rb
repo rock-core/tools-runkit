@@ -579,6 +579,11 @@ module Orocos
         def host_id
             process_client.host_id
         end
+        # True if this process is located on the same machine than the ruby
+        # interpreter
+        def on_localhost?
+            process_client.host == 'localhost'
+        end
 
         def initialize(name, process_client)
             @name = name
