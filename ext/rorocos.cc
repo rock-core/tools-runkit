@@ -730,6 +730,29 @@ static VALUE try_mq_open(VALUE mod)
         return Qnil;
     }
 }
+
+/* call-seq:
+ *   Orocos::MQueue.transportable_type_names => name_list
+ *
+ * Returns an array of string that are the type names which can be transported
+ * over the MQ layer
+ */
+static VALUE mqueue_transportable_type_names(VALUE mod)
+{
+    RTT::types::TypeInfoRepository::shared_ptr rtt_types =
+        RTT::types::TypeInfoRepository::Instance();
+
+    VALUE result = rb_ary_new();
+    vector<string> all_types = rtt_types->getTypes();
+    for (vector<string>::iterator it = all_types.begin(); it != all_types.end(); ++it)
+    {
+        RTT::types::TypeInfo* ti = rtt_types->type(*it);
+        vector<int> transports = ti->getTransportNames();
+        if (find(transports.begin(), transports.end(), ORO_MQUEUE_PROTOCOL_ID) != transports.end())
+            rb_ary_push(result, rb_str_new2(it->c_str()));
+    }
+    return result;
+}
 #endif
 
 extern "C" void Init_rorocos_ext()
@@ -750,10 +773,12 @@ extern "C" void Init_rorocos_ext()
     rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::corba::CRunTimeError));
 
     rb_const_set(mOrocos, rb_intern("TRANSPORT_CORBA"), INT2FIX(ORO_CORBA_PROTOCOL_ID));
+
 #ifdef HAS_MQUEUE
     VALUE mMQueue  = rb_define_module_under(mOrocos, "MQueue");
     rb_const_set(mOrocos, rb_intern("TRANSPORT_MQ"),    INT2FIX(ORO_MQUEUE_PROTOCOL_ID));
     rb_define_singleton_method(mMQueue, "try_mq_open", RUBY_METHOD_FUNC(try_mq_open), 0);
+    rb_define_singleton_method(mMQueue, "transportable_type_names", RUBY_METHOD_FUNC(mqueue_transportable_type_names), 0);
 #endif
     
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
