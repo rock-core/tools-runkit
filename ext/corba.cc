@@ -53,7 +53,7 @@ CorbaAccess::CorbaAccess(int argc, char* argv[])
     // interfaces.
     std::string task_name = std::string("orocosrb_") + boost::lexical_cast<std::string>(getpid());
     m_task   = new RTT::TaskContext(task_name);
-    m_task_server = RTT::corba::TaskContextServer::Create(m_task, false);
+    m_task_server = RTT::corba::TaskContextServer::Create(m_task);
     RTT::corba::CTaskContext_var corba_ref = m_task_server->server();
     m_corba_dataflow = corba_ref->ports();
 }
