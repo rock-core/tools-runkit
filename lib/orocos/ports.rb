@@ -260,7 +260,17 @@ module Orocos
             policy = handle_mq_transport("#{full_name}.writer", policy) do
                 task.process && task.process.on_localhost?
             end
-            do_writer(orocos_type_name, policy)
+
+            begin
+                do_writer(orocos_type_name, policy)
+            rescue Orocos::ConnectionFailed => e
+                if policy[:transport] == TRANSPORT_MQ && Orocos::MQueue.auto_fallback_to_corba?
+                    policy[:transport] = TRANSPORT_CORBA
+                    Orocos.warn "failed to create a port writer on #{full_name} using the MQ transport, falling back to CORBA"
+                    retry
+                end
+                raise
+            end
         rescue Orocos::ConnectionFailed => e
             raise e, "failed to create a port writer on #{full_name} of type #{type_name} with policy #{policy.inspect}"
         end
@@ -346,7 +356,16 @@ module Orocos
             policy = handle_mq_transport("#{full_name}.reader", policy) do
                 task.process && task.process.on_localhost?
             end
-            do_reader(OutputReader, orocos_type_name, policy)
+            begin
+                do_reader(OutputReader, orocos_type_name, policy)
+            rescue Orocos::ConnectionFailed => e
+                if policy[:transport] == TRANSPORT_MQ && Orocos::MQueue.auto_fallback_to_corba?
+                    policy[:transport] = TRANSPORT_CORBA
+                    Orocos.warn "failed to create a port reader on #{full_name} using the MQ transport, falling back to CORBA"
+                    retry
+                end
+                raise
+            end
         rescue Orocos::ConnectionFailed => e
             raise e, "failed to create a port reader on #{full_name} of type #{type_name} with policy #{policy.inspect}"
         end
@@ -381,7 +400,17 @@ module Orocos
             policy = handle_mq_transport(input_port.full_name, policy) do
                 task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id
             end
-            do_connect_to(input_port, policy)
+            begin
+                do_connect_to(input_port, policy)
+            rescue Orocos::ConnectionFailed => e
+                if policy[:transport] == TRANSPORT_MQ && Orocos::MQueue.auto_fallback_to_corba?
+                    policy[:transport] = TRANSPORT_CORBA
+                    Orocos.warn "failed to create a connection from #{full_name} to #{input_port.full_name} using the MQ transport, falling back to CORBA"
+                    retry
+                end
+                raise
+            end
+                    
             self
         rescue Orocos::ConnectionFailed => e
             raise e, "failed to connect #{full_name} => #{input_port.full_name} with policy #{policy.inspect}"

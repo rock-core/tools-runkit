@@ -93,11 +93,30 @@ module Orocos
             # usage. Setting this off and automatic MQ usage on is not robust
             # and therefore not recommended.
             attr_predicate :validate_sizes?, true
+
+            ##
+            # :method:auto_fallback_to_corba?
+            # :call-seq:
+            #   Orocos::MQueue.auto_fallback_to_corba? => true or false
+            #   Orocos::MQueue.auto_fallback_to_corba = new_value
+            #
+            # If true (the default), a failed connection that is using MQ will
+            # only generate a warning, and a CORBA connection will be created
+            # instead.
+            #
+            # While orocos.rb tries very hard to not create MQ connections if it
+            # is not possible, it is hard to predict how much memory all
+            # existing MQueues in a system take, which is bounded by per-user
+            # limits or even by the amount of available kernel memory.
+            #
+            # If false, an exception is generated instead.
+            attr_predicate :auto_fallback_to_corba?, true
         end
         @auto           = false
         @auto_sizes     = available?
         @validate_sizes = available?
         @warn           = true
+        @auto_fallback_to_corba = true
 
         def self.valid_sizes?(buffer_size, data_size)
             if !msg_max || !msgsize_max

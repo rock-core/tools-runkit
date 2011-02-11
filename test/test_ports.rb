@@ -197,6 +197,24 @@ describe Orocos::OutputPort do
             assert_raises(ArgumentError) { source.connect_to source }
         end
     end
+
+    if Orocos::Spec::USE_MQUEUE
+        it "should fallback to CORBA if connection fails with MQ" do
+            begin
+                Orocos::MQueue.validate_sizes = false
+                Orocos::MQueue.auto_sizes = false
+                Orocos::Process.spawn('simple_source', 'simple_sink') do |p_source, p_sink|
+                    source = p_source.task("source").port("cycle")
+                    sink   = p_sink.task("sink").port("cycle")
+                    source.connect_to sink, :transport => Orocos::TRANSPORT_MQ, :data_size => Orocos::MQueue.msgsize_max + 1, :type => :buffer, :size => 1
+                    assert source.connected?
+                end
+            ensure
+                Orocos::MQueue.validate_sizes = true
+                Orocos::MQueue.auto_sizes = true
+            end
+        end
+    end
 end
 
 describe Orocos::InputPort do
@@ -450,6 +468,23 @@ describe Orocos::OutputReader do
             assert_equal(10, reader.read)
         end
     end
+
+    if Orocos::Spec::USE_MQUEUE
+        it "should fallback to CORBA if connection fails with MQ" do
+            begin
+                Orocos::MQueue.validate_sizes = false
+                Orocos::MQueue.auto_sizes = false
+                Orocos::Process.spawn('echo') do |echo|
+                    echo  = echo.task('Echo')
+                    reader = echo.ondemand.reader(:transport => Orocos::TRANSPORT_MQ, :data_size => Orocos::MQueue.msgsize_max + 1, :type => :buffer, :size => 1)
+                    assert reader.connected?
+                end
+            ensure
+                Orocos::MQueue.validate_sizes = true
+                Orocos::MQueue.auto_sizes = true
+            end
+        end
+    end
 end
 
 describe Orocos::InputWriter do
@@ -537,6 +572,23 @@ describe Orocos::InputWriter do
             sample = reader.read
             assert_equal(20, sample.x)
             assert_equal(10, sample.y)
+        end
+    end
+
+    if Orocos::Spec::USE_MQUEUE
+        it "should fallback to CORBA if connection fails with MQ" do
+            begin
+                Orocos::MQueue.validate_sizes = false
+                Orocos::MQueue.auto_sizes = false
+                Orocos::Process.spawn('echo') do |echo|
+                    echo  = echo.task('Echo')
+                    writer = echo.port('input_opaque').writer(:transport => Orocos::TRANSPORT_MQ, :data_size => Orocos::MQueue.msgsize_max + 1, :type => :buffer, :size => 1)
+                    assert writer.connected?
+                end
+            ensure
+                Orocos::MQueue.validate_sizes = true
+                Orocos::MQueue.auto_sizes = true
+            end
         end
     end
 end
