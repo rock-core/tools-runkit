@@ -19,6 +19,8 @@
 #include <rtt/transports/corba/CorbaLib.hpp>
 #ifdef HAS_MQUEUE
 #include <rtt/transports/mqueue/MQLib.hpp>
+#include <mqueue.h>
+#include <boost/lexical_cast.hpp>
 #endif
 
 using namespace std;
@@ -708,6 +710,28 @@ static VALUE orocos_load_rtt_plugin(VALUE orocos, VALUE path)
     RTT::plugin::PluginLoader::Instance()->loadPlugin(StringValuePtr(path), "plugin");
 }
 
+#ifdef HAS_MQUEUE
+static VALUE try_mq_open(VALUE mod)
+{
+    int this_pid = getpid();
+    std::string queue_name = std::string("/orocosrb_") + boost::lexical_cast<std::string>(this_pid);
+
+    mq_attr attributes;
+    attributes.mq_flags = 0;
+    attributes.mq_maxmsg = 1;
+    attributes.mq_msgsize = 1;
+    mqd_t setup = mq_open(queue_name.c_str(), O_RDWR | O_CREAT, S_IREAD | S_IWRITE, &attributes);
+    if (setup == -1)
+        return rb_str_new2(strerror(errno));
+    else
+    {
+        mq_close(setup);
+        mq_unlink(queue_name.c_str());
+        return Qnil;
+    }
+}
+#endif
+
 extern "C" void Init_rorocos_ext()
 {
     mOrocos = rb_define_module("Orocos");
@@ -727,7 +751,9 @@ extern "C" void Init_rorocos_ext()
 
     rb_const_set(mOrocos, rb_intern("TRANSPORT_CORBA"), INT2FIX(ORO_CORBA_PROTOCOL_ID));
 #ifdef HAS_MQUEUE
+    VALUE mMQueue  = rb_define_module_under(mOrocos, "MQueue");
     rb_const_set(mOrocos, rb_intern("TRANSPORT_MQ"),    INT2FIX(ORO_MQUEUE_PROTOCOL_ID));
+    rb_define_singleton_method(mMQueue, "try_mq_open", RUBY_METHOD_FUNC(try_mq_open), 0);
 #endif
     
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);

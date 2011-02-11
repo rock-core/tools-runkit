@@ -3,7 +3,19 @@ module Orocos
         # Returns true if the MQ transport is available on this system (i.e.
         # built in RTT)
         def self.available?
-            defined?(TRANSPORT_MQ)
+            if @available.nil?
+                @available=
+                    if !defined?(TRANSPORT_MQ)
+                        false
+                    elsif error = MQueue.try_mq_open
+                        Orocos.warn "the RTT is built with MQ support, but creating message queues fails with: #{error}"
+                        false
+                    else
+                        true
+                    end
+            else
+                @available
+            end
         end
 
         class << self
@@ -31,7 +43,7 @@ module Orocos
                 def auto?; false end
                 def auto=(value)
                     if value
-                        raise ArgumentError, "cannot turn automatic MQ handling as it is not built in the RTT"
+                        raise ArgumentError, "cannot turn automatic MQ handling. It is either not built into the RTT, or you don't have enough permissions to create message queues (in which case a warning message has been displayed)"
                     end
                 end
             end
