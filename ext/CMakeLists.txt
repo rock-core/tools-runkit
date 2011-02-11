@@ -37,6 +37,7 @@ pkg_check_modules(RTT_MQUEUE orocos-rtt-mqueue-${OROCOS_TARGET})
 if (RTT_MQUEUE_FOUND)
     include_directories( ${RTT_MQUEUE_INCLUDE_DIRS} )
     add_definitions(-DHAS_MQUEUE)
+    list(APPEND ADDITIONAL_RTT_PLUGINS rtt-transport-mqueue)
 else()
     message(STATUS "could not find the RTT MQueue transport, disabling support in orocos.rb")
 endif()
@@ -57,7 +58,7 @@ INCLUDE_DIRECTORIES( ${TYPELIB_RUBY_INCLUDE_DIRS} )
 LINK_DIRECTORIES( ${TYPELIB_RUBY_LIBRARY_DIRS} )
 
 list(APPEND CMAKE_PREFIX_PATH ${RTT_PREFIX})
-find_package(RTTPlugin COMPONENTS rtt-typekit rtt-transport-corba)
+find_package(RTTPlugin COMPONENTS rtt-typekit rtt-transport-corba ${ADDITIONAL_RTT_PLUGINS})
 
 ADD_DEFINITIONS( -DOROCOS_TARGET=${OROCOS_TARGET} )
 INCLUDE_DIRECTORIES( ${RTT_CORBA_INCLUDE_DIRS} )
@@ -112,6 +113,10 @@ target_link_libraries(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
     ${RTT_PLUGIN_rtt-typekit_LIBRARY}
     ${RTT_PLUGIN_rtt-transport-corba_LIBRARY}
     ${RTT_Typelib_LIBRARIES})
+if (RTT_MQUEUE_FOUND)
+    target_link_libraries(rorocos_ext
+        ${RTT_PLUGIN_rtt-transport-mqueue_LIBRARY})
+endif()
 
 INSTALL(TARGETS rorocos_ext LIBRARY DESTINATION ".")
 

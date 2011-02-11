@@ -691,6 +691,9 @@ static VALUE orocos_do_initialize(VALUE mod)
     // load the default toolkit and the CORBA transport
     RTT::types::TypekitRepository::Import(new RTT::types::RealTimeTypekitPlugin);
     RTT::types::TypekitRepository::Import(new RTT::corba::CorbaLibPlugin);
+#ifdef HAS_MQUEUE
+    RTT::types::TypekitRepository::Import(new RTT::mqueue::MQLibPlugin);
+#endif
     //TODO loadCorbaLib();
     return Qnil;
 }
