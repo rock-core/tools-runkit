@@ -51,12 +51,15 @@ module Orocos
         true
     end
 
+    REQUIRED_TRANSPORTS = %w{typelib corba}
+    OPTIONAL_TRANSPORTS = %w{mqueue}
+
     # Load the typekit whose name is given
     #
     # Typekits are shared libraries that include marshalling/demarshalling
     # code. It gets automatically loaded in orocos.rb whenever you start
     # processes.
-    def self.load_typekit(name, transports = ['corba', 'typelib'])
+    def self.load_typekit(name)
         return if loaded_typekit?(name)
 
         typekit_pkg =
@@ -68,7 +71,7 @@ module Orocos
         load_plugin_library(typekit_pkg, name, "lib#{name}-typekit-#{Orocos.orocos_target}.so")
 
         if Orocos::Generation::VERSION >= "0.8"
-            transports.each do |transport_name|
+            REQUIRED_TRANSPORTS.each do |transport_name|
                 transport_pkg =
                     begin
                         Utilrb::PkgConfig.new("#{name}-transport-#{transport_name}-#{Orocos.orocos_target}")
@@ -76,6 +79,14 @@ module Orocos
                         raise NotFound, "the '#{name}' typekit has no #{transport_name} transport"
                     end
                 load_plugin_library(transport_pkg, name, "lib#{name}-transport-#{transport_name}-#{Orocos.orocos_target}.so")
+            end
+
+            OPTIONAL_TRANSPORTS.each do |transport_name|
+                begin
+                    transport_pkg = Utilrb::PkgConfig.new("#{name}-transport-#{transport_name}-#{Orocos.orocos_target}")
+                    load_plugin_library(transport_pkg, name, "lib#{name}-transport-#{transport_name}-#{Orocos.orocos_target}.so")
+                rescue Exception
+                end
             end
         end
 

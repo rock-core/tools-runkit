@@ -32,6 +32,13 @@ module Orocos
         def initialize
             @type = Orocos.typelib_type_for(@orocos_type_name)
             @type_name = @type.name
+
+            if model
+                @max_sizes = model.max_sizes.dup
+            else
+                @max_sizes = Hash.new
+            end
+            @max_sizes.merge!(Orocos.max_sizes_for(type))
         end
 
         # True if +self+ and +other+ represent the same port
@@ -131,165 +138,6 @@ module Orocos
                 raise NotFound, "port '#{other.name}' disappeared from task '#{other.task.name}'"
             end
         end
-    end
-
-    # This class represents output ports on remote task contexts.
-    #
-    # They are obtained from TaskContext#port or TaskContext#each_port
-    class InputPort
-        # Returns a InputWriter object that allows you to write data to the
-        # remote input port.
-        def writer(policy = Hash.new)
-            policy = validate_policy(policy)
-            policy = OutputPort.handle_mq_transport(self, "#{full_name}.writer", policy) do
-                task.process && task.process.on_localhost?
-            end
-            do_writer(orocos_type_name, policy)
-        end
-
-        # Writes one sample with a default policy.
-        #
-        # While convenient, this is quite ressource consuming, as each time one
-        # will need to create a new connection between the ruby interpreter and
-        # the remote component.
-        #
-        # Use #writer if you need to write on the same port repeatedly.
-        def write(sample)
-            writer.write(sample)
-        end
-
-        def pretty_print(pp) # :nodoc:
-            pp.text "in "
-            super
-        end
-
-        # Connect this input port to an output port. +options+ defines the
-        # connection policy for the connection.
-        #
-        # See OutputPort#connect_to for a in-depth explanation on +options+.
-        def connect_to(output_port, options = Hash.new)
-            unless output_port.kind_of?(OutputPort)
-                raise ArgumentError, "an input port can only connect to an output port"
-            end
-            output_port.connect_to self, options
-            self
-        end
-    end
-
-    # This class represents output ports on remote task contexts.
-    #
-    # They are obtained from TaskContext#port or TaskContext#each_port
-    class OutputPort
-        def initialize
-            super
-            if model
-                @max_sizes = model.max_sizes.dup
-            else
-                @max_sizes = Hash.new
-            end
-            @max_sizes.merge!(Orocos.max_sizes_for(type))
-        end
-
-        ##
-        # :method: max_sizes
-        #
-        # :call-seq:
-        #   max_sizes('name.to[].field' => value, 'name.other' => value) => self
-        #   max_sizes => current size specification
-        #
-        # Sets the maximum allowed size for the variable-size containers in
-        # +type+. If the type is a compound, the mapping is given as
-        # path.to.field => size. If it is a container, the size of the
-        # container itself is given as first argument, and the sizes for the
-        # contained values as a second map argument.
-        #
-        # For instance, with the types
-        #
-        #   struct A
-        #   {
-        #       std::vector<int> values;
-        #   };
-        #   struct B
-        #   {
-        #       std::vector<A> field;
-        #   };
-        #
-        # Then sizes on a port of type B would be given with
-        #
-        #   port.max_sizes('field' => 10, 'field[].values' => 20)
-        #
-        # while the sizes on a port of type std::vector<A> would be given
-        # with
-        #
-        #   port.max_sizes(10, 'values' => 20)
-        #
-        dsl_attribute :max_sizes do |*values|
-            # Validate that all values are integers and all names map to
-            # known types
-            value = Orocos::Spec::OutputPort.validate_max_sizes_spec(type, values)
-            max_sizes.merge(value)
-        end
-
-        # Returns the maximum marshalled size of a sample from this port, as
-        # marshalled by typelib
-        #
-        # If the type contains variable-size containers, the result is dependent
-        # on the values given to #max_sizes. If not enough is known, this method
-        # will return nil.
-        def max_marshalling_size
-            Orocos::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
-        end
-
-        # Require this port to disconnect from the provided input port
-        def disconnect_from(input)
-            refine_exceptions(input) do
-                do_disconnect_from(input)
-            end
-        end
-
-        def pretty_print(pp) # :nodoc:
-            pp.text "out "
-            super
-        end
-
-        # Reads one sample with a default policy.
-        #
-        # While convenient, this is quite ressource consuming, as each time one
-        # will need to create a new connection between the ruby interpreter and
-        # the remote component.
-        #
-        # Use #reader if you need to read the same port repeatedly.
-        def read
-            reader = self.reader
-            reader.read
-        ensure
-            reader.disconnect
-        end
-
-        # Reads one sample with a default policy.
-        #
-        # While convenient, this is quite ressource consuming, as each time one
-        # will need to create a new connection between the ruby interpreter and
-        # the remote component.
-        #
-        # This is defined for consistency with OutputReader
-        #
-        # Use #reader if you need to read the same port repeatedly.
-        def read_new
-            read
-        end
-
-        # Returns an OutputReader object that is connected to that port
-        #
-        # The policy dictates how data should flow between the port and the
-        # reader object. See #validate_policy
-        def reader(policy = Hash.new)
-            policy = validate_policy(policy)
-            policy = OutputPort.handle_mq_transport(self, "#{full_name}.reader", policy) do
-                task.process && task.process.on_localhost?
-            end
-            do_reader(OutputReader, orocos_type_name, policy)
-        end
 
         # Helper method for #connect_to, to handle the MQ transport (in
         # particular, the validation of the parameters)
@@ -346,6 +194,161 @@ module Orocos
                 end
             end
 
+            policy
+        end
+
+        ##
+        # :method: max_sizes
+        #
+        # :call-seq:
+        #   max_sizes('name.to[].field' => value, 'name.other' => value) => self
+        #   max_sizes => current size specification
+        #
+        # Sets the maximum allowed size for the variable-size containers in
+        # +type+. If the type is a compound, the mapping is given as
+        # path.to.field => size. If it is a container, the size of the
+        # container itself is given as first argument, and the sizes for the
+        # contained values as a second map argument.
+        #
+        # For instance, with the types
+        #
+        #   struct A
+        #   {
+        #       std::vector<int> values;
+        #   };
+        #   struct B
+        #   {
+        #       std::vector<A> field;
+        #   };
+        #
+        # Then sizes on a port of type B would be given with
+        #
+        #   port.max_sizes('field' => 10, 'field[].values' => 20)
+        #
+        # while the sizes on a port of type std::vector<A> would be given
+        # with
+        #
+        #   port.max_sizes(10, 'values' => 20)
+        #
+        dsl_attribute :max_sizes do |*values|
+            # Validate that all values are integers and all names map to
+            # known types
+            value = Orocos::Spec::OutputPort.validate_max_sizes_spec(type, values)
+            max_sizes.merge(value)
+        end
+
+        # Returns the maximum marshalled size of a sample from this port, as
+        # marshalled by typelib
+        #
+        # If the type contains variable-size containers, the result is dependent
+        # on the values given to #max_sizes. If not enough is known, this method
+        # will return nil.
+        def max_marshalling_size
+            Orocos::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
+        end
+
+    end
+
+    # This class represents output ports on remote task contexts.
+    #
+    # They are obtained from TaskContext#port or TaskContext#each_port
+    class InputPort
+        # Returns a InputWriter object that allows you to write data to the
+        # remote input port.
+        def writer(policy = Hash.new)
+            policy = validate_policy(policy)
+            policy = handle_mq_transport("#{full_name}.writer", policy) do
+                task.process && task.process.on_localhost?
+            end
+            do_writer(orocos_type_name, policy)
+        rescue Orocos::ConnectionFailed => e
+            raise e, "failed to create a port writer on #{full_name} of type #{type_name} with policy #{policy.inspect}"
+        end
+
+        # Writes one sample with a default policy.
+        #
+        # While convenient, this is quite ressource consuming, as each time one
+        # will need to create a new connection between the ruby interpreter and
+        # the remote component.
+        #
+        # Use #writer if you need to write on the same port repeatedly.
+        def write(sample)
+            writer.write(sample)
+        end
+
+        def pretty_print(pp) # :nodoc:
+            pp.text "in "
+            super
+        end
+
+        # Connect this input port to an output port. +options+ defines the
+        # connection policy for the connection.
+        #
+        # See OutputPort#connect_to for a in-depth explanation on +options+.
+        def connect_to(output_port, options = Hash.new)
+            unless output_port.kind_of?(OutputPort)
+                raise ArgumentError, "an input port can only connect to an output port"
+            end
+            output_port.connect_to self, options
+            self
+        end
+    end
+
+    # This class represents output ports on remote task contexts.
+    #
+    # They are obtained from TaskContext#port or TaskContext#each_port
+    class OutputPort
+        # Require this port to disconnect from the provided input port
+        def disconnect_from(input)
+            refine_exceptions(input) do
+                do_disconnect_from(input)
+            end
+        end
+
+        def pretty_print(pp) # :nodoc:
+            pp.text "out "
+            super
+        end
+
+        # Reads one sample with a default policy.
+        #
+        # While convenient, this is quite ressource consuming, as each time one
+        # will need to create a new connection between the ruby interpreter and
+        # the remote component.
+        #
+        # Use #reader if you need to read the same port repeatedly.
+        def read
+            reader = self.reader
+            reader.read
+        ensure
+            reader.disconnect
+        end
+
+        # Reads one sample with a default policy.
+        #
+        # While convenient, this is quite ressource consuming, as each time one
+        # will need to create a new connection between the ruby interpreter and
+        # the remote component.
+        #
+        # This is defined for consistency with OutputReader
+        #
+        # Use #reader if you need to read the same port repeatedly.
+        def read_new
+            read
+        end
+
+        # Returns an OutputReader object that is connected to that port
+        #
+        # The policy dictates how data should flow between the port and the
+        # reader object. See #validate_policy
+        def reader(policy = Hash.new)
+            policy = validate_policy(policy)
+            policy = handle_mq_transport("#{full_name}.reader", policy) do
+                task.process && task.process.on_localhost?
+            end
+            do_reader(OutputReader, orocos_type_name, policy)
+        rescue Orocos::ConnectionFailed => e
+            raise e, "failed to create a port reader on #{full_name} of type #{type_name} with policy #{policy.inspect}"
         end
 
         # Connect this output port to an input port. +options+ defines the

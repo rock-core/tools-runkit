@@ -36,7 +36,7 @@ module Orocos
             ruby_bin   = RbConfig::CONFIG['RUBY_INSTALL_NAME']
             orogen_bin = File.expand_path('../bin/orogen', Orocos::Generation.base_dir)
             Dir.chdir(work_dir) do
-                if !system(ruby_bin, orogen_bin, '--corba', '--transports=corba,typelib', File.basename(src))
+                if !system(ruby_bin, orogen_bin, '--corba', '--transports=corba,typelib,mqueue', File.basename(src))
                     raise "failed to build #{src} in #{work_basedir}"
                 end
 
@@ -70,8 +70,20 @@ module Orocos
     end
 
     module Spec
+        USE_MQUEUE =
+            if ENV['USE_MQUEUE'] == '1'
+                puts "MQueue enabled through the USE_MQUEUE environment variable"
+                puts "set USE_MQUEUE=0 to disable"
+                true
+            else
+                puts "use of MQueue disabled. Set USE_MQUEUE=1 to enable"
+                false
+            end
+
+
         def setup
             ENV['PKG_CONFIG_PATH'] = "#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
+            Orocos::MQueue.auto = USE_MQUEUE
             Orocos.initialize
             Orocos.export_types = false
 

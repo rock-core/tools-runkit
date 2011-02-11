@@ -51,7 +51,8 @@ CorbaAccess::CorbaAccess(int argc, char* argv[])
     // needed to use the port interface. Since we're lazy, we just create a
     // normal TaskContext and use TaskContextServer to create the necessary
     // interfaces.
-    m_task   = new RTT::TaskContext("__orocos_rb__");
+    std::string task_name = std::string("orocosrb_") + boost::lexical_cast<std::string>(getpid());
+    m_task   = new RTT::TaskContext(task_name);
     m_task_server = RTT::corba::TaskContextServer::Create(m_task, false);
     RTT::corba::CTaskContext_var corba_ref = m_task_server->server();
     m_corba_dataflow = corba_ref->ports();
@@ -74,7 +75,7 @@ string CorbaAccess::getLocalPortName(VALUE port)
 {
     RTaskContext* task; VALUE task_name, port_name;
     tie(task, task_name, port_name) = getPortReference(port);
-    return std::string(StringValuePtr(task_name)) + "/" + StringValuePtr(port_name) + "/" + boost::lexical_cast<string>(++port_id_counter);
+    return std::string(StringValuePtr(task_name)) + "." + StringValuePtr(port_name) + "." + boost::lexical_cast<string>(++port_id_counter);
 }
 
 void CorbaAccess::addPort(RTT::base::PortInterface* local_port)
