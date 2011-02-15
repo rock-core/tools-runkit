@@ -46,6 +46,10 @@ module Orocos
         Orocos.master_project.max_sizes[type.name]
     end
 
+    def self.max_sizes(*args)
+        Orocos.master_project.max_sizes(*args)
+    end
+
     # True if there is a typekit named +name+ on the file system
     def self.has_typekit?(name)
         pkg, _ = available_projects[name]
