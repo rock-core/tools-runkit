@@ -128,6 +128,11 @@ module Orocos
         @warn           = true
         @auto_fallback_to_corba = true
 
+        # Verifies that the given buffer size (in samples) and sample size (in
+        # bytes) are below the limits defined in /proc
+        #
+        # This is used by Port.handle_mq_transport if MQueue.validate_sizes? is
+        # true.
         def self.valid_sizes?(buffer_size, data_size)
             if !msg_max || !msgsize_max
                 Orocos.warn "the system-level MQ limits msg_max and msgsize_max parameters are unknown on this OS. I am disabling MQ support"
@@ -148,6 +153,7 @@ module Orocos
             return true
         end
 
+        # Returns the maximum message queue size, in the number of samples
         def self.msg_max
             if !@msg_max.nil?
                 return @msg_max
@@ -160,6 +166,7 @@ module Orocos
             end
         end
 
+        # Returns the maximum message size allowed in a message queue, in bytes
         def self.msgsize_max
             if !@msgsize_max.nil?
                 return @msgsize_max
