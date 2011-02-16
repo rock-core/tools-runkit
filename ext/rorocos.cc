@@ -776,7 +776,7 @@ extern "C" void Init_rorocos_ext()
 
 #ifdef HAS_MQUEUE
     VALUE mMQueue  = rb_define_module_under(mOrocos, "MQueue");
-    rb_const_set(mOrocos, rb_intern("TRANSPORT_MQ"),    INT2FIX(ORO_MQUEUE_PROTOCOL_ID));
+    rb_const_set(mOrocos, rb_intern("RTT_TRANSPORT_MQ_ID"),    INT2FIX(ORO_MQUEUE_PROTOCOL_ID));
     rb_define_singleton_method(mMQueue, "try_mq_open", RUBY_METHOD_FUNC(try_mq_open), 0);
     rb_define_singleton_method(mMQueue, "transportable_type_names", RUBY_METHOD_FUNC(mqueue_transportable_type_names), 0);
 #endif

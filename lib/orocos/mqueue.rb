@@ -1,15 +1,25 @@
 module Orocos
+    # This is hardcoded here, as we need it to make sure people don't use
+    # MQueues on systems where it is not available
+    #
+    # The comparison with the actual value from the RTT is done in
+    # MQueue.available?
+    TRANSPORT_MQ = 2
+
+    # Support for the POSIX Message Queues transport in RTT
     module MQueue
         # Returns true if the MQ transport is available on this system (i.e.
         # built in RTT)
         def self.available?
             if @available.nil?
                 @available=
-                    if !defined?(TRANSPORT_MQ)
+                    if !defined?(RTT_TRANSPORT_MQ_ID)
                         false
                     elsif error = MQueue.try_mq_open
                         Orocos.warn "the RTT is built with MQ support, but creating message queues fails with: #{error}"
                         false
+                    elsif TRANSPORT_MQ != RTT_TRANSPORT_MQ_ID
+                        raise InternalError, "hardcoded value of TRANSPORT_MQ differs from the transport ID from RTT (#{TRANSPORT_MQ} != #{RTT_TRANSPORT_MQ_ID}. Set the value at the top of #{File.expand_path(__FILE__)} to #{RTT_TRANSPORT_MQ_ID} and report to the orocos.rb developers"
                     else
                         true
                     end
