@@ -19,6 +19,8 @@
 #include <rtt/transports/corba/CorbaLib.hpp>
 #ifdef HAS_MQUEUE
 #include <rtt/transports/mqueue/MQLib.hpp>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <mqueue.h>
 #include <boost/lexical_cast.hpp>
 #endif
