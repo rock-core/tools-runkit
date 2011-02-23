@@ -95,6 +95,8 @@ module Orocos
         logged_ports
     end
 
+    @@logfile_indexes = Hash.new
+
     # Sets up the process' default logger component
     #
     # Returns true if there is a logger on this process, and false otherwise
