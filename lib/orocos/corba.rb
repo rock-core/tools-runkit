@@ -32,7 +32,10 @@ module Orocos
                 ENV['ORBgiopMaxMsgSize'] = value.to_int.to_s
             end
         end
-        @name_service     = "127.0.0.1"
+        @name_service     =
+		if ENV['ORBInitRef'] then nil
+		else 'localhost'
+		end
 
         # Removes dangling references from the name server
         #
@@ -88,7 +91,9 @@ module Orocos
         # It does not need to be called explicitely, as it is called by
         # Orocos.initialize
 	def self.init
-	    ENV['ORBInitRef'] ||= "NameService=corbaname::#{CORBA.name_service}"
+	    if CORBA.name_service
+	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
+	    end
             do_init
             self.connect_timeout = 100
 	end

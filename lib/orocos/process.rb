@@ -281,7 +281,9 @@ module Orocos
 
             workdir  = options[:working_directory]
 
-            ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
+	    if CORBA.name_service
+		ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
+	    end
 
             module_bin = pkg.binfile
             if !module_bin # assume an older orogen version
