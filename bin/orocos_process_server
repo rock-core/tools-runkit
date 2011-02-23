@@ -2,6 +2,20 @@
 require 'orocos'
 require 'orocos/process_server'
 
+require 'optparse'
+opt = OptionParser.new do |opt|
+   opt.banner = "orocos_process_server [name_server_host]"
+end
+remaining = opt.parse(ARGV)
+
+if remaining.size > 1
+   STDERR.puts opt
+   exit 1
+end
+if ns = remaining.shift
+   Orocos::CORBA.name_service = ns
+end
+
 Orocos.logger.level = Logger::DEBUG
 Orocos::ProcessServer.run
 
