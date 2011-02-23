@@ -34,7 +34,7 @@ module Orocos
         end
         @name_service     =
 		if ENV['ORBInitRef'] then nil
-		else 'localhost'
+		else '127.0.0.1'
 		end
 
         # Removes dangling references from the name server
