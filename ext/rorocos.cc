@@ -599,7 +599,7 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
             typelib_transport->getDataSource(handle);
         RTT::FlowStatus did_read = local_port.read(ds, RTEST(copy_old_data));
 
-        if (did_read != RTT::NoData)
+        if (did_read == RTT::NewData || (did_read == RTT::OldData && RTEST(copy_old_data)))
         {
             typelib_transport->refreshTypelibSample(handle);
             Typelib::copy(value, Typelib::Value(typelib_transport->getTypelibSample(handle), value.getType()));
