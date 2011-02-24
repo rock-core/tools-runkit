@@ -453,6 +453,9 @@ module Orocos
             end
 
             if result = do_read(port.orocos_type_name, value, copy_old_data)
+                if sample
+                    sample.invalidate_changes_from_converted_types
+                end
                 return [Typelib.to_ruby(value), result]
             end
         end
