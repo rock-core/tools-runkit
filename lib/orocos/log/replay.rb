@@ -45,13 +45,18 @@ module Orocos
 
             #Reads data from the associated port.
             def read
-                @last_update = port.last_update
                 if @policy_type == :data
+                  @last_update = port.last_update
                   return @filter.call(port.read) if @filter
                   return port.read
                 else
-                  return @filter.call(@buffer.shift) if @filter
-                  return @buffer.shift
+                  @last_update = @buffer.shift
+                  if @last_update
+                    return @filter.call(@last_update) if @filter
+                    return @last_update
+                  else
+                    @last_update = port.last_update
+                  end
                 end
             end
            
