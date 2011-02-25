@@ -50,12 +50,13 @@ module Orocos
                   return @filter.call(port.read) if @filter
                   return port.read
                 else
-                  @last_update = @buffer.shift
-                  if @last_update
-                    return @filter.call(@last_update) if @filter
-                    return @last_update
+                  sample = @buffer.shift
+                  if sample
+                    return @filter.call(sample) if @filter
+                    return sample
                   else
                     @last_update = port.last_update
+                    return nil
                   end
                 end
             end
