@@ -500,6 +500,21 @@ module Orocos
             @current_state
         end
 
+        # Returns the PID of the thread this task runs on
+        #
+        # This is available only on oroGen task, for which oroGen adds an
+        # orogen_getPID operation that returns this information
+        def tid
+            if !@tid
+                if has_operation?('__orogen_getTID')
+                    @tid = operation('__orogen_getTID').callop()
+                else
+                    raise ArgumentError, "#tid is available only on oroGen tasks"
+                end
+            end
+            @tid
+        end
+
         # Reads the state announced by the task's getState() operation
         def rtt_state
             value = CORBA.refine_exceptions(self) { do_state() }

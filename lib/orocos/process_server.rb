@@ -272,7 +272,8 @@ module Orocos
                     p = Orocos.run(name, self.options.merge(options)).first
                     Orocos.debug "#{name} is started (#{p.pid})"
                     processes[name] = p
-                    socket.write("Y")
+                    socket.write("P")
+                    Marshal.dump(p.pid, socket)
                 rescue Exception => e
                     Orocos.debug "failed to start #{name}: #{e.message}"
                     Orocos.debug "  " + e.backtrace.join("\n  ")
@@ -460,15 +461,26 @@ module Orocos
             socket.close
         end
 
+        def wait_for_answer
+            while true
+                reply = socket.read(1)
+                if reply == "D"
+                    queue_death_announcement
+                else
+                    yield(reply)
+                end
+            end
+        end
+
         def wait_for_ack
-            reply = socket.read(1)
-            if reply == "D"
-                queue_death_announcement
-                wait_for_ack
-            elsif reply == "Y"
-                return true
-            else
-                return false
+            wait_for_answer do |reply|
+                if reply == "Y"
+                    return true
+                elsif reply == "N"
+                    return false
+                else
+                    raise InternalError, "unexpected reply #{reply}"
+                end
             end
         end
 
@@ -488,11 +500,17 @@ module Orocos
 
             socket.write(ProcessServer::COMMAND_START)
             Marshal.dump([deployment_name, options], socket)
-            if !wait_for_ack
-                raise Failed, "failed to start #{deployment_name}"
+            wait_for_answer do |pid_s|
+                if pid_s == "N"
+                    raise Failed, "failed to start #{deployment_name}"
+                elsif pid_s == "P"
+                    pid = Marshal.load(socket)
+                    return(processes[deployment_name] = RemoteProcess.new(deployment_name, self, pid))
+                else
+                    raise InternalError, "unexpected reply #{pid_s} to the start command"
+                end
             end
 
-            processes[deployment_name] = RemoteProcess.new(deployment_name, self)
         end
 
         # Requests that the process server moves the log directory at +log_dir+
@@ -585,9 +603,13 @@ module Orocos
             process_client.host == 'localhost'
         end
 
-        def initialize(name, process_client)
+        # The process ID of this process on the machine of the process server
+        attr_reader :pid
+
+        def initialize(name, process_client, pid)
             @name = name
             @process_client = process_client
+            @pid = pid
             @alive = true
             @model = process_client.load_orogen_deployment(name)
         end
