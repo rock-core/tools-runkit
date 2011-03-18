@@ -26,7 +26,9 @@ module Orocos
         # The port's model as either a Orocos::Generation::InputPort or
         # Orocos::Generation::OutputPort
         def model
-            @model ||= task.model.find_port(name)
+            if task_model = task.model
+                @model ||= task_model.find_port(name)
+            end
         end
 
         def initialize
