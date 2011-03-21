@@ -454,7 +454,8 @@ module Orocos
                 value = port.type.new
             end
 
-            if result = do_read(port.orocos_type_name, value, copy_old_data)
+            result = do_read(port.orocos_type_name, value, copy_old_data)
+            if result == 1 || (result == 0 && copy_old_data)
                 if sample
                     sample.invalidate_changes_from_converted_types
                 end
