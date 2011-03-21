@@ -58,10 +58,20 @@ module Orocos
 
     def self.typelib_type_for(t)
         if t.respond_to?(:name)
-            return t if t < Typelib::NumericType
+            return t if !t.contains_opaques?
             t = t.name
         end
-        registry.get(do_typelib_type_for(t))
+
+        begin
+            typelib_type = do_typelib_type_for(t)
+            return registry.get(typelib_type)
+        rescue ArgumentError
+            type = Orocos.master_project.find_type(t)
+            if !type.contains_opaques?
+                return type
+            end
+            return Orocos.master_project.intermediate_type_for(type)
+        end
     end
 
     def self.orocos_target
@@ -93,7 +103,8 @@ module Orocos
         @master_project = Orocos::Generation::Component.new
         @registry = master_project.registry
         @available_projects ||= Hash.new
-        @loaded_typekits.clear
+        @loaded_typekit_registries.clear
+        @loaded_typekit_plugins.clear
 
         # Finally, update the set of available projects
         Utilrb::PkgConfig.each_package(/^orogen-project-/) do |pkg_name|
