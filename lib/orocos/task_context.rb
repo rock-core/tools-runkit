@@ -1,4 +1,5 @@
 require 'utilrb/object/attribute'
+require 'orocos/nameservice'
 
 module Orocos
     # Emitted when an interface object is requested, that does not exist
@@ -305,9 +306,36 @@ module Orocos
                     end
             end
 
-            result = CORBA.refine_exceptions("naming service") do
-                do_get(name)
+	    begin 	
+		result = CORBA.refine_exceptions("naming service") do
+	            do_get(name)
+		end
+            rescue 
+                # Save the caught exception
+		exception = $!
             end
+
+            # Check if the alternative nameserver can handle the request
+            if exception
+		if Nameservice.enabled?(:AVAHI)
+                    begin
+                        instance = Nameservice.get(:AVAHI)
+                        ior = instance.getIOR(name)
+                        if ior
+                            result = CORBA.refine_exceptions("naming service") do
+                                 do_get_from_ior(ior)
+                            end
+                        end
+                    rescue Exception => details
+                        warn "Nameservice: inner exception #{details}"
+                        raise exception
+                    end
+                else
+                   # rethrow the same exeception
+ 		   raise exception 
+		end
+	    end
+
             result.instance_variable_set :@process, process
             result.instance_variable_set :@name, name
             result.send(:initialize)
