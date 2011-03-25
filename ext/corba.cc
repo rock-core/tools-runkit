@@ -6,6 +6,7 @@
 #include <rtt/transports/corba/TransportPlugin.hpp>
 #include <rtt/transports/corba/CorbaLib.hpp>
 #include <rtt/transports/corba/TaskContextServer.hpp>
+#include <rtt/transports/corba/TaskContextProxy.hpp>
 #include <boost/lexical_cast.hpp>
 using namespace CORBA;
 using namespace std;
@@ -152,6 +153,31 @@ RTT::corba::CTaskContext_ptr CorbaAccess::findByName(std::string const& name)
     }
     rb_raise(eNotFound, "task context '%s' not found", name.c_str());
 }
+
+RTT::corba::CTaskContext_ptr CorbaAccess::findByIOR(std::string const& ior)
+{
+    if( ior.substr(0,3) != "IOR")
+    	rb_raise(eNotFound, "task context could not be found - ior format invalid %s", ior.c_str());
+
+    RTT::corba::TaskContextProxy* taskProxy = 0;
+    try {
+        // Retrieve the control task by creating the proxy object from the ior
+        taskProxy = RTT::corba::TaskContextProxy::Create(ior, ior.substr(0,3) == "IOR");
+    } catch(CORBA::Exception&)
+    {
+       rb_raise(eNotFound, "cannot create a proxy object for ior '%s'. Initialize ORB first. ", ior.c_str());
+    }
+
+    // Then check we can actually access it
+    RTT::corba::CTaskContext_var mtask;
+    if(taskProxy)
+    {
+	return taskProxy->server();
+    } else {
+    	rb_raise(eNotFound, "task context for ior '%s' not found", ior.c_str());
+    }
+}
+
 
 void CorbaAccess::unbind(std::string const& name)
 {

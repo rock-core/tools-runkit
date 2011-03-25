@@ -84,6 +84,11 @@ public:
      */
     RTT::corba::CTaskContext_ptr findByName(std::string const& name);
 
+    /**
+     * Returns a ControlTask reference to a remote control task, based on the IOR. 
+     */
+    RTT::corba::CTaskContext_ptr findByIOR(std::string const& ior);
+
     /** Unbinds a particular control task on the name server
      */
     void unbind(std::string const& name);

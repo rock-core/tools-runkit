@@ -136,6 +136,21 @@ static VALUE task_context_get(VALUE klass, VALUE name)
     CORBA_EXCEPTION_HANDLERS;
 }
 
+static VALUE task_context_get_from_ior(VALUE klass, VALUE ior)
+{
+    try {
+        std::auto_ptr<RTaskContext> new_context( new RTaskContext );
+        new_context->task       = CorbaAccess::instance()->findByIOR(StringValuePtr(ior));
+
+        new_context->main_service = new_context->task->getProvider("this");
+        new_context->ports      = new_context->task->ports();
+
+        VALUE obj = simple_wrap(cTaskContext, new_context.release());
+        return obj;
+    }
+    CORBA_EXCEPTION_HANDLERS;
+}
+
 static VALUE task_context_equal_p(VALUE self, VALUE other)
 {
     if (!rb_obj_is_kind_of(other, cTaskContext))
@@ -795,6 +810,7 @@ extern "C" void Init_rorocos_ext()
 
     rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
     rb_define_singleton_method(cTaskContext, "do_get", RUBY_METHOD_FUNC(task_context_get), 1);
+    rb_define_singleton_method(cTaskContext, "do_get_from_ior", RUBY_METHOD_FUNC(task_context_get_from_ior), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);
