@@ -204,7 +204,7 @@ module Orocos
         end
 
         def ping
-            operation_signature('start')
+            rtt_state
             nil
         end
 
