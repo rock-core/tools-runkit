@@ -2,7 +2,11 @@ require 'orocos/nameservice_avahi'
 
 module Nameservice
         
+    # TODO: Allow this module to abstract all nameservice queries
+    # CORBA, AVAHI and alike
+    #
     class << self
+        # List of all available nameservice provider
         @@nameservices = {}
 
         # Enable a nameservice
@@ -12,8 +16,10 @@ module Nameservice
         def enable(type, options)
             enabled = false
             begin 
+                # To embed a new nameserver we require a 
+                # NameserviceInstance of that type
                 nameserviceKlass = eval("#{type}")
-                if nameserviceKlass
+                if nameserviceKlass and nameserviceKlass.kind_of? NameserviceProvider
                     if nameserviceKlass.instance.enable(options)
                         @@nameservices[type] = nameserviceKlass.instance
                         enabled = true
@@ -36,7 +42,7 @@ module Nameservice
         end
         
         # Retrieve a nameservice by type
-        # 
+        # If type is unknown, returns +nil+
         def get(type)
             instance = nil
             if @@nameservices.has_key?(type)
@@ -46,7 +52,7 @@ module Nameservice
             instance
         end
 
-        # Retrieve
+        # Retrieve available options for a nameservice type
         # 
         def getOptions(type)
             options = {}
@@ -63,7 +69,7 @@ module Nameservice
         # throws Nameserver::NoServiceFound if no service of given type 
         # has been found
         def getByType(type)
-                raise UnsupportedFunctionality
+                raise NotImplemented
         end
 
     end # class << self

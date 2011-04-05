@@ -2,7 +2,7 @@ require 'orocos/nameservice_interfaces.rb'
 
 module Nameservice
 
-    class AVAHI < NameserviceInstance
+    class AVAHI < NameserviceProvider
 
         def initialize
             super
@@ -75,7 +75,7 @@ module Nameservice
                     @avahi_nameserver = ::Avahi::Manager.new( { options[:label], options[:searchdomain] } )
                 end
                 # We need to wait till nameserver communicates with DBus
-                # wait maximum of 3 second for initialization
+                # wait maximum of 6 second for initialization
                 for i in 0..20
                     sleep 0.3
                     if @avahi_nameserver.initialized?
