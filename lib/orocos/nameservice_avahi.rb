@@ -2,14 +2,17 @@ require 'orocos/nameservice_interfaces.rb'
 
 module Nameservice
 
-    class AVAHI < NameserviceProvider
+    class AVAHI < Provider
 
-        def initialize
+        def initialize(options)
             super
-            @avahi_nameserver = nil
+            enable(options)
+        end
 
-            @options[:label] = "Search domain label"
-            @options[:searchdomain] = "Search domain set to 'rimres' maps to _rimres._tcp" 
+        def self.options
+            @@options[:searchdomains] = "Search domains as hash of 'label' => 'domain, where a plain domainname will by default be expaned to _domain._tcp"
+
+            @@options
         end
     
         # Check is the nameserver is enabled
@@ -24,14 +27,14 @@ module Nameservice
         # Return the IOR 
         # Throws Nameservice::NoAccess if the IOR cannot be retrieved
         # due to an uninitialized nameserver
-        # Throws NoServiceFound if the service could not be found
+        # Throws Orocos::NotFound if the service could not be found
         # due to an uninitialized nameserver
-        def getIOR(name)
+        def get_ior(name)
             ior = nil
             if @avahi_nameserver
-                ior = @avahi_nameserver.getIOR(name)
+                ior = @avahi_nameserver.get_ior(name)
                 if not ior 
-                    raise NoServiceFound
+                    raise Orocos::NotFound, "AVAHI nameservice could not retrieve an ior for task #{name}"
                 end
     
                 return ior
@@ -42,23 +45,25 @@ module Nameservice
     
         # Retrieve a list of services that provide a certain type
         # returns the list of services 
-        # throws Nameserver::NoServiceFound if no service of given type 
+        # throws Orocos::NotFound if no service of given type 
         # has been found
-        def getByType(type)
+        def resolve_by_type(type)
+            tasks={}
             if @avahi_nameserver
-                services = @avahi_nameserver.getByType(type)
+                services = @avahi_nameserver.get_service_by_type(type)
                 if services.empty?
-                    raise NoServiceFound
+                    raise Orocos::NotFound
                 end
-    
-                return services
+                services.each do |name, description|
+                    task = resolve(name)
+                    tasks[name] = task
+                end
             end
-        
-            raise NoServiceFound    
+            tasks
         end
     
         # Enable the avahi based nameserver
-        # 'searchdomain' maps to _searchdomain._tcp in Avahi
+        # option :searchdomains is available and expects a hash { "label" => "domain-0", ...}
         def enable(options)
             if enabled?
                 warn "Nameservice: ignoring request to enable, because nameservice is already running"
@@ -68,11 +73,11 @@ module Nameservice
             ## Introduce alternative avahi based nameserver if corba does not work
             begin 
                 require 'avahi_nameserver'
-    
                 if not @avahi_nameserver
-                    # Requires a hash to specify a searchdomain use: 
-                    # {'label of searchdomain' => 'searchdomain'}
-                    @avahi_nameserver = ::Avahi::Manager.new( { options[:label], options[:searchdomain] } )
+                    # Test required options
+                    # Provide a list of searchdomains
+                    # { :searchdomains => { "label" => "domain", "label-1" => "domain-1" }
+                    @avahi_nameserver = ::Avahi::Manager.instance( options )
                 end
                 # We need to wait till nameserver communicates with DBus
                 # wait maximum of 6 second for initialization
@@ -84,14 +89,24 @@ module Nameservice
                 end
                 warn "Nameservice: avahi nameserver could not be initialized" 
             rescue LoadError
-                warn "Nameservice: 'distributed_nameserver' needs to be installed for AVAHI nameservice support"
-            rescue => exception
-                # ignore errors and return false eventually
-                warn "Nameservice: error in AVAHI nameservice"
-                print exception.backtrace.join("\n")
+                raise LoadError, "Nameservice: 'distributed_nameserver' needs to be installed for AVAHI nameservice support"
             end
-    
-            return false
+        end
+
+        # Resolve a service based on its name
+        # return TaskContext
+        # throws Exception if the service cannot be resolved
+        def resolve(name)
+            ior = get_ior(name)
+            result=nil
+            if ior
+                result = ::Orocos::CORBA.refine_exceptions("naming service") do
+                     ::Orocos::TaskContext::do_get_from_ior(ior)
+                end
+            else 
+                raise Orocos::NotFound
+            end
+            result
         end
 
     end # class AVAHI

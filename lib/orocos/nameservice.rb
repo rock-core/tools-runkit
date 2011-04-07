@@ -1,4 +1,6 @@
+require 'orocos/task_context'
 require 'orocos/nameservice_avahi'
+require 'orocos/nameservice_corba'
 
 module Nameservice
         
@@ -13,28 +15,25 @@ module Nameservice
         # Options are provided as a hash, i.e.
         # { :option_0 => 'value_0', :option_1 => 'value_1, ... }
         # Request a list of available options via getOptions 
-        def enable(type, options)
-            enabled = false
-            begin 
-                # To embed a new nameserver we require a 
-                # NameserviceInstance of that type
-                nameserviceKlass = eval("#{type}")
-                if nameserviceKlass and nameserviceKlass.kind_of? NameserviceProvider
-                    if nameserviceKlass.instance.enable(options)
-                        @@nameservices[type] = nameserviceKlass.instance
-                        enabled = true
-                    end
-                end
-            rescue NameError 
-                warn "Nameservice: enabling failed due to unknown nameservice type #{type}"
+        def enable(type, options = {} )
+
+            if @@nameservices[type]
+                # already enabled
+                return
             end
 
-            enabled
+            # To embed a new nameserver we require a 
+            # NameserviceInstance of that type
+            ns = Provider.get_instance_of(type, options)
+            @@nameservices[type] = ns
+            ns
         end
 
+        # Check if nameservice of a given type is enabled
+        # return true, if nameservice of given type is enable otherwise false
         def enabled?(type)
             enabled = false
-            if @@nameservices.has_key?(type)
+            if @@nameservices[type]
                 enabled = @@nameservices[type].enabled?
             end
 
@@ -51,25 +50,63 @@ module Nameservice
 
             instance
         end
-
-        # Retrieve available options for a nameservice type
-        # 
-        def getOptions(type)
-            options = {}
-            instance = get(type)
-            if instance
-                options = instance.getOptions
+        
+        # Resolve a name by type
+        # return TaskContext or +nil+
+        def resolve(name)
+            # Resolves the name using existing nameservices 
+            if @@nameservices.empty?
+                raise Orocos::NotFound, "No nameservice has been enabled"
             end
-
-            options
+            @@nameservices.each do |type, ns|
+                   begin
+                       task = ns.resolve(name) 
+                   rescue Orocos::NotFound
+                        next
+                   end
+                        
+                   if task and task.kind_of?(::Orocos::TaskContext)
+                       return task
+                   end
+            end
+            raise Orocos::NotFound, "The service #{name} could not be resolved using following nameservices (in priority order): #{@@nameservices.keys.join(',')}"
         end
 
         # Retrieve a list of services that provide a certain type
-        # returns the list of services 
-        # throws Nameserver::NoServiceFound if no service of given type 
+        # returns the list of services as hash name => task
+        # and task object as value
+        # throws Orocos::NotFound if no service of given type 
         # has been found
-        def getByType(type)
-                raise NotImplemented
+        def resolve_by_type(type)
+            #Resolve services by type
+            tasks = {}
+            @@nameservices.each do |type, ns|
+                begin
+                    resolved_tasks = ns.resolve_by_type(name)
+                    # Add only new tasks
+                    resolved_tasks.each do |name, task|
+                        if not tasks[name]
+                            tasks[name] = task
+                        end
+                    end
+                rescue UnsupportedFeature
+                    warn "Nameservice: #{type} does not support resolution of TaskContexts by type"
+                end
+            end
+        end
+
+        # Retrieve available options for a nameservice type
+        # returns a hash with optionname => description
+        # 
+        def options(type)
+            nameserviceKlass = Nameservice.const_get(type)
+            nameserviceKlass.options
+        end
+
+        # Resets the nameservice by removing all known 
+        # nameservices
+        def reset
+            @@nameservices.clear
         end
 
     end # class << self
