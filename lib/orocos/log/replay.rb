@@ -137,6 +137,17 @@ module Orocos
                   end
                 end
             end
+            
+            #Defines a connection which is set through connect_to
+            class CodeBlockConnection #:nodoc:
+                def initialize(port_name,code_block)
+                    @code_block = code_block
+                    @port_name = port_name
+                end
+                def update(data)
+                    @code_block.call data,@port_name
+                end
+            end
 
             def filter=(filter)
               @filter=filter
@@ -155,7 +166,12 @@ module Orocos
 		    pp.text "filtered = #{(@filter!=nil).to_s}"
 		    @connections.each do |connection|
 			pp.breakable
-			pp.text "connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
+                        if connection.is_a?(OutputPort::Connection)
+                          pp.text "connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
+                        end
+                        if connection.is_a?(OutputPort::CodeBlockConnection)
+                          pp.text "connected to code block"
+                        end
 		    end
 		end
             end
@@ -214,12 +230,17 @@ module Orocos
             end
 
             #Register InputPort which is updated each time write is called
-            def connect_to(port,policy = OutputPort::default_policy,&block)
+            def connect_to(port=nil,policy = OutputPort::default_policy,&block)
                 self.tracked = true
                 policy[:filter] = block if block
-                raise "Cannot connect to #{port.class}" if(!port.instance_of?(Orocos::InputPort))
-                @connections << Connection.new(port,policy)
-                puts "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
+                if !port 
+                  raise "Cannot set up connection no code block or port is given" unless block
+                  @connections << CodeBlockConnection.new(@name,block)
+                else
+                  raise "Cannot connect to #{port.class}" if(!port.instance_of?(Orocos::InputPort))
+                  @connections << Connection.new(port,policy)
+                  puts "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
+                end
             end
 
             #Feeds data to the connected ports and readers
