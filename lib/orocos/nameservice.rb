@@ -14,7 +14,7 @@ module Nameservice
         # Enable a nameservice
         # Options are provided as a hash, i.e.
         # { :option_0 => 'value_0', :option_1 => 'value_1, ... }
-        # Request a list of available options via getOptions 
+        # Request a list of available options via call to options(type)
         def enable(type, options = {} )
 
             if @@nameservices[type]

@@ -11,6 +11,7 @@ module Nameservice
 
         def self.options
             @@options[:searchdomains] = "Search domains as hash of 'label' => 'domain, where a plain domainname will by default be expaned to _domain._tcp"
+            @@options[:loglevel] = "Logging level. Select from INFO, DEBUG, WARN, ERROR, FATAL"
 
             @@options
         end
@@ -31,35 +32,18 @@ module Nameservice
         # due to an uninitialized nameserver
         def get_ior(name)
             ior = nil
-            if @avahi_nameserver
-                ior = @avahi_nameserver.get_ior(name)
-                if not ior 
-                    raise Orocos::NotFound, "AVAHI nameservice could not retrieve an ior for task #{name}"
-                end
-    
-                return ior
+            services = @avahi_nameserver.find_services(name)
+            if services.size > 1
+                raise ArgumentError, "Nameservice: multiple services #{name} found. By definition this should not be possible. Cannot proceed with resolution"
+            end
+            services.each do |desc|
+                ior = desc.get_description("IOR")
+            end
+            if not ior 
+                raise Orocos::NotFound, "AVAHI nameservice could not retrieve an ior for task #{name}"
             end
     
-            raise NoAccess
-        end
-    
-        # Retrieve a list of services that provide a certain type
-        # returns the list of services 
-        # throws Orocos::NotFound if no service of given type 
-        # has been found
-        def resolve_by_type(type)
-            tasks={}
-            if @avahi_nameserver
-                services = @avahi_nameserver.get_service_by_type(type)
-                if services.empty?
-                    raise Orocos::NotFound
-                end
-                services.each do |name, description|
-                    task = resolve(name)
-                    tasks[name] = task
-                end
-            end
-            tasks
+            return ior
         end
     
         # Enable the avahi based nameserver
@@ -72,22 +56,26 @@ module Nameservice
                
             ## Introduce alternative avahi based nameserver if corba does not work
             begin 
-                require 'avahi_nameserver'
+                require 'servicediscovery'
                 if not @avahi_nameserver
-                    # Test required options
-                    # Provide a list of searchdomains
-                    # { :searchdomains => { "label" => "domain", "label-1" => "domain-1" }
-                    @avahi_nameserver = ::Avahi::Manager.instance( options )
+                    @avahi_nameserver = Avahi::ServiceDiscovery.new
                 end
-                # We need to wait till nameserver communicates with DBus
-                # wait maximum of 6 second for initialization
-                for i in 0..20
-                    sleep 0.3
-                    if @avahi_nameserver.initialized?
-                        return true
-                    end
+
+                if not options.has_key?(:searchdomains)
+                    raise ArgumentError, "Nameservice: required option :searchdomains is not provided. Call enable with at least one searchdomain given"
                 end
-                warn "Nameservice: avahi nameserver could not be initialized" 
+
+                if options.has_key?(:loglevel)
+                        # Using #{} allows also symbols to be used here
+                        Avahi.set_log_level("#{options[:loglevel]}")
+                else
+                        Avahi.set_log_level("ERROR")
+                end
+              
+                # Start listening on the given domains (this does refer to the _myservice._tcp service domain and not(!) the .local domain)
+                # we listen only 
+                @avahi_nameserver.listen_on(options[:searchdomains])
+
             rescue LoadError
                 raise LoadError, "Nameservice: 'distributed_nameserver' needs to be installed for AVAHI nameservice support"
             end

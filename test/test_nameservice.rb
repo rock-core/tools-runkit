@@ -1,8 +1,8 @@
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
-require 'minitest/spec'
 require 'orocos'
 require 'orocos/test'
 require 'orocos/nameservice'
+require 'minitest/spec'
 
 MiniTest::Unit.autorun
 
@@ -12,7 +12,7 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
 include Orocos
 
-avahi_options = { :searchdomains => { "orocos_rb_test" => "_orocosrbtest._tcp" } }
+avahi_options = { :searchdomains => [ "_orocosrbtest._tcp" ] }
 
 describe "Nameservice" do
     include Orocos::Spec
