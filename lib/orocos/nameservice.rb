@@ -5,9 +5,25 @@ require 'orocos/nameservice_corba'
 module Nameservice
         
     # TODO: Allow this module to abstract all nameservice queries
-    # CORBA, AVAHI and alike
+    # CORBA, AVAHI and alike 
+    #
+    # Example: 
+    #
+    # require 'orocos'
+    # include Orocos
+    # 
+    # # The order of activation is used as priority order for the search of modules 
+    # Nameservice::enable(:AVAHI, :searchdomains => [ "_rimres._tcp" ], :loglevel => :FATAL )
+    # # Corba is the default, if you have not enabled any nameservice upon calling resolve
+    # # Nameservice::enable(:CORBA, :host => "127.0.0.1")
+    #
+    # Orocos.initialize
+    #
+    # task = TaskContext.get 'your_module'
     #
     class << self
+        # Priority order depends on insertion sequence (to make sure it works in ruby 1.8.x)
+        @@priority_order = []
         # List of all available nameservice provider
         @@nameservices = {}
 
@@ -26,6 +42,7 @@ module Nameservice
             # NameserviceInstance of that type
             ns = Provider.get_instance_of(type, options)
             @@nameservices[type] = ns
+            @@priority_order << type
             ns
         end
 
@@ -58,9 +75,12 @@ module Nameservice
             if @@nameservices.empty?
                 raise Orocos::NotFound, "No nameservice has been enabled"
             end
-            @@nameservices.each do |type, ns|
+
+            types=[]
+            @@priority_order.each do |type|
+                   types << type
                    begin
-                       task = ns.resolve(name) 
+                       task = @@nameservices[type].resolve(name) 
                    rescue Orocos::NotFound
                         next
                    end
@@ -69,7 +89,7 @@ module Nameservice
                        return task
                    end
             end
-            raise Orocos::NotFound, "The service #{name} could not be resolved using following nameservices (in priority order): #{@@nameservices.keys.join(',')}"
+            raise Orocos::NotFound, "The service #{name} could not be resolved using following nameservices (in priority order): #{@@priority_order.join(', ')}"
         end
 
         # Retrieve a list of services that provide a certain type
@@ -77,12 +97,12 @@ module Nameservice
         # and task object as value
         # throws Orocos::NotFound if no service of given type 
         # has been found
-        def resolve_by_type(type)
+        def resolve_by_type(typename)
             #Resolve services by type
             tasks = {}
-            @@nameservices.each do |type, ns|
+            @@priority_order.each do |type|
                 begin
-                    resolved_tasks = ns.resolve_by_type(name)
+                    resolved_tasks = @@nameservices[type].resolve_by_type(typename)
                     # Add only new tasks
                     resolved_tasks.each do |name, task|
                         if not tasks[name]
@@ -107,6 +127,13 @@ module Nameservice
         # nameservices
         def reset
             @@nameservices.clear
+            @@priority_order.clear
+        end
+
+        # Validate nameservice before starting the corba layer
+        # Otherwise the default of CORBA nameservice cannot be applied
+        def available?
+            not @@nameservices.empty?
         end
 
     end # class << self

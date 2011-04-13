@@ -58,7 +58,7 @@ module Nameservice
             begin 
                 require 'servicediscovery'
                 if not @avahi_nameserver
-                    @avahi_nameserver = Avahi::ServiceDiscovery.new
+                    @avahi_nameserver = ::Avahi::ServiceDiscovery.new
                 end
 
                 if not options.has_key?(:searchdomains)
@@ -67,9 +67,9 @@ module Nameservice
 
                 if options.has_key?(:loglevel)
                         # Using #{} allows also symbols to be used here
-                        Avahi.set_log_level("#{options[:loglevel]}")
+                        ::Avahi::ServiceDiscovery.set_log_level("#{options[:loglevel]}")
                 else
-                        Avahi.set_log_level("ERROR")
+                        ::Avahi::ServiceDiscovery.set_log_level("ERROR")
                 end
               
                 # Start listening on the given domains (this does refer to the _myservice._tcp service domain and not(!) the .local domain)

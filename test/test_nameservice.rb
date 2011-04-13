@@ -1,6 +1,5 @@
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
 require 'orocos'
-require 'orocos/test'
 require 'orocos/nameservice'
 require 'minitest/spec'
 
