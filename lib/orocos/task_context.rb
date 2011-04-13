@@ -464,11 +464,6 @@ module Orocos
             !@state_queue.empty?
         end
 
-        # :method: state
-        #
-        # call-seq:
-        #  task.state => value
-        #
         # Returns the state of the task, as a symbol. The possible values for
         # all task contexts are:
         # 
@@ -480,13 +475,19 @@ module Orocos
         #   :RUNTIME_ERROR
         #   :FATAL_ERROR
         #
-        # If extended support is available, the custom states are also reported
-        # with their name. For instance, after the orogen definition
+        # If the component is an oroGen component on which custom states have
+        # been defined, these custom states are also reported with their name.
+        # For instance, after the orogen definition
         #
         #   runtime_states "CUSTOM_RUNTIME"
         #
         # #state will return :CUSTOM_RUNTIME if the component goes into that
         # state.
+        #
+        # If +return_current+ is true, the current component state is returned.
+        # Otherwise, only the next state in the state queue is returned. This is
+        # only valid for oroGen components with extended state support (for
+        # which all state changes are saved instead of only the last one)
         def state(return_current = true)
             peek_state
             if @state_queue.empty?
