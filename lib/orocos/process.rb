@@ -526,6 +526,15 @@ module Orocos
     # All processes started in the provided block will be automatically killed
     def self.guard
         yield
+
+    rescue Interrupt
+    rescue Exception => e
+	Orocos.warn "killing running task contexts and deployments because of unhandled exception"
+	Orocos.warn "  #{e.backtrace[0]}: #{e.message}"
+	e.backtrace[1..-1].each do |line|
+	    Orocos.warn "    #{line}"
+	end
+
     ensure
         tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
         tasks.each do |t|
