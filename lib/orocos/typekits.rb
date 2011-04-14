@@ -41,7 +41,9 @@ module Orocos
 
         return if @loaded_plugins.include?(libpath)
 
-        Orocos.load_rtt_plugin(libpath)
+        if !Orocos.load_rtt_plugin(libpath)
+            raise "the RTT plugin system refused to load #{libpath}"
+        end
         @loaded_plugins << libpath
         true
     end

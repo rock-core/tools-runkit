@@ -704,12 +704,12 @@ static VALUE orocos_do_initialize(VALUE mod)
 
 static VALUE orocos_load_rtt_typekit(VALUE orocos, VALUE path)
 {
-    RTT::plugin::PluginLoader::Instance()->loadTypekit(StringValuePtr(path), "typekit");
+    return RTT::plugin::PluginLoader::Instance()->loadLibrary(StringValuePtr(path)) ? Qtrue : Qfalse;
 }
 
 static VALUE orocos_load_rtt_plugin(VALUE orocos, VALUE path)
 {
-    RTT::plugin::PluginLoader::Instance()->loadPlugin(StringValuePtr(path), "plugin");
+    return RTT::plugin::PluginLoader::Instance()->loadLibrary(StringValuePtr(path)) ? Qtrue : Qfalse;
 }
 
 #ifdef HAS_MQUEUE
