@@ -13,7 +13,7 @@ module Nameservice
     # include Orocos
     # 
     # # The order of activation is used as priority order for the search of modules 
-    # Nameservice::enable(:AVAHI, :searchdomains => [ "_rimres._tcp" ], :loglevel => :FATAL )
+    # Nameservice::enable(:AVAHI, :searchdomains => [ "_rimres._tcp" ])
     # # Corba is the default, if you have not enabled any nameservice upon calling resolve
     # # Nameservice::enable(:CORBA, :host => "127.0.0.1")
     #

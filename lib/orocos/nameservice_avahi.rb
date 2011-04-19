@@ -11,7 +11,6 @@ module Nameservice
 
         def self.options
             @@options[:searchdomains] = "Search domains as hash of 'label' => 'domain, where a plain domainname will by default be expaned to _domain._tcp"
-            @@options[:loglevel] = "Logging level. Select from INFO, DEBUG, WARN, ERROR, FATAL"
 
             @@options
         end
@@ -65,13 +64,6 @@ module Nameservice
                     raise ArgumentError, "Nameservice: required option :searchdomains is not provided. Call enable with at least one searchdomain given"
                 end
 
-                if options.has_key?(:loglevel)
-                        # Using #{} allows also symbols to be used here
-                        ::Avahi::ServiceDiscovery.set_log_level("#{options[:loglevel]}")
-                else
-                        ::Avahi::ServiceDiscovery.set_log_level("ERROR")
-                end
-              
                 # Start listening on the given domains (this does refer to the _myservice._tcp service domain and not(!) the .local domain)
                 # we listen only 
                 @avahi_nameserver.listen_on(options[:searchdomains])
