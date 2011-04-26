@@ -322,33 +322,6 @@ module Orocos
             super
         end
 
-        # Reads one sample with a default policy.
-        #
-        # While convenient, this is quite ressource consuming, as each time one
-        # will need to create a new connection between the ruby interpreter and
-        # the remote component.
-        #
-        # Use #reader if you need to read the same port repeatedly.
-        def read
-            reader = self.reader
-            reader.read
-        ensure
-            reader.disconnect
-        end
-
-        # Reads one sample with a default policy.
-        #
-        # While convenient, this is quite ressource consuming, as each time one
-        # will need to create a new connection between the ruby interpreter and
-        # the remote component.
-        #
-        # This is defined for consistency with OutputReader
-        #
-        # Use #reader if you need to read the same port repeatedly.
-        def read_new
-            read
-        end
-
         # Returns an OutputReader object that is connected to that port
         #
         # The policy dictates how data should flow between the port and the
