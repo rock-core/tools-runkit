@@ -56,6 +56,16 @@ module Orocos
         pkg && pkg.type_registry
     end
 
+    def self.task_model_from_name(name)
+        tasklib_name = available_task_models[name]
+        if !tasklib_name
+            raise ArgumentError, "no task model #{name} is registered"
+        end
+
+        tasklib = Orocos.master_project.using_task_library(tasklib_name)
+        tasklib.tasks[name]
+    end
+
     def self.typelib_type_for(t)
         if t.respond_to?(:name)
             return t if !t.contains_opaques?
