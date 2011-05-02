@@ -886,7 +886,13 @@ module Orocos
                 end
 
                 begin
-                    return property(m).read(*args)
+                    prop = property(m)
+                    value = prop.read(*args)
+                    if block_given?
+                        yield(value)
+                        prop.write(value)
+                    end
+                    return value
                 rescue Orocos::NotFound
                 end
             end
