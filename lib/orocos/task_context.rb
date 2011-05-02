@@ -451,7 +451,7 @@ module Orocos
                 end
             else
                 current_state = rtt_state
-                if current_state != @current_state
+                if (@state_queue.empty? && current_state != @current_state) || (@state_queue.last != current_state)
                     @state_queue << current_state
                 end
             end
