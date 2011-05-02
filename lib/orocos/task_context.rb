@@ -32,11 +32,15 @@ module Orocos
             @type_name = type.name
         end
 
-        # Read the current value of the property/attribute
-        def read
+        def raw_read
             value = type.new
             do_read(@orocos_type_name, value)
-            Typelib.to_ruby(value)
+            value
+        end
+
+        # Read the current value of the property/attribute
+        def read
+            Typelib.to_ruby(raw_read)
         end
 
         # Sets a new value for the property/attribute
