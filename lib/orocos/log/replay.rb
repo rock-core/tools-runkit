@@ -219,6 +219,7 @@ module Orocos
 
             #Returns the current sample data.
             def read()
+                raise "Port #{@name} is not replayed. Set tracked to true or use a port reader!" unless used? 
                 return yield @current_data if block_given?
                 return @current_data
             end
