@@ -357,6 +357,10 @@ module Orocos
         # TaskConfigurations object
         attr_reader :conf
 
+        def initialize
+            @conf = Hash.new
+        end
+
         # Loads all configuration files present in the given directory
         #
         # The directory is assumed to be populated with files of the form
@@ -375,11 +379,18 @@ module Orocos
             end
         end
 
-        def apply(task, names, override = false)
+        def find_task_configuration_object(task)
             if !task.model
                 raise ArgumentError, "cannot use ConfigurationManager#apply for non-orogen tasks"
             end
-            task_conf = conf[task.model.name]
+            conf[task.model.name]
+        end
+
+        # Applies the specified configuration on +task+
+        #
+        # See TaskConfigurations#apply for a description of the process
+        def apply(task, names, override = false)
+            task_conf = find_task_configuration_object(task)
             if !task_conf
                 if names != ['default']
                     raise ArgumentError, "no configuration available for #{task.model.name}"
@@ -387,6 +398,22 @@ module Orocos
             end
 
             task_conf.apply(task, names, override)
+        end
+
+        # Dumps the configuration of +task+ on the specified path
+        #
+        # If +path+ is a directory, the configuration is saved in
+        # a file called project_name::TaskName.yml. Otherwise, it is saved in
+        # the file
+        #
+        # If +name+ is given, it is used as the new configuration name.
+        # Otherwise, the task's name is used
+        def save(task, path, name = nil)
+            task_conf = find_task_configuration_object(task)
+            if !task_conf
+                task_conf = conf[task.model.name] = TaskConfigurations.new(task.model)
+            end
+            task_conf.save(task, path, name)
         end
     end
 end
