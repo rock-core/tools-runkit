@@ -248,14 +248,33 @@ module Orocos
             end
         end
 
-        # Helper method for #apply_configuration
-        def apply_configuration_to_value(result, config) # :nodoc:
-            config.each do |key, value|
-                if value.kind_of?(Hash)
-                    apply_configuration_to_value(result[key], value)
-                else
-                    result[key] = value
+        def apply_configuration_hash_to_value(value, conf)
+            conf.each do |conf_key, conf_value|
+                value[conf_key] = apply_configuration_to_value(value.raw_get_field(conf_key), conf_value)
+            end
+            value
+        end
+
+        def apply_configuration_array_to_value(value, conf)
+            conf.each_with_index do |element, idx|
+                while value.size <= idx
+                    new_value = value.class.deference.new
+                    new_value.zero!
+                    value.push(new_value)
                 end
+                value[idx] = apply_configuration_to_value(value.raw_get(idx), element)
+            end
+            value
+        end
+
+        # Helper method for #apply_configuration
+        def apply_configuration_to_value(value, conf) # :nodoc:
+            if conf.kind_of?(Hash)
+                apply_configuration_hash_to_value(value, conf)
+            elsif conf.respond_to?(:to_ary)
+                apply_configuration_array_to_value(value, conf)
+            else
+                conf
             end
         end
 
@@ -264,15 +283,17 @@ module Orocos
         # See #configuration for a description of +names+ and +override+ 
         def apply(task, names, override = false)
             if names.respond_to?(:to_ary)
-                config = configuration(names, override)
+                config = conf(names, override)
+            elsif names.respond_to?(:to_str)
+                config = conf([names], override)
             else
                 config = names
             end
             
-            config.each do |key, value|
-                p = task.property(key)
+            config.each do |prop_name, conf|
+                p = task.property(prop_name)
                 result = p.read
-                apply_configuration_to_value(result, value)
+                result = apply_configuration_to_value(result, conf)
                 p.write(result)
             end
         end
