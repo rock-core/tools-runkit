@@ -361,14 +361,14 @@ module Orocos
         #
         # The directory is assumed to be populated with files of the form
         #
-        #   orogen_project::TaskName.conf
+        #   orogen_project::TaskName.yml
         #
         # each file being a YAML file that follows the format described in
         # the documentation of TaskConfigurations.
         def load_dir(dir)
-            Dir.glob(File.join(dir, '*.conf')) do |file|
+            Dir.glob(File.join(dir, '*.yml')) do |file|
                 next if !File.file?(file)
-                model_name = File.basename(file, '.conf')
+                model_name = File.basename(file, '.yml')
                 model = Orocos.task_model_from_name(model_name)
                 (conf[model.name] ||= TaskConfigurations.new(model)).
                     load_from_yaml(file)
