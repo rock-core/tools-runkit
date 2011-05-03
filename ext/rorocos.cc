@@ -99,12 +99,7 @@ tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
     return make_tuple(&task_context, task_name, port_name);
 }
 
-/* call-seq:
- *  Orocos.components => [name1, name2, name3, ...]
- *
- * Returns the names of the task contexts registered with Corba
- */
-static VALUE orocos_task_names(VALUE mod)
+static VALUE orocos_do_task_names(VALUE mod)
 {
     VALUE result = rb_ary_new();
 
@@ -793,7 +788,7 @@ extern "C" void Init_rorocos_ext()
     eStateTransitionFailed = rb_define_class_under(mOrocos, "StateTransitionFailed", rb_eRuntimeError);
     eConnectionFailed = rb_define_class_under(mOrocos, "ConnectionFailed", rb_eRuntimeError);
 
-    rb_define_singleton_method(mOrocos, "task_names", RUBY_METHOD_FUNC(orocos_task_names), 0);
+    rb_define_singleton_method(mOrocos, "do_task_names", RUBY_METHOD_FUNC(orocos_do_task_names), 0);
     rb_define_singleton_method(cTaskContext, "do_get", RUBY_METHOD_FUNC(task_context_get), 1);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);

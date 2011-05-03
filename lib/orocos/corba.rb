@@ -111,5 +111,10 @@ module Orocos
             end
         end
     end
+
+    # Returns the task names that are registered on CORBA
+    def self.task_names
+        do_task_names.find_all { |n| n !~ /^orocosrb_(\d+)$/ }
+    end
 end
 
