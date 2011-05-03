@@ -534,6 +534,7 @@ module Orocos
 	e.backtrace[1..-1].each do |line|
 	    Orocos.warn "    #{line}"
 	end
+        raise
 
     ensure
         tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
