@@ -338,6 +338,8 @@ module Orocos
             else
                 FileUtils.mkdir_p(File.dirname(file))
             end
+            name ||= task.name
+
             current_config = config_as_hash(task)
             File.open(file, 'a') do |io|
                 io.puts
