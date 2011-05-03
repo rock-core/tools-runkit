@@ -1,0 +1,26 @@
+name "configurations"
+
+import_types_from "ConfigurationTypes.hpp"
+
+task_context "Task" do
+    property "enm", "Enumeration"
+    property "intg", "int"
+    property "str", "std::string"
+    property "fp", "double"
+
+    property "compound", "ComplexStructure"
+    property "simple_container", "std::vector<int>"
+    property "complex_container", "std::vector<ArrayElement>"
+end
+
+
+# Declares a deployment, i.e. an actual executable that contains various tasks.
+deployment "configurations_test" do
+    # This is a test deployment that should not be installed
+    do_not_install
+
+    # Declares it as periodic, with a period of 100ms
+    task("configurations", "Task").
+        periodic(0.1)
+end
+

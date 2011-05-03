@@ -1,0 +1,58 @@
+--- name:compound_in_compound
+compound:
+    compound:
+        enm: Third
+        intg: 30
+        str: "test2"
+        fp: 0.2
+--- name:vector_of_compound
+compound:
+    vector_of_compound:
+        - enm: First
+          intg: 10
+        - enm: Second
+          intg: 20
+        - enm: Third
+          intg: 30
+
+--- name:vector_of_vector_of_compound
+compound:
+    vector_of_vector_of_compound:
+        - - enm: First
+            intg: 10
+          - enm: Second
+            intg: 20
+          - enm: Third
+            intg: 30
+        - - enm: First
+            intg: 11
+          - enm: Second
+            intg: 21
+          - enm: Third
+            intg: 31
+--- name:array_of_compound
+compound:
+    array_of_compound:
+        - enm: First
+          intg: 10
+        - enm: Second
+          intg: 20
+        - enm: Third
+          intg: 30
+
+--- name:array_of_vector_of_compound
+compound:
+    array_of_vector_of_compound:
+        - - enm: First
+            intg: 10
+          - enm: Second
+            intg: 20
+          - enm: Third
+            intg: 30
+        - - enm: First
+            intg: 11
+          - enm: Second
+            intg: 21
+          - enm: Third
+            intg: 31
+
