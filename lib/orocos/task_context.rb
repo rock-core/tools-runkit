@@ -449,7 +449,7 @@ module Orocos
         # accessing the task context
         def peek_state
             if model && model.extended_state_support?
-	    	if !@state_reader || @state_reader.disconnected?
+	    	if !@state_reader || !@state_reader.connected?
                     @state_reader = state_reader
 		end
                 while new_state = @state_reader.read_new
