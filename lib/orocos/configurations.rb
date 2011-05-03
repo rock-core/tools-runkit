@@ -333,6 +333,11 @@ module Orocos
         # Saves the current configuration of +task+ in the provided file. +name+
         # is the name of the new section.
         def self.save(task, file, name)
+            if File.directory?(file)
+                file = File.join(file, "#{task.model.name}.yml")
+            else
+                FileUtils.mkdir_p(File.dirname(file))
+            end
             current_config = config_as_hash(task)
             File.open(file, 'a') do |io|
                 io.puts
