@@ -103,7 +103,7 @@ end
 if search_for.include?(:tasks)
     found = []
     Orocos.available_task_models.each do |name, project_name|
-        if name =~ regexp
+        if name =~ regexp || project_name =~ regexp
             if tasklib = load_orogen_project(master_project, project_name, debug)
                 found << [tasklib.self_tasks.find { |t| t.name == name }, project_name]
             end
@@ -120,8 +120,8 @@ end
 if search_for.include?(:deployments)
     found = []
     Orocos.available_deployments.each do |name, pkg|
-        if name =~ regexp
-            project_name = pkg.project_name
+        project_name = pkg.project_name
+        if name =~ regexp || project_name =~ regexp
             if tasklib = load_orogen_project(master_project, project_name, debug)
 		if deployer = tasklib.deployers.find { |n| n.name == name }
 		    found << [deployer, project_name]
