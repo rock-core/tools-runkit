@@ -130,7 +130,7 @@ module Orocos
                     if !prop
                         raise ArgumentError, "#{key} is not a property of #{model.name}"
                     end
-                    value_t = prop.type
+                    value_t = Orocos.typelib_type_for(prop.type)
                 end
 
                 value =
