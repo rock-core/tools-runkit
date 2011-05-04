@@ -299,20 +299,20 @@ module Orocos
         end
 
         def self.typelib_to_yaml_value(value)
-            if value.respond_to?(:to_str)
-                value.to_str
-            elsif value.kind_of?(Typelib::CompoundType)
+            if value.kind_of?(Typelib::CompoundType)
                 result = Hash.new
                 value.raw_each_field do |field_name, field_value|
                     result[field_name] = typelib_to_yaml_value(field_value)
                 end
                 result
+            elsif value.kind_of?(Symbol)
+                value.to_s
+            elsif value.respond_to?(:to_str)
+                value.to_str
             elsif value.kind_of?(Typelib::ArrayType) || value.kind_of?(Typelib::ContainerType)
                 value.raw_each.map(&method(:typelib_to_yaml_value))
-            elsif value.respond_to?(:to_sym)
-                value.to_s
-            elsif value.kind_of?(Typelib::NumericType)
-                value.to_ruby
+            elsif value.kind_of?(Typelib::Type)
+                Typelib.to_ruby(value)
             else value
             end
         end
