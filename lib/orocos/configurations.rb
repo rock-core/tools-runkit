@@ -92,15 +92,20 @@ module Orocos
             @conf_options = options
             sections.each_with_index do |doc, idx|
                 doc = doc.join("")
-                conf = config_from_hash(YAML.load(StringIO.new(doc)))
-                conf_options = options[idx].first
-                name = conf_options['name']
+                result = YAML.load(StringIO.new(doc))
+                if result
+                    conf = config_from_hash(result)
+                    conf_options = options[idx].first
+                    name = conf_options['name']
 
-                if self.sections[name] && conf_options['merge']
-                    conf = merge_conf(self.sections[name], conf, true)
+                    if self.sections[name] && conf_options['merge']
+                        conf = merge_conf(self.sections[name], conf, true)
+                    end
+                    self.sections[name] = conf
                 end
-                self.sections[name] = conf
             end
+        rescue Exception => e
+            raise e, "error loading #{file}: #{e.message}", e.backtrace
         end
 
         def config_from_array(array, value_t)
