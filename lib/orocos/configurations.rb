@@ -294,6 +294,15 @@ module Orocos
             else
                 config = names
             end
+
+            if !config
+                if names == ['default']
+                    ConfigurationManager.info "required to apply configuration #{names.join(", ")} on #{task.name} of type #{task.model.name}, but this configuration is not registered or empty. Not changing anything."
+                    return
+                else
+                    raise ArgumentError, "no configuration #{names.join(", ")} for #{task.model.name}"
+                end
+            end
             
             config.each do |prop_name, conf|
                 p = task.property(prop_name)
