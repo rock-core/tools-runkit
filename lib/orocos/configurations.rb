@@ -372,6 +372,9 @@ module Orocos
 
     # Class that manages a set of configurations
     class ConfigurationManager
+        extend Logger::Forward
+        extend Logger::Hierarchy
+
         # A mapping from the task model names to the corresponding
         # TaskConfigurations object
         attr_reader :conf
@@ -393,8 +396,10 @@ module Orocos
                 next if !File.file?(file)
                 model_name = File.basename(file, '.yml')
                 model = Orocos.task_model_from_name(model_name)
-                (conf[model.name] ||= TaskConfigurations.new(model)).
-                    load_from_yaml(file)
+                ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
+                conf[model.name] ||= TaskConfigurations.new(model)
+                conf[model.name].load_from_yaml(file)
+                ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(", ")}"
             end
         end
 
@@ -411,12 +416,17 @@ module Orocos
         def apply(task, names, override = false)
             task_conf = find_task_configuration_object(task)
             if !task_conf
-                if names != ['default']
+                if names == ['default']
+                    ConfigurationManager.info "required default configuration on #{task.name} of type #{task.model.name}, but #{task.model.name} has no registered configurations"
+                    return
+                else
                     raise ArgumentError, "no configuration available for #{task.model.name}"
                 end
             end
 
+            ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{task.model.name}"
             task_conf.apply(task, names, override)
+            true
         end
 
         # Dumps the configuration of +task+ on the specified path
