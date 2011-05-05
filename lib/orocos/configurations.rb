@@ -297,7 +297,7 @@ module Orocos
             
             config.each do |prop_name, conf|
                 p = task.property(prop_name)
-                result = p.read
+                result = p.raw_read
                 result = apply_configuration_to_value(result, conf)
                 p.write(result)
             end
