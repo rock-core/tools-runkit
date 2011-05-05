@@ -346,11 +346,25 @@ module Orocos
             name ||= task.name
 
             current_config = config_as_hash(task)
+
+            parts = []
+            current_config.keys.sort.each do |property_name|
+                doc = task.model.find_property(property_name).doc
+                if doc
+                    parts << doc.split("\n").map { |s| "# #{s}" }.join("\n")
+                else
+                    parts << "# no documentation available for this property"
+                end
+
+                property_hash = { property_name => current_config[property_name] }
+                yaml = YAML.dump(property_hash)
+                parts << yaml.split("\n")[1..-1].join("\n")
+            end
+
             File.open(file, 'a') do |io|
+                io.write("--- name:#{name}\n")
+                io.write(parts.join("\n"))
                 io.puts
-                yaml = YAML.dump(current_config)
-                yaml = "--- name:#{name}#{yaml[3..-1]}"
-                io.write(yaml)
             end
             current_config
         end
