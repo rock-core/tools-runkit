@@ -379,6 +379,19 @@ module Orocos
         end
     end
 
+    # Applies the configuration stored in +path+ on +task+. The selected
+    # sections can be listed in +names+ (by default, uses the default
+    # configuration).
+    #
+    # +overrides+ controls whether the sections listed in +names+ can override
+    # each other, if a value set in one of them can be overriden by another one.
+    def self.apply_conf_file(task, path, names = ['default'], overrides = true)
+        conf = TaskConfigurations.new(task.model)
+        conf.load_from_yaml(path)
+        conf.apply(task, names, overrides)
+        task
+    end
+
     # Class that manages a set of configurations
     class ConfigurationManager
         extend Logger::Forward
