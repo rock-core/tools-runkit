@@ -22,3 +22,5 @@ require 'orocos/mqueue'
 
 require 'utilrb/hash/recursive_merge'
 require 'orocos/configurations'
+
+require 'orocos/extensions'
