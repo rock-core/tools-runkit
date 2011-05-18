@@ -89,6 +89,7 @@ module Orocos
             end
             sections << document_lines[options[-1][1] + 1, document_lines.size - options[-1][1] - 1]
 
+            changed_sections = []
             @conf_options = options
             sections.each_with_index do |doc, idx|
                 doc = doc.join("")
@@ -98,12 +99,18 @@ module Orocos
                     conf_options = options[idx].first
                     name = conf_options['name']
 
-                    if self.sections[name] && conf_options['merge']
-                        conf = merge_conf(self.sections[name], conf, true)
+                    if self.sections[name]
+                        if conf_options['merge']
+                            conf = merge_conf(self.sections[name], conf, true)
+                        end
+                        if self.sections[name] != conf
+                            changed_sections << name
+                        end
                     end
                     self.sections[name] = conf
                 end
             end
+            changed_sections
         rescue Exception => e
             raise e, "error loading #{file}: #{e.message}", e.backtrace
         end
@@ -414,15 +421,21 @@ module Orocos
         # each file being a YAML file that follows the format described in
         # the documentation of TaskConfigurations.
         def load_dir(dir)
+            changed = Hash.new
             Dir.glob(File.join(dir, '*.yml')) do |file|
                 next if !File.file?(file)
                 model_name = File.basename(file, '.yml')
                 model = Orocos.task_model_from_name(model_name)
                 ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
                 conf[model.name] ||= TaskConfigurations.new(model)
-                conf[model.name].load_from_yaml(file)
+
+                changed_configurations = conf[model.name].load_from_yaml(file)
+                if !changed_configurations.empty?
+                    changed[model.name] = changed_configurations
+                end
                 ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(", ")}"
             end
+            changed
         end
 
         def find_task_configuration_object(task)
