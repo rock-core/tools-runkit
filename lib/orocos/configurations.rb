@@ -1,4 +1,5 @@
 require 'stringio'
+require 'yaml'
 module Orocos
     # Class handling multiple possible configuration for a single task
     #
