@@ -39,7 +39,11 @@ usage: oroinspect <search term>"
         configuration_mode = true
     end
     opt.on('--save FILE:SECTION', 'saves the task default configuration in the specified file. If a file is a directory, an automatic name will be generated') do |save_configuration|
-        save_configuration = save_configuration.split(':')
+        if save_configuration =~ /:(\w+)$/
+            save_configuration = [$`, $1]
+        else
+            save_configuration = [save_configuration]
+        end
     end
     opt.on('--debug') do
         debug = true
