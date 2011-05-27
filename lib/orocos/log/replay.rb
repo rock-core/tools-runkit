@@ -828,6 +828,10 @@ module Orocos
                 end
             end
 
+	    def has_task?(name)
+		@tasks.has_key?(name.to_s)
+	    end
+
             #Iterates through all simulated tasks
             def each_task (&block)
                 @tasks.each_value do |task|
