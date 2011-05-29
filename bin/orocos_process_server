@@ -9,6 +9,9 @@ opt = OptionParser.new do |opt|
    opt.on('--port NUMBER', Integer, 'the port on which the server should listen') do |port|
        server_port = port
    end
+   opt.on('--debug', 'turn on debug mode') do
+       Orocos.logger.level = Logger::DEBUG
+   end
 end
 remaining = opt.parse(ARGV)
 
@@ -20,6 +23,5 @@ if ns = remaining.shift
    Orocos::CORBA.name_service = ns
 end
 
-Orocos.logger.level = Logger::DEBUG
 Orocos::ProcessServer.run(Orocos::ProcessServer::DEFAULT_OPTIONS, server_port)
 

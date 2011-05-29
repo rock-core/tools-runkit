@@ -24,6 +24,9 @@ module Orocos
         # are imported
         attr_reader :master_project
 
+        # The main configuration manager object
+        attr_reader :conf
+
         # The set of orogen projects that are available, as a mapping from a
         # name into the project's orogen description file
         attr_reader :available_projects
@@ -109,9 +112,18 @@ module Orocos
         end
     end
 
+    # Loads a directory containing configuration files
+    #
+    # See the documentation of ConfigurationManager#load_dir for more
+    # information
+    def self.load_config_dir(dir)
+        conf.load_dir(dir)
+    end
+
     def self.load
         @master_project = Orocos::Generation::Component.new
         @registry = master_project.registry
+        @conf = ConfigurationManager.new
         @available_projects ||= Hash.new
         @loaded_typekit_registries.clear
         @loaded_typekit_plugins.clear

@@ -315,6 +315,13 @@ module Orocos
             result.instance_variable_set :@process, process
             result.instance_variable_set :@name, name
             result.send(:initialize)
+
+            if model = result.model
+                if ext = Orocos.extension_modules[model.name]
+                    ext.each { |m_ext| result.extend(m_ext) }
+                end
+            end
+
             result
 	end
 
@@ -1058,6 +1065,27 @@ module Orocos
         def find_port(type_name, port_name)
             TaskContext.find_port(@ports.values, type_name, port_name)
         end
+    end
+
+    class << self
+        attr_reader :extension_modules
+    end
+    @extension_modules = Hash.new { |h, k| h[k] = Array.new }
+
+    # Requires orocos.rb to extend tasks of the given model with the given
+    # block.
+    #
+    # For instance, the #log method that is defined on every logger task is
+    # implemented with
+    #
+    #  Orocos.extend_task 'logger::Logger' do
+    #    def log(port, buffer_size = 25)
+    #      # setup the logging component to log the given port
+    #    end
+    #  end
+    #
+    def self.extend_task(model_name, &block)
+        extension_modules[model_name] << Module.new(&block)
     end
 end
 
