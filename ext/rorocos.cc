@@ -672,6 +672,12 @@ static VALUE do_local_port_disconnect(VALUE port_access)
     return Qnil;
 }
 
+/*
+ * call-seq: connected? => true or false
+ *
+ * Returns true if this port reader or writer is still connected to a remote
+ * port
+ */
 static VALUE do_local_port_connected(VALUE port_access)
 {
     RTT::base::PortInterface& local_port = get_wrapped<RTT::base::PortInterface>(port_access);
