@@ -286,12 +286,70 @@ module Orocos
                 return @stream.size
             end
         end
+        
+        #Simulated Property based on a configuration log file
+        #It is automatically replayed if at least one OutputPort of the task is replayed
+        class Property
+            #true -->  this property shall be replayed
+            attr_accessor :tracked         
+            # The underlying TaskContext instance
+            attr_reader :task
+            # The property/attribute name
+            attr_reader :name
+            # The attribute type, as a subclass of Typelib::Type
+            attr_reader :type
+            #dedicated stream for simulating the port
+            attr_reader :stream         
+
+
+            def initialize(task, stream)
+                raise "Cannot create Property out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
+                @stream = stream
+                @name = stream.name.to_s.match(/\.(.*$)/)
+                raise 'Stream name does not follow the convention TASKNAME.PROPERTYNAME' if @name == nil
+                @name = @name[1]
+                @type = stream.type
+                @task = task
+                @current_value = nil
+                @orocos_type_name = stream.typename
+            end
+
+            # Read the current value of the property/attribute
+            def read
+                @current_value
+            end
+
+            # Sets a new value for the property/attribute
+            def write(value)
+                @current_value = value
+            end
+
+            def new_sample
+                type.new
+            end
+
+            #Returns the number of samples for the property.
+            def number_of_samples
+                return @stream.size
+            end
+
+            # Give the full name for this property. It is the stream name.
+            def full_name
+                stream.name
+            end
+
+            def pretty_print(pp) # :nodoc:
+                pp.text "property #{name} (#{type.name})"
+            end
+        end
 
         #Simulates task based on a log file.
         #Each stream is modeled as one OutputPort which supports the connect_to method
         class TaskContext
-            attr_accessor :ports        #all simulated ports
-            attr_reader :file_path      #path of the dedicated log file
+            attr_accessor :ports               #all simulated ports
+            attr_accessor :properties          #all simulated properties
+            attr_reader :file_path             #path of the dedicated log file
+            attr_reader :file_path_config      #path of the dedicated log configuration file
             attr_reader :name
             attr_reader :state
 
@@ -299,11 +357,13 @@ module Orocos
             #
             #* task_name => name of the task
             #* file_path => path of the log file
-            def initialize(task_name,file_path)
+            def initialize(task_name,file_path,file_path_config)
                 @ports = Hash.new
+                @properties = Hash.new
                 @file_path = file_path
                 @name = task_name
                 @state = :replay
+                @file_path_config = file_path_config
             end
 
             #pretty print for TaskContext
@@ -319,8 +379,49 @@ module Orocos
 			    pp.breakable
 			    pp.text port.name
 			end
+                    end
+		    pp.breakable
+                    pp.text "property(s):"
+		    pp.nest(2) do
+			@properties.each_value do |port|
+			    pp.breakable
+			    pp.text port.name
+			end
 		    end
 		end
+            end
+    
+            #Adds a new property or port to the TaskContext
+            #
+            #* file_path = path of the log file
+            #* stream = stream which shall be simulated as OutputPort
+            def add_stream(file_path,stream)
+                #check if the log file is a file which stores the configuration
+                if Regexp.new(@file_path_config).match(file_path)
+                    log = add_property(file_path,stream)
+                else
+                    log = add_port(file_path,stream)
+                end
+                log
+            end
+
+            #Adds a new property to the TaskContext
+            #
+            #* file_path = path of the log file
+            #* stream = stream which shall be simulated as OutputPort
+            def add_property(file_path,stream)
+                unless Regexp.new(@file_path_config).match(file_path)
+                    raise "You are trying to add properties to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path_config != file_path
+                end
+                if @file_path == file_path
+                    @file_path = nil 
+                    @file_path_config = file_path
+                end
+
+                log_property = Property.new(self,stream)
+                raise ArgumentError, "The log file #{file_path} is already loaded" if @properties.has_key?(log_property.name)
+                @properties[log_property.name] = log_property
+                return log_property
             end
 
             #Adds a new port to the TaskContext
@@ -328,7 +429,7 @@ module Orocos
             #* file_path = path of the log file
             #* stream = stream which shall be simulated as OutputPort
             def add_port(file_path,stream)
-                raise "You are trying to add ports to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path != file_path
+                raise "You are trying to add ports to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path && @file_path != file_path
                 log_port = OutputPort.new(self,stream)
                 raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
                 @ports[log_port.name] = log_port
@@ -348,6 +449,24 @@ module Orocos
                 return false;
             end
 
+
+            # Returns the array of the names of available properties on this task
+            # context
+            def property_names
+                @properties.values
+            end
+
+            # Returns the array of the names of available attributes on this task
+            # context
+            def attribute_names
+                Array.new
+            end
+
+            # Returns true if +name+ is the name of a property on this task context
+            def has_property?(name)
+                properties.has_key?(name.to_str)
+            end
+
             # Returns true if this task has a command with the given name.
             # In this case it always returns false because a TaskContext does not have
             # command.
@@ -360,6 +479,24 @@ module Orocos
             def has_port?(name)
                 name = name.to_s
                 return @ports.has_key?(name)
+            end
+
+            # Iterates through all simulated properties.
+            def each_port(&block)
+                @properties.each_value do |property|
+                    yield(property) if block_given?
+                end
+            end
+
+            #Returns the property with the given name.
+            #If no port can be found a exception is raised.
+            def property(name, verify = true)
+                name = name.to_str
+                if @properties[name]
+                    return @properties[name]
+                else
+                    raise NotFound, "no property named '#{name}' on log task '#{self.name}'"
+                end
             end
 
             # Iterates through all simulated ports.
@@ -454,6 +591,9 @@ module Orocos
                   _port.filter = block if block         #overwirte filer
                   return _port
                 end
+                if has_property?(m) 
+                   return property(m)
+                end
                 super(m.to_sym, *args)
             end
         end
@@ -463,8 +603,17 @@ module Orocos
         #
         #This class creates TaskContexts and OutputPorts to simulate the recorded tasks.
         class Replay
+            class << self 
+                attr_accessor :log_config_file 
+            end
+            @log_config_file = "task_configuration"
+            
             #desired replay speed = 1 --> record time
             attr_accessor :speed            
+
+            #name of the log file which holds the logged properties
+            #is converted into Regexp
+            attr_accessor :log_config_file            
             
             #last replayed sample
             attr_reader :current_sample
@@ -478,6 +627,11 @@ module Orocos
             #array of all replayed ports  
             #this array is filled after align was called
             attr_accessor :replayed_ports
+
+            #array of all replayed properties
+            #this array is filled after align was called
+            attr_accessor :replayed_properties
+
 
             #set it to true if processing of qt events is needed during synced replay
             attr_accessor :process_qt_events             
@@ -515,11 +669,14 @@ module Orocos
                 @tasks = Hash.new
                 @speed = 1
                 @replayed_ports = Array.new
+                @replayed_properties = Array.new
+                @replayed_objects = Array.new
                 @used_streams = Array.new
                 @stream = nil
                 @current_sample = nil
                 @ports = Hash.new
                 @process_qt_events = false
+                @log_config_file = Replay::log_config_file
                 reset_time_sync
                 time_sync
             end
@@ -655,6 +812,17 @@ module Orocos
                     port.set_replay
                 end
 
+                #get all properties which shall be replayed
+                each_task do |task|
+                    if task.used?
+                        task.properties.values.each do |property|
+                            @replayed_properties << property
+                            @used_streams << property.stream
+                        end
+                    end
+                end
+                @replayed_objects = @replayed_ports + @replayed_properties
+
                 puts ""
                 puts "Aligning streams --> all ports which are unused will not be loaded!!!"
                 puts ""
@@ -775,9 +943,9 @@ module Orocos
                 end
                 @actual_speed = required_delta/actual_delta*@speed
 
-                #write sample to connected ports
-                @replayed_ports[index].write(data)
-                yield(@replayed_ports[index],data) if block_given?
+                #write sample to simulated ports or properties
+                @replayed_objects[index].write(data)
+                yield(@replayed_objects[index],data) if block_given?
                 @current_sample
             end
 
@@ -878,13 +1046,13 @@ module Orocos
                     task_name = task_name[1]
                     task = @tasks[task_name]
                     if !task
-                        task = @tasks[task_name]= TaskContext.new(task_name, path)
+                        task = @tasks[task_name]= TaskContext.new(task_name, path,@log_config_file)
                         result << task
                     end
                     if s.empty?
                         puts "    ignored empty stream #{s.name} (#{s.type_name})"
                     else
-                        ports[s.name] = task.add_port(path,s)
+                        ports[s.name] = task.add_stream(path,s)
                         puts "    loading stream #{s.name} (#{s.type_name})"
                     end
                 end
