@@ -28,7 +28,7 @@ module Orocos
             # (note: we dup'ed the 'threads' hash)
             Dir.glob("/proc/#{pid}/task/*") do |thread_path|
                 tid = Integer(File.basename(thread_path))
-                threads[tid] ||= "#{process_name}-#{tid}"
+                threads[tid] ||= "#{pid}-#{tid}"
             end
         end
 
