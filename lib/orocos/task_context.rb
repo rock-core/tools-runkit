@@ -1,4 +1,5 @@
 require 'utilrb/object/attribute'
+require 'orocos/nameservice'
 
 module Orocos
     # Emitted when an interface object is requested, that does not exist
@@ -309,9 +310,8 @@ module Orocos
                     end
             end
 
-            result = CORBA.refine_exceptions("naming service") do
-                do_get(name)
-            end
+            result = Nameservice::resolve(name)
+
             result.instance_variable_set :@process, process
             result.instance_variable_set :@name, name
             result.send(:initialize)
