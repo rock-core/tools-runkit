@@ -174,10 +174,12 @@ module Orocos
             begin
                 options = validate_options options, :wait => nil, :output => nil, :working_directory => nil, :valgrind => false, :valgrind_options => []
 
-		options[:wait] ||=
-		    if options[:valgrind] then 60
-		    else 2
-		    end
+                if options[:wait].nil?
+                    options[:wait] ||=
+                        if options[:valgrind] then 60
+                        else 2
+                        end
+                end
 		    
                 valgrind = options[:valgrind]
                 if !valgrind.respond_to?(:to_hash)
