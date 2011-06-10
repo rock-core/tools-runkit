@@ -876,6 +876,20 @@ module Orocos
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an operation named #{name}", e.backtrace
         end
 
+        # Calls the required operation with the given argument
+        #
+        # This is a shortcut for operation(name).sendop(*arguments)
+        def callop(name, *args)
+            operation(name).callop(*args)
+        end
+
+        # Sends the required operation with the given argument
+        #
+        # This is a shortcut for operation(name).sendop(*arguments)
+        def sendop(name, *args)
+            operation(name).sendop(*args)
+        end
+
         def method_missing(m, *args) # :nodoc:
             m = m.to_s
             if m =~ /^(\w+)=/
