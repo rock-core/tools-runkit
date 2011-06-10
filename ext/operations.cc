@@ -240,6 +240,9 @@ void Orocos_init_methods()
     rb_define_method(cSendHandle, "do_operation_collect", RUBY_METHOD_FUNC(send_handle_collect), 2);
     rb_define_method(cSendHandle, "do_operation_collect_if_done", RUBY_METHOD_FUNC(send_handle_collect_if_done), 2);
 
+    rb_const_set(mOrocos, rb_intern("SEND_SUCCESS"),       INT2FIX(RTT::corba::CSendSuccess));
+    rb_const_set(mOrocos, rb_intern("SEND_NOT_READY"),     INT2FIX(RTT::corba::CSendNotReady));
+    rb_const_set(mOrocos, rb_intern("SEND_FAILURE"),       INT2FIX(RTT::corba::CSendFailure));
     rb_const_set(cSendHandle, rb_intern("SEND_SUCCESS"),       INT2FIX(RTT::corba::CSendSuccess));
     rb_const_set(cSendHandle, rb_intern("SEND_NOT_READY"),     INT2FIX(RTT::corba::CSendNotReady));
     rb_const_set(cSendHandle, rb_intern("SEND_FAILURE"),       INT2FIX(RTT::corba::CSendFailure));
