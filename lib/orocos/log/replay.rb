@@ -618,9 +618,6 @@ module Orocos
             #last replayed sample
             attr_reader :current_sample
 
-            #array of all simulated tasks
-            attr_reader :tasks
-
             #array of all log ports  
             attr_accessor :ports
 
@@ -681,6 +678,10 @@ module Orocos
                 time_sync
             end
 
+            #returns an array of all simulated tasks
+            def tasks
+                @tasks.value
+            end
 
             #returns false if no ports are or will be replayed
             def replay? 
