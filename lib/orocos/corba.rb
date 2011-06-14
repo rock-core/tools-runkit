@@ -91,13 +91,18 @@ module Orocos
         # It does not need to be called explicitely, as it is called by
         # Orocos.initialize
 	def self.init
+
             if not Nameservice.available?
-                Nameservice::enable(:CORBA, :host => "127.0.0.1")
+                if not CORBA.name_service
+                    CORBA.name_service = "127.0.0.1"
+                end
+                Nameservice::enable(:CORBA, :host => CORBA.name_service)
             end
 
 	    if CORBA.name_service
 	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
 	    end
+
             do_init
             self.connect_timeout = 100
 	end

@@ -5,7 +5,7 @@ require 'pp'
 require 'utilrb/pkgconfig'
 
 if name_server = ARGV.shift
-    Orocos::CORBA.name_service = name_server
+    Nameservice::enable(:CORBA, :host => name_server)
 end
 
 Orocos.initialize
