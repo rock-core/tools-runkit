@@ -1074,8 +1074,8 @@ module Orocos
                tasks = Array.new
                paths.each do |path| 
                   #check if path is a directory
+                  path = File.expand_path(path)
                   if File.directory?(path)
-                      path = File.expand_path(path)
                       all_files = Dir.enum_for(:glob, File.join(path, '*.*.log'))
                       by_basename = all_files.inject(Hash.new) do |h, path|
                           split = path.match(/^(.*)\.(\d+)\.log$/)
