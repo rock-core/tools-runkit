@@ -680,7 +680,7 @@ module Orocos
 
             #returns an array of all simulated tasks
             def tasks
-                @tasks.value
+                @tasks.values
             end
 
             #returns false if no ports are or will be replayed
