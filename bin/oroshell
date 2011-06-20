@@ -1,0 +1,43 @@
+#! /usr/bin/env ruby
+
+require 'drb'
+require 'roby'
+require 'irb'
+
+components = ARGV.dup
+puts components.inspect
+
+IRB.setup(nil)
+puts components.inspect
+
+require 'orocos'
+Orocos.initialize
+
+b = nil
+Module.new do
+    puts components.inspect
+    singleton = class << self; self; end
+    components.each do |name|
+        singleton.class_eval do
+            attr_reader name
+        end
+        instance_variable_set("@#{name}", Orocos::TaskContext.get(name))
+    end
+
+    include Orocos
+
+    b = binding
+end
+
+ws  = IRB::WorkSpace.new(b)
+irb = IRB::Irb.new(ws)
+IRB.conf[:MAIN_CONTEXT] = irb.context
+
+trap("SIGINT") do
+    irb.signal_handle
+end
+
+catch(:IRB_EXIT) do
+    irb.eval_input
+end
+
