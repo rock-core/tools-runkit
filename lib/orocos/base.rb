@@ -62,7 +62,7 @@ module Orocos
     def self.task_model_from_name(name)
         tasklib_name = available_task_models[name]
         if !tasklib_name
-            raise ArgumentError, "no task model #{name} is registered"
+            raise Orocos::NotFound, "no task model #{name} is registered"
         end
 
         tasklib = Orocos.master_project.using_task_library(tasklib_name)

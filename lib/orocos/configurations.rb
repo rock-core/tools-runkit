@@ -426,7 +426,13 @@ module Orocos
             Dir.glob(File.join(dir, '*.yml')) do |file|
                 next if !File.file?(file)
                 model_name = File.basename(file, '.yml')
-                model = Orocos.task_model_from_name(model_name)
+                begin
+                    model = Orocos.task_model_from_name(model_name)
+                rescue Orocos::NotFound
+                    ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
+                    next
+                end
+
                 ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
                 conf[model.name] ||= TaskConfigurations.new(model)
 
