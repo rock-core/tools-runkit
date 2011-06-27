@@ -213,6 +213,14 @@ module Orocos
             nil
         end
 
+        # True if it is known that this task runs on the local machine
+        #
+        # This requires the process handling to be done by orocos.rb (the method
+        # checks if the process runs on the local machine)
+        def on_localhost?
+            process && process.on_localhost?
+        end
+
         def to_s
             "#<TaskContext: #{self.class.name}/#{name}>"
         end
