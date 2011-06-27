@@ -37,6 +37,7 @@ module Orocos
             threads = _threads.dup
             sent_operations = []
 
+            if on_localhost?
             processes.each do |pid|
                 resolve_process_threads(pid, threads)
             end
