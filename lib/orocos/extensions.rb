@@ -9,7 +9,7 @@ module Orocos
             end
 
             if !has_port?(port_name)
-                Orocos.debug "created logging port #{port_name} of type #{port.orocos_type_name}"
+                Orocos.info "created logging port #{port_name} of type #{port.orocos_type_name}"
                 createLoggingPort(port_name, port.orocos_type_name)
             end
 
@@ -49,10 +49,10 @@ module Orocos
                     if old_name == thread_name || !_threads[tid]
                         next
                     else
-                        Orocos.debug "renaming OS task statistics for #{tid} from #{old_name} to #{thread_name}"
+                        Orocos.info "#{name}: renaming OS task statistics for #{tid} from #{old_name} to #{thread_name}"
                     end
                 else
-                    Orocos.debug "watching OS task statistics for #{tid} with name #{thread_name}"
+                    Orocos.info "#{name}: watching OS task statistics for #{tid} with name #{thread_name}"
                 end
                 sent_operations << watch_op.sendop(thread_name, tid)
                 watched_tids[tid] = thread_name
