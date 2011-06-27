@@ -23,12 +23,12 @@ module Orocos
         attribute(:watched_pids) { Hash.new { |h, k| Array.new } }
         attribute(:watched_tids) { Hash.new }
 
-        def resolve_process_threads(pid, threads)
+        def resolve_process_threads(pid, process_name, threads)
             # First, convert the process IDs into their corresponding threads
             # (note: we dup'ed the 'threads' hash)
             Dir.glob("/proc/#{pid}/task/*") do |thread_path|
                 tid = Integer(File.basename(thread_path))
-                threads[tid] ||= "#{pid}-#{tid}"
+                threads[tid] ||= "#{process_name}-#{tid}"
             end
         end
 
@@ -38,8 +38,10 @@ module Orocos
             sent_operations = []
 
             if on_localhost?
-            processes.each do |pid|
-                resolve_process_threads(pid, threads)
+                processes.each do |pid, process_name|
+                    process_name ||= pid
+                    resolve_process_threads(pid, process_name, threads)
+                end
             end
 
             # We can now add watches for threads that are either not watched
