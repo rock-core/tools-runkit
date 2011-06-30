@@ -5,17 +5,14 @@ require 'roby'
 require 'irb'
 
 components = ARGV.dup
-puts components.inspect
 
 IRB.setup(nil)
-puts components.inspect
 
 require 'orocos'
 Orocos.initialize
 
 b = nil
 Module.new do
-    puts components.inspect
     singleton = class << self; self; end
     components.each do |name|
         singleton.class_eval do
