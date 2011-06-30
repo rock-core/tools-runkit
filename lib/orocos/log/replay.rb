@@ -366,6 +366,17 @@ module Orocos
                 @file_path_config = file_path_config
             end
 
+            #to be compatible wiht Orocos::TaskContext
+            #indecates if the task is replayed
+            def running?
+                used?
+            end
+
+            #to be compatible wiht Orocos::TaskContext
+            def reachable?
+                true
+            end
+
             #pretty print for TaskContext
 	    def pretty_print(pp)
                 pp.text "#{name}:"
