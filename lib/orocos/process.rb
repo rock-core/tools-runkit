@@ -29,6 +29,21 @@ module Orocos
     #   an array of options that should be passed to valgrind, e.g.
     #
     #     :valgrind_options => ["--track-origins=yes"]
+    # cmdline_args::
+    #   When command line arguments are available to deployments, they can be 
+    #   set using the following option:
+    #      :cmdline_args => { "sd-domain" => '_robot._tcp', "prefix" => "test" }
+    #   This will be mapped to '--sd-domain=_robot._tcp --prefix=test'
+    #  
+    #   Existing commandline arguments:
+    #   --sd-domain  
+    #   the service discovery domain in which this process should be published
+    #   This is only supported by deployments and orogen if the service_discovery
+    #   package has been installed along with orogen
+    #   The sd domain is of the format: <name>.<suffix> where the suffix has to 
+    #   be one of _tcp or _udp
+    #   
+    # 
     def self.run(*args, &block)
         Process.spawn(*args, &block)
     end
@@ -172,13 +187,17 @@ module Orocos
             end
 
             begin
-                options = validate_options options, :wait => nil, :output => nil, :working_directory => nil, :valgrind => false, :valgrind_options => []
+                options = validate_options options, :wait => nil, :output => nil, :working_directory => nil, :valgrind => false, :valgrind_options => [], :cmdline_args => nil
 
                 if options[:wait].nil?
                     options[:wait] ||=
                         if options[:valgrind] then 60
                         else 2
                         end
+                end
+
+                if options[:cmdline_args].nil?
+                    options[:cmdline_args] = Hash.new
                 end
 		    
                 valgrind = options[:valgrind]
@@ -203,7 +222,7 @@ module Orocos
                                  options[:output].gsub '%m', name
                              end
 
-                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind[name])
+                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind[name], :cmdline_args => options[:cmdline_args])
                 end
 
                 # Finally, if the user required it, wait for the processes to run
@@ -270,7 +289,7 @@ module Orocos
             end
 
             options = Kernel.validate_options options, :output => nil,
-                :valgrind => nil, :working_directory => nil
+                :valgrind => nil, :working_directory => nil, :cmdline_args => nil
             output   = options[:output]
             if options[:valgrind]
                 valgrind = true
@@ -322,7 +341,19 @@ module Orocos
                     cmdline = valgrind_options + cmdline
                     cmdline.unshift "valgrind"
                 end
-
+                
+                # Command line arguments have to be of type --<option>=<value>
+                # or if <value> is nil a valueless option, i.e. --<option>
+                cmdline_args = options[:cmdline_args]
+                if cmdline_args
+                    cmdline_args.each do |option, value|
+                        if value
+                            cmdline.push "--#{option}=#{value}"
+                        else
+                            cmdline.push "--#{option}"
+                        end
+                    end
+                end
 		read.close
 		write.fcntl(Fcntl::F_SETFD, 1)
 		::Process.setpgrp
