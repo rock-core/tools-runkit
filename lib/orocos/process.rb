@@ -365,10 +365,10 @@ module Orocos
                 start_time = Time.now
                 got_alive = process.alive?
                 while true
-                    if wait_running(process, 0)
-                        return true
-                    elsif timeout && timeout < (Time.now - start_time)
-                        raise Orocos::NotFound, "cannot get a running #{name} module"
+                    if not timeout
+                        break
+                    elsif timeout < Time.now - start_time
+                        break
                     end
 
                     if got_alive && !process.alive?
@@ -376,11 +376,17 @@ module Orocos
                     end
                     sleep 0.1
                 end
+
+                if process.alive?
+                    return true
+                else
+                    raise Orocos::NotFound, "cannot get a running #{name} module"
+                end
 	    end
 	end
 
         # Wait for the module to be started. If timeout is 0, the function
-        # returns immediatly, with a false return value if the module is not
+        # returns immediately, with a false return value if the module is not
         # started yet and a true return value if it is started.
         #
         # Otherwise, it waits for the process to start for the specified amount
