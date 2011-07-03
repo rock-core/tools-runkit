@@ -15,10 +15,13 @@ b = nil
 Module.new do
     singleton = class << self; self; end
     components.each do |name|
+        task_name, var_name = name.split(':')
+        var_name ||= task_name
+
         singleton.class_eval do
-            attr_reader name
+            attr_reader var_name
         end
-        instance_variable_set("@#{name}", Orocos::TaskContext.get(name))
+        instance_variable_set("@#{var_name}", Orocos::TaskContext.get(task_name))
     end
 
     include Orocos
