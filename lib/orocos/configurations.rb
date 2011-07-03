@@ -97,19 +97,21 @@ module Orocos
                 result = YAML.load(StringIO.new(doc))
                 if result
                     conf = config_from_hash(result)
-                    conf_options = options[idx].first
-                    name = conf_options['name']
-
-                    if self.sections[name]
-                        if conf_options['merge']
-                            conf = merge_conf(self.sections[name], conf, true)
-                        end
-                        if self.sections[name] != conf
-                            changed_sections << name
-                        end
-                    end
-                    self.sections[name] = conf
+                else
+                    conf = Hash.new
                 end
+
+                conf_options = options[idx].first
+                name = conf_options['name']
+                if self.sections[name]
+                    if conf_options['merge']
+                        conf = merge_conf(self.sections[name], conf, true)
+                    end
+                    if self.sections[name] != conf
+                        changed_sections << name
+                    end
+                end
+                self.sections[name] = conf
             end
             changed_sections
         rescue Exception => e
