@@ -139,9 +139,10 @@ module Orocos
 
             # Force unregistering the task contexts from CORBA naming
             # service
-            task_names.each do |name|
-                Orocos::CORBA.unregister(name)
-            end
+            # task_names.each do |name|
+            #     puts "deregistering #{name}"
+            #     Orocos::CORBA.unregister(name)
+            # end
 	end
 
 	@@logfile_indexes = Hash.new
