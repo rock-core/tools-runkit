@@ -477,6 +477,9 @@ module Orocos
                 end
             end
             @state_queue
+
+        rescue CORBA::ComError
+            @state_queue = []
         end
 
         # True if we got a state change announcement
