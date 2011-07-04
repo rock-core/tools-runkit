@@ -408,9 +408,9 @@ module Orocos
                 begin
                     each_task do |task|
                         begin
-                            task.stop
+                            task.stop(false)
                             if task.model && task.model.needs_configuration?
-                                task.cleanup
+                                task.cleanup(false)
                             end
                         rescue StateTransitionFailed
                         end
