@@ -113,6 +113,9 @@ module Orocos
                 end
                 self.sections[name] = conf
             end
+	    if !changed_sections.empty?
+	    	@merged_conf.clear
+	    end
             changed_sections
         rescue Exception => e
             raise e, "error loading #{file}: #{e.message}", e.backtrace
