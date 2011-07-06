@@ -310,6 +310,9 @@ module Orocos
         end
 
         def orogen_project_description(name)
+	    if !server.available_projects.has_key?(name)
+	    	raise ArgumentError, "no project named #{name} is registered on #{server}"
+	    end
             return nil, server.available_projects[name]
         end
     end
