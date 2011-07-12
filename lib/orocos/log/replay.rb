@@ -411,6 +411,8 @@ module Orocos
                 if Regexp.new(@file_path_config).match(file_path)
                     log = add_property(file_path,stream)
                 else
+                    #check if we accidentally saved the property file into the file_path
+                    @file_path = file_path if Regexp.new(@file_path_config).match(@file_path)
                     log = add_port(file_path,stream)
                 end
                 log
@@ -426,8 +428,8 @@ module Orocos
                 end
                 if @file_path == file_path
                     @file_path = nil 
-                    @file_path_config = file_path
                 end
+                @file_path_config = file_path
 
                 log_property = Property.new(self,stream)
                 raise ArgumentError, "The log file #{file_path} is already loaded" if @properties.has_key?(log_property.name)

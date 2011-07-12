@@ -154,9 +154,10 @@ module Orocos
 
             # Force unregistering the task contexts from CORBA naming
             # service
-            task_names.each do |name|
-                Orocos::CORBA.unregister(name)
-            end
+            # task_names.each do |name|
+            #     puts "deregistering #{name}"
+            #     Orocos::CORBA.unregister(name)
+            # end
 	end
 
 	@@logfile_indexes = Hash.new
@@ -444,9 +445,9 @@ module Orocos
                 begin
                     each_task do |task|
                         begin
-                            task.stop
+                            task.stop(false)
                             if task.model && task.model.needs_configuration?
-                                task.cleanup
+                                task.cleanup(false)
                             end
                         rescue StateTransitionFailed
                         end

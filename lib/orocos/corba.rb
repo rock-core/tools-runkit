@@ -104,7 +104,8 @@ module Orocos
 	    end
 
             do_init
-            self.connect_timeout = 100
+            # self.call_timeout    = 10000
+            # self.connect_timeout = 10000
 	end
 
         # Improves exception messages for exceptions that are raised from the
