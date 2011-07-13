@@ -189,7 +189,7 @@ module Orocos
                 raise "Cannot create OutputPort out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
-                raise 'Stream name does not follow the convention TASKNAME.PORTNAME' if @name == nil
+                raise 'Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME' if @name == nil
                 @name = @name[1]
                 @type = stream.type
                 @type_name = stream.typename
@@ -1056,7 +1056,7 @@ module Orocos
                 puts "  loading log file #{path}"
                 file.streams.each do |s|
                     task_name = s.name.to_s.match(/^(.*)\./)
-                    raise 'Stream name does not follow the convention TASKNAME.PORTNAME' if task_name == nil
+                    raise "Stream name (#{s.name}) does not follow the convention TASKNAME.PORTNAME" if task_name == nil
                     task_name = task_name[1]
                     task = @tasks[task_name]
                     if !task
