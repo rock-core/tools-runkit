@@ -157,7 +157,11 @@ module Orocos
                     elsif value.respond_to?(:to_ary)
                         config_from_array(value, value_t)
                     else
-                        Typelib.from_ruby(value, value_t)
+			begin
+			    Typelib.from_ruby(value, value_t)
+			rescue Exception => e 
+			    raise ArgumentError, "could not convert value for #{key}. #{e}"
+			end
                     end
 
                 result[key] = value
