@@ -154,6 +154,13 @@ module Orocos
         load_typekit(typekit_name)
     end
 
+    # Returns the type that is used to manipulate +t+ in Typelib
+    #
+    # For simple types, it is +t+ itself. For opaque types, it will be the
+    # corresponding marshalling type. The returned value is a subclass of
+    # Typelib::Type
+    #
+    # Raises Typelib::NotFound if this type is not registered anywhere.
     def self.typelib_type_for(t)
         if t.respond_to?(:name)
             return t if !t.contains_opaques?
