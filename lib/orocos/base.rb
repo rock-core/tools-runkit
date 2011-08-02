@@ -42,6 +42,16 @@ module Orocos
         # The set of available task models, as a mapping from the model name
         # into the task library name that defines it
         attr_reader :available_task_models
+
+        # The set of available typekits, as a mapping from the typekit name to a
+        # PkgConfig object
+        attr_reader :available_typekits
+
+        # The set of available types, as a mapping from the type name to a
+        # [typekit_name, exported] pair, where +typekit_name+ is the name of the
+        # typekit that defines it, and +exported+ is a boolean which is true if
+        # the type is registered on the RTT type system and false otherwise.
+        attr_reader :available_types
     end
     @use_mq_warning = true
 
@@ -57,34 +67,6 @@ module Orocos
     def self.has_typekit?(name)
         pkg, _ = available_projects[name]
         pkg && pkg.type_registry
-    end
-
-    def self.task_model_from_name(name)
-        tasklib_name = available_task_models[name]
-        if !tasklib_name
-            raise Orocos::NotFound, "no task model #{name} is registered"
-        end
-
-        tasklib = Orocos.master_project.using_task_library(tasklib_name)
-        tasklib.tasks[name]
-    end
-
-    def self.typelib_type_for(t)
-        if t.respond_to?(:name)
-            return t if !t.contains_opaques?
-            t = t.name
-        end
-
-        begin
-            typelib_type = do_typelib_type_for(t)
-            return registry.get(typelib_type)
-        rescue ArgumentError
-            type = Orocos.master_project.find_type(t)
-            if !type.contains_opaques?
-                return type
-            end
-            return Orocos.master_project.intermediate_type_for(type)
-        end
     end
 
     def self.orocos_target
@@ -110,6 +92,18 @@ module Orocos
         else
             available_projects[pkg.project_name] = [pkg, pkg.deffile]
         end
+    end
+
+    # Returns the task model object whose name is +name+, or raises
+    # Orocos::NotFound if none exists
+    def self.task_model_from_name(name)
+        tasklib_name = available_task_models[name]
+        if !tasklib_name
+            raise Orocos::NotFound, "no task model #{name} is registered"
+        end
+
+        tasklib = Orocos.master_project.using_task_library(tasklib_name)
+        tasklib.tasks[name]
     end
 
     # Loads a directory containing configuration files
@@ -166,6 +160,30 @@ module Orocos
             available_task_libraries.each do |tasklib_name, tasklib_pkg|
                 tasklib_pkg.task_models.split(",").
                     each { |class_name| available_task_models[class_name] = tasklib_name }
+            end
+        end
+
+        if !available_typekits
+            @available_typekits = Hash.new
+            Utilrb::PkgConfig.each_package(/-typekit-#{Orocos.orocos_target}$/) do |pkg_name|
+                pkg = Utilrb::PkgConfig.new(pkg_name)
+                typekit_name = pkg_name.gsub(/-typekit-#{Orocos.orocos_target}$/, '')
+                available_typekits[typekit_name] = pkg
+            end
+        end
+
+        if !available_types
+            @available_types = Hash.new
+            available_typekits.each do |typekit_name, typekit_pkg|
+                typelist = typekit_pkg.type_registry.gsub(/tlb$/, 'typelist')
+                typelist, typelist_exported =
+                    Orocos::Generation::ImportedTypekit.parse_typelist(File.read(typelist))
+                typelist.each do |typename|
+                    @available_types[typename] = [typekit_name, false]
+                end
+                typelist_exported.each do |typename|
+                    @available_types[typename] = [typekit_name, true]
+                end
             end
         end
     end

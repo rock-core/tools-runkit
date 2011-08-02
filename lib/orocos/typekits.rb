@@ -138,10 +138,37 @@ module Orocos
 
     # Loads all typekits that are available on this system
     def self.load_all_typekits
-        Orocos.available_projects.each_key do |project_name|
-            if master_project.has_typekit?(project_name)
-                load_typekit(project_name)
+        Orocos.available_typekits.each_key do |typekit_name|
+            load_typekit(project_name)
+        end
+    end
+
+    # Looks for, and loads, the typekit that handles the specified type
+    def self.load_typekit_for(typename, exported = true)
+        typekit_name, is_exported = Orocos.available_types[typename]
+        if !typekit_name
+            raise ArgumentError, "no type #{typename} has been registered in oroGen components"
+        elsif exported && !is_exported
+            raise ArgumentError, "the type #{typename} is registered, but is not exported to the RTT type system"
+        end
+        load_typekit(typekit_name)
+    end
+
+    def self.typelib_type_for(t)
+        if t.respond_to?(:name)
+            return t if !t.contains_opaques?
+            t = t.name
+        end
+
+        begin
+            typelib_type = do_typelib_type_for(t)
+            return registry.get(typelib_type)
+        rescue ArgumentError
+            type = Orocos.master_project.find_type(t)
+            if !type.contains_opaques?
+                return type
             end
+            return Orocos.master_project.intermediate_type_for(type)
         end
     end
 end
