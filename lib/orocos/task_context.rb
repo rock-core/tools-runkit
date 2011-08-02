@@ -911,22 +911,24 @@ module Orocos
                 end
 
             else
-                if has_port?(m)
+                if has_port?(m) && args.empty?
                     return port(m)
                 elsif has_operation?(m)
                     return operation(m).callop(*args)
                 end
 
-                begin
-                    prop = property(m)
-                    value = prop.read(*args)
-                    if block_given?
-                        yield(value)
-                        prop.write(value)
-                    end
-                    return value
-                rescue Orocos::NotFound
-                end
+		if args.empty?
+		    begin
+			prop = property(m)
+			value = prop.read(*args)
+			if block_given?
+			    yield(value)
+			    prop.write(value)
+			end
+			return value
+		    rescue Orocos::NotFound
+		    end
+		end
             end
             super(m.to_sym, *args)
         end
