@@ -144,7 +144,21 @@ module Orocos
     end
 
     # Looks for, and loads, the typekit that handles the specified type
+    #
+    # If +exported+ is true (the default), the type needs to be both defined and
+    # exported by the typekit.
+    #
+    # Raises ArgumentError if this type is registered nowhere, or if +exported+
+    # is true and the type is not exported.
     def self.load_typekit_for(typename, exported = true)
+        if typename.respond_to?(:name)
+            typename = typename.name
+        end
+
+        if registered_type?(typename)
+            return
+        end
+
         typekit_name, is_exported = Orocos.available_types[typename]
         if !typekit_name
             raise ArgumentError, "no type #{typename} has been registered in oroGen components"

@@ -299,6 +299,12 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
     return obj;
 }
 
+static VALUE orocos_registered_type_p(VALUE mod, VALUE type_name)
+{
+    RTT::types::TypeInfo* ti = get_type_info(static_cast<char const*>(StringValuePtr(type_name)), false);
+    return ti ? Qtrue : Qfalse;
+}
+
 static VALUE orocos_typelib_type_for(VALUE mod, VALUE type_name)
 {
     RTT::types::TypeInfo* ti = get_type_info(static_cast<char const*>(StringValuePtr(type_name)), false);
@@ -780,6 +786,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_singleton_method(mOrocos, "do_initialize", RUBY_METHOD_FUNC(orocos_do_initialize), 0);
     rb_define_singleton_method(mOrocos, "load_rtt_plugin",  RUBY_METHOD_FUNC(orocos_load_rtt_plugin), 1);
     rb_define_singleton_method(mOrocos, "load_rtt_typekit", RUBY_METHOD_FUNC(orocos_load_rtt_typekit), 1);
+    rb_define_singleton_method(mOrocos, "registered_type?", RUBY_METHOD_FUNC(orocos_registered_type_p), 1);
     rb_define_singleton_method(mOrocos, "do_typelib_type_for", RUBY_METHOD_FUNC(orocos_typelib_type_for), 1);
 
     cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
