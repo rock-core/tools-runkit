@@ -159,22 +159,24 @@ RTT::corba::CTaskContext_ptr CorbaAccess::findByIOR(std::string const& ior)
     if( ior.substr(0,3) != "IOR")
     	rb_raise(eNotFound, "task context could not be found - ior format invalid %s", ior.c_str());
 
-    RTT::corba::TaskContextProxy* taskProxy = 0;
-    try {
-        // Retrieve the control task by creating the proxy object from the ior
-        taskProxy = RTT::corba::TaskContextProxy::Create(ior, ior.substr(0,3) == "IOR");
-    } catch(CORBA::Exception&)
-    {
-       rb_raise(eNotFound, "cannot create a proxy object for ior '%s'. Initialize ORB first. ", ior.c_str());
-    }
-
-    // Then check we can actually access it
+    // Use the ior to create the task object reference,
+    CORBA::Object_var task_object =
+          orb->string_to_object ( ior.c_str() );
+    
     RTT::corba::CTaskContext_var mtask;
-    if(taskProxy)
+    // Now downcast the object reference to the appropriate type
+    mtask = RTT::corba::CTaskContext::_narrow (task_object.in());
+
+    if ( !CORBA::is_nil( mtask ) )
     {
-	return taskProxy->server();
-    } else {
-    	rb_raise(eNotFound, "task context for ior '%s' not found", ior.c_str());
+        try {
+            CORBA::String_var nm = mtask->getName();
+            return mtask._retn();
+        }
+        catch(CORBA::Exception&)
+        {
+            rb_raise(eNotFound, "cannot create a proxy object for ior '%s'. Initialize ORB first. ", ior.c_str());
+        }
     }
 }
 
