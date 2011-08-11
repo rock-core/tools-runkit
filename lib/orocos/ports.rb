@@ -32,7 +32,13 @@ module Orocos
         end
 
         def initialize
-            @type = Orocos.typelib_type_for(@orocos_type_name)
+            @type =
+                begin
+                    Orocos.typelib_type_for(@orocos_type_name)
+                rescue Typelib::NotFound
+                    Orocos.load_typekit_for(@orocos_type_name)
+                    Orocos.typelib_type_for(@orocos_type_name)
+                end
             @type_name = @type.name
 
             if model
