@@ -193,7 +193,7 @@ module Orocos
                 if options[:wait].nil?
                     options[:wait] ||=
                         if options[:valgrind] then 60
-                        else 2
+                        else 10
                         end
                 end
 
