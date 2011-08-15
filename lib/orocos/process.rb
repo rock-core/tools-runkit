@@ -45,7 +45,7 @@ module Orocos
     #   
     # 
     def self.run(*args, &block)
-        Process.spawn(*args, &block)
+        Process.run(*args, &block)
     end
 
     # Deprecated. Use Orocos.run instead.
@@ -178,7 +178,7 @@ module Orocos
         # Deprecated
         #
         # Use Orocos.run directly instead
-        def self.spawn(*names)
+        def self.run(*names)
             if !Orocos::CORBA.initialized?
                 raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
             end
