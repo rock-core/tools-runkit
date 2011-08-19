@@ -233,6 +233,9 @@ module Orocos
                     desired_name = desired_name.to_s
 
                     if Orocos.available_task_models[name]
+                        if desired_name == name
+                            raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
+                        end
                         process = Process.new(Orocos::Generation.default_deployment_name(name))
                         process.map_name(Orocos::Generation.default_deployment_name(name), desired_name)
                     else
