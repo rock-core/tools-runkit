@@ -663,6 +663,11 @@ module Orocos
             #this can be different to speed if the hard disk is too slow  
             attr_reader :actual_speed
 
+            #Map of current Timestamps that should be displayes in the logstream
+            #and can be accessed by next_marker or prev_marker jump function
+            #to fine something interesting in the streams
+            attr_reader :markers
+
             def self.open(*path)
                 replay = new
 	        replay.load(*path)
@@ -691,6 +696,7 @@ module Orocos
                 @ports = Hash.new
                 @process_qt_events = false
                 @log_config_file = Replay::log_config_file
+                @markers = SortedSet.new
                 reset_time_sync
                 time_sync
             end
@@ -720,12 +726,33 @@ module Orocos
 		    pp.breakable
 		    pp.text "replay speed = #{@speed}"
 		    pp.breakable
+		    pp.text "Markers = #{@markers}"
+		    pp.breakable
 		    pp.text "TaskContext(s):"
 		    @tasks.each_value do |task|
 			pp.breakable
 			task.pretty_print(pp)
 		    end
 		end
+            end
+
+            def next_marker
+                @markers.each do |sample|
+                    pp sample
+                    if sample > time
+                        seek(sample)
+                        return
+                    end
+                end
+            end
+            
+            def prev_marker
+                @markers.to_a.reverse_each do |sample|
+                    if sample < time
+                        seek(sample)
+                        return
+                    end
+                end
             end
 
             #Sets a code block to calculate the default timestamp duricng replay.
@@ -866,6 +893,30 @@ module Orocos
 
                 reset_time_sync
                 return step
+            end
+
+            def advance
+                if(@stream)
+                    return @stream.advance
+                else
+                    pp "Stream is nil"
+                    return NIL
+                end
+            end
+
+
+            def get_stream_index_for_name(name)
+                if @stream
+                    return @stream.get_stream_index_for_name(name)
+                end
+                return NIL
+            end
+            
+            def get_stream_index_for_type(name)
+                if @stream
+                    return @stream.get_stream_index_for_type(name)
+                end
+                return NIL
             end
 
 	    def aligned?
