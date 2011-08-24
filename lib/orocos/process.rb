@@ -397,7 +397,9 @@ module Orocos
                 start_time = Time.now
                 got_alive = process.alive?
                 while true
-                    if not timeout
+		    if wait_running(process, 0)
+			break
+                    elsif not timeout
                         break
                     elsif timeout < Time.now - start_time
                         break
