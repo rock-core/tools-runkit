@@ -103,7 +103,11 @@ module Orocos
         end
 
         tasklib = Orocos.master_project.using_task_library(tasklib_name)
-        tasklib.tasks[name]
+        result = tasklib.tasks[name]
+        if !result
+            raise InternalError, "while looking up model of #{name}: found project #{tasklib_name}, but this project does not actually have a task model called #{name}"
+        end
+        result
     end
 
     # Loads a directory containing configuration files
