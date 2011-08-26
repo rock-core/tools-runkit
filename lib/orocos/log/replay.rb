@@ -735,6 +735,11 @@ module Orocos
 		    end
 		end
             end
+            
+            def get_sample_index()
+                return @stream.sample_index if @stream
+                return nil
+            end
 
             def single_data(id)
                 if @stream
