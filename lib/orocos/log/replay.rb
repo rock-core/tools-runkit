@@ -736,6 +736,12 @@ module Orocos
 		end
             end
 
+            def single_data(id)
+                if @stream
+                    return @stream.single_data(id)
+                end
+            end
+
             def next_marker
                 @markers.each do |sample|
                     pp sample
