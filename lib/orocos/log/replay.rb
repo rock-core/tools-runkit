@@ -736,6 +736,14 @@ module Orocos
 		end
             end
             
+            def get_sample_index_for_time(time)
+                prev_pos = get_sample_index
+                seek(time)
+                target_sample_pos = get_sample_index
+                seek(prev_pos)
+                return target_sample_pos
+            end
+            
             def get_sample_index()
                 return @stream.sample_index if @stream
                 return nil
