@@ -441,8 +441,12 @@ module Orocos
                     ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
                     next
                 end
+		if not model
+                  ConfigurationManager.warn "ignoring coniguration for file #{file} because resulting task model is nil"
+		  next
+		end
 
-                ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
+		ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
                 conf[model.name] ||= TaskConfigurations.new(model)
 
                 changed_configurations = conf[model.name].load_from_yaml(file)
