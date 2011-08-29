@@ -918,8 +918,7 @@ module Orocos
                 if(@stream)
                     return @stream.advance
                 else
-                    pp "Stream is nil"
-                    return NIL
+                    throw "Stream is not initialized yet"
                 end
             end
 
@@ -928,14 +927,14 @@ module Orocos
                 if @stream
                     return @stream.get_stream_index_for_name(name)
                 end
-                return NIL
+                    throw "Stream is not initialized yet"
             end
             
             def get_stream_index_for_type(name)
                 if @stream
                     return @stream.get_stream_index_for_type(name)
                 end
-                return NIL
+                    throw "Stream is not initialized yet"
             end
 
 	    def aligned?
