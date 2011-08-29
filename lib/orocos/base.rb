@@ -254,5 +254,22 @@ module Orocos
             yield(task) if task
         end
     end
+
+    # Polls the state of this set of task, and announces when a state changed
+    def self.watch(*tasks)
+        tasks.each do |t|
+            s = t.state
+            puts "#{t.name}: in state #{s}"
+        end
+
+        while true
+            tasks.each do |t|
+                if t.state_changed?
+                    s = t.state(false)
+                    puts "#{t.name}: state changed to #{s}"
+                end
+            end
+        end
+    end
 end
 
