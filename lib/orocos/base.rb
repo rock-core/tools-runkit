@@ -269,6 +269,7 @@ module Orocos
                     puts "#{t.name}: state changed to #{s}"
                 end
             end
+            sleep 0.1
         end
     end
 end
