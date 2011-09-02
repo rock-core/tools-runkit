@@ -269,6 +269,7 @@ module Orocos
                     puts "#{t.name}: state changed to #{s}"
                 end
             end
+            yield if block_given?
             sleep 0.1
         end
     end
