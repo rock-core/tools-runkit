@@ -1,13 +1,7 @@
 require 'logger'
 require 'utilrb/logger'
 module Orocos
-    @logger = Logger.new(STDOUT)
-    @logger.level = Logger::WARN
-    @logger.progname = "Orocos.rb"
-    @logger.formatter = lambda { |severity, time, progname, msg| "#{progname}: #{msg}\n" }
-
-    extend Logger::Forward
-    extend Logger::Hierarchy
+    extend Logger::Root("Orocos.rb", Logger::WARN)
 
     def self.log_all
         log_all_ports
