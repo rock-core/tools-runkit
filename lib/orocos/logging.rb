@@ -101,11 +101,28 @@ module Orocos
         is_remote     = options[:remote]
         log_dir       = options[:log_dir]
 
+        candidates = process.model.task_activities.find_all do |d|
+            d.task_model.name == "logger::Logger"
+        end
+        candidates = candidates.map do |c|
+            process.name_mappings[c.name] || c.name
+        end
+
+        logger_name = nil
+        if candidates.size > 1
+            if t = candidates.find { |c| c.name == "#{process.name}_Logger" }
+                logger_name = t.name
+            end
+        elsif candidates.size == 1
+            logger_name = candidates.first
+        end
+        logger_name ||= "#{process.name}_Logger"
+
         logger =
             begin
-                TaskContext.get "#{process.name}_Logger"
-            rescue Orocos::NotFound
-                Orocos.warn "no logger defined on #{process.name}"
+                TaskContext.get logger_name
+            rescue
+                Orocos.warn "no default logger defined on #{process.name}, tried #{logger_name}"
                 return
             end
 

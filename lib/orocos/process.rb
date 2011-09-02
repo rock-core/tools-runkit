@@ -238,6 +238,7 @@ module Orocos
                         end
                         process = Process.new(Orocos::Generation.default_deployment_name(name))
                         process.map_name(Orocos::Generation.default_deployment_name(name), desired_name)
+                        process.map_name("#{Orocos::Generation.default_deployment_name(name)}_Logger", "#{desired_name}_Logger")
                     else
                         process = Process.new(name)
                     end
