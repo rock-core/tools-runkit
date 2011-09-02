@@ -396,13 +396,31 @@ module Orocos
         end
     end
 
+    # @deprecated use Orocos.apply_conf instead
+    def self.apply_conf_file(task, path, names = ['default'], overrides = true)
+        conf = TaskConfigurations.new(task.model)
+        conf.load_from_yaml(path)
+        conf.apply(task, names, overrides)
+        task
+    end
+
     # Applies the configuration stored in +path+ on +task+. The selected
     # sections can be listed in +names+ (by default, uses the default
     # configuration).
     #
     # +overrides+ controls whether the sections listed in +names+ can override
     # each other, if a value set in one of them can be overriden by another one.
-    def self.apply_conf_file(task, path, names = ['default'], overrides = true)
+    #
+    # +path+ can either be a file or a directory. In the latter case, the
+    # configuration stored in path/model_name.yml will be used
+    def self.apply_conf(task, path, names = ['default'], overrides = true)
+        if File.directory?(path)
+            path = File.join(path, "#{task.model.name}.yml")
+            if !File.file?(path)
+                return
+            end
+        end
+
         conf = TaskConfigurations.new(task.model)
         conf.load_from_yaml(path)
         conf.apply(task, names, overrides)

@@ -103,7 +103,11 @@ module Orocos
         end
 
         tasklib = Orocos.master_project.using_task_library(tasklib_name)
-        tasklib.tasks[name]
+        result = tasklib.tasks[name]
+        if !result
+            raise InternalError, "while looking up model of #{name}: found project #{tasklib_name}, but this project does not actually have a task model called #{name}"
+        end
+        result
     end
 
     # Loads a directory containing configuration files
@@ -248,6 +252,25 @@ module Orocos
                        CORBA.unregister(name)
                    end
             yield(task) if task
+        end
+    end
+
+    # Polls the state of this set of task, and announces when a state changed
+    def self.watch(*tasks)
+        tasks.each do |t|
+            s = t.state
+            puts "#{t.name}: in state #{s}"
+        end
+
+        while true
+            tasks.each do |t|
+                if t.state_changed?
+                    s = t.state(false)
+                    puts "#{t.name}: state changed to #{s}"
+                end
+            end
+            yield if block_given?
+            sleep 0.1
         end
     end
 end

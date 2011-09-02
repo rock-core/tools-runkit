@@ -238,6 +238,7 @@ module Orocos
                         end
                         process = Process.new(Orocos::Generation.default_deployment_name(name))
                         process.map_name(Orocos::Generation.default_deployment_name(name), desired_name)
+                        process.map_name("#{Orocos::Generation.default_deployment_name(name)}_Logger", "#{desired_name}_Logger")
                     else
                         process = Process.new(name)
                     end
@@ -429,7 +430,9 @@ module Orocos
                 start_time = Time.now
                 got_alive = process.alive?
                 while true
-                    if not timeout
+		    if wait_running(process, 0)
+			break
+                    elsif not timeout
                         break
                     elsif timeout < Time.now - start_time
                         break
