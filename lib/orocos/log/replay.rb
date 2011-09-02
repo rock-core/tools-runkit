@@ -1,6 +1,17 @@
 # Module for replaying log files
 module Orocos
     module Log
+
+	# Exception if a port can not be initialized
+	class InitializePortError < RuntimeError
+	    def initialize( message, name )
+		super( message )
+		@port_name = name
+	    end
+
+	    attr_reader :port_name
+	end
+
         # Simulates an output port based on log files.
         # It has the same behavior like an OutputReader
         class OutputReader
@@ -189,13 +200,16 @@ module Orocos
                 raise "Cannot create OutputPort out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
-                if @name == nil
-									@name = "#{stream.name.to_s}"
-									STDERR.puts "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME, assuming as PORTNAME \"#{@name}\""
-								else	
-                	@name = @name[1]
-								end
-                @type = stream.type
+		if @name == nil
+		    @name = "#{stream.name.to_s}"
+		else	
+		    @name = @name[1]
+		end
+		begin
+		    @type = stream.type
+		rescue Exception => e
+		    raise InitializePortError.new( e.message, @name )
+		end
                 @type_name = stream.typename
                 @task = task
                 @connections = Array.new
@@ -363,6 +377,7 @@ module Orocos
             #* file_path => path of the log file
             def initialize(task_name,file_path,file_path_config)
                 @ports = Hash.new
+		@invalid_ports = Hash.new # ports that could not be loaded
                 @properties = Hash.new
                 @file_path = file_path
                 @name = task_name
@@ -447,10 +462,15 @@ module Orocos
             #* stream = stream which shall be simulated as OutputPort
             def add_port(file_path,stream)
                 raise "You are trying to add ports to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path && @file_path != file_path
-                log_port = OutputPort.new(self,stream)
+		begin
+		    log_port = OutputPort.new(self,stream)
+		    @ports[log_port.name] = log_port
+		    return log_port
+		rescue InitializePortError => error
+		    @invalid_ports[error.port_name] = error.message
+		    return nil
+		end
                 raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
-                @ports[log_port.name] = log_port
-                return log_port
             end
 
             #TaskContexts do not have attributes. 
@@ -495,7 +515,7 @@ module Orocos
             # Returns true if this task has a port with the given name.
             def has_port?(name)
                 name = name.to_s
-                return @ports.has_key?(name)
+                return @ports.has_key?(name) || @invalid_ports.has_key?(name)
             end
 
             # Iterates through all simulated properties.
@@ -529,6 +549,8 @@ module Orocos
                 name = name.to_str
                 if @ports[name]
                     return @ports[name]
+		elsif @invalid_ports[name]
+		    raise NotFound, "the port named '#{name}' on log task '#{self.name}' could not be loaded: #{@invalid_ports[name]}"
                 else
                     raise NotFound, "no port named '#{name}' on log task '#{self.name}'"
                 end
