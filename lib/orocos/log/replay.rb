@@ -762,16 +762,59 @@ module Orocos
 		    end
 		end
             end
-            
-            def get_sample_index_for_time(time)
-                prev_pos = get_sample_index
+           
+            Typelib.specialize '/logger/Marker' do
+                def <=>(object)
+                    self.time <=> object.time
+                end
+            end
+
+            def add_marker_stream_by_id(id)
+                #need to align first, sorry
+                align unless aligned?
+                rewind
+                before = Time.new
+
+                #don't use step, alining takes to much time we need only the header
+                #if later on more informations are requierd please re-read only current sample
+                while t = advance
+                  if(t[0] == id)
+                    sample = single_data(id)
+                    markers << sample 
+                  end
+                end
+                
+                #rewind to beginning
+                rewind
+            end
+
+
+
+            def add_marker_stream_by_type(type)
+                #need to align first, sorry
+                align unless aligned?
+                id = stream_index_for_type(type)
+                add_marker_stream_by_id(id) if id
+            end
+
+            def add_marker_stream_by_name(name)
+                #need to align first, sorry
+                align unless aligned?
+                #getting the ID for later header compareision
+                id = stream_index_for_name(name)
+                raise "Cannot find Marker Stream #{name}" if not id
+                add_marker_stream_by_id(id)
+            end
+
+            def sample_index_for_time(time)
+                prev_pos = sample_index
                 seek(time)
-                target_sample_pos = get_sample_index
+                target_sample_pos = sample_index
                 seek(prev_pos)
                 return target_sample_pos
             end
             
-            def get_sample_index()
+            def sample_index()
                 return @stream.sample_index if @stream
                 return nil
             end
@@ -785,7 +828,7 @@ module Orocos
             def next_marker
                 @markers.each do |sample|
                     pp sample
-                    if sample > time
+                    if sample.time > time
                         seek(sample)
                         return
                     end
@@ -794,7 +837,7 @@ module Orocos
             
             def prev_marker
                 @markers.to_a.reverse_each do |sample|
-                    if sample < time
+                    if sample.time < time
                         seek(sample)
                         return
                     end
@@ -947,16 +990,16 @@ module Orocos
             end
 
 
-            def get_stream_index_for_name(name)
+            def stream_index_for_name(name)
                 if @stream
-                    return @stream.get_stream_index_for_name(name)
+                    return @stream.stream_index_for_name(name)
                 end
                     throw "Stream is not initialized yet"
             end
             
-            def get_stream_index_for_type(name)
+            def stream_index_for_type(name)
                 if @stream
-                    return @stream.get_stream_index_for_type(name)
+                    return @stream.stream_index_for_type(name)
                 end
                     throw "Stream is not initialized yet"
             end
