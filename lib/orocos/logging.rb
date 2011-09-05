@@ -1,8 +1,6 @@
 require 'logger'
 require 'utilrb/logger'
 module Orocos
-    extend Logger::Root("Orocos.rb", Logger::WARN)
-
     def self.log_all
         log_all_ports
         log_all_configuration
