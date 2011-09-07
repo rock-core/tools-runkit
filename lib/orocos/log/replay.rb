@@ -571,7 +571,7 @@ module Orocos
                 return ports
             end
 
-            #Returns true if the task has used tasks
+            #Returns true if the task has used ports
             def used?
               !used_ports.empty?
             end
@@ -604,11 +604,23 @@ module Orocos
                 end
             end
 
-            #If set to true all ports are replayed
+            #If set to true all ports are replayed 
             #otherwise only ports are replayed which have a reader or
             #a connection to an other port
-            def track(value)
+            def track(value,filter = Hash.new)
+                options, filter = Kernel::filter_options(filter,[:ports,:types,:limit])
+                raise "Cannot understand filter: #{filter}" unless filter.empty?
+
                 @ports.each_value do |port|
+                    if(options.has_key? :ports)
+                        next unless port.name =~ options[:ports]
+                    end
+                    if(options.has_key? :types)
+                        next unless port.type_name =~ options[:types]
+                    end
+                    if(options.has_key? :limit)
+                        next unless port.number_of_samples <= options[:limit]
+                    end
                     port.tracked = value
                     Log.info "set" + port.stream.name + value.to_s
                 end
@@ -856,12 +868,14 @@ module Orocos
                 timestamps[type_name] = block
             end
 
-            #If set to true all ports are replayed
+            #If set to true all ports are replayed and are not filtered out by the
+            #filter
             #otherwise only ports are replayed which have a reader or
             #a connection to an other port
-            def track(value)
+            def track(value,filter=Hash.new)
+                options, filter = Kernel::filter_options(filter,[:tasks])
                 @tasks.each_value do |task|
-                    task.track(value)
+                    task.track(value,filter) if !options.has_key?(:tasks) || task.name =~ options[:tasks]
                 end
             end
 
