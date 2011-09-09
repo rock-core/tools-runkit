@@ -191,6 +191,8 @@ module Orocos
 
             if names.last.kind_of?(Hash)
                 options = names.pop
+            else
+                options = Hash.new
             end
 
             begin
