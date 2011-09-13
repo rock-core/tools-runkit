@@ -1197,7 +1197,7 @@ module Orocos
 
             #Seeks to the given position
             def seek(pos)
-                @stream.seek(pos)
+                @current_sample = @stream.seek(pos)
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
                     @replayed_ports[index].write(@stream.single_data(index))
