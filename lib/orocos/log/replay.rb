@@ -1204,6 +1204,12 @@ module Orocos
                 end
             end
 
+            #replays the last sample to the log port
+            def refresh
+                index, time, data = @current_sample
+                @replayed_objects[index].write(data)
+            end
+
             # Loads all the streams defined in the provided log file
             def load_log_file(file, path)
                 result = []
