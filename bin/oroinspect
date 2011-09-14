@@ -38,11 +38,11 @@ usage: oroinspect <search term>"
     opt.on('-C', 'turns on configuration display mode') do
         configuration_mode = true
     end
-    opt.on('--save FILE:SECTION', 'saves the task default configuration in the specified file. If a file is a directory, an automatic name will be generated') do |save_configuration|
-        if save_configuration =~ /:(\w+)$/
+    opt.on('--save FILE:SECTION', 'saves the task default configuration in the specified file. If a file is a directory, an automatic name will be generated') do |save_config|
+        if save_config =~ /:(\w+)$/
             save_configuration = [$`, $1]
         else
-            save_configuration = [save_configuration]
+            save_configuration = [save_config]
         end
     end
     opt.on('--debug') do
