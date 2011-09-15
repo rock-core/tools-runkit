@@ -76,7 +76,7 @@ module Orocos
             @type.new
         end
 
-        CONNECTION_POLICY_OPTIONS = {
+        DEFAULT_CONNECTION_POLICY = {
             :type => :data,
             :init => false,
             :pull => false,
@@ -85,6 +85,7 @@ module Orocos
             :lock => :lock_free,
             :transport => 0
         }
+        CONNECTION_POLICY_OPTIONS = DEFAULT_CONNECTION_POLICY.keys
 
         # A connection policy is represented by a hash whose elements are each
         # of the policy parameters. Valid policies are:
@@ -125,11 +126,11 @@ module Orocos
             elsif policy[:type] == :data && (policy[:size] && policy[:size] != 0)
                 raise ArgumentError, "there are no 'size' argument to data connections"
             end
-            policy[:size] ||= 0
             policy
         end
 
         def validate_policy(policy)
+            policy = validate_options policy, DEFAULT_CONNECTION_POLICY
             Port.validate_policy(policy)
         end
 
