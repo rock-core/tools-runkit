@@ -775,12 +775,6 @@ module Orocos
 		end
             end
            
-            Typelib.specialize '/logger/Marker' do
-                def <=>(object)
-                    self.time <=> object.time
-                end
-            end
-
             def add_marker_stream_by_id(id)
                 #need to align first, sorry
                 align unless aligned?
