@@ -189,9 +189,7 @@ module Orocos
                 raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
             end
 
-            if names.last.kind_of?(Hash)
-                options = names.pop
-            end
+            options = names.last.kind_of?(Hash) ? names.pop : Hash.new
 
             begin
                 options, mapped_names = filter_options options,
