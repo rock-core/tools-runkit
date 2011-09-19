@@ -735,7 +735,7 @@ module Orocos
                 @ports = Hash.new
                 @process_qt_events = false
                 @log_config_file = Replay::log_config_file
-                @markers = SortedSet.new
+                @markers = Array.new
                 reset_time_sync
                 time_sync
             end
@@ -790,6 +790,12 @@ module Orocos
                   end
                 end
                 
+                #sort markers
+                @markers.uniq!
+                @markers.sort! do |a,b|
+                    a.time <=> b.time
+                end
+
                 #rewind to beginning
                 rewind
             end
