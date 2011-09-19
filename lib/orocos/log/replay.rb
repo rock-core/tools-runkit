@@ -839,7 +839,6 @@ module Orocos
 
             def next_marker
                 @markers.each do |sample|
-                    pp sample
                     if sample.time > time
                         seek(sample)
                         return
