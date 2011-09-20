@@ -68,7 +68,7 @@ module Orocos::Log
       caller_obj.instance_exec(dest,src,&c.block)
     end
 
-    def conversion(old_type_name,new_type_name=nil,&block) 
+    def register(old_type_name,new_type_name=nil,&block) 
       new_type_name = old_type_name unless new_type_name
       raise 'Parameter old_type_name must be of type String' unless old_type_name.is_a? String
       raise 'Parameter new_type_name must be of type String' unless new_type_name.is_a? String
@@ -88,7 +88,7 @@ module Orocos::Log
 
     #method to register custom converters
     #it is allowed to use deep_cast insight the converter to convert subfields
-    def self.register(*parameter,&block)
+    def self.register_conversions(*parameter,&block)
       @converters << TypeConverter.new(*parameter,&block)
       @converters.sort!{|a,b| a.time_from <=> b.time_from}
     end
@@ -100,7 +100,7 @@ module Orocos::Log
       @pre_fix =""
     end
   
-    def register(*parameter,&block)
+    def register_conversions(*parameter,&block)
       @converters << TypeConverter.new(*parameter,&block)
       @converters.sort!{|a,b| a.time_from <=> b.time_from}
     end
