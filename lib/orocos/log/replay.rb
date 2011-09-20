@@ -735,7 +735,7 @@ module Orocos
                 @ports = Hash.new
                 @process_qt_events = false
                 @log_config_file = Replay::log_config_file
-                @markers = SortedSet.new
+                @markers = Array.new
                 reset_time_sync
                 time_sync
             end
@@ -775,12 +775,6 @@ module Orocos
 		end
             end
            
-            Typelib.specialize '/logger/Marker' do
-                def <=>(object)
-                    self.time <=> object.time
-                end
-            end
-
             def add_marker_stream_by_id(id)
                 #need to align first, sorry
                 align unless aligned?
@@ -796,6 +790,12 @@ module Orocos
                   end
                 end
                 
+                #sort markers
+                @markers.uniq!
+                @markers.sort! do |a,b|
+                    a.time <=> b.time
+                end
+
                 #rewind to beginning
                 rewind
             end
@@ -839,7 +839,6 @@ module Orocos
 
             def next_marker
                 @markers.each do |sample|
-                    pp sample
                     if sample.time > time
                         seek(sample)
                         return

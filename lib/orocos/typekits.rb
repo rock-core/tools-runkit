@@ -139,7 +139,7 @@ module Orocos
     # Loads all typekits that are available on this system
     def self.load_all_typekits
         Orocos.available_typekits.each_key do |typekit_name|
-            load_typekit(project_name)
+            load_typekit(typekit_name)
         end
     end
 
