@@ -129,6 +129,13 @@ module Orocos
             policy
         end
 
+        # fills missing policy fields with default values, checks 
+        # if the generated policy is valid and returns it
+        def self.prepare_policy(policy = Hash.new)
+            policy = DEFAULT_CONNECTION_POLICY.merge policy
+            Port.validate_policy(policy)
+        end
+
         def validate_policy(policy)
             policy = validate_options policy, DEFAULT_CONNECTION_POLICY
             Port.validate_policy(policy)
