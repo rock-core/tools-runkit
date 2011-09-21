@@ -39,7 +39,7 @@ module Orocos
                 @buffer = Array.new
                 @filter, policy = Kernel.filter_options(policy,[:filter])
                 @filter = @filter[:filter]
-                policy = Orocos::Port.validate_policy(policy)
+                policy = Orocos::Port.prepare_policy(policy)
                 @policy_type = policy[:type]
                 @buffer_size = policy[:size]
                 @last_update = Time.now
@@ -64,7 +64,7 @@ module Orocos
                   @last_update = port.last_update
                   return @filter.call(port.read) if @filter
                   return port.read
-                else
+                elsif @policy_type == :buffer
                   sample = @buffer.shift
                   if sample
                     return @filter.call(sample) if @filter
@@ -73,6 +73,8 @@ module Orocos
                     @last_update = port.last_update
                     return nil
                   end
+                else
+                    raise "Port policy #{@policy_type} is not supported."
                 end
             end
            
