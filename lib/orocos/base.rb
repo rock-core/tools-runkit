@@ -196,6 +196,12 @@ module Orocos
         attr_predicate :disable_sigchld_handler, true
     end
 
+    # Returns true if Orocos.initialize has been called and completed
+    # successfully
+    def self.initialized?
+        !!@initialized
+    end
+
     # Initialize the Orocos communication layer and load all the oroGen models
     # that are available.
     #
@@ -236,6 +242,7 @@ module Orocos
         end
 
         Orocos::CORBA.init
+        @initialized = true
     end
 
     # call-seq:
