@@ -196,6 +196,10 @@ module Orocos
         attr_predicate :disable_sigchld_handler, true
     end
 
+    def self.initialized?
+        CORBA.initialized?
+    end
+
     # Initialize the Orocos communication layer and load all the oroGen models
     # that are available.
     #
