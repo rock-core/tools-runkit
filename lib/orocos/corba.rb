@@ -90,8 +90,7 @@ module Orocos
         # 
         # It does not need to be called explicitely, as it is called by
         # Orocos.initialize
-	def self.init
-
+	def self.init(name = nil)
             if not Nameservice.available?
                 if not CORBA.name_service
                     CORBA.name_service = "127.0.0.1"
@@ -103,10 +102,18 @@ module Orocos
 	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
 	    end
 
-            do_init
+            do_init(name || "")
             # self.call_timeout    = 10000
             # self.connect_timeout = 10000
 	end
+
+        # Deinitializes the CORBA layer
+        #
+        # It shuts down the CORBA access and deregisters the Ruby process from
+        # the server
+        def self.deinit
+            do_deinit
+        end
 
         # Improves exception messages for exceptions that are raised from the
         # C++ extension

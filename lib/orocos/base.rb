@@ -210,7 +210,7 @@ module Orocos
     # a RuntimeError exception whose message will describe the particular
     # problem. See the "Error messages" package in the user's guide for more
     # information on how to fix those.
-    def self.initialize
+    def self.initialize(name = nil)
         if !registry
             self.load
         end
@@ -241,7 +241,7 @@ module Orocos
             end
         end
 
-        Orocos::CORBA.init
+        Orocos::CORBA.init(name)
         @initialized = true
     end
 
