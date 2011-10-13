@@ -180,6 +180,39 @@ module Orocos
         def setup_default_logger(options)
             Orocos.setup_default_logger(self, options)
         end
+
+        def self.parse_run_options(*names)
+            options = names.last.kind_of?(Hash) ? names.pop : Hash.new
+            options, mapped_names = filter_options options,
+                :wait => nil, :output => nil, :working_directory => nil,
+                :valgrind => false, :valgrind_options => [], :cmdline_args => nil
+
+
+            deployments, models = Hash.new, Hash.new
+            names.each { |n| mapped_names[n] = n }
+            mapped_names.each do |name, new_name|
+                if Orocos.available_task_models[name.to_s]
+                    if !new_name
+                        raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
+                    end
+                    models[name.to_s] = new_name.to_s
+                else
+                    deployments[name.to_s] = new_name.to_s || name.to_s
+                end
+            end
+
+            if options[:wait].nil?
+                options[:wait] ||=
+                    if options[:valgrind] then 60
+                    else 20
+                    end
+            end
+
+            if options[:cmdline_args].nil?
+                options[:cmdline_args] = Hash.new
+            end
+            return deployments, models, options
+        end
         
         # Deprecated
         #
@@ -189,30 +222,8 @@ module Orocos
                 raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
             end
 
-            options=
-                if names.last.kind_of?(Hash) then names.pop
-                else Hash.new
-                end
-
             begin
-                options, mapped_names = filter_options options,
-                    :wait => nil, :output => nil, :working_directory => nil,
-                    :valgrind => false, :valgrind_options => [], :cmdline_args => nil
-
-                names.each do |n|
-                    mapped_names[n] = n
-                end
-
-                if options[:wait].nil?
-                    options[:wait] ||=
-                        if options[:valgrind] then 60
-                        else 20
-                        end
-                end
-
-                if options[:cmdline_args].nil?
-                    options[:cmdline_args] = Hash.new
-                end
+                deployments, models, options = parse_run_options(*names)
 		    
                 valgrind = options[:valgrind]
                 if !valgrind.respond_to?(:to_hash)
@@ -221,7 +232,7 @@ module Orocos
                     elsif valgrind.respond_to?(:to_str)
                         valgrind = [valgrind]
                     elsif !valgrind.respond_to?(:to_ary)
-                        valgrind = names.dup
+                        valgrind = deployments.keys + models.keys
                     end
 
                     valgrind_options = options[:valgrind_options]
@@ -229,22 +240,15 @@ module Orocos
                 end
 
                 # First thing, do create all the named processes
-                processes = mapped_names.map do |name, desired_name|
-                    name = name.to_s
-                    desired_name = desired_name.to_s
-
-                    if Orocos.available_task_models[name]
-                        if desired_name == name
-                            raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
-                        end
-                        process = Process.new(Orocos::Generation.default_deployment_name(name))
-                        process.map_name(Orocos::Generation.default_deployment_name(name), desired_name)
-                        process.map_name("#{Orocos::Generation.default_deployment_name(name)}_Logger", "#{desired_name}_Logger")
-                    else
-                        process = Process.new(name)
-                    end
-
-                    [name, process]
+                processes = []
+                processes += deployments.map do |name, desired_name|
+                    [desired_name, Process.new(name)]
+                end
+                processes += models.map do |model_name, desired_name|
+                    process = Process.new(Orocos::Generation.default_deployment_name(model_name))
+                    process.map_name(Orocos::Generation.default_deployment_name(model_name), desired_name)
+                    process.map_name("#{Orocos::Generation.default_deployment_name(model_name)}_Logger", "#{desired_name}_Logger")
+                    [desired_name, process]
                 end
                 # Then spawn them, but without waiting for them
                 processes.each do |name, p|
