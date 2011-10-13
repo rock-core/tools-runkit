@@ -199,7 +199,7 @@ module Orocos
     # Returns true if Orocos.initialize has been called and completed
     # successfully
     def self.initialized?
-        !!@initialized
+        CORBA.initialized?
     end
 
     # Initialize the Orocos communication layer and load all the oroGen models
