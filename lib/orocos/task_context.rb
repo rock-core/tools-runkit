@@ -426,7 +426,11 @@ module Orocos
                     current_state = peek_current_state
                 end
                 CORBA.refine_exceptions(self) do
-                    do_#{m}
+                    begin
+                        do_#{m}
+                    rescue Orocos::StateTransitionFailed => e
+                        raise e, "\#{e.message} the '\#{self.name}' task\#{ " of type \#{self.model.name}" if self.model}", e.backtrace
+                    end
                 end
                 if wait_for_completion
                     while current_state == peek_current_state#{" && current_state != :#{target_state}" if target_state}
