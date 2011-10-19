@@ -7,6 +7,10 @@
 #include <rtt/transports/corba/CorbaLib.hpp>
 #include <rtt/transports/corba/TaskContextServer.hpp>
 #include <rtt/transports/corba/TaskContextProxy.hpp>
+#include <rtt/transports/corba/CorbaDispatcher.hpp>
+
+#include <rtt/Activity.hpp>
+
 #include <boost/lexical_cast.hpp>
 using namespace CORBA;
 using namespace std;
@@ -59,6 +63,11 @@ CorbaAccess::CorbaAccess(std::string const& name, int argc, char* argv[])
         task_name = name;
 
     m_task   = new RTT::TaskContext(task_name);
+    RTT::Activity* task_activity = new RTT::Activity(ORO_SCHED_OTHER,
+            RTT::os::LowestPriority, 0, m_task->engine(), task_name);
+    m_task->setActivity(task_activity);
+    RTT::corba::CorbaDispatcher::Instance(m_task->ports(), ORO_SCHED_OTHER, RTT::os::LowestPriority);
+
     // NOTE: should not be deleted by us, RTT's shutdown will do it
     m_task_server = RTT::corba::TaskContextServer::Create(m_task);
     m_corba_task = m_task_server->server();
