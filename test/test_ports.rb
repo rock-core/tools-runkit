@@ -198,7 +198,7 @@ describe Orocos::OutputPort do
         end
     end
 
-    if Orocos::Spec::USE_MQUEUE
+    if Orocos::Test::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
             begin
                 Orocos::MQueue.validate_sizes = false
@@ -469,7 +469,7 @@ describe Orocos::OutputReader do
         end
     end
 
-    if Orocos::Spec::USE_MQUEUE
+    if Orocos::Test::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
             begin
                 Orocos::MQueue.validate_sizes = false
@@ -575,7 +575,7 @@ describe Orocos::InputWriter do
         end
     end
 
-    if Orocos::Spec::USE_MQUEUE
+    if Orocos::Test::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
             begin
                 Orocos::MQueue.validate_sizes = false

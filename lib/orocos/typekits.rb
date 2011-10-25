@@ -101,6 +101,11 @@ module Orocos
 
         @loaded_typekit_plugins << name
     end
+
+    # Returns true if a typekit called +name+ has already been loaded
+    def self.loaded_typekit?(name)
+        @loaded_typekit_plugins.include?(name)
+    end
     
     def self.load_typekit_registry(name, typekit_pkg = nil)
         if @loaded_typekit_registries.include?(name)

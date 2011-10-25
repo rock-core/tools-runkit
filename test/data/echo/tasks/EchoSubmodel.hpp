@@ -1,25 +1,23 @@
-#ifndef ECHO_ECHO_TASK_HPP
-#define ECHO_ECHO_TASK_HPP
+/* Generated from orogen/lib/orogen/templates/tasks/Task.hpp */
 
-#include "echo/EchoBase.hpp"
+#ifndef ECHO_ECHOSUBMODEL_TASK_HPP
+#define ECHO_ECHOSUBMODEL_TASK_HPP
+
+#include "echo/EchoSubmodelBase.hpp"
 
 namespace echo {
-    class Echo : public EchoBase
+    class EchoSubmodel : public EchoSubmodelBase
     {
-	friend class EchoBase;
-
-	bool async;
-	int  async_old;
-
+	friend class EchoSubmodelBase;
     protected:
-    
-	int write(int value);
-        void write_opaque(int value);
-        void kill();
+
+
 
     public:
-        Echo(std::string const& name = "echo::Echo", TaskCore::TaskState initial_state = Stopped);
-        Echo(std::string const& name, RTT::ExecutionEngine* engine, TaskCore::TaskState initial_state = Stopped);
+        EchoSubmodel(std::string const& name = "echo::EchoSubmodel", TaskCore::TaskState initial_state = Stopped);
+        EchoSubmodel(std::string const& name, RTT::ExecutionEngine* engine, TaskCore::TaskState initial_state = Stopped);
+
+	~EchoSubmodel();
 
         /** This hook is called by Orocos when the state machine transitions
          * from PreOperational to Stopped. If it returns false, then the
@@ -45,27 +43,25 @@ namespace echo {
 
         /** This hook is called by Orocos when the component is in the Running
          * state, at each activity step. Here, the activity gives the "ticks"
-         * when the hook should be called. See README.txt for different
-         * triggering options.
+         * when the hook should be called.
          *
-         * The warning(), error() and fatal() calls, when called in this hook,
-         * allow to get into the associated RunTimeWarning, RunTimeError and
+         * The error(), exception() and fatal() calls, when called in this hook,
+         * allow to get into the associated RunTimeError, Exception and
          * FatalError states. 
          *
-         * In the first case, updateHook() is still called, and recovered()
-         * allows you to go back into the Running state.  In the second case,
-         * the errorHook() will be called instead of updateHook() and in the
-         * third case the component is stopped and resetError() needs to be
-         * called before starting it again.
+         * In the first case, updateHook() is still called, and recover() allows
+         * you to go back into the Running state.  In the second case, the
+         * errorHook() will be called instead of updateHook(). In Exception, the
+         * component is stopped and recover() needs to be called before starting
+         * it again. Finally, FatalError cannot be recovered.
          */
-        void updateHook();
-        
+        // void updateHook();
 
         /** This hook is called by Orocos when the component is in the
          * RunTimeError state, at each activity step. See the discussion in
          * updateHook() about triggering options.
          *
-         * Call recovered() to go back in the Runtime state.
+         * Call recover() to go back in the Runtime state.
          */
         // void errorHook();
 
@@ -79,9 +75,6 @@ namespace echo {
          * before calling start() again.
          */
         // void cleanupHook();
-
-        
-
     };
 }
 

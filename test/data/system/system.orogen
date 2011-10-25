@@ -31,7 +31,7 @@ task_context "MotorController" do
     output_port "can_out", "can/Message"
 
     input_port "command", "control/MotorsCommand"
-    output_port "state", "control/MotorsState"
+    output_port "motor_state", "control/MotorsState"
 end
 
 task_context "Control" do

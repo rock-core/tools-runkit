@@ -241,7 +241,9 @@ module Orocos
             end
         end
 
-        Orocos::CORBA.init(name)
+        if !Orocos::CORBA.initialized?
+            Orocos::CORBA.init(name)
+        end
         @initialized = true
     end
 

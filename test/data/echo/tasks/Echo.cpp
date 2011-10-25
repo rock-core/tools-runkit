@@ -10,6 +10,13 @@ Echo::Echo(std::string const& name, TaskCore::TaskState initial_state)
     _ondemand.keepLastWrittenValue(true);
 }
 
+Echo::Echo(std::string const& name, RTT::ExecutionEngine* engine, TaskCore::TaskState initial_state)
+    : EchoBase(name, engine, initial_state)
+    , async(false)
+{
+    _ondemand.keepLastWrittenValue(true);
+}
+
 int Echo::write(int value)
 {
     _output.write(value);
