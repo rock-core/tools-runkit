@@ -63,6 +63,9 @@ CorbaAccess::CorbaAccess(std::string const& name, int argc, char* argv[])
         task_name = name;
 
     m_task   = new RTT::TaskContext(task_name);
+    RTT::Activity* task_activity = new RTT::Activity(ORO_SCHED_OTHER,
+            RTT::os::LowestPriority, 0, m_task->engine(), task_name);
+    m_task->setActivity(task_activity);
     RTT::corba::CorbaDispatcher::Instance(m_task->ports(), ORO_SCHED_OTHER, RTT::os::LowestPriority);
 
     // NOTE: should not be deleted by us, RTT's shutdown will do it
