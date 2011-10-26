@@ -196,6 +196,12 @@ module Orocos
         attr_predicate :disable_sigchld_handler, true
     end
 
+    # Returns true if Orocos.initialize has been called and completed
+    # successfully
+    def self.initialized?
+        CORBA.initialized?
+    end
+
     # Initialize the Orocos communication layer and load all the oroGen models
     # that are available.
     #
@@ -204,7 +210,7 @@ module Orocos
     # a RuntimeError exception whose message will describe the particular
     # problem. See the "Error messages" package in the user's guide for more
     # information on how to fix those.
-    def self.initialize
+    def self.initialize(name = nil)
         if !registry
             self.load
         end
@@ -235,7 +241,8 @@ module Orocos
             end
         end
 
-        Orocos::CORBA.init
+        Orocos::CORBA.init(name)
+        @initialized = true
     end
 
     # call-seq:
@@ -252,6 +259,25 @@ module Orocos
                        CORBA.unregister(name)
                    end
             yield(task) if task
+        end
+    end
+
+    # Polls the state of this set of task, and announces when a state changed
+    def self.watch(*tasks)
+        tasks.each do |t|
+            s = t.state
+            puts "#{t.name}: in state #{s}"
+        end
+
+        while true
+            tasks.each do |t|
+                if t.state_changed?
+                    s = t.state(false)
+                    puts "#{t.name}: state changed to #{s}"
+                end
+            end
+            yield if block_given?
+            sleep 0.1
         end
     end
 end

@@ -426,7 +426,11 @@ module Orocos
                     current_state = peek_current_state
                 end
                 CORBA.refine_exceptions(self) do
-                    do_#{m}
+                    begin
+                        do_#{m}
+                    rescue Orocos::StateTransitionFailed => e
+                        raise e, "\#{e.message} the '\#{self.name}' task\#{ " of type \#{self.model.name}" if self.model}", e.backtrace
+                    end
                 end
                 if wait_for_completion
                     while current_state == peek_current_state#{" && current_state != :#{target_state}" if target_state}
@@ -441,7 +445,7 @@ module Orocos
         # task's state
         def state_reader(policy = Hash.new)
             p = port('state')
-            policy = p.validate_policy({:init => true, :type => :buffer, :size => 10}.merge(policy))
+            policy = Port.prepare_policy({:init => true, :type => :buffer, :size => 10}.merge(policy))
 
             # Create the mapping from state integers to state symbols
             reader = p.do_reader(StateReader, p.orocos_type_name, policy)
@@ -478,7 +482,7 @@ module Orocos
             end
             @state_queue
 
-        rescue CORBA::ComError
+        rescue Orocos::CORBAError
             @state_queue = []
         end
 

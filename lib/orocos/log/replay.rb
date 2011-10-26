@@ -1,6 +1,21 @@
+require 'utilrb/logger'
+
 # Module for replaying log files
 module Orocos
     module Log
+	extend Logger::Hierarchy
+	extend Logger::Forward
+
+	# Exception if a port can not be initialized
+	class InitializePortError < RuntimeError
+	    def initialize( message, name )
+		super( message )
+		@port_name = name
+	    end
+
+	    attr_reader :port_name
+	end
+
         # Simulates an output port based on log files.
         # It has the same behavior like an OutputReader
         class OutputReader
@@ -24,7 +39,7 @@ module Orocos
                 @buffer = Array.new
                 @filter, policy = Kernel.filter_options(policy,[:filter])
                 @filter = @filter[:filter]
-                policy = Orocos::Port.validate_policy(policy)
+                policy = Orocos::Port.prepare_policy(policy)
                 @policy_type = policy[:type]
                 @buffer_size = policy[:size]
                 @last_update = Time.now
@@ -49,7 +64,7 @@ module Orocos
                   @last_update = port.last_update
                   return @filter.call(port.read) if @filter
                   return port.read
-                else
+                elsif @policy_type == :buffer
                   sample = @buffer.shift
                   if sample
                     return @filter.call(sample) if @filter
@@ -58,6 +73,8 @@ module Orocos
                     @last_update = port.last_update
                     return nil
                   end
+                else
+                    raise "Port policy #{@policy_type} is not supported."
                 end
             end
            
@@ -189,13 +206,17 @@ module Orocos
                 raise "Cannot create OutputPort out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
-                if @name == nil
-									@name = "#{stream.name.to_s}"
-									STDERR.puts "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME, assuming as PORTNAME \"#{@name}\""
-								else	
-                	@name = @name[1]
-								end
-                @type = stream.type
+		if @name == nil
+		    @name = "#{stream.name.to_s}"
+		    Log.warn "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME, assuming as PORTNAME \"#{@name}\""
+		else	
+		    @name = @name[1]
+		end
+		begin
+		    @type = stream.type
+		rescue Exception => e
+		    raise InitializePortError.new( e.message, @name )
+		end
                 @type_name = stream.typename
                 @task = task
                 @connections = Array.new
@@ -244,7 +265,7 @@ module Orocos
                 else
                   raise "Cannot connect to #{port.class}" if(!port.instance_of?(Orocos::InputPort))
                   @connections << Connection.new(port,policy)
-                  puts "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
+                  Log.info "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
                 end
             end
 
@@ -363,6 +384,7 @@ module Orocos
             #* file_path => path of the log file
             def initialize(task_name,file_path,file_path_config)
                 @ports = Hash.new
+		@invalid_ports = Hash.new # ports that could not be loaded
                 @properties = Hash.new
                 @file_path = file_path
                 @name = task_name
@@ -447,10 +469,15 @@ module Orocos
             #* stream = stream which shall be simulated as OutputPort
             def add_port(file_path,stream)
                 raise "You are trying to add ports to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path && @file_path != file_path
-                log_port = OutputPort.new(self,stream)
+		begin
+		    log_port = OutputPort.new(self,stream)
+		    @ports[log_port.name] = log_port
+		    return log_port
+		rescue InitializePortError => error
+		    @invalid_ports[error.port_name] = error.message
+		    return nil
+		end
                 raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
-                @ports[log_port.name] = log_port
-                return log_port
             end
 
             #TaskContexts do not have attributes. 
@@ -495,7 +522,7 @@ module Orocos
             # Returns true if this task has a port with the given name.
             def has_port?(name)
                 name = name.to_s
-                return @ports.has_key?(name)
+                return @ports.has_key?(name) || @invalid_ports.has_key?(name)
             end
 
             # Iterates through all simulated properties.
@@ -529,6 +556,8 @@ module Orocos
                 name = name.to_str
                 if @ports[name]
                     return @ports[name]
+		elsif @invalid_ports[name]
+		    raise NotFound, "the port named '#{name}' on log task '#{self.name}' could not be loaded: #{@invalid_ports[name]}"
                 else
                     raise NotFound, "no port named '#{name}' on log task '#{self.name}'"
                 end
@@ -570,7 +599,7 @@ module Orocos
             #If precise is set to true an error will be raised if more
             #than one port is matching type_name and port_name.
             def port_for(type_name, port_name, precise=true)
-                STDERR.puts "#port_for is deprecated. Use either #find_all_ports or #find_port"
+                Log.warn "#port_for is deprecated. Use either #find_all_ports or #find_port"
                 if precise
                     find_port(type_name, port_name)
                 else find_all_ports(type_name, port_name)
@@ -595,7 +624,7 @@ module Orocos
                         next unless port.number_of_samples <= options[:limit]
                     end
                     port.tracked = value
-                    puts "set" + port.stream.name + value.to_s
+                    Log.info "set" + port.stream.name + value.to_s
                 end
             end
 
@@ -612,7 +641,7 @@ module Orocos
                 m = m.to_s
                 if m =~ /^(\w+)=/
                     name = $1
-                    puts "Warning: Setting the property #{name} the TaskContext #{@name} is not supported"
+                    Log.warn "Setting the property #{name} the TaskContext #{@name} is not supported"
                     return
                 end
                 if has_port?(m) 
@@ -708,7 +737,7 @@ module Orocos
                 @ports = Hash.new
                 @process_qt_events = false
                 @log_config_file = Replay::log_config_file
-                @markers = SortedSet.new
+                @markers = Array.new
                 reset_time_sync
                 time_sync
             end
@@ -747,8 +776,59 @@ module Orocos
 		    end
 		end
             end
+           
+            def add_marker_stream_by_id(id)
+                #need to align first, sorry
+                align unless aligned?
+                rewind
+                before = Time.new
+
+                #don't use step, alining takes to much time we need only the header
+                #if later on more informations are requierd please re-read only current sample
+                while t = advance
+                  if(t[0] == id)
+                    sample = single_data(id)
+                    markers << sample 
+                  end
+                end
+                
+                #sort markers
+                @markers.uniq!
+                @markers.sort! do |a,b|
+                    a.time <=> b.time
+                end
+
+                #rewind to beginning
+                rewind
+            end
+
+
+
+            def add_marker_stream_by_type(type)
+                #need to align first, sorry
+                align unless aligned?
+                id = stream_index_for_type(type)
+                add_marker_stream_by_id(id) if id
+            end
+
+            def add_marker_stream_by_name(name)
+                #need to align first, sorry
+                align unless aligned?
+                #getting the ID for later header compareision
+                id = stream_index_for_name(name)
+                raise "Cannot find Marker Stream #{name}" if not id
+                add_marker_stream_by_id(id)
+            end
+
+            def sample_index_for_time(time)
+                prev_pos = sample_index
+                seek(time)
+                target_sample_pos = sample_index
+                seek(prev_pos)
+                return target_sample_pos
+            end
             
-            def get_sample_index()
+            def sample_index()
                 return @stream.sample_index if @stream
                 return nil
             end
@@ -761,8 +841,7 @@ module Orocos
 
             def next_marker
                 @markers.each do |sample|
-                    pp sample
-                    if sample > time
+                    if sample.time > time
                         seek(sample)
                         return
                     end
@@ -771,7 +850,7 @@ module Orocos
             
             def prev_marker
                 @markers.to_a.reverse_each do |sample|
-                    if sample < time
+                    if sample.time < time
                         seek(sample)
                         return
                     end
@@ -813,7 +892,7 @@ module Orocos
             #If precise is set to true an error will be raised if more
             #than one port is matching type_name and port_name.
             def port_for(type_name, port_name, precise=true)
-                STDERR.puts "#port_for is deprecated. Use either #find_all_ports or #find_port"
+                Log.warn "#port_for is deprecated. Use either #find_all_ports or #find_port"
                 if precise
                     find_port(type_name, port_name)
                 else find_all_ports(type_name, port_name)
@@ -893,22 +972,19 @@ module Orocos
                 end
                 @replayed_objects = @replayed_ports + @replayed_properties
 
-                puts ""
-                puts "Aligning streams --> all ports which are unused will not be loaded!!!"
-                puts ""
+                Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
 
                 if @used_streams.size == 0
-                  puts "No ports are replayed."
-                  puts "Connect replay ports or set their track flag to true."
+                  Log.warn "No ports are replayed."
+                  Log.warn "Connect replay ports or set their track flag to true."
                   return
                 end
 
-                puts "Replayed Ports:"
-                @replayed_ports.each {|port| pp port}
-                puts ""
+                Log.info "Replayed Ports:"
+                @replayed_ports.each {|port| Log.info PP.pp(port,"")}
 
                 if @replayed_ports.size == 0
-                  puts "No log data are marked for replay !!!"
+                  Log.warn "No log data are marked for replay !!!"
                   return
                 end
 
@@ -924,24 +1000,23 @@ module Orocos
                 if(@stream)
                     return @stream.advance
                 else
-                    pp "Stream is nil"
-                    return NIL
+                    throw "Stream is not initialized yet"
                 end
             end
 
 
-            def get_stream_index_for_name(name)
+            def stream_index_for_name(name)
                 if @stream
-                    return @stream.get_stream_index_for_name(name)
+                    return @stream.stream_index_for_name(name)
                 end
-                return NIL
+                    throw "Stream is not initialized yet"
             end
             
-            def get_stream_index_for_type(name)
+            def stream_index_for_type(name)
                 if @stream
-                    return @stream.get_stream_index_for_type(name)
+                    return @stream.stream_index_for_type(name)
                 end
-                return NIL
+                    throw "Stream is not initialized yet"
             end
 
 	    def aligned?
@@ -1123,35 +1198,41 @@ module Orocos
 
             #Seeks to the given position
             def seek(pos)
-                @stream.seek(pos)
+                @current_sample = @stream.seek(pos)
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
                     @replayed_ports[index].write(@stream.single_data(index))
                 end
             end
 
+            #replays the last sample to the log port
+            def refresh
+                index, time, data = @current_sample
+                @replayed_objects[index].write(data)
+            end
+
             # Loads all the streams defined in the provided log file
             def load_log_file(file, path)
                 result = []
-                puts "  loading log file #{path}"
+                Log.info "  loading log file #{path}"
                 file.streams.each do |s|
-                    task_name = s.name.to_s.match(/^(.*)\./)
-										if task_name == nil
-											task_name = "unknown"
-                   		STDERR.puts "Stream name (#{s.name}) does not follow the convention TASKNAME.PORTNAME, assuming as TASKNAME \"#{task_name}\""
-										else	
-	                    task_name = task_name[1]
-										end
+		    task_name = s.name.to_s.match(/^(.*)\./)
+		    if task_name == nil
+			task_name = "unknown"
+			Log.warn "Stream name (#{s.name}) does not follow the convention TASKNAME.PORTNAME, assuming as TASKNAME \"#{task_name}\""
+		    else	
+			task_name = task_name[1]
+		    end
                     task = @tasks[task_name]
                     if !task
                         task = @tasks[task_name]= TaskContext.new(task_name, path,@log_config_file)
                         result << task
                     end
                     if s.empty?
-                        puts "    ignored empty stream #{s.name} (#{s.type_name})"
+                        Log.info "    ignored empty stream #{s.name} (#{s.type_name})"
                     else
                         ports[s.name] = task.add_stream(path,s)
-                        puts "    loading stream #{s.name} (#{s.type_name})"
+                        Log.info "    loading stream #{s.name} (#{s.type_name})"
                     end
                 end
                 result

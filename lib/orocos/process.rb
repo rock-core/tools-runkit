@@ -45,7 +45,7 @@ module Orocos
     #   
     # 
     def self.run(*args, &block)
-        Process.spawn(*args, &block)
+        Process.run(*args, &block)
     end
 
     # Deprecated. Use Orocos.run instead.
@@ -73,6 +73,11 @@ module Orocos
         # the process is actually started
         attr_reader :tasks
 
+        # A mapping from the original (= declared in the deployment
+        # specification) to the new name (= the one in which the task has been
+        # started)
+        attr_reader :name_mappings
+
 	def self.from_pid(pid)
 	    ObjectSpace.enum_for(:each_object, Orocos::Process).find { |mod| mod.pid == pid }
 	end
@@ -95,6 +100,7 @@ module Orocos
         def initialize(name)
             @name  = name
             @tasks = []
+            @name_mappings = Hash.new
             @pkg = Orocos.available_deployments[name]
             if !pkg
                 raise NotFound, "deployment #{name} does not exist or its pkg-config orogen-#{name} is not found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
@@ -174,32 +180,50 @@ module Orocos
         def setup_default_logger(options)
             Orocos.setup_default_logger(self, options)
         end
+
+        def self.parse_run_options(*names)
+            options = names.last.kind_of?(Hash) ? names.pop : Hash.new
+            options, mapped_names = filter_options options,
+                :wait => nil, :output => nil, :working_directory => nil,
+                :valgrind => false, :valgrind_options => [], :cmdline_args => nil
+
+
+            deployments, models = Hash.new, Hash.new
+            names.each { |n| mapped_names[n] = n }
+            mapped_names.each do |name, new_name|
+                if Orocos.available_task_models[name.to_s]
+                    if !new_name
+                        raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
+                    end
+                    models[name.to_s] = new_name.to_s
+                else
+                    deployments[name.to_s] = new_name.to_s || name.to_s
+                end
+            end
+
+            if options[:wait].nil?
+                options[:wait] ||=
+                    if options[:valgrind] then 60
+                    else 20
+                    end
+            end
+
+            if options[:cmdline_args].nil?
+                options[:cmdline_args] = Hash.new
+            end
+            return deployments, models, options
+        end
         
         # Deprecated
         #
         # Use Orocos.run directly instead
-        def self.spawn(*names)
+        def self.run(*names)
             if !Orocos::CORBA.initialized?
                 raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
             end
 
-            if names.last.kind_of?(Hash)
-                options = names.pop
-            end
-
             begin
-                options = validate_options options, :wait => nil, :output => nil, :working_directory => nil, :valgrind => false, :valgrind_options => [], :cmdline_args => nil
-
-                if options[:wait].nil?
-                    options[:wait] ||=
-                        if options[:valgrind] then 60
-                        else 20
-                        end
-                end
-
-                if options[:cmdline_args].nil?
-                    options[:cmdline_args] = Hash.new
-                end
+                deployments, models, options = parse_run_options(*names)
 		    
                 valgrind = options[:valgrind]
                 if !valgrind.respond_to?(:to_hash)
@@ -208,7 +232,7 @@ module Orocos
                     elsif valgrind.respond_to?(:to_str)
                         valgrind = [valgrind]
                     elsif !valgrind.respond_to?(:to_ary)
-                        valgrind = names.dup
+                        valgrind = deployments.keys + models.keys
                     end
 
                     valgrind_options = options[:valgrind_options]
@@ -216,7 +240,16 @@ module Orocos
                 end
 
                 # First thing, do create all the named processes
-                processes = names.map { |name| [name, Process.new(name)] }
+                processes = []
+                processes += deployments.map do |name, desired_name|
+                    [desired_name, Process.new(name)]
+                end
+                processes += models.map do |model_name, desired_name|
+                    process = Process.new(Orocos::Generation.default_deployment_name(model_name))
+                    process.map_name(Orocos::Generation.default_deployment_name(model_name), desired_name)
+                    process.map_name("#{Orocos::Generation.default_deployment_name(model_name)}_Logger", "#{desired_name}_Logger")
+                    [desired_name, process]
+                end
                 # Then spawn them, but without waiting for them
                 processes.each do |name, p|
                     output = if options[:output]
@@ -265,7 +298,7 @@ module Orocos
                 processes.each { |p| p.join }
             end
         end
-
+        
         # Spawns this process
         #
         # Valid options:
@@ -279,7 +312,7 @@ module Orocos
         #   with a .valgrind extension added.
         def spawn(options = Hash.new)
 	    raise "#{name} is already running" if alive?
-	    Orocos.debug { "Spawning module #{name}" }
+	    Orocos.debug { "starting deployment #{name}" }
 
             # If possible, check that we won't clash with an already running
             # process
@@ -290,7 +323,13 @@ module Orocos
             end
 
             options = Kernel.validate_options options, :output => nil,
-                :valgrind => nil, :working_directory => nil, :cmdline_args => nil
+                :valgrind => nil, :working_directory => nil, :cmdline_args => Hash.new
+
+            cmdline_args = options[:cmdline_args]
+            name_mappings.each do |old, new|
+                cmdline_args[old] = new
+            end
+
             output   = options[:output]
             if options[:valgrind]
                 valgrind = true
@@ -345,7 +384,6 @@ module Orocos
                 
                 # Command line arguments have to be of type --<option>=<value>
                 # or if <value> is nil a valueless option, i.e. --<option>
-                cmdline_args = options[:cmdline_args]
                 if cmdline_args
                     cmdline_args.each do |option, value|
                         if value
@@ -509,6 +547,12 @@ module Orocos
             end
         end
 
+        # Require that to rename the task called +old+ in this deployment to
+        # +new+ during execution
+        def map_name(old, new)
+            name_mappings[old] = new
+        end
+
         # Returns the name of the tasks that are running in this process
         #
         # See also #each_task
@@ -516,7 +560,10 @@ module Orocos
             if !model
                 raise Orocos::NotOrogenComponent, "#{name} does not seem to have been generated by orogen"
             end
-            model.task_activities.map(&:name)
+            model.task_activities.map do |deployed_task|
+                name = deployed_task.name
+                name_mappings[name] || name
+            end
         end
 
         # Enumerate the TaskContext instances of the tasks that are running in

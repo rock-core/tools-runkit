@@ -42,9 +42,10 @@ class CorbaAccess
 
     RTT::TaskContext* m_task;
     RTT::corba::TaskContextServer* m_task_server;
-    RTT::corba::CDataFlowInterface_var m_corba_dataflow;
+    RTT::corba::CTaskContext_ptr m_corba_task;
+    RTT::corba::CDataFlowInterface_ptr m_corba_dataflow;
 
-    CorbaAccess(int argc, char* argv[] );
+    CorbaAccess(std::string const& name, int argc, char* argv[] );
     ~CorbaAccess();
     static CorbaAccess* the_instance;
 
@@ -52,20 +53,21 @@ class CorbaAccess
     int64_t port_id_counter;
 
 public:
-    static void init(int argc, char* argv[]);
+    static void init(std::string const& name, int argc, char* argv[]);
     static void deinit();
     static CorbaAccess* instance() { return the_instance; }
 
+    /** Returns an automatic name for a port used to access the given remote
+     * port
+     */
     std::string getLocalPortName(VALUE remote_port);
 
+    /** Returns the CORBA object that is a representation of our dataflow
+     * interface
+     */
     RTT::corba::CDataFlowInterface_ptr getDataFlowInterface() const;
 
-    /** Reference a local port as a local manipulation interface to a given
-     * remote port. The method adds the port on the local data flow interface,
-     * and provides a good name for it (based on the remote port's name and the
-     * remote port's task name)
-     *
-     * @returns the new port's name
+    /** Adds a local port to the RTT interface for this Ruby process
      */
     void addPort(RTT::base::PortInterface* local_port);
 

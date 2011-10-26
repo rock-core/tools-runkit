@@ -76,7 +76,7 @@ module Orocos
             @type.new
         end
 
-        CONNECTION_POLICY_OPTIONS = {
+        DEFAULT_CONNECTION_POLICY = {
             :type => :data,
             :init => false,
             :pull => false,
@@ -85,6 +85,7 @@ module Orocos
             :lock => :lock_free,
             :transport => 0
         }
+        CONNECTION_POLICY_OPTIONS = DEFAULT_CONNECTION_POLICY.keys
 
         # A connection policy is represented by a hash whose elements are each
         # of the policy parameters. Valid policies are:
@@ -125,11 +126,13 @@ module Orocos
             elsif policy[:type] == :data && (policy[:size] && policy[:size] != 0)
                 raise ArgumentError, "there are no 'size' argument to data connections"
             end
-            policy[:size] ||= 0
             policy
         end
 
-        def validate_policy(policy)
+        # fills missing policy fields with default values, checks 
+        # if the generated policy is valid and returns it
+        def self.prepare_policy(policy = Hash.new)
+            policy = DEFAULT_CONNECTION_POLICY.merge policy
             Port.validate_policy(policy)
         end
 
@@ -264,7 +267,7 @@ module Orocos
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
         def writer(policy = Hash.new)
-            policy = validate_policy(policy)
+            policy = Port.prepare_policy(policy)
             policy = handle_mq_transport("#{full_name}.writer", policy) do
                 task.process && task.process.on_localhost?
             end
@@ -331,9 +334,9 @@ module Orocos
         # Returns an OutputReader object that is connected to that port
         #
         # The policy dictates how data should flow between the port and the
-        # reader object. See #validate_policy
+        # reader object. See #prepare_policy
         def reader(policy = Hash.new)
-            policy = validate_policy(policy)
+            policy = Port.prepare_policy(policy)
             policy = handle_mq_transport("#{full_name}.reader", policy) do
                 task.process && task.process.on_localhost?
             end
@@ -377,7 +380,7 @@ module Orocos
                 raise ArgumentError, "trying to connect an output port of type #{type_name} to an input port of type #{input_port.type_name}"
             end
 
-            policy = validate_policy(options)
+            policy = Port.prepare_policy(options)
             policy = handle_mq_transport(input_port.full_name, policy) do
                 task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id
             end

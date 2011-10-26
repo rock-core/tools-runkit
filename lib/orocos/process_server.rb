@@ -595,6 +595,7 @@ module Orocos
         # The Orocos::Generation::StaticDeployment instance that describes this
         # process
         attr_reader :model
+        attr_reader :name_mappings
         # A string describing the host. It can be used to check if two processes
         # are running on the same host
         def host_id
@@ -615,6 +616,7 @@ module Orocos
             @pid = pid
             @alive = true
             @model = process_client.load_orogen_deployment(name)
+            @name_mappings = Hash.new
         end
 
         def log_all_ports(options = Hash.new)

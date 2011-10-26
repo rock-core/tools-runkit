@@ -14,12 +14,6 @@ usage: oroinspect <search term>"
  Searches for <search term> in installed oroGen projects
  and displays the definition of the matching objects
  it searches for: task context, types and deployments
-
-       oroinspect -C deployment_name model_name
- Runs the specified deployment and displays the configuration
- of the task whose model is given. If the --save option is provided,
- the resulting configuration is saved in the file, and under the
- section name, provided to the option
     EOT
 
     opt.on('--help') do
@@ -35,15 +29,10 @@ usage: oroinspect <search term>"
     opt.on('-d', '--deployments', 'if given, will search only for deployments. Can be combined with --tasks and --types to search for the other categories as well.') do
         search_for << :deployments
     end
-    opt.on('-C', 'turns on configuration display mode') do
-        configuration_mode = true
-    end
-    opt.on('--save FILE:SECTION', 'saves the task default configuration in the specified file. If a file is a directory, an automatic name will be generated') do |save_configuration|
-        if save_configuration =~ /:(\w+)$/
-            save_configuration = [$`, $1]
-        else
-            save_configuration = [save_configuration]
-        end
+    opt.on('-C', 'invalid option. This functionality is now moved to oroconf') do
+        STDERR.puts "the configuration display mode of oroinspect has been moved to oroconf"
+        STDERR.puts "  see http://rock-robotics.org/runtime/configuration.html for more information"
+        exit 1
     end
     opt.on('--debug') do
         debug = true

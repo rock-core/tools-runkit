@@ -1,0 +1,96 @@
+#! /usr/bin/env ruby
+
+require 'optparse'
+require 'orocos'
+
+debug = false
+save_configuration = nil
+parser = OptionParser.new do |opt|
+    opt.banner = <<-EOT
+usage: oroconf extract task_model
+usage: oroconf apply   task_name /path/to/configuration conf_name1 conf_name2
+usage: oroconf display task_name
+
+  Manages configuration through files. The first form allows to generate a
+  configuration file from a task library / task model. The second form allows
+  to apply a particular configuration to a running task and the third form to
+  save the configuration from a running task.
+    EOT
+
+    opt.on('--help') do
+        puts parser
+        exit(0)
+    end
+    opt.on('--host HOSTNAME', 'the host to contact for name service') do |host|
+        Orocos::CORBA.name_service = host
+    end
+
+    opt.on('--save FILE:SECTION', 'in extract and display modes, saves the configuration in the specified file. If a file is a directory, an automatic name will be generated') do |conf_config|
+        if conf_config =~ /:(\w+)$/
+            save_configuration = [$`, $1]
+        else
+            save_configuration = [conf_config]
+        end
+    end
+    opt.on('--debug') do
+        debug = true
+    end
+end
+
+Orocos.initialize
+
+remaining = parser.parse(ARGV)
+
+def dump_configuration(task, save_configuration)
+    model_name = task.model.name
+    Orocos.task_model_from_name(model_name)
+    if save_configuration
+        file, section_name = *save_configuration
+        if File.directory?(file)
+            file = File.join(file, "#{model_name}.yml")
+        end
+        section_name ||= "default"
+        Orocos::TaskConfigurations.save(task, file, section_name)
+    else
+        pp Orocos::TaskConfigurations.config_as_hash(task)
+    end
+end
+
+mode = remaining.shift
+case mode
+when "extract"
+    model_name = remaining.shift
+    if !model_name
+        STDERR.puts "missing a model name as argument"
+    end
+    if !Orocos.available_task_models[model_name]
+        STDERR.puts "#{model_name} is not a known model name"
+    end
+
+    Orocos.run model_name => "oroconf_extract" do
+        task = Orocos::TaskContext.get "oroconf_extract"
+        dump_configuration(task, save_configuration)
+    end
+
+when "apply"
+    task_name = remaining.shift
+    path = remaining.shift
+    conf_names = remaining.dup
+
+    task = Orocos::TaskContext.get task_name
+
+    if !File.exists?(path)
+        STDERR.puts "no such file or directory #{path}"
+    end
+    Orocos.apply_conf(task, path, conf_names)
+
+when "display"
+    task_name = remaining.shift
+    task = Orocos::TaskContext.get task_name
+    dump_configuration(task, save_configuration)
+else
+    STDERR.puts "invalid operation mode #{mode}. Expected one of: extract, apply or display"
+    STDERR.puts "Use --help for more information"
+    exit 1
+end
+

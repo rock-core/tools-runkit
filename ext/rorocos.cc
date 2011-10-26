@@ -338,9 +338,15 @@ static VALUE task_context_each_port(VALUE self)
 
 static void delete_port(RTT::base::PortInterface* port)
 {
-    port->disconnect();
-    CorbaAccess::instance()->removePort(port);
-    delete port;
+    // At process shutdown, CorbaAccess::instance() might be deinitialized
+    // BEFORE the port gets garbage collected. In this case, we have nothing to
+    // do
+    if (CorbaAccess::instance())
+    {
+        port->disconnect();
+        CorbaAccess::instance()->removePort(port);
+        delete port;
+    }
 }
 
 static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
