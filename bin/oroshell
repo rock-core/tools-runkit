@@ -1,14 +1,19 @@
 #! /usr/bin/env ruby
 
-require 'drb'
-require 'roby'
 require 'irb'
+require 'orocos'
 
-components = ARGV.dup
+parser = OptionParser.new do |opt|
+    opt.on('--host=HOST', String, "the host we should connect to for naming") do |hostname|
+        Orocos::CORBA.name_service = hostname
+    end
+end
+
+components = parser.parse(ARGV)
+ARGV.clear
 
 IRB.setup(nil)
 
-require 'orocos'
 Orocos.initialize
 
 b = nil
