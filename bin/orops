@@ -4,7 +4,14 @@ require 'orocos'
 require 'pp'
 require 'utilrb/pkgconfig'
 
-if name_server = ARGV.shift
+parser = OptionParser.new do |opt|
+    opt.on('--host=HOST', String, 'the CORBA name server') do |hostname|
+        Orocos::CORBA.name_service = hostname
+    end
+end
+remaining = parser.parse(ARGV)
+
+if !remaining.empty? && (name_server = remaining.shift)
     Nameservice::enable(:CORBA, :host => name_server)
 end
 
