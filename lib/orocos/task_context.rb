@@ -347,7 +347,7 @@ module Orocos
             # TaskContext.do_get already checks if the remote task is
             # accessible, so no need to do it again
             t = CORBA.refine_exceptions("naming service") do
-                TaskContext.do_get(task_name)
+                TaskContext.get(task_name)
             end
             true
         rescue Orocos::NotFound
