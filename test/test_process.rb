@@ -28,7 +28,7 @@ describe Orocos::Process do
     end
 
     it "can stop a running process and clean up the name server" do
-        Orocos::Process.spawn('process') do |process|
+        Orocos.run('process') do |process|
             assert( Orocos.task_names.find { |name| name == 'process_Test' } )
             process.kill
             assert(!process.alive?, "process has been killed but alive? returns true")
@@ -37,7 +37,7 @@ describe Orocos::Process do
     end
 
     it "can get a reference on a deployed task context by name" do
-        Orocos::Process.spawn('process') do |process|
+        Orocos.run('process') do |process|
             assert(direct   = Orocos::TaskContext.get('process_Test'))
             assert(indirect = process.task("Test"))
             assert_equal(direct, indirect)
@@ -45,7 +45,7 @@ describe Orocos::Process do
     end
 
     it "can get a reference on a deployed task context by class" do
-        Orocos::Process.spawn('process') do |process|
+        Orocos.run('process') do |process|
             assert(direct   = Orocos::TaskContext.get(:provides => "process::Test"))
             assert(indirect = process.task("Test"))
             assert_equal(direct, indirect)
@@ -53,13 +53,13 @@ describe Orocos::Process do
     end
 
     it "throws NotFound on an unknown task context name" do
-        Orocos::Process.spawn('process') do |process|
+        Orocos.run('process') do |process|
             assert_raises(Orocos::NotFound) { process.task("Bla") }
         end
     end
 
     it "can enumerate its own deployed task contexts" do
-        Orocos::Process.spawn('process') do |process|
+        Orocos.run('process') do |process|
             process.task_names.must_equal %w{process_Test}
         end
     end

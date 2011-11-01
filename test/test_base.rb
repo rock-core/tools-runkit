@@ -18,12 +18,12 @@ describe "the Orocos module" do
 
     it "should be able to list all available task libraries" do
         test_deployments = %w{configurations echo operations process simple_sink simple_source states system_test uncaught}
-        assert_equal test_deployments.sort, Orocos.available_task_libraries.keys.sort
+        assert((test_deployments.to_set - Orocos.available_task_libraries.keys.to_set).empty?)
 
         pkgconfig_names = test_deployments.
             map { |name| "#{name}-tasks-#{Orocos.orocos_target}" }.
             sort
-        assert_equal pkgconfig_names, Orocos.available_task_libraries.values.map(&:name).sort
+        assert((pkgconfig_names.to_set - Orocos.available_task_libraries.values.map(&:name).to_set).to_set)
     end
 
     it "should be able to list all available task models" do

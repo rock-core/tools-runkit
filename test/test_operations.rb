@@ -160,7 +160,7 @@ describe Orocos::Operation do
     end
 
     #it "should be possible to asynchronously call an operation with arguments" do
-    #    Orocos::Process.spawn 'echo' do |echo|
+    #    Orocos.run 'echo' do |echo|
     #        echo = echo.task 'Echo'
     #        echo.start
 
@@ -178,7 +178,7 @@ describe Orocos::Operation do
 
 
     #it "should be possible to use a shortcut" do
-    #    Orocos::Process.spawn 'echo' do |echo|
+    #    Orocos.run 'echo' do |echo|
     #        echo = echo.task 'Echo'
     #        echo.start
     #        assert_equal(10, echo.write(10))
@@ -186,7 +186,7 @@ describe Orocos::Operation do
     #end
 
     #it "should be possible to have multiple Operation instances referring to the same remote method" do
-    #    Orocos::Process.spawn 'echo' do |echo|
+    #    Orocos.run 'echo' do |echo|
     #        echo = echo.task 'Echo'
     #        echo.start
 
