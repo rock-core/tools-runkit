@@ -17,7 +17,7 @@ describe "the Orocos module" do
     end
 
     it "should be able to list all available task libraries" do
-        test_deployments = %w{echo operations process simple_sink simple_source states system_test uncaught}
+        test_deployments = %w{configurations echo operations process simple_sink simple_source states system_test uncaught}
         assert_equal test_deployments.sort, Orocos.available_task_libraries.keys.sort
 
         pkgconfig_names = test_deployments.
