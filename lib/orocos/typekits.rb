@@ -21,6 +21,10 @@ module Orocos
         # The namespace in which the types should be exported if
         # Orocos.export_types? is true. It defaults to Types
         attr_accessor :type_export_namespace
+
+        # List of already loaded plugins, as a set of full paths to the shared
+        # library
+        attr_reader :loaded_plugins
     end
     @loaded_typekit_plugins = []
     @loaded_typekit_registries = []
