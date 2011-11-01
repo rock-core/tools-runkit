@@ -21,6 +21,7 @@ VALUE eCORBA;
 VALUE eComError;
 VALUE corba_access = Qnil;
 extern VALUE eNotFound;
+VALUE eNotInitialized;
 
 CORBA::ORB_var               CorbaAccess::orb;
 CosNaming::NamingContext_var CorbaAccess::rootContext;
@@ -138,6 +139,9 @@ list<string> CorbaAccess::knownTasks()
 
 RTT::corba::CTaskContext_ptr CorbaAccess::findByName(std::string const& name)
 {
+    if (NIL_P(corba_access))
+        rb_raise(eNotInitialized, "you must call Orocos.initialize before trying to access remote tasks");
+
     // First thing, try to get a reference from the name server
     CosNaming::Name serverName;
     serverName.length(2);
@@ -172,6 +176,9 @@ RTT::corba::CTaskContext_ptr CorbaAccess::findByName(std::string const& name)
 
 RTT::corba::CTaskContext_ptr CorbaAccess::findByIOR(std::string const& ior)
 {
+    if (NIL_P(corba_access))
+        rb_raise(eNotInitialized, "you must call Orocos.initialize before trying to access remote tasks");
+
     if( ior.substr(0,3) != "IOR")
     	rb_raise(eNotFound, "task context could not be found - ior format invalid %s", ior.c_str());
 
@@ -297,6 +304,7 @@ void Orocos_init_CORBA()
     mCORBA    = rb_define_module_under(mOrocos, "CORBA");
     eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
     eComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
+    eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
 
     rb_define_singleton_method(mCORBA, "initialized?", RUBY_METHOD_FUNC(corba_is_initialized), 0);
     rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 1);

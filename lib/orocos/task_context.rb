@@ -2,6 +2,10 @@ require 'utilrb/object/attribute'
 require 'orocos/nameservice'
 
 module Orocos
+    # Exception raised when an operation requires the CORBA layer to be
+    # initialized by Orocos.initialize has not yet been called
+    class NotInitialized < RuntimeError; end
+
     # Emitted when an interface object is requested, that does not exist
     class InterfaceObjectNotFound < Orocos::NotFound
         attr_reader :task
@@ -302,6 +306,10 @@ module Orocos
         # implements the given interface, or if more than one task does
         # implement the required interface
 	def self.get(options, process = nil)
+            if !Orocos::CORBA.initialized?
+                raise NotInitialized, "the CORBA layer is not initialized, call Orocos.initialize first"
+            end
+
             if options.kind_of?(Hash)
                 # Right now, the only allowed option is :provides
                 options = Kernel.validate_options options, :provides => nil
