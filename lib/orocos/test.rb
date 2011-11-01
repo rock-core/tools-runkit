@@ -54,7 +54,7 @@ module Orocos
                     transports << mqueue
                 end
 
-                if !system(ruby_bin, orogen_bin, '--corba', "--transports=#{transports.join(",")}", File.basename(src))
+                if !system(ruby_bin, orogen_bin, '--corba', '--no-rtt-scripting', "--transports=#{transports.join(",")}", File.basename(src))
                     raise "failed to build #{src} in #{work_basedir}"
                 end
 
