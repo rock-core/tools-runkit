@@ -674,8 +674,8 @@ module Orocos
         # Attributes can also be read and written by calling directly the
         # relevant method on the task context:
         #
-        #   task.attribute("myProperty").get
-        #   task.attribute("myProperty").set(value)
+        #   task.attribute("myProperty").read
+        #   task.attribute("myProperty").write(value)
         #
         # is equivalent to
         #
@@ -718,8 +718,8 @@ module Orocos
         # Ports can also be accessed by calling directly the relevant
         # method on the task context:
         #
-        #   task.property("myProperty").get
-        #   task.property("myProperty").set(value)
+        #   task.property("myProperty").read
+        #   task.property("myProperty").write(value)
         #
         # is equivalent to
         #
