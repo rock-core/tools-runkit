@@ -471,13 +471,13 @@ module Orocos
                 raise "You are trying to add ports to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path && @file_path != file_path
 		begin
 		    log_port = OutputPort.new(self,stream)
+                    raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
 		    @ports[log_port.name] = log_port
-		    return log_port
 		rescue InitializePortError => error
 		    @invalid_ports[error.port_name] = error.message
-		    return nil
+		    raise error
 		end
-                raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
+		log_port
             end
 
             #TaskContexts do not have attributes. 
@@ -1244,8 +1244,13 @@ module Orocos
                     if s.empty?
                         Log.info "    ignored empty stream #{s.name} (#{s.type_name})"
                     else
-                        ports[s.name] = task.add_stream(path,s)
-                        Log.info "    loading stream #{s.name} (#{s.type_name})"
+                        begin
+                            ports[s.name] = task.add_stream(path,s)
+                            Log.info "    loading stream #{s.name} (#{s.type_name})"
+		        rescue InitializePortError => error
+                            Log.warn "    loading stream #{s.name} (#{s.type_name}) failed. Call the port for an error message."
+                            next
+                        end
                     end
                 end
                 result
