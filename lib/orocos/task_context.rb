@@ -61,21 +61,21 @@ module Orocos
         end
 
         # Sets a new value for the property/attribute
-        def write(value)
+        def write(value, timestamp = Time.now)
             value = Typelib.from_ruby(value, type)
             do_write(@orocos_type_name, value)
-            log_value(value)
+            log_value(value, timestamp)
             value
         end
 
         # Write the current value of the property or attribute to #log_stream
-        def log_current_value
+        def log_current_value(timestamp = Time.now)
             log_value(read)
         end
 
-        def log_value(value)
+        def log_value(value, timestamp = Time.now)
             if log_stream
-                log_stream.write(Time.now, Time.now, value)
+                log_stream.write(timestamp, timestamp, value)
             end
             if log_port
                 log_port.write(value)
