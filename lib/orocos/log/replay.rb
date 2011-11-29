@@ -526,7 +526,7 @@ module Orocos
             end
 
             # Iterates through all simulated properties.
-            def each_port(&block)
+            def each_property(&block)
                 @properties.each_value do |property|
                     yield(property) if block_given?
                 end
