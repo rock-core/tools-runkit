@@ -2,19 +2,34 @@ module Orocos
     extend_task 'logger::Logger' do
         attribute(:logged_ports) { Set.new }
 
-        def log(port, buffer_size = 25)
-            port_name = "#{port.task.name}.#{port.name}"
-            if logged_ports.include?(port_name)
-                return
-            end
+        def create_log(object)
+            stream_type =
+                case object
+                when Orocos::Port then 'port'
+                when Orocos::Attribute then 'attribute'
+                when Orocos::Property then 'property'
+                else
+                    raise ArgumentError, "expected a port, property or attribute but got #{object.class}"
+                end
 
-            if !has_port?(port_name)
-                Orocos.info "created logging port #{port_name} of type #{port.orocos_type_name}"
-                createLoggingPort(port_name, port.orocos_type_name)
-            end
+            stream_name = "#{object.task.name}.#{object.name}"
 
-            port(port_name).connect_to(port, :type => :buffer, :size => buffer_size)
-            logged_ports << port_name
+            if !has_port?(stream_name)
+                metadata = object.log_metadata
+                createLoggingPort(stream_name, object.orocos_type_name, metadata)
+                Orocos.info "created logging port #{stream_name} of type #{object.orocos_type_name}"
+            end
+            stream_name
+        end
+
+        def log(object, buffer_size = 25)
+            stream_name = create_log(object)
+            if object.kind_of?(Port)
+                port(stream_name).connect_to(object, :type => :buffer, :size => buffer_size)
+            else
+                object.log_port = port(stream_name)
+                object.log_current_value
+            end
             nil
         end
     end
