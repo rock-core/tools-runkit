@@ -10,9 +10,9 @@ module Orocos
                 end
 
                 @processes = Array.new
-                self.class.run_specs.each do |name, task_name|
-                    @processes.concat(Orocos.run(task_name => name))
-                    instance_variable_set("@#{name}", Orocos::TaskContext.get(name))
+                self.class.run_specs.each do |name, run_spec|
+                    task = start(*run_spec)
+                    instance_variable_set("@#{name}", task)
                 end
 
                 self.class.reader_specs.each do |task_name, port_name, reader_name|
@@ -47,6 +47,48 @@ module Orocos
                 flunk("expected to get one new sample out of #{reader}, but got none")
             end
 
+            # call-seq:
+            #   start 'model_name', 'task_name'
+            #   start 'deployment_name', 'task_name'[, 'prefix']
+            #
+            # Requires the unit test to start a deployment/task at the point of
+            # the call, and make sure to shut it down during teardown. In test
+            # methods, the task object is made accessible with the
+            # 'attribute_name' attribute
+            #
+            # In the first form, the task is given through its model. The
+            # global task name is registered with 'task_name', which defaults
+            # to 'attribute_name'
+            #
+            # In the second form, the task is given through a deployment
+            # name / task name pair. If a prefix is given, task_name must
+            # include the prefix as well, i.e.:
+            #
+            #   start 'task', 'rock_logger', 'source_logger', 'source'
+            #
+            # where 'logger' is a task of the 'rock_logger' deployment.
+            #
+            # For instance:
+            #
+            #   class TC_Component < Test::Unit::TestCase
+            #       include Orocos::Test::Component
+            #
+            #       def test_configure_fails_if_no_device_is_present
+            #         task = run 'xsens_imu::Task', 'task'
+            #         task.device = ""
+            #         assert_raises(Orocos::StateTransitionFailed) { task.configure }
+            #       end
+            #   end
+            #
+            def start(model_or_deployment, task_name, prefix = nil)
+                if model_or_deployment =~ /::/
+                    @processes.concat(Orocos.run(model_or_deployment => task_name))
+                else
+                    @processes.concat(Orocos.run(model_or_deployment => prefix))
+                end
+                return Orocos::TaskContext.get(task_name)
+            end
+
             # Support module for declarations in tests
             module ClassExtension
                 attribute(:run_specs) { Array.new }
@@ -54,13 +96,24 @@ module Orocos
                 attribute(:writer_specs) { Array.new }
 
                 # call-seq:
-                #   run 'task_name', 'model_name'
+                #   start 'attribute_name', 'model_name'[, 'task_name']
+                #   start 'attribute_name', 'deployment_name', 'task_name'[, 'prefix']
                 #
-                # Require the test to start a task of model +model_name+ at
-                # setup, and shut it down during teardown.
+                # Requires the unit test to start a deployment/task at startup
+                # and shut it down during teardown. In test methods, the task
+                # object is made accessible with the 'attribute_name' attribute
                 #
-                # The task is registered with the name +task_name+. It is
-                # accessible in the tests using the #task_name attribute
+                # In the first form, the task is given through its model. The
+                # global task name is registered with 'task_name', which defaults
+                # to 'attribute_name'
+                #
+                # In the second form, the task is given through a deployment
+                # name / task name pair. If a prefix is given, task_name must
+                # include the prefix as well, i.e.:
+                #
+                #   start 'task', 'rock_logger', 'source_logger', 'source'
+                #
+                # where 'logger' is a task of the 'rock_logger' deployment.
                 #
                 # For instance:
                 #
@@ -74,9 +127,9 @@ module Orocos
                 #       end
                 #   end
                 #
-                def run(task_name, model_name)
+                def start(task_name, name0, name1 = task_name)
                     attr_reader task_name
-                    run_specs << [task_name, model_name]
+                    run_specs << [task_name, [name0, name1]]
                 end
 
                 def reader(name, port_name, reader_name = "#{name}_#{port_name}")
