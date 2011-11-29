@@ -32,11 +32,10 @@ module Orocos
         end
 
         def log_metadata
-            metadata = []
-            metadata << Hash['key' => 'rock_stream_type', 'value' => 'port']
-            metadata << Hash['key' => 'rock_task_model', 'value' => task.model.name]
-            metadata << Hash['key' => 'rock_task_name', 'value' => task.name]
-            metadata << Hash['key' => 'rock_task_object_name', 'value' => name]
+            Hash['rock_task_model' => task.model.name,
+                'rock_task_name' => task.name,
+                'rock_task_object_name' => name,
+                'rock_stream_type' => 'port']
         end
 
 

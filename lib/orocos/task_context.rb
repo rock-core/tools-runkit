@@ -43,10 +43,9 @@ module Orocos
         end
 
         def log_metadata
-            metadata = []
-            metadata << Hash['key' => 'rock_task_model', 'value' => task.model.name]
-            metadata << Hash['key' => 'rock_task_name', 'value' => task.name]
-            metadata << Hash['key' => 'rock_task_object_name', 'value' => name]
+            Hash['rock_task_model' => task.model.name,
+                'rock_task_name' => task.name,
+                'rock_task_object_name' => name]
         end
 
         def raw_read
@@ -93,7 +92,7 @@ module Orocos
 
     class Property < AttributeBase
         def log_metadata
-            super << Hash['key' => 'rock_stream_type', 'value' => 'property']
+            super.merge('rock_stream_type' => 'property')
         end
 
         def do_write_string(value)
@@ -112,7 +111,7 @@ module Orocos
 
     class Attribute < AttributeBase
         def log_metadata
-            super << Hash['key' => 'rock_stream_type', 'value' => 'attribute']
+            super.merge('rock_stream_type' => 'attribute')
         end
         def do_write_string(value)
             task.do_attribute_write_string(name, value)
@@ -771,10 +770,19 @@ module Orocos
 
             p = Property.new(self, name, type_name)
             if configuration_log
-                p.log_stream = configuration_log.stream("#{self.name}.#{name}", p.type, true)
+                create_property_log_stream(p)
                 p.log_current_value
             end
             properties[name] = p
+        end
+
+        def create_property_log_stream(p)
+            stream_name = "#{self.name}.#{p.name}"
+            if !configuration_log.has_stream?(stream_name)
+                p.log_stream = configuration_log.create_stream(stream_name, p.type, p.log_metadata)
+            else
+                p.log_stream = configuration_log.stream(stream_name)
+            end
         end
 
         # Tell the task to use the given Pocolog::Logfile object to log all
@@ -782,12 +790,7 @@ module Orocos
         def log_all_configuration(logfile)
             @configuration_log = logfile
             each_property do |p|
-                stream_name = "#{self.name}.#{p.name}"
-                if !configuration_log.has_stream?(stream_name)
-                    p.log_stream = configuration_log.create_stream(stream_name, p.type, p.log_metadata)
-                else
-                    p.log_stream = configuration_log.stream(stream_name)
-                end
+                create_property_log_stream(p)
                 p.log_current_value
             end
         end

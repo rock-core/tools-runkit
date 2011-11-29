@@ -15,7 +15,10 @@ module Orocos
             stream_name = "#{object.task.name}.#{object.name}"
 
             if !has_port?(stream_name)
-                metadata = object.log_metadata
+                metadata = object.log_metadata.map do |key, value|
+                    Hash['key' => key, 'value' => value]
+                end
+
                 createLoggingPort(stream_name, object.orocos_type_name, metadata)
                 Orocos.info "created logging port #{stream_name} of type #{object.orocos_type_name}"
             end
