@@ -1201,7 +1201,7 @@ module Orocos
                 @current_sample = @stream.seek(pos)
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
-                    @replayed_ports[index].write(@stream.single_data(index))
+                    @replayed_objects[index].write(@stream.single_data(index))
                 end
             end
 
