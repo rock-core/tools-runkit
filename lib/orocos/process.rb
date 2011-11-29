@@ -197,7 +197,7 @@ module Orocos
                     end
                     models[name.to_s] = new_name.to_s
                 else
-                    deployments[name.to_s] = new_name.to_s || name.to_s
+                    deployments[name.to_s] = (new_name.to_s if new_name)
                 end
             end
 
@@ -242,7 +242,13 @@ module Orocos
                 # First thing, do create all the named processes
                 processes = []
                 processes += deployments.map do |name, desired_name|
-                    [desired_name, Process.new(name)]
+                    process = Process.new(name)
+                    if desired_name
+                        process.task_names.each do |name|
+                            process.map_name(name, "#{desired_name}_#{name}")
+                        end
+                    end
+                    [desired_name || name, process]
                 end
                 processes += models.map do |model_name, desired_name|
                     process = Process.new(Orocos::Generation.default_deployment_name(model_name))
