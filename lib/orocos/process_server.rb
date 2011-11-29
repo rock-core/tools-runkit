@@ -269,7 +269,8 @@ module Orocos
                 options ||= Hash.new
                 Orocos.debug "#{socket} requested startup of #{name} with #{options}"
                 begin
-                    p = Orocos.run(name, self.options.merge(options)).first
+                    p = Orocos::Process.new(name)
+                    p.spawn(self.options.merge(options))
                     Orocos.debug "#{name} is started (#{p.pid})"
                     processes[name] = p
                     socket.write("P")

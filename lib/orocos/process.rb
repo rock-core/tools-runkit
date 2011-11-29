@@ -189,7 +189,6 @@ module Orocos
 
 
             deployments, models = Hash.new, Hash.new
-            names.each { |n| mapped_names[n] = n }
             mapped_names.each do |name, new_name|
                 if Orocos.available_task_models[name.to_s]
                     if !new_name
@@ -262,7 +261,7 @@ module Orocos
                                  options[:output].gsub '%m', name
                              end
 
-                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind[name], :cmdline_args => options[:cmdline_args])
+                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind[name], :cmdline_args => options[:cmdline_args], :wait => false)
                 end
 
                 # Finally, if the user required it, wait for the processes to run
@@ -329,7 +328,14 @@ module Orocos
             end
 
             options = Kernel.validate_options options, :output => nil,
-                :valgrind => nil, :working_directory => nil, :cmdline_args => Hash.new
+                :valgrind => nil, :working_directory => nil, :cmdline_args => Hash.new, :wait => nil
+            if !options.has_key?(:wait)
+                if options[:valgrind]
+                    options[:wait] = 60
+                else
+                    options[:wait] = 20
+                end
+            end
 
             cmdline_args = options[:cmdline_args]
             name_mappings.each do |old, new|
@@ -416,6 +422,13 @@ module Orocos
 	    if read.read == "FAILED"
 		raise "cannot start #{name}"
 	    end
+
+            if options[:wait]
+                timeout = if options[:wait].kind_of?(Numeric)
+                              options[:wait]
+                          end
+                wait_running(timeout)
+            end
         end
 
 	def self.wait_running(process, timeout = nil)
