@@ -664,7 +664,7 @@ module Orocos
             class << self 
                 attr_accessor :log_config_file 
             end
-            @log_config_file = "task_configuration"
+            @log_config_file = "properties."
             
             #desired replay speed = 1 --> record time
             attr_accessor :speed            
