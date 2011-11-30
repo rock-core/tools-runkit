@@ -2,6 +2,7 @@
 
 require 'optparse'
 require 'orocos'
+require 'time'
 
 debug = false
 save_configuration = nil
@@ -71,6 +72,42 @@ when "extract"
         task = Orocos::TaskContext.get "oroconf_extract"
         dump_configuration(task, save_configuration)
     end
+
+when "logextract"
+    require 'pocolog'
+    logfile = remaining.shift
+    if !logfile || !File.file?(logfile)
+        STDERR.puts "missing a log file name as argument"
+    end
+    logfile = Pocolog::Logfiles.open(logfile)
+    task_name = remaining.shift
+    time = remaining.shift
+
+    sample_accessor =
+        if time == "@last"
+            lambda { |s| s.last.last }
+        else
+            time = Time.at(Float(time))
+            lambda do |s|
+                _, _, sample = s.seek(time)
+                if !sample
+                    raise ArgumentError, "no sample in #{s.name} at #{time}"
+                end
+                sample
+            end
+        end
+
+    result = Hash.new
+    logfile.streams.each do |stream|
+        if !stream.metadata.empty?  && stream.metadata['rock_stream_type'] != 'property'
+            next
+        end
+
+        if stream.name =~ /^#{task_name}\.(.*)/
+            result[$1] = Orocos::TaskConfigurations.typelib_to_yaml_value(sample_accessor[stream])
+        end
+    end
+    puts YAML.dump(result)
 
 when "apply"
     task_name = remaining.shift
