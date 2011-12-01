@@ -342,6 +342,8 @@ module Orocos
                 name = options.to_str
             end
 
+            result = Nameservice::resolve(name)
+
             # Try to find ourselves a process object if none is given
             if !process
                 process = Orocos.enum_for(:each_process).
@@ -349,8 +351,6 @@ module Orocos
                         p.task_names.any? { |n| n == name }
                     end
             end
-
-            result = Nameservice::resolve(name)
 
             result.instance_variable_set :@process, process
             result.instance_variable_set :@name, name
