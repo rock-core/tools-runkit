@@ -77,7 +77,7 @@ module Orocos
 
                 Orocos.info "logging % 50s of type %s" % ["#{task.name}:#{port.name}", port.type.name]
                 logged_ports << [task.name, port.name]
-                logger.log(port)
+                logger.reportPort(task.name, port.name)
             end
         end
         if !logger.running?

@@ -40,13 +40,6 @@ module Orocos
             @type_name = type.name
         end
 
-        def log_metadata
-            metadata = []
-            metadata << Hash['key' => 'rock_task_model', 'value' => task.model.name]
-            metadata << Hash['key' => 'rock_task_name', 'value' => task.name]
-            metadata << Hash['key' => 'rock_task_object_name', 'value' => name]
-        end
-
         def raw_read
             value = type.new
             do_read(@orocos_type_name, value)
@@ -90,10 +83,6 @@ module Orocos
     end
 
     class Property < AttributeBase
-        def log_metadata
-            super << Hash['key' => 'rock_stream_type', 'value' => 'property']
-        end
-
         def do_write_string(value)
             task.do_property_write_string(name, value)
         end
@@ -109,9 +98,6 @@ module Orocos
     end
 
     class Attribute < AttributeBase
-        def log_metadata
-            super << Hash['key' => 'rock_stream_type', 'value' => 'attribute']
-        end
         def do_write_string(value)
             task.do_attribute_write_string(name, value)
         end
@@ -780,12 +766,7 @@ module Orocos
         def log_all_configuration(logfile)
             @configuration_log = logfile
             each_property do |p|
-                stream_name = "#{self.name}.#{p.name}"
-                if !configuration_log.has_stream?(stream_name)
-                    p.log_stream = configuration_log.create_stream(stream_name, p.type, p.log_metadata)
-                else
-                    p.log_stream = configuration_log.stream(stream_name)
-                end
+                p.log_stream = configuration_log.stream("#{self.name}.#{p.name}", p.type, true)
                 p.log_current_value
             end
         end
