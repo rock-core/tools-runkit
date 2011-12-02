@@ -29,9 +29,6 @@ module Orocos
         # If set, this is a Pocolog::DataStream object in which new values set
         # from within Ruby are set
         attr_accessor :log_stream
-        # If set, this is an input port object in which new values set from
-        # within Ruby are sent
-        attr_accessor :log_port
 
         def initialize(task, name, orocos_type_name)
             @task, @name = task, name
@@ -55,21 +52,16 @@ module Orocos
         def write(value)
             value = Typelib.from_ruby(value, type)
             do_write(@orocos_type_name, value)
-            log_value(value)
+            if log_stream
+                log_stream.write(Time.now, Time.now, value)
+            end
             value
         end
 
         # Write the current value of the property or attribute to #log_stream
         def log_current_value
-            log_value(read)
-        end
-
-        def log_value(value)
             if log_stream
-                log_stream.write(Time.now, Time.now, value)
-            end
-            if log_port
-                log_port.write(value)
+                log_stream.write(Time.now, Time.now, read)
             end
         end
 
