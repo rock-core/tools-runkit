@@ -189,7 +189,6 @@ module Orocos
 
 
             deployments, models = Hash.new, Hash.new
-            names.each { |n| mapped_names[n] = n }
             mapped_names.each do |name, new_name|
                 if Orocos.available_task_models[name.to_s]
                     if !new_name
