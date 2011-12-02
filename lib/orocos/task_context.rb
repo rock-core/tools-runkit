@@ -32,8 +32,6 @@ module Orocos
         # If set, this is an input port object in which new values set from
         # within Ruby are sent
         attr_accessor :log_port
-        # The type name as registered in the orocos type system
-        attr_reader :orocos_type_name
 
         def initialize(task, name, orocos_type_name)
             @task, @name = task, name
