@@ -19,6 +19,7 @@ module Orocos
         @conf_setup = Hash.new
 
         def self.common_optparse_setup(optparse)
+            @attach = false
             @gui = false
             optparse.on('--host=HOSTNAME') do |hostname|
                 Orocos::CORBA.name_service = hostname.to_str
