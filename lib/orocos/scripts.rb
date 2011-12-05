@@ -6,6 +6,9 @@ module Orocos
             # If true, the script should try to attach to running tasks instead of
             # starting new ones
             attr_predicate :attach?, true
+            # If true, the script should start a task browser GUI instead of
+            # being headless.
+            attr_predicate :gui?, true
             # The configuration specifications stored so far, as a mapping from
             # a task descriptor (either a task name or a task model name) to a
             # list of configurations to apply.
@@ -16,8 +19,12 @@ module Orocos
         @conf_setup = Hash.new
 
         def self.common_optparse_setup(optparse)
+            @gui = false
             optparse.on('--host=HOSTNAME') do |hostname|
                 Orocos::CORBA.name_service = hostname.to_str
+            end
+            optparse.on('--gui') do
+                @gui = true
             end
             optparse.on('--attach') do
                 @attach = true
