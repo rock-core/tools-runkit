@@ -104,7 +104,7 @@ when "logextract"
         end
 
         if stream.name =~ /^#{task_name}\.(.*)/
-            result[$1] = Orocos::TaskConfigurations.typelib_to_yaml_value(sample_accessor[stream])
+            result[$1] = Orocos::TaskConfigurations.typelib_to_yaml_value(Typelib.from_ruby(sample_accessor[stream], stream.type))
         end
     end
     puts YAML.dump(result)
