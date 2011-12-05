@@ -126,6 +126,8 @@ module Orocos
         @loaded_typekit_registries.clear
         @loaded_typekit_plugins.clear
 
+        load_standard_typekits
+
         # Finally, update the set of available projects
         Utilrb::PkgConfig.each_package(/^orogen-project-/) do |pkg_name|
             if !available_projects.has_key?(pkg_name)
@@ -214,9 +216,6 @@ module Orocos
         if !registry
             self.load
         end
-
-        # Set up the RTT itself
-        do_initialize
 
         # oroGen components use pkg-config --list-all to find where all typekit
         # files are.  Unfortunately, Debian and debian-based system sometime

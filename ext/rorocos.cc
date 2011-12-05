@@ -718,7 +718,7 @@ namespace RTT
     }
 }
 
-static VALUE orocos_do_initialize(VALUE mod)
+static VALUE orocos_load_standard_typekits(VALUE mod)
 {
     // load the default toolkit and the CORBA transport
     RTT::types::TypekitRepository::Import(new RTT::types::RealTimeTypekitPlugin);
@@ -803,7 +803,7 @@ extern "C" void Init_rorocos_ext()
 {
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");
-    rb_define_singleton_method(mOrocos, "do_initialize", RUBY_METHOD_FUNC(orocos_do_initialize), 0);
+    rb_define_singleton_method(mOrocos, "load_standard_typekits", RUBY_METHOD_FUNC(orocos_load_standard_typekits), 0);
     rb_define_singleton_method(mOrocos, "load_rtt_plugin",  RUBY_METHOD_FUNC(orocos_load_rtt_plugin), 1);
     rb_define_singleton_method(mOrocos, "load_rtt_typekit", RUBY_METHOD_FUNC(orocos_load_rtt_typekit), 1);
     rb_define_singleton_method(mOrocos, "registered_type?", RUBY_METHOD_FUNC(orocos_registered_type_p), 1);
