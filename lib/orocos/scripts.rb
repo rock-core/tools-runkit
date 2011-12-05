@@ -32,18 +32,33 @@ module Orocos
             optparse.on('--conf-dir=DIR', String) do |conf_source|
                 Orocos.conf.load_dir(conf_source)
             end
-            optparse.on('--conf=TASK,conf0,conf1', String) do |conf_setup|
+            optparse.on('--conf=TASK[:FILE],conf0,conf1', String) do |conf_setup|
                 task, *conf_sections = conf_setup.split(',')
-                @conf_setup[task] = conf_sections
+                task, *file = task.split(':')
+                if !file.empty?
+                    task = "#{task}:#{file[0..-2].join(":")}"
+                    file = file.pop
+
+                    if !File.file?(file)
+                        raise ArgumentError, "no such file #{file}"
+                    end
+                end
+                if conf_sections.empty?
+                    conf_sections = ['default']
+                end
+                @conf_setup[task] = [file, conf_sections]
             end
         end
 
         def self.conf(task)
-            setup = @conf_setup[task.name] ||
-                @conf_setup[task.model.name] ||
-                ['default']
+            file, sections = @conf_setup[task.name] || @conf_setup[task.model.name]
+            sections ||= ['default']
 
-            Orocos.conf.apply(task, setup)
+            if file
+                Orocos.apply_conf(task, file, sections)
+            else
+                Orocos.conf.apply(task, sections)
+            end
         end
 
         def self.parse_stream_option(opt, type_name = nil)
