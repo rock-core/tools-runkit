@@ -20,7 +20,7 @@ module Orocos
     class << self
         attr_accessor :configuration_log_name
     end
-    @configuration_log_name = "task_configuration"
+    @configuration_log_name = "properties"
 
     # The Pocolog::Logfiles object used by default by
     # Orocos.log_all_configuration. It will automatically be created by
