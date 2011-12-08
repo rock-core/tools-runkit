@@ -241,14 +241,16 @@ module Orocos
 
                 # First thing, do create all the named processes
                 processes = []
-                processes += deployments.map do |name, desired_name|
-                    process = Process.new(name)
-                    if desired_name
-                        process.task_names.each do |name|
-                            process.map_name(name, "#{desired_name}_#{name}")
+                processes += deployments.map do |process_name, prefix|
+                    process = Process.new(process_name)
+                    if prefix
+                        process.task_names.each do |task_name|
+                            process.map_name(task_name, "#{prefix}_#{task_name}")
                         end
+                        process_name = "#{prefix}_#{process_name}"
                     end
-                    [desired_name || name, process]
+
+                    [process_name, process]
                 end
                 processes += models.map do |model_name, desired_name|
                     process = Process.new(Orocos::Generation.default_deployment_name(model_name))

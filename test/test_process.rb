@@ -36,6 +36,12 @@ describe Orocos::Process do
         end
     end
 
+    it "can start a process with a prefix" do
+        Orocos.run('process' => 'prefix') do |process|
+            assert(Orocos::TaskContext.get('prefix_process_Test'))
+        end
+    end
+
     it "can get a reference on a deployed task context by name" do
         Orocos.run('process') do |process|
             assert(direct   = Orocos::TaskContext.get('process_Test'))
