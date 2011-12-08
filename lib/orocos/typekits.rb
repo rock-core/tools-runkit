@@ -164,17 +164,19 @@ module Orocos
             typename = typename.name
         end
 
+        typekit_name, is_exported = Orocos.available_types[typename]
+
         if registered_type?(typename)
-            return
+            return Orocos.master_project.using_project(typekit_name).typekit
         end
 
-        typekit_name, is_exported = Orocos.available_types[typename]
         if !typekit_name
             raise ArgumentError, "no type #{typename} has been registered in oroGen components"
         elsif exported && !is_exported
             raise ArgumentError, "the type #{typename} is registered, but is not exported to the RTT type system"
         end
         load_typekit(typekit_name)
+        return Orocos.master_project.using_project(typekit_name).typekit
     end
 
     # Returns the type that is used to manipulate +t+ in Typelib
