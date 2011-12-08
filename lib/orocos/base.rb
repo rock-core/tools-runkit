@@ -194,6 +194,31 @@ module Orocos
         end
     end
 
+    def self.load_dummy_models(file_or_dir)
+        paths = []
+        if File.file?(file_or_dir)
+            paths << file_or_dir
+        else
+            Dir.glob(File.join(file_or_dir, "*.orogen")) do |orogen_file|
+                paths << orogen_file
+            end
+        end
+
+        old_value = Orocos.master_project.define_dummy_types?
+        begin
+            Orocos.master_project.define_dummy_types = true
+            paths.each do |file|
+                tasklib = Orocos.master_project.
+                    using_task_library(file, :define_dummy_types => true)
+                tasklib.self_tasks.each do |task|
+                    Orocos.available_task_models[task.name] = file
+                end
+            end
+        ensure
+            Orocos.master_project.define_dummy_types = old_value
+        end
+    end
+
     class << self
         attr_predicate :disable_sigchld_handler, true
     end
