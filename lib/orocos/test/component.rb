@@ -15,11 +15,11 @@ module Orocos
                     instance_variable_set("@#{name}", task)
                 end
 
-                self.class.reader_specs.each do |task_name, port_name, reader_name|
-                    instance_variable_set("@#{reader_name}", send("#{task_name}").port(port_name).reader)
+                self.class.reader_specs.each do |task_name, port_name, reader_name, policy|
+                    instance_variable_set("@#{reader_name}", send("#{task_name}").port(port_name).reader(policy))
                 end
-                self.class.writer_specs.each do |task_name, port_name, writer_name|
-                    instance_variable_set("@#{writer_name}", send("#{task_name}").port(port_name).writer)
+                self.class.writer_specs.each do |task_name, port_name, writer_name, policy|
+                    instance_variable_set("@#{writer_name}", send("#{task_name}").port(port_name).writer(policy))
                 end
                 super if defined? super
             end
@@ -132,14 +132,24 @@ module Orocos
                     run_specs << [task_name, [name0, name1]]
                 end
 
-                def reader(name, port_name, reader_name = "#{name}_#{port_name}")
-                    attr_reader reader_name
-                    reader_specs << [name, port_name, reader_name]
+                def reader(name, port_name, options = Hash.new)
+                    if options.respond_to?(:to_str)
+                        options = { :attr_name => options }
+                    end
+                    options, policy = Kernel.filter_options options,
+                        :attr_name => "#{name}_#{port_name}"
+                    attr_reader options[:attr_name]
+                    reader_specs << [name, port_name, options[:attr_name], policy]
                 end
 
-                def writer(name, port_name, writer_name = "#{name}_#{port_name}")
-                    attr_reader writer_name
-                    writer_specs << [name, port_name, writer_name]
+                def writer(name, port_name, options = Hash.new)
+                    if options.respond_to?(:to_str)
+                        options = { :attr_name => options }
+                    end
+                    options, policy = Kernel.filter_options options,
+                        :attr_name => "#{name}_#{port_name}"
+                    attr_reader options[:attr_name]
+                    writer_specs << [name, port_name, options[:attr_name], policy]
                 end
             end
         end
