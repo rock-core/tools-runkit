@@ -120,6 +120,9 @@ module Orocos
 
     def self.load
         @master_project = Orocos::Generation::Component.new
+        if registry && export_types?
+            registry.clear_exports(type_export_namespace)
+        end
         @registry = master_project.registry
         @conf = ConfigurationManager.new
         @available_projects ||= Hash.new
