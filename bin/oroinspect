@@ -31,7 +31,7 @@ usage: oroinspect <search term>"
     end
     opt.on('-C', 'invalid option. This functionality is now moved to oroconf') do
         STDERR.puts "the configuration display mode of oroinspect has been moved to oroconf"
-        STDERR.puts "  see http://rock-robotics.org/runtime/configuration.html for more information"
+        STDERR.puts "  see http://rock-robotics.org/documentation/runtime/configuration.html for more information"
         exit 1
     end
     opt.on('--debug') do
