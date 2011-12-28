@@ -1228,20 +1228,27 @@ module Orocos
 			task_name = task_name[1]
 		    end
                     task = @tasks[task_name]
-                    #this is not working if properties are loaded 
-		#    if task && task.file_path != path 
-		#	# remove the old task, if the new file time is newer
-		#	if File.new( task.file_path ).ctime < File.new( path ).ctime
-		#	    Log.warn "For task #{task} replacing log file \"#{task.file_path}\" because it is older than \"#{path}\""
 
-		#	    result.delete task
-		#	    @tasks[task_name] = nil
-		#	    task = nil
-		#	else
-		#	    Log.warn "For task #{task} ommiting log file \"#{path}\" because it is older than \"#{task.file_path}\""
-		#	    next
-		#	end
-		#    end
+		    # If there are two log files of the same name,
+		    # we use the new one over the old one.
+		    # We only do this, if the file is not a property file
+		    #
+		    crex = Regexp.new(@log_config_file)
+		    if !( crex.match(path) || (task && crex.match(task.file_path)) )
+			if task && task.file_path != path 
+			    # remove the old task, if the new file time is newer
+			    if File.new( task.file_path ).ctime < File.new( path ).ctime
+				Log.warn "For task #{task} replacing log file \"#{task.file_path}\" because it is older than \"#{path}\""
+
+				result.delete task
+				@tasks[task_name] = nil
+				task = nil
+			    else
+				Log.warn "For task #{task} ommiting log file \"#{path}\" because it is older than \"#{task.file_path}\""
+				next
+			    end
+			end
+		    end
                     if !task
                         task = @tasks[task_name]= TaskContext.new(task_name, path,@log_config_file)
                         result << task
