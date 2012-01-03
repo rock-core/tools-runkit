@@ -1235,7 +1235,7 @@ module Orocos
 		    #
 		    crex = Regexp.new(@log_config_file)
 		    if !( crex.match(path) || (task && crex.match(task.file_path)) )
-			if task && task.file_path != path 
+			if task && task.file_path && task.file_path != path 
 			    # remove the old task, if the new file time is newer
 			    if File.new( task.file_path ).ctime < File.new( path ).ctime
 				Log.warn "For task #{task} replacing log file \"#{task.file_path}\" because it is older than \"#{path}\""
