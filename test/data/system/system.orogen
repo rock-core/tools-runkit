@@ -27,6 +27,7 @@ task_context "ControlDevices" do
 end
 
 task_context "MotorController" do
+    needs_configuration
     input_port "can_in", "can/Message"
     output_port "can_out", "can/Message"
 
