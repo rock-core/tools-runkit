@@ -383,6 +383,7 @@ module Orocos
                     end
 		    FileUtils.mv output.path, output_file_name
 		end
+                ENV['ORO_LOGFILE'] = "orocos.#{name}-#{pid}.txt"
 		
 		if output
 		    STDERR.reopen(output)
