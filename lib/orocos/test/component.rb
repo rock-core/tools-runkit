@@ -44,7 +44,7 @@ module Orocos
                     end
                     sleep poll_period
                 end
-                flunk("expected to get one new sample out of #{reader}, but got none")
+                flunk("expected to get one new sample out of #{reader.port.name}, but got none")
             end
 
             # call-seq:
