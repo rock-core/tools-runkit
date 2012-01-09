@@ -48,6 +48,25 @@ module Orocos
             end
 
             # call-seq:
+            #   assert_state_change(task, timeout = 1) { |state|   test_if_state_is_the_expected_state }
+            #   
+            # Tests if the state of +task+ changes to an expected value.  The
+            # block should return whether the passed state is the expected state
+            # or not.
+            def assert_state_change(task, timeout = 1)
+                sleep_time = Float(timeout) / 10
+                10.times do
+                    queued_state_changes = task.peek_state
+                    if queued_state_changes.any? { |s| yield(s) }
+                        return
+                    end
+                    sleep sleep_time
+                end
+
+                flunk("could not find the expected state change for #{task.name} in #{task.peek_state.inspect}")
+            end
+
+            # call-seq:
             #   start 'model_name', 'task_name'
             #   start 'deployment_name', 'task_name'[, 'prefix']
             #
