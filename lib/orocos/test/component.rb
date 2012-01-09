@@ -100,10 +100,13 @@ module Orocos
             #   end
             #
             def start(model_or_deployment, task_name, prefix = nil)
-                if model_or_deployment =~ /::/
-                    @processes.concat(Orocos.run(model_or_deployment => task_name))
-                else
-                    @processes.concat(Orocos.run(model_or_deployment => prefix))
+                begin Orocos::TaskContext.get(task_name)
+                rescue Orocos::NotFound
+                    if model_or_deployment =~ /::/
+                        @processes.concat(Orocos.run(model_or_deployment => task_name))
+                    else
+                        @processes.concat(Orocos.run(model_or_deployment => prefix))
+                    end
                 end
                 return Orocos::TaskContext.get(task_name)
             end
