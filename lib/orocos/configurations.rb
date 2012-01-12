@@ -504,7 +504,7 @@ module Orocos
         # Applies the specified configuration on +task+
         #
         # See TaskConfigurations#apply for a description of the process
-        def apply(task, names, override = false)
+        def apply(task, names=Array.new, override = false)
             task_conf = find_task_configuration_object(task)
             if !task_conf
                 if names == ['default']
@@ -513,6 +513,15 @@ module Orocos
                 else
                     raise ArgumentError, "no configuration available for #{task.model.name}"
                 end
+            end
+            
+            #if no names are given try to figure them out 
+            if !names || names.empty?
+                names = if(task_conf.sections.size == 1)
+                            names = [task_conf.sections.keys.first]
+                        else
+                            ["default"]
+                        end
             end
 
             ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{task.model.name}"
