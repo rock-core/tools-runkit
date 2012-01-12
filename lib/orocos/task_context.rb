@@ -1137,6 +1137,28 @@ module Orocos
         def find_port(type_name, port_name)
             TaskContext.find_port(@ports.values, type_name, port_name)
         end
+
+        # Loads the configuration for the TaskContext from a file,
+        # into the main configuration manager and applies it to the TaskContext
+        # 
+        # See also #apply_conf and #Orocos.load_config_dir
+        def load_conf(file,section_names=Array.new)
+            Orocos.conf.load_file(file,model.name)
+            apply_conf(section_names)
+        end
+
+        # Applies the TaskContext configuration stored by the main 
+        # configuration manager to the TaskContext
+        #
+        # See also #load_conf and #Orocos.load_config_dir
+        def apply_conf(section_names = Array.new)
+            Orocos.conf.apply(self, section_names)
+        end
+
+        # Saves the current configuration into a file 
+        def save_conf(file, section_names = nil)
+            Orocos.conf.save(self,file,section_names)
+        end
     end
 
     class << self
