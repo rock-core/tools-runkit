@@ -452,25 +452,46 @@ module Orocos
         def load_dir(dir)
             changed = Hash.new
             Dir.glob(File.join(dir, '*.yml')) do |file|
-                next if !File.file?(file)
-                model_name = File.basename(file, '.yml')
-                begin
-                    model = Orocos.task_model_from_name(model_name)
-                rescue Orocos::NotFound
-                    ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
-                    next
+                configuration = load_file(file)
+                if configuration
+                    changed[configuration.model.name] = configuration
+                    ConfigurationManager.info "  #{configuration.model.name} available configurations: #{conf[configuration.model.name].sections.keys.join(", ")}"
                 end
-
-                ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
-                conf[model.name] ||= TaskConfigurations.new(model)
-
-                changed_configurations = conf[model.name].load_from_yaml(file)
-                if !changed_configurations.empty?
-                    changed[model.name] = changed_configurations
-                end
-                ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(", ")}"
             end
             changed
+        end
+
+        # Loads the configuration from the given yml file
+        #
+        # The file is assumed to be named of the form
+        #
+        #   orogen_project::TaskName.yml
+        #
+        # or a the task_model name has to be provided
+        #
+        # returns false if nothing was loaded or if the configuration was already loaded 
+        # otherwise it returns the loaded configuration
+        def load_file(file,model_name = nil)
+            return if !File.file?(file)
+            model_name ||= File.basename(file, '.yml')
+
+            begin
+                model = Orocos.task_model_from_name(model_name)
+            rescue Orocos::NotFound
+                ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
+                return false
+            end
+
+            ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
+            conf[model.name] ||= TaskConfigurations.new(model)
+
+            changed_configurations = conf[model.name].load_from_yaml(file)
+            ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(", ")}"
+            if !changed_configurations.empty?
+                changed_configurations
+            else
+                false
+            end
         end
 
         def find_task_configuration_object(task)
