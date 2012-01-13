@@ -88,6 +88,14 @@ module Orocos
         def pretty_print(pp) # :nodoc:
             pp.text "attribute #{name} (#{type.name})"
         end
+
+        def doc?
+            (doc && !doc.empty?)
+        end
+
+        def doc
+            task.model.find_property(name).doc
+        end
     end
 
     class Property < AttributeBase
@@ -1158,6 +1166,18 @@ module Orocos
         # Saves the current configuration into a file 
         def save_conf(file, section_names = nil)
             Orocos.conf.save(self,file,section_names)
+        end
+
+        # Returns true if a documentation about the task is available
+        # otherwise it retuns false
+        def doc?
+            (doc && !doc.empty?)
+        end
+
+        # Returns a documentation string describing the task
+        # If no documentation is available it returns nil
+        def doc
+            model.doc
         end
     end
 
