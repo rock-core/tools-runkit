@@ -144,6 +144,18 @@ module Orocos
             Port.validate_policy(policy)
         end
 
+        # Returns true if a documentation about the port is available
+        # otherwise it retuns false
+        def doc?
+            (doc && !doc.empty?)
+        end
+
+        # Returns a documentation string describing the port
+        # If no documentation is available it returns nil
+        def doc
+            model.doc
+        end
+
     private
         def refine_exceptions(other = nil) # :nodoc:
             CORBA.refine_exceptions(self, other) do
