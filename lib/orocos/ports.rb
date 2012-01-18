@@ -153,7 +153,9 @@ module Orocos
         # Returns a documentation string describing the port
         # If no documentation is available it returns nil
         def doc
-            model.doc
+            if model
+                model.doc
+            end
         end
 
     private
