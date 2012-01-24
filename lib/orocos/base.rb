@@ -118,6 +118,11 @@ module Orocos
         conf.load_dir(dir)
     end
 
+    # Returns true if Orocos.load has been called
+    def self.loaded?
+        !!@master_project
+    end
+
     def self.load
         @master_project = Orocos::Generation::Component.new
         if registry && export_types?
