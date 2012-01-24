@@ -458,7 +458,7 @@ module Orocos
             EOD
         end
 
-        def self.state_transition_call(m, target_state = nil)
+        def self.state_transition_call(m, expected_state, target_state)
             class_eval <<-EOD
             def #{m}(wait_for_completion = true, polling = 0.05)
                 if wait_for_completion
@@ -468,7 +468,13 @@ module Orocos
                     begin
                         do_#{m}
                     rescue Orocos::StateTransitionFailed => e
-                        raise e, "\#{e.message} the '\#{self.name}' task\#{ " of type \#{self.model.name}" if self.model}", e.backtrace
+                        current_state = rtt_state
+                        reason =
+                            if current_state != :#{expected_state}
+                                ". Tasks must be in #{expected_state} state before calling #{m}, but was in \#{current_state}"
+                            end
+
+                        raise e, "\#{e.message} the '\#{self.name}' task\#{ " of type \#{self.model.name}" if self.model}\#{reason}", e.backtrace
                     end
                 end
                 if wait_for_completion
@@ -599,7 +605,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in
         # STATE_PRE_OPERATIONAL state before the call, or if the component
         # refused to do the transition (startHook() returned false)
-        state_transition_call :configure, 'STOPPED'
+        state_transition_call :configure, 'PRE_OPERATIONAL', 'STOPPED'
 
         ##
         # :method: start
@@ -610,7 +616,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_STOPPED
         # state before the call, or if the component refused to do the
         # transition (startHook() returned false)
-        state_transition_call :start
+        state_transition_call :start, 'STOPPED', 'RUNNING'
 
         ##
         # :method: reset_exception
@@ -621,7 +627,7 @@ module Orocos
         #
         # Raises StateTransitionFailed if the component was not in a proper
         # state before the call.
-        state_transition_call :reset_exception
+        state_transition_call :reset_exception, 'EXCEPTION', nil
 
         ##
         # :method: stop
@@ -632,7 +638,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_RUNNING
         # state before the call. The component cannot refuse to perform the
         # transition (but can take an arbitrarily long time to do it).
-        state_transition_call :stop
+        state_transition_call :stop, 'RUNNING', 'STOPPED'
 
         ##
         # :method: cleanup
@@ -643,7 +649,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_STOPPED
         # state before the call. The component cannot refuse to perform the
         # transition (but can take an arbitrarily long time to do it).
-        state_transition_call :cleanup
+        state_transition_call :cleanup, 'STOPPED', 'PRE_OPERATIONAL'
 
         # Returns true if this task context has either a property or an attribute with the given name
         def has_property?(name)
