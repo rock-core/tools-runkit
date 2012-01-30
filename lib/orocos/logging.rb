@@ -116,6 +116,9 @@ module Orocos
         end
         logger_name ||= "#{process.name}_Logger"
 
+        log_file_name = logger_name[/.*(?=_[L|l]ogger)/]
+        log_file_name ||= process.name
+
         logger =
             begin
                 TaskContext.get logger_name
@@ -128,9 +131,9 @@ module Orocos
         if options[:remote]
             index = (@@logfile_indexes[process.name] ||= -1) + 1
             @@logfile_indexes[process.name] = index
-            logger.file = "#{process.name}.#{index}.log"
+            logger.file = "#{log_file_name}.#{index}.log"
         else
-            while File.file?( logfile = File.join(log_dir, "#{process.name}.#{index}.log"))
+            while File.file?( logfile = File.join(log_dir, "#{log_file_name}.#{index}.log"))
                 index += 1
             end
             logger.file = logfile 
