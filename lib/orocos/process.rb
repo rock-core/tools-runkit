@@ -181,6 +181,32 @@ module Orocos
             Orocos.setup_default_logger(self, options)
         end
 
+        # Converts the options given to Orocos.run in a more normalized format
+        #
+        # It returns a triple (deployments, models, options) where
+        #
+        # * \c deployments is a map from a deployment name to a prefix that should
+        #   be used to run this deployment. Prefixes are prepended to all task
+        #   names in the deployment. It is set to nil if there are no prefix.
+        # * \c models is a mapping from a oroGen model name to a name. It
+        #   requests to start the default deployment for the model_name, using
+        #   \c name as the task name
+        # * options are options that should be passed to #spawn
+        #
+        # For instance, in
+        #
+        #   Orocos.run 'xsens', 'xsens_imu::Task' => 'imu', :valgrind => true
+        #
+        # One deployment called 'xsens' should be called with no prefix, the
+        # default deployment for xsens_imu::Task should be started and the
+        # corresponding task be renamed to 'imu' and all deployments should be
+        # started with the :valgrind => true option. Therefore, the parsed
+        # options would be
+        #
+        #   deployments = { 'xsens' => nil }
+        #   models = { 'xsens_imu::Task' => 'imu' }
+        #   options = { valgrind => true }
+        #   
         def self.parse_run_options(*names)
             options = names.last.kind_of?(Hash) ? names.pop : Hash.new
             options, mapped_names = filter_options options,
@@ -340,9 +366,13 @@ module Orocos
                 end
             end
 
-            cmdline_args = options[:cmdline_args]
+            cmdline_args = options[:cmdline_args].dup
+
+            if name_mappings.size > 0
+                cmdline_args['rename'] = []
+            end
             name_mappings.each do |old, new|
-                cmdline_args[old] = new
+                cmdline_args['rename'].push "#{old}:#{new}"
             end
 
             output   = options[:output]
@@ -403,7 +433,13 @@ module Orocos
                 if cmdline_args
                     cmdline_args.each do |option, value|
                         if value
-                            cmdline.push "--#{option}=#{value}"
+                           if value.respond_to?(:to_ary)
+                                value.each do |v|
+                                    cmdline.push "--#{option}=#{v}"
+                                end
+                           else
+                               cmdline.push "--#{option}=#{value}"
+                           end
                         else
                             cmdline.push "--#{option}"
                         end
