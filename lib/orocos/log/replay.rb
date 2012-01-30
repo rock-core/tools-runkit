@@ -193,6 +193,11 @@ module Orocos
 		end
             end
 
+            #returns the metadata associated with the underlying stream
+            def metadata
+                stream.metadata
+            end
+
             # Give the full name for this port. It is the stream name.
             def full_name
                 stream.name
@@ -366,6 +371,11 @@ module Orocos
             def pretty_print(pp) # :nodoc:
                 pp.text "property #{name} (#{type.name})"
             end
+
+            #returns the metadata associated with the underlying stream
+            def metadata
+                stream.metadata
+            end
         end
 
         #Simulates task based on a log file.
@@ -389,7 +399,8 @@ module Orocos
                 @file_path = file_path
                 @name = task_name
                 @state = :replay
-                @file_path_config = file_path_config
+                @file_path_config = nil
+                @file_path_config_reg = file_path_config
             end
 
             #to be compatible wiht Orocos::TaskContext
@@ -433,8 +444,7 @@ module Orocos
             #* file_path = path of the log file
             #* stream = stream which shall be simulated as OutputPort
             def add_stream(file_path,stream)
-                #check if the log file is a file which stores the configuration
-                if Regexp.new(@file_path_config).match(file_path)
+                if Regexp.new(@file_path_config_reg).match(file_path) || stream.metadata["rock_stream_type"] == "property"
                     log = add_property(file_path,stream)
                 else
                     #check if we accidentally saved the property file into the file_path
@@ -449,7 +459,7 @@ module Orocos
             #* file_path = path of the log file
             #* stream = stream which shall be simulated as OutputPort
             def add_property(file_path,stream)
-                unless Regexp.new(@file_path_config).match(file_path)
+                if @file_path_config && !Regexp.new(@file_path_config).match(file_path)
                     raise "You are trying to add properties to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path_config != file_path
                 end
                 if @file_path == file_path
@@ -1132,8 +1142,8 @@ module Orocos
                 index, time, data = @current_sample
 
                 #write sample to connected ports
-                @replayed_ports[index].write(data)
-                yield(@replayed_ports[index],data) if block_given?
+                @replayed_objects[index].write(data)
+                yield(@replayed_objects[index],data) if block_given?
                 return @current_sample
             end
 
