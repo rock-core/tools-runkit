@@ -355,5 +355,53 @@ describe Orocos::TaskConfigurations do
             end
         end
     end
+
+    it "should be able to load a configuration directory, register configurations on a per-model basis, and report what changed" do
+        manager = Orocos::ConfigurationManager.new
+        manager.load_dir(File.join(DATA_DIR, 'configurations', 'dir'))
+        result = manager.conf['configurations::Task'].conf(['default', 'add'], false)
+
+        verify_loaded_conf result do
+            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
+        end
+        verify_loaded_conf result, 'compound' do
+            assert_conf_value 'compound', 'enm', "/Enumeration", Typelib::EnumType, :Third
+            assert_conf_value 'compound', 'intg', "/int32_t", Typelib::NumericType, 30
+            assert_conf_value 'vector_of_compound', 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'vector_of_compound', 0, 'intg', "/int32_t", Typelib::NumericType, 10
+            assert_conf_value 'vector_of_compound', 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
+            assert_conf_value 'array_of_vector_of_compound', 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+            assert_conf_value 'array_of_vector_of_compound', 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'intg', "/int32_t", Typelib::NumericType, 12
+            assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
+        end
+
+        assert_equal(Hash.new, manager.load_dir(File.join(DATA_DIR, 'configurations', 'dir')))
+        assert_equal({'configurations::Task' => ['default']}, manager.load_dir(File.join(DATA_DIR, 'configurations', 'dir_changed')))
+        result = manager.conf['configurations::Task'].conf(['default', 'add'], false)
+
+        verify_loaded_conf result do
+            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 0
+        end
+        verify_loaded_conf result, 'compound' do
+            assert_conf_value 'compound', 'enm', "/Enumeration", Typelib::EnumType, :Third
+            assert_conf_value 'compound', 'intg', "/int32_t", Typelib::NumericType, 30
+            assert_conf_value 'vector_of_compound', 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'vector_of_compound', 0, 'intg', "/int32_t", Typelib::NumericType, 10
+            assert_conf_value 'vector_of_compound', 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
+            assert_conf_value 'array_of_vector_of_compound', 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+            assert_conf_value 'array_of_vector_of_compound', 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'intg', "/int32_t", Typelib::NumericType, 12
+            assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
+        end
+    end
 end
 

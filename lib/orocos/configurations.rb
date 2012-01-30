@@ -53,6 +53,8 @@ module Orocos
         #
         # The first YAML document has, by default, the name 'default'. One can
         # also be provided if needed.
+        #
+        # Returns a set of section names, of the section that have been modified
         def load_from_yaml(file)
             document_lines = File.readlines(file)
 
@@ -449,13 +451,23 @@ module Orocos
         #
         # each file being a YAML file that follows the format described in
         # the documentation of TaskConfigurations.
+        #
+        # Returns the set of changed configurations, as an oroGen task model to
+        # the list of configuration sections that have changed for this model
         def load_dir(dir)
             changed = Hash.new
             Dir.glob(File.join(dir, '*.yml')) do |file|
-                configuration = load_file(file)
-                if configuration
-                    changed[configuration.model.name] = configuration
-                    ConfigurationManager.info "  #{configuration.model.name} available configurations: #{conf[configuration.model.name].sections.keys.join(", ")}"
+                if changed_configurations = load_file(file)
+                    changed.merge!(changed_configurations) do |model_name, old, new|
+                        old.concat(new).uniq
+                    end
+
+                    ConfigurationManager.info do
+                        changed_configurations.each do |model_name, conf|
+                            ConfigurationManager.info "  configuration #{conf} of #{model_name} changed"
+                        end
+                        break
+                    end
                 end
             end
             changed
@@ -470,7 +482,8 @@ module Orocos
         # or a the task_model name has to be provided
         #
         # returns false if nothing was loaded or if the configuration was already loaded 
-        # otherwise it returns the loaded configuration
+        # Otherwise, it returns a mapping from task model names to the list of
+        # configuration sections that have changed for this particular model
         def load_file(file,model_name = nil)
             return if !File.file?(file)
             model_name ||= File.basename(file, '.yml')
@@ -487,10 +500,10 @@ module Orocos
 
             changed_configurations = conf[model.name].load_from_yaml(file)
             ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(", ")}"
-            if !changed_configurations.empty?
-                changed_configurations
-            else
+            if changed_configurations.empty?
                 false
+            else
+                Hash[model.name => changed_configurations]
             end
         end
 
