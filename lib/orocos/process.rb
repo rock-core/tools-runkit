@@ -413,8 +413,15 @@ module Orocos
                     end
 		    FileUtils.mv output.path, output_file_name
 		end
-                ENV['ORO_LOGFILE'] = "orocos.#{name}-#{pid}.txt"
-		
+        
+        oro_logfile_name = name_mappings[name]
+        oro_logfile_name ||= name
+        if pid
+            ENV['ORO_LOGFILE'] = "orocos.#{oro_logfile_name}-#{pid}.txt"
+        else		
+            ENV['ORO_LOGFILE'] = "orocos.#{oro_logfile_name}.txt"
+        end
+
 		if output
 		    STDERR.reopen(output)
 		    STDOUT.reopen(output)
