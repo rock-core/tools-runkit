@@ -1,0 +1,43 @@
+--- name:default
+intg: 20
+
+compound:
+    compound:
+        intg: 30
+    vector_of_compound:
+        - intg: 10
+    array_of_vector_of_compound:
+        - - intg: 10
+        - - intg: 12
+
+--- name:add
+enm: First
+compound:
+    compound:
+        enm: Third
+    vector_of_compound:
+        - enm: First
+        - enm: Second
+    array_of_vector_of_compound:
+        - - enm: First
+          - enm: Second
+          - enm: Third
+        - - enm: First
+        - - enm: Second
+
+--- name:override
+intg: 25
+compound:
+    vector_of_compound:
+        - enm: First
+          intg: 42
+        - enm: Third
+          intg: 22
+    array_of_vector_of_compound:
+        - - enm: First
+          - enm: Second
+          - enm: Third
+        - - enm: First
+            intg: 11
+        - - enm: Second
+
