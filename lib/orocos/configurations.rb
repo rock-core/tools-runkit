@@ -61,7 +61,7 @@ module Orocos
             headers = document_lines.enum_for(:each_with_index).
                 find_all { |line, _| line =~ /^---/ }
             if headers.empty? || headers.first[1] != 0
-                headers.unshift ["--- name:default", 0]
+                headers.unshift ["--- name:default", -1]
             end
 
             options = headers.map do |line, line_number|
