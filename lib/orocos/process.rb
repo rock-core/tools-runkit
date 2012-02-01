@@ -45,39 +45,7 @@ module Orocos
     #   
     # 
     def self.run(*args, &block)
-        run_init_hooks do
-            Process.run(*args, &block)
-        end
-    end
-
-    @init_hooks = Array.new
-    class << self
-        # A set of blocks that should be called at the toplevel call to
-        # Orocos.run
-        attr_reader :init_hooks
-    end
-
-    # Registers a block that should be called at the toplevel call to Orocos.run
-    def self.add_init_hook(&block)
-        @init_hooks << block
-    end
-
-    # Recursively calls the given hooks, doing the subcalls in a block that the
-    # hooks should yield, i.e., each level looks like:
-    #
-    #   hook.call do
-    #      do_subcalls
-    #   end
-    #
-    def self.run_init_hooks(hooks, &block)
-        if hooks.empty?
-            block.call
-        else
-            head, *tail = *hooks
-            head.call do
-                run_init_hooks(tail, &block)
-            end
-        end
+        Process.run(*args, &block)
     end
 
     # Deprecated. Use Orocos.run instead.
