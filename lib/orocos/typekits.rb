@@ -29,6 +29,7 @@ module Orocos
     @loaded_typekit_plugins = []
     @loaded_typekit_registries = []
     @loaded_plugins = Set.new
+    @failed_plugins = Set.new
     @export_types = true
     @type_export_namespace = Types
 
@@ -44,11 +45,19 @@ module Orocos
         end
 
         return if @loaded_plugins.include?(libpath)
-
-        if !Orocos.load_rtt_plugin(libpath)
-            raise "the RTT plugin system refused to load #{libpath}"
+        if @failed_plugins.include?(libpath)
+            @failed_plugins << libpath
+            raise "the RTT plugin system already refused to load #{libpath}, I'm not trying again"
         end
-        @loaded_plugins << libpath
+        begin
+            if !Orocos.load_rtt_plugin(libpath)
+                raise "the RTT plugin system refused to load #{libpath}"
+            end
+            @loaded_plugins << libpath
+        rescue Exception
+            @failed_plugins << libpath
+            raise
+        end
         true
     end
 
