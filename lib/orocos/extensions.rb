@@ -35,6 +35,54 @@ module Orocos
             end
             nil
         end
+
+        #creates a log stream for annotations
+        def create_log_annotations(stream_name,metadata=Hash.new)
+            if !has_port?(stream_name)
+                metadata = {"rock_stream_type" => "annotations"}.merge metadata
+                metadata = metadata.map do |key, value|
+                    Hash['key' => key, 'value' => value]
+                end
+                createLoggingPort(stream_name, Types::Logger::Annotations.name, metadata)
+                Orocos.info "created logging port #{stream_name} of type #{Types::Logger::Annotations.name}"
+            end
+            stream_name
+        end
+
+        def log_annotations(time,key,value,stream_name = "")
+            stream_name = create_log_annotations("log_annotations")
+            sample = Types::Logger::Annotations.new
+            sample.time = time
+            sample.key = key
+            sample.value = value
+            sample.stream_name = stream_name
+            @log_annotations_writer ||= port(stream_name).writer :type => :buffer, :size => 25
+            @log_annotations_writer.write sample
+        end
+
+        def marker_start(index,comment)
+            log_annotations(Time.now,"log_marker_start","<#{index}>;#{comment}")
+        end
+
+        def marker_stop(index,comment)
+            log_annotations(Time.now,"log_marker_stop","<#{index}>;#{comment}")
+        end
+
+        def marker_abort(index,comment)
+            log_annotations(Time.now,"log_marker_abort","<#{index}>;#{comment}")
+        end
+
+        def marker_event(comment)
+            log_annotations(Time.now,"log_marker_event",comment)
+        end
+
+        def marker_stop_all(comment)
+            log_annotations(Time.now,"log_marker_stop_all",comment)
+        end
+
+        def marker_abort_all(comment)
+            log_annotations(Time.now,"log_marker_abort_all",comment)
+        end
     end
 
     extend_task 'taskmon::Task' do
