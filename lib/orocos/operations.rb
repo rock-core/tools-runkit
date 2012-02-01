@@ -182,7 +182,7 @@ module Orocos
         # Calls the method with the provided arguments, waiting for the method
         # to finish. It returns the value returned by the remote method.
         def callop(*args)
-            result = common_call(args) do |filtered|
+            raw_result = common_call(args) do |filtered|
                 return_typename, return_value = nil
                 if !@void_return
                     return_typename = orocos_return_typenames[0]
@@ -202,7 +202,10 @@ module Orocos
                 result
             end
 
-            result.map! { |v| Typelib.to_ruby(v) }
+            result = []
+            raw_result.each_with_index do |v, i|
+                result << Typelib.to_ruby(v, return_types[i])
+            end
             if result.empty? then nil
             elsif result.size == 1 then result.first
             else result
