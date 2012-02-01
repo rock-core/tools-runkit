@@ -860,14 +860,21 @@ module Orocos
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
         end
 
+        # Returns the names of all the ports defined on this task context
+        def port_names
+            CORBA.refine_exceptions(self) do
+                do_port_names
+            end
+        end
+
         # call-seq:
         #  task.each_port { |p| ... } => task
         # 
         # Enumerates the ports that are available on this task, as instances of
         # either Orocos::InputPort or Orocos::OutputPort
         def each_port(&block)
-            CORBA.refine_exceptions(self) do
-                do_each_port(&block)
+            port_names.each do |name|
+                yield(port(name))
             end
             self
         end

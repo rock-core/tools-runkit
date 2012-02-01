@@ -322,18 +322,19 @@ static VALUE orocos_typelib_type_for(VALUE mod, VALUE type_name)
         return type_name;
 }
 
-static VALUE task_context_each_port(VALUE self)
+static VALUE task_context_port_names(VALUE self)
 {
+    VALUE result = rb_ary_new();
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     try {
         RTT::corba::CDataFlowInterface::CPortNames_var ports = context.ports->getPorts();
 
         for (unsigned int i = 0; i < ports->length(); ++i)
-            rb_yield(task_context_do_port(self, rb_str_new2(ports[i])));
+            rb_ary_push(result, rb_str_new2(ports[i]));
     }
     CORBA_EXCEPTION_HANDLERS
 
-    return self;
+    return result;
 }
 
 static void delete_port(RTT::base::PortInterface* port)
@@ -853,7 +854,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_attribute_names", RUBY_METHOD_FUNC(task_context_attribute_names), 0);
     rb_define_method(cTaskContext, "do_property_names", RUBY_METHOD_FUNC(task_context_property_names), 0);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
-    rb_define_method(cTaskContext, "do_each_port", RUBY_METHOD_FUNC(task_context_each_port), 0);
+    rb_define_method(cTaskContext, "do_port_names", RUBY_METHOD_FUNC(task_context_port_names), 0);
 
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);
