@@ -6,7 +6,7 @@ require 'optparse'
 server_port = Orocos::ProcessServer::DEFAULT_PORT
 opt = OptionParser.new do |opt|
    opt.banner = "orocos_process_server [name_server_host]"
-   opt.on('--port NUMBER', Integer, 'the port on which the server should listen') do |port|
+   opt.on('--port NUMBER', Integer, "the port on which the server should listen (defaults to #{server_port}") do |port|
        server_port = port
    end
    opt.on('--debug', 'turn on debug mode') do
