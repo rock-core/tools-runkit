@@ -94,6 +94,17 @@ module Orocos
         end
     end
 
+    class << self
+        # The set of extension names seen so far
+        #
+        # Whenever a new extension is encountered, Orocos.task_model_from_name
+        # tries to require 'extension_name/runtime', which might no exist. Once
+        # it has done that, it registers the extension name in this set to avoid
+        # trying loading it again
+        attr_reader :known_orogen_extensions
+    end
+    @known_orogen_extensions = Set.new
+
     # Returns the task model object whose name is +name+, or raises
     # Orocos::NotFound if none exists
     def self.task_model_from_name(name)
@@ -106,6 +117,16 @@ module Orocos
         result = tasklib.tasks[name]
         if !result
             raise InternalError, "while looking up model of #{name}: found project #{tasklib_name}, but this project does not actually have a task model called #{name}"
+        end
+
+        result.each_extension do |name, ext|
+            if !known_orogen_extensions.include?(name)
+                begin
+                    require "#{name}/runtime"
+                rescue LoadError
+                end
+                known_orogen_extensions << name
+            end
         end
         result
     end
