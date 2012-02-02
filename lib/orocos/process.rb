@@ -252,6 +252,12 @@ module Orocos
                 deployments, models, options = parse_run_options(*names)
 		    
                 valgrind = options[:valgrind]
+                # Check if the valgrind option is specified, no matter if 
+                # set to true or false
+                if valgrind && !system("which valgrind")
+                    raise "'valgrind' option is specified, but valgrind seems not to be installed"
+                end
+
                 if !valgrind.respond_to?(:to_hash)
                     if !valgrind
                         valgrind = Array.new
