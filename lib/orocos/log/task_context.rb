@@ -479,11 +479,11 @@ module Orocos
                 #overwrite ports if the file is different and newer than the current one 
                 if @file_path && @file_path != file_path
                     if File.new(@file_path).ctime < File.new(file_path ).ctime
-                        Log.warn "For task #{name} replacing all ports by log file \"#{@file_path}\" because it is older than \"#{file_path}\""
+                        Log.warn "For task #{name} using ports from \"#{file_path}\" instead of \"#{@file_path}\", because the file is more recent."
                         @ports.clear
                         @file_path = file_path
                     else
-                        Log.warn "For task #{name} ommiting log file \"#{file_path}\" because it is older than \"#{@file_path}\""
+                        Log.warn "For task #{name} ommiting log file \"#{file_path}\", because it is older than \"#{@file_path}\"."
                         return nil
                     end
                 end
