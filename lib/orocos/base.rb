@@ -144,7 +144,9 @@ module Orocos
         !!@master_project
     end
 
-    def self.load
+    def self.load(name = nil)
+        ENV['ORO_LOGFILE'] ||= "orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt"
+
         @master_project = Orocos::Generation::Component.new
         if registry && export_types?
             registry.clear_exports(type_export_namespace)
@@ -268,7 +270,7 @@ module Orocos
     # information on how to fix those.
     def self.initialize(name = nil)
         if !registry
-            self.load
+            self.load(name)
         end
 
         # Install the SIGCHLD handler if it has not been disabled
