@@ -410,23 +410,23 @@ module Orocos
 		    
 	    read, write = IO.pipe
 	    @pid = fork do 
+                pid = ::Process.pid
+                real_name = (name_mappings[name] || name)
 		if output_format
 		    output_file_name = output_format.
-			gsub('%m', name).
-			gsub('%p', ::Process.pid.to_s)
+			gsub('%m', real_name).
+			gsub('%p', pid.to_s)
                     if workdir
                         output_file_name = File.expand_path(output_file_name, workdir)
                     end
 		    FileUtils.mv output.path, output_file_name
 		end
         
-        oro_logfile_name = name_mappings[name]
-        oro_logfile_name ||= name
-        if pid
-            ENV['ORO_LOGFILE'] = "orocos.#{oro_logfile_name}-#{pid}.txt"
-        else		
-            ENV['ORO_LOGFILE'] = "orocos.#{oro_logfile_name}.txt"
-        end
+                oro_logfile_name = "orocos.#{real_name}-#{pid}.txt"
+                if workdir
+                    oro_logfile_name = File.expand_path(oro_logfile_name, workdir)
+                end
+                ENV['ORO_LOGFILE'] = oro_logfile_name
 
 		if output
 		    STDERR.reopen(output)
