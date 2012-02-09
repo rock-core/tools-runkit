@@ -161,14 +161,51 @@ module Orocos
         end
     end
 
-    # Looks for, and loads, the typekit that handles the specified type
+    #returns all plugin libraries (full path) known under name 
+    def self.plugin_libs_for_name(name)
+        plugins = Hash.new
+        libs = Array.new
+
+        plugins["#{name}-typekit-#{Orocos.orocos_target}"] = find_typekit_pkg(name)
+        if Orocos::Generation::VERSION >= "0.8"
+            REQUIRED_TRANSPORTS.each do |transport_name|
+            plugin_name = "#{name}-transport-#{transport_name}-#{Orocos.orocos_target}"
+            plugins[plugin_name] = begin
+                                       Utilrb::PkgConfig.new(plugin_name)
+                                   rescue Utilrb::PkgConfig::NotFound
+                                       raise NotFound, "the '#{name}' typekit has no #{transport_name} transport"
+                                   end
+            end
+            OPTIONAL_TRANSPORTS.each do |transport_name|
+                begin
+                    plugin_name = "#{name}-transport-#{transport_name}-#{Orocos.orocos_target}"
+                    plugins[plugin_name]= Utilrb::PkgConfig.new(plugin_name)
+                rescue Exception
+                end
+            end
+        end
+
+        plugins.each_pair do |file,pkg| 
+            lib = pkg.library_dirs.find do |dir|
+                full_path = File.join(dir, "lib#{file}.so")
+                break(full_path) if File.file?(full_path)
+            end
+            if !lib
+                raise NotFound, "cannot find shared library #{file} for #{name} (searched in #{pkg.library_dirs.join(", ")})"
+            end
+            libs << lib
+        end
+        libs
+    end
+
+    # Looks for the typekit that handles the specified type, and returns its name
     #
     # If +exported+ is true (the default), the type needs to be both defined and
     # exported by the typekit.
     #
     # Raises ArgumentError if this type is registered nowhere, or if +exported+
     # is true and the type is not exported.
-    def self.load_typekit_for(typename, exported = true)
+    def self.find_typekit_for(typename, exported = true)
         if typename.respond_to?(:name)
             typename = typename.name
         end
@@ -176,14 +213,25 @@ module Orocos
         typekit_name, is_exported = Orocos.available_types[typename]
 
         if registered_type?(typename)
-            return Orocos.master_project.using_project(typekit_name).typekit
-        end
-
-        if !typekit_name
+            typekit_name
+        elsif !typekit_name
             raise ArgumentError, "no type #{typename} has been registered in oroGen components"
         elsif exported && !is_exported
             raise ArgumentError, "the type #{typename} is registered, but is not exported to the RTT type system"
+        else
+            typekit_name
         end
+    end
+
+    # Looks for and loads the typekit that handles the specified type
+    #
+    # If +exported+ is true (the default), the type needs to be both defined and
+    # exported by the typekit.
+    #
+    # Raises ArgumentError if this type is registered nowhere, or if +exported+
+    # is true and the type is not exported.
+    def self.load_typekit_for(typename, exported = true)
+        typekit_name = find_typekit_for(typename, exported)
         load_typekit(typekit_name)
         return Orocos.master_project.using_project(typekit_name).typekit
     end
