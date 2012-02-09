@@ -271,15 +271,6 @@ module Orocos
             self.load
         end
 
-        # oroGen components use pkg-config --list-all to find where all typekit
-        # files are.  Unfortunately, Debian and debian-based system sometime
-        # have pkg-config --list-all broken because of missing dependencies
-        #
-        # Detect it and present an error message to the user if it is the case
-        if !system("pkg-config --list-all > /dev/null 2>&1")
-            raise RuntimeError, "pkg-config --list-all returns an error. Run it in a console and install packages that are reported."
-        end
-
         # Install the SIGCHLD handler if it has not been disabled
         if !disable_sigchld_handler?
             trap('SIGCHLD') do
