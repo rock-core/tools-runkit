@@ -514,6 +514,9 @@ module Orocos
         
         # Returns a new sample that can be used with read_new 
         def new_sample; port.new_sample end
+
+        # Returns the type_name of the sample
+        def type_name; port.type_name end
     end
 
     # Instances of InputWriter allows to write data to a component's input port.
@@ -563,6 +566,9 @@ module Orocos
             data = Typelib.from_ruby(data, port.type)
             do_write(port.orocos_type_name, data)
         end
+
+        # Returns the type_name of the sample
+        def type_name; port.type_name end
     end
 end
 
