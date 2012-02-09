@@ -54,7 +54,7 @@ module Orocos
             end
 
             #Reads data from the associated port.
-            def read
+            def read(sample =nil)
                 if @policy_type == :data
                   @last_update = port.last_update
                   return @filter.call(port.read) if @filter
@@ -75,9 +75,13 @@ module Orocos
            
             #Reads data from the associated port.
             #Return nil if no new data are available
-            def read_new
+            def read_new(sample = nil)
               return nil if @last_update == port.last_update 
               read
+            end
+
+            def new_sample
+                @port.new_sample
             end
         end
 
