@@ -33,17 +33,17 @@ module Orocos
     @export_types = true
     @type_export_namespace = Types
 
-    # Generic loading of a RTT plugin
-    def self.load_plugin_library(pkg, name, libname) # :nodoc:
-        libpath = pkg.library_dirs.find do |dir|
-            full_path = File.join(dir, libname)
+    # Given a pkg-config file and a base name for a shared library, finds the
+    # full path to the library
+    def self.find_plugin_library(pkg, libname)
+        pkg.library_dirs.find do |dir|
+            full_path = File.join(dir, "lib#{libname}.so")
             break(full_path) if File.file?(full_path)
         end
+    end
 
-        if !libpath
-            raise NotFound, "cannot find typekit shared library for #{name} (searched for #{libname} in #{pkg.libdirs.split(" ").join(", ")})"
-        end
-
+    # Generic loading of a RTT plugin
+    def self.load_plugin_library(libpath) # :nodoc:
         return if @loaded_plugins.include?(libpath)
         if @failed_plugins.include?(libpath)
             @failed_plugins << libpath
@@ -61,8 +61,14 @@ module Orocos
         true
     end
 
-    REQUIRED_TRANSPORTS = %w{typelib corba}
-    OPTIONAL_TRANSPORTS = %w{mqueue}
+    # The set of transports that should be automatically loaded. The associated
+    # boolean is true if an exception should be raised if the typekit fails to
+    # load, and false otherwise
+    AUTOLOADED_TRANSPORTS = {
+        'typelib' => true,
+        'corba' => true,
+        'mqueue' => false
+    }
 
     # Load the typekit whose name is given
     #
@@ -88,30 +94,18 @@ module Orocos
             return
         end
 
-        typekit_pkg ||= find_typekit_pkg(name)
-
-        load_plugin_library(typekit_pkg, name, "lib#{name}-typekit-#{Orocos.orocos_target}.so")
-
-        if Orocos::Generation::VERSION >= "0.8"
-            REQUIRED_TRANSPORTS.each do |transport_name|
-                transport_pkg =
-                    begin
-                        Utilrb::PkgConfig.new("#{name}-transport-#{transport_name}-#{Orocos.orocos_target}")
-                    rescue Utilrb::PkgConfig::NotFound
-                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport"
-                    end
-                load_plugin_library(transport_pkg, name, "lib#{name}-transport-#{transport_name}-#{Orocos.orocos_target}.so")
-            end
-
-            OPTIONAL_TRANSPORTS.each do |transport_name|
-                begin
-                    transport_pkg = Utilrb::PkgConfig.new("#{name}-transport-#{transport_name}-#{Orocos.orocos_target}")
-                    load_plugin_library(transport_pkg, name, "lib#{name}-transport-#{transport_name}-#{Orocos.orocos_target}.so")
-                rescue Exception
+        find_typekit_plugin_paths(name, typekit_pkg).each do |path, required|
+            begin
+                load_plugin_library(path)
+            rescue Exception => e
+                if required
+                    raise
+                else
+                    Orocos.warn "plugin #{p}, which is registered as an optional transport for the #{name} typekit, cannot be loaded"
+                    Orocos.log_pp(:warn, e)
                 end
             end
         end
-
         @loaded_typekit_plugins << name
     end
 
@@ -161,39 +155,52 @@ module Orocos
         end
     end
 
-    #returns all plugin libraries (full path) known under name 
+    def self.typekit_library_name(typekit_name, target)
+        "#{typekit_name}-typekit-#{target}"
+    end
+
+    def self.transport_library_name(typekit_name, transport_name, target)
+        "#{typekit_name}-transport-#{transport_name}-#{target}"
+    end
+
+    # For backward compatibility only. Use #find_typekit_plugin_paths instead
     def self.plugin_libs_for_name(name)
+        find_typekit_plugin_paths(name).map(&:first)
+    end
+
+    # Returns the full path of all the plugin libraries that should be loaded
+    # for the given typekit
+    #
+    # If given, +typekit_pkg+ is the PkgConfig file for the requested typekit
+    def self.find_typekit_plugin_paths(name, typekit_pkg = nil)
         plugins = Hash.new
         libs = Array.new
 
-        plugins["#{name}-typekit-#{Orocos.orocos_target}"] = find_typekit_pkg(name)
+        plugin_name = typekit_library_name(name, Orocos.orocos_target)
+        plugins[plugin_name] = [typekit_pkg || find_typekit_pkg(name), true]
         if Orocos::Generation::VERSION >= "0.8"
-            REQUIRED_TRANSPORTS.each do |transport_name|
-            plugin_name = "#{name}-transport-#{transport_name}-#{Orocos.orocos_target}"
-            plugins[plugin_name] = begin
-                                       Utilrb::PkgConfig.new(plugin_name)
-                                   rescue Utilrb::PkgConfig::NotFound
-                                       raise NotFound, "the '#{name}' typekit has no #{transport_name} transport"
-                                   end
-            end
-            OPTIONAL_TRANSPORTS.each do |transport_name|
+            AUTOLOADED_TRANSPORTS.each do |transport_name, required|
+                plugin_name = transport_library_name(name, transport_name, Orocos.orocos_target)
                 begin
-                    plugin_name = "#{name}-transport-#{transport_name}-#{Orocos.orocos_target}"
-                    plugins[plugin_name]= Utilrb::PkgConfig.new(plugin_name)
-                rescue Exception
+                    plugins[plugin_name] = [Utilrb::PkgConfig.new(plugin_name), required]
+                rescue Utilrb::PkgConfig::NotFound
+                    if required
+                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport"
+                    end
                 end
             end
         end
 
-        plugins.each_pair do |file,pkg| 
-            lib = pkg.library_dirs.find do |dir|
-                full_path = File.join(dir, "lib#{file}.so")
-                break(full_path) if File.file?(full_path)
-            end
+        plugins.each_pair do |file, (pkg, required)| 
+            lib = find_plugin_library(pkg, file)
             if !lib
-                raise NotFound, "cannot find shared library #{file} for #{name} (searched in #{pkg.library_dirs.join(", ")})"
+                if required
+                    raise NotFound, "cannot find shared library #{file} for #{name} (searched in #{pkg.library_dirs.join(", ")})"
+                else
+                    Orocos.warn "plugin #{file} is registered through pkg-config, but the library cannot be found in #{pkg.library_dirs.join(", ")}"
+                end
             end
-            libs << lib
+            libs << [lib, required]
         end
         libs
     end
