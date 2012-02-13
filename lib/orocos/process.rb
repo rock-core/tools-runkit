@@ -322,7 +322,7 @@ module Orocos
 
             processes = processes.map { |_, p| p }
             if block_given?
-                Orocos.guard do
+                Orocos.guard(*processes) do
                     yield(*processes)
                 end
             else
@@ -548,6 +548,32 @@ module Orocos
             'SIGKILL' => 9,
             'SIGSEGV' => 11
         }
+
+        # Tries to stop and cleanup the provided task. Returns true if it was
+        # successful, and false otherwise
+        def self.try_task_cleanup(task)
+            begin
+                task.stop(false)
+                if task.model && task.model.needs_configuration?
+                    task.cleanup(false)
+                end
+            rescue StateTransitionFailed
+            end
+
+            task.each_port do |port|
+                port.disconnect_all
+            end
+
+            true
+
+        rescue Exception => e
+            Orocos.warn "clean shutdown of #{task.name} failed: #{e.message}"
+            e.backtrace.each do |line|
+                Orocos.warn line
+            end
+            false
+        end
+
         # Kills the process either cleanly by requesting a shutdown if signal ==
         # nil, or forcefully by using UNIX signals if signal is a signal name.
         def kill(wait = true, signal = nil)
@@ -556,26 +582,14 @@ module Orocos
             # Stop all tasks and disconnect the ports
             if !signal
                 clean_shutdown = true
-                begin
-                    each_task do |task|
-                        begin
-                            task.stop(false)
-                            if task.model && task.model.needs_configuration?
-                                task.cleanup(false)
-                            end
-                        rescue StateTransitionFailed
-                        end
-
-                        task.each_port do |port|
-                            port.disconnect_all
-                        end
+                each_task do |task|
+                    if !self.class.try_task_cleanup(task)
+                        clean_shutdown = false
+                        break
                     end
-                rescue Exception => e
-                    Orocos.warn "clean shutdown of #{name} failed: #{e.message}"
-                    e.backtrace.each do |line|
-                        Orocos.warn line
-                    end
-                    clean_shutdown = false
+                end
+                if !clean_shutdown
+                    Orocos.warn "clean shutdown of process #{name} failed"
                 end
             end
 
@@ -687,7 +701,7 @@ module Orocos
     #   guard { }
     #
     # All processes started in the provided block will be automatically killed
-    def self.guard
+    def self.guard(*processes_or_tasks)
         yield
 
     rescue Interrupt
@@ -700,22 +714,37 @@ module Orocos
         raise
 
     ensure
-        tasks = ObjectSpace.enum_for(:each_object, Orocos::TaskContext)
-        tasks.each do |t|
-            begin
-                if t.running? && t.process
-                    t.stop
-                    if t.model && t.model.needs_configuration?
-                        t.cleanup 
-                    end
-		end
-            rescue
+        processes, tasks = processes_or_tasks.partition do |obj|
+            obj.kind_of?(Orocos::Process)
+        end
+
+        if processes.empty?
+            processes ||= ObjectSpace.enum_for(:each_object, Orocos::Process)
+        end
+        if !tasks.empty?
+            processes.each do |p|
+                tasks -= p.enum_for(:each_task).to_a
             end
         end
 
-        processes = ObjectSpace.enum_for(:each_object, Orocos::Process)
-        processes.each { |mod| mod.kill if mod.running? }
-        processes.each { |mod| mod.join if mod.running? }
+        # NOTE: Process#kill stops all the tasks from the process first, so
+        # that's fine.
+        tasks.each do |t|
+            Orocos.info "guard: stopping task #{t.name}"
+            Orocos::Process.try_task_cleanup(t)
+        end
+        processes.each do |p|
+            if p.running?
+                Orocos.info "guard: stopping process #{p.name}"
+                p.kill(false) 
+            end
+        end
+        processes.each do |p|
+            if p.running?
+                Orocos.info "guard: joining process #{p.name}"
+                p.join
+            end
+        end
     end
 end
 
