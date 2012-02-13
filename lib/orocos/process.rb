@@ -352,7 +352,7 @@ module Orocos
         #   with a .valgrind extension added.
         def spawn(options = Hash.new)
 	    raise "#{name} is already running" if alive?
-	    Orocos.debug { "starting deployment #{name}" }
+	    Orocos.info "starting deployment #{name}"
 
             # If possible, check that we won't clash with an already running
             # process
@@ -500,7 +500,7 @@ module Orocos
                     end
                 end
                 if all_reachable
-                    Orocos.info "all tasks of #{name} are reachable, assuming it is up and running"
+                    Orocos.info "all tasks of #{process.name} are reachable, assuming it is up and running"
                 end
                 all_reachable
 	    else
