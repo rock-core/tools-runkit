@@ -83,6 +83,11 @@ module Orocos
         def marker_abort_all(comment)
             log_annotations(Time.now,"log_marker_abort_all",comment)
         end
+
+        #indicates that this task belongs to the tooling of rock
+        def tooling?
+            true
+        end
     end
 
     extend_task 'taskmon::Task' do

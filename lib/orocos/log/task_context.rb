@@ -165,6 +165,11 @@ module Orocos
                 end
             end
 
+            #if force_local? returns true this port will never be proxied by an orogen port proxy
+            def force_local?
+                return true
+            end
+
             def filter=(filter)
               @filter=filter
               self.tracked=true
