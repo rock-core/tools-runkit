@@ -261,6 +261,7 @@ module Orocos
 
             #Register InputPort which is updated each time write is called
             def connect_to(port=nil,policy = OutputPort::default_policy,&block)
+                port = port.to_orocos_port if port.respond_to?(:to_orocos_port)
                 self.tracked = true
                 policy[:filter] = block if block
                 if !port 

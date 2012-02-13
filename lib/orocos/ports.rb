@@ -343,6 +343,7 @@ module Orocos
     class OutputPort
         # Require this port to disconnect from the provided input port
         def disconnect_from(input)
+            input = input.to_orocos_port if input.respond_to?(:to_orocos_port)
             refine_exceptions(input) do
                 do_disconnect_from(input)
             end
@@ -396,6 +397,8 @@ module Orocos
         # Note that new samples will be lost if they are received when the
         # buffer is full.
         def connect_to(input_port, options = Hash.new)
+            input_port = input_port.to_orocos_port if input_port.respond_to?(:to_orocos_port)
+
             if !input_port.kind_of?(InputPort)
                 raise ArgumentError, "an output port can only connect to an input port"
             elsif input_port.type_name != type_name
