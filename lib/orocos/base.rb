@@ -154,6 +154,9 @@ module Orocos
     end
 
     def self.load(name = nil)
+        if ENV['ORO_LOGFILE'] && orocos_logfile && (ENV['ORO_LOGFILE'] != orocos_logfile)
+            raise "trying to change the path to ORO_LOGFILE from #{orocos_logfile} to #{ENV['ORO_LOGFILE']}. This is not supported"
+        end
         ENV['ORO_LOGFILE'] ||= File.expand_path("orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt")
         @orocos_logfile = ENV['ORO_LOGFILE']
 
