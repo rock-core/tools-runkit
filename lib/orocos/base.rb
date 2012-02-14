@@ -154,7 +154,7 @@ module Orocos
     end
 
     def self.load(name = nil)
-        ENV['ORO_LOGFILE'] ||= "orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt"
+        ENV['ORO_LOGFILE'] ||= File.expand_path("orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt")
         @orocos_logfile = ENV['ORO_LOGFILE']
 
         @master_project = Orocos::Generation::Component.new
