@@ -170,6 +170,10 @@ module Orocos
                 return true
             end
 
+            def to_orocos_port
+                self
+            end
+
             def filter=(filter)
               @filter=filter
               self.tracked=true
