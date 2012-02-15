@@ -160,6 +160,10 @@ module Orocos
         ENV['ORO_LOGFILE'] ||= File.expand_path("orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt")
         @orocos_logfile = ENV['ORO_LOGFILE']
 
+        if @available_projects && !@available_projects.empty?
+            return
+        end
+
         @master_project = Orocos::Generation::Component.new
         if registry && export_types?
             registry.clear_exports(type_export_namespace)
@@ -236,6 +240,15 @@ module Orocos
                 end
             end
         end
+    end
+
+    def self.clear
+        @available_projects.clear
+    end
+
+    def self.reset
+        clear
+        load
     end
 
     def self.load_dummy_models(file_or_dir)
