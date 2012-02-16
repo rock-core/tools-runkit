@@ -357,7 +357,7 @@ module Orocos
 end
 
 at_exit do
-    if !Orocos.keep_orocos_logfile?
+    if !Orocos.keep_orocos_logfile? && Orocos.orocos_logfile
         FileUtils.rm_f Orocos.orocos_logfile
     end
 end
