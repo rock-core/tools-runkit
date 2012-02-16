@@ -243,7 +243,7 @@ module Orocos
     end
 
     def self.clear
-        @available_projects.clear
+        @available_projects.clear if @available_projects
     end
 
     def self.reset
