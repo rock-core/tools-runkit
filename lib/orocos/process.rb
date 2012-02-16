@@ -280,6 +280,11 @@ module Orocos
                             process.map_name(task_name, "#{prefix}_#{task_name}")
                         end
                         process_name = "#{prefix}_#{process_name}"
+
+                        # Main prefix option overwrites prefix
+                        if options[:cmdline_args][:prefix]
+                            raise "Script prefix option: '#{prefix}' is set. An additional prefix cmdline argument cannot be passed"
+                        end
                     end
 
                     [process_name, process]
@@ -353,6 +358,15 @@ module Orocos
         def spawn(options = Hash.new)
 	    raise "#{name} is already running" if alive?
 	    Orocos.info "starting deployment #{name}"
+
+            # Setup mapping for prefixed tasks in Process class
+            prefix = options[:cmdline_args][:prefix]
+
+            if prefix
+                model.task_activities.each do |task|
+                    map_name(task.name, "#{prefix}#{task.name}")
+                end
+            end
 
             # If possible, check that we won't clash with an already running
             # process
@@ -641,6 +655,11 @@ module Orocos
             name_mappings[old] = new
         end
 
+        # use a mapping if exists 
+        def get_mapped_name(name)
+            name_mappings[name] || name
+        end
+
         # Returns the name of the tasks that are running in this process
         #
         # See also #each_task
@@ -650,7 +669,7 @@ module Orocos
             end
             model.task_activities.map do |deployed_task|
                 name = deployed_task.name
-                name_mappings[name] || name
+                get_mapped_name(name)
             end
         end
 

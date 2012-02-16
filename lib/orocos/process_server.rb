@@ -509,7 +509,7 @@ module Orocos
                     raise Failed, "failed to start #{deployment_name}"
                 elsif pid_s == "P"
                     pid = Marshal.load(socket)
-                    return(processes[deployment_name] = RemoteProcess.new(deployment_name, self, pid))
+                    return(processes[deployment_name] = RemoteProcess.new(deployment_name, self, pid, options[:cmdline_args][:prefix]))
                 else
                     raise InternalError, "unexpected reply #{pid_s} to the start command"
                 end
@@ -596,6 +596,7 @@ module Orocos
         # The Orocos::Generation::StaticDeployment instance that describes this
         # process
         attr_reader :model
+        # a mapping from the original to the new name
         attr_reader :name_mappings
         # A string describing the host. It can be used to check if two processes
         # are running on the same host
@@ -611,13 +612,19 @@ module Orocos
         # The process ID of this process on the machine of the process server
         attr_reader :pid
 
-        def initialize(name, process_client, pid)
+        def initialize(name, process_client, pid, prefix = nil)
             @name = name
             @process_client = process_client
             @pid = pid
             @alive = true
             @model = process_client.load_orogen_deployment(name)
             @name_mappings = Hash.new
+
+            if prefix
+                @model.task_activities.each do |task|
+                    map_name(task.name, "#{prefix}#{task.name}")                             
+                end
+            end
         end
 
         def log_all_ports(options = Hash.new)
@@ -633,10 +640,20 @@ module Orocos
             @alive = false
         end
 
-        def task_names
-            model.task_activities.map(&:name)
+        def map_name(old, new)
+            name_mappings[old] = new
         end
 
+        def get_mapped_name(name)
+            name_mappings[name] || name
+        end
+
+        def task_names
+            model.task_activities.map do |task|
+                name = task.name
+                get_mapped_name(name)
+            end
+        end
 
         # Stops the process
         def kill(wait = true)
