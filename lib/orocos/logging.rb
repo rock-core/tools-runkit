@@ -37,7 +37,7 @@ module Orocos
         if !HAS_POCOLOG
             raise ArgumentError, "the pocolog Ruby library is not available, configuration logging cannot be used"
         end
-        @configuration_log ||= Pocolog::Logfiles.create(Orocos.configuration_log_name)
+        @configuration_log ||= Pocolog::Logfiles.create(File.expand_path(Orocos.configuration_log_name, Orocos.default_working_directory))
     end
 
     def self.log_all_configuration(logfile = nil)
@@ -94,7 +94,7 @@ module Orocos
     # Returns true if there is a logger on this process, and false otherwise
     def self.setup_default_logger(process, options)
         options = Kernel.validate_options options,
-            :remote => false, :log_dir => Dir.pwd
+            :remote => false, :log_dir => Orocos.default_working_directory
 
         is_remote     = options[:remote]
         log_dir       = options[:log_dir]
