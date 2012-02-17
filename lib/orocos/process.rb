@@ -3,6 +3,32 @@ require 'orogen'
 require 'fcntl'
 
 module Orocos
+    # The working directory that should be used by default in Orocos.run
+    def self.default_working_directory
+        @default_working_directory || Dir.pwd
+    end
+
+    # Resets the working directory that should be used by default in Orocos.run
+    # to its default, that is the current directory at the time where Orocos.run
+    # is called is used.
+    def self.reset_working_directory
+        @default_working_directory = nil
+    end
+
+    # Sets the working directory that should be used by default in Orocos.run.
+    # By default, the current directory at the time where Orocos.run is called
+    # is used.
+    # 
+    # Use #reset_working_directory to use the default of using the current
+    # directory.
+    def self.default_working_directory=(value)
+        value = File.expand_path(value)
+        if !File.directory?(value)
+            raise ArgumentError, "#{value} is not an existing directory"
+        end
+        @default_working_directory = value
+    end
+
     # call-seq:
     #   Orocos.run('mod1', 'mod2')
     #   Orocos.run('mod1', 'mod2', :wait => false, :output => '%m-%p.log')
@@ -210,7 +236,7 @@ module Orocos
         def self.parse_run_options(*names)
             options = names.last.kind_of?(Hash) ? names.pop : Hash.new
             options, mapped_names = filter_options options,
-                :wait => nil, :output => nil, :working_directory => nil,
+                :wait => nil, :output => nil, :working_directory => Orocos.default_working_directory,
                 :valgrind => false, :valgrind_options => [], :cmdline_args => nil
 
 
@@ -301,7 +327,11 @@ module Orocos
                                  options[:output].gsub '%m', name
                              end
 
-                    p.spawn(:working_directory => options[:working_directory], :output => output, :valgrind => valgrind[name], :cmdline_args => options[:cmdline_args], :wait => false)
+                    p.spawn(:working_directory => options[:working_directory],
+                            :output => output,
+                            :valgrind => valgrind[name],
+                            :cmdline_args => options[:cmdline_args],
+                            :wait => false)
                 end
 
                 # Finally, if the user required it, wait for the processes to run
