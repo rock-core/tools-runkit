@@ -480,7 +480,7 @@ module Orocos
 
             #Returns an array of all simulated ports 
             def ports 
-                result == Array.new
+                result = Array.new
                 each_port do |port|
                     result << port
                 end
