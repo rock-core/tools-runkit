@@ -721,6 +721,7 @@ module Orocos
         #   task.myProperty = value
         #
         def attribute(name)
+            name = name.to_s
             if a = attributes[name]
                 if has_attribute?(name)
                     return a
@@ -730,7 +731,6 @@ module Orocos
                 end
             end
 
-            name = name.to_s
             type_name = CORBA.refine_exceptions(self) do
                 begin
                     do_attribute_type_name(name)
@@ -765,6 +765,7 @@ module Orocos
         #   task.myProperty = value
         #
         def property(name)
+            name = name.to_s
             if p = properties[name]
                 if has_property?(name)
                     return p
@@ -774,7 +775,6 @@ module Orocos
                 end
             end
 
-            name = name.to_s
             type_name = CORBA.refine_exceptions(self) do
                 begin
                     do_property_type_name(name)
