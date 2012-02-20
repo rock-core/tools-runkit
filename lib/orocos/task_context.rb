@@ -94,7 +94,8 @@ module Orocos
         end
 
         def doc
-            task.model.find_property(name).doc
+            property = task.model.find_property(name)
+            property.doc if property
         end
     end
 
