@@ -72,6 +72,10 @@ module Orocos
                     raise "Port policy #{@policy_type} is not supported."
                 end
             end
+
+            def type_name
+                @port.type_name
+            end
            
             #Reads data from the associated port.
             #Return nil if no new data are available
@@ -162,6 +166,14 @@ module Orocos
                 end
                 def update(data)
                     @code_block.call data,@port_name
+                end
+            end
+
+            def orocos_type_name
+                if metadata && metadata.has_key?(:rock_orocos_type_name)
+                    metadata[:rock_orocos_type_name]
+                else
+                    type_name
                 end
             end
 
@@ -339,7 +351,7 @@ module Orocos
             attr_reader :type
             #dedicated stream for simulating the port
             attr_reader :stream         
-
+            attr_reader :type_name         
 
             def initialize(task, stream)
                 raise "Cannot create Property out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
@@ -350,7 +362,7 @@ module Orocos
                 @type = stream.type
                 @task = task
                 @current_value = nil
-                @orocos_type_name = stream.typename
+                @type_name = stream.typename
             end
 
             # Read the current value of the property/attribute
@@ -365,6 +377,14 @@ module Orocos
 
             def new_sample
                 type.new
+            end
+
+            def orocos_type_name
+                if metadata && metadata.has_key?(:rock_orocos_type_name)
+                    metadata[:rock_orocos_type_name]
+                else
+                    type_name
+                end
             end
 
             #Returns the number of samples for the property.
