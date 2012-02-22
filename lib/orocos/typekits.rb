@@ -50,6 +50,7 @@ module Orocos
             raise "the RTT plugin system already refused to load #{libpath}, I'm not trying again"
         end
         begin
+            Orocos.info "loading plugin library #{libpath}"
             if !Orocos.load_rtt_plugin(libpath)
                 raise "the RTT plugin system refused to load #{libpath}"
             end
