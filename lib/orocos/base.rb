@@ -253,6 +253,7 @@ module Orocos
     end
 
     def self.clear
+        @master_project = nil
         @available_projects.clear if @available_projects
     end
 
