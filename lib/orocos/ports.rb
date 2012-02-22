@@ -35,7 +35,8 @@ module Orocos
             Hash['rock_task_model' => task.model.name,
                 'rock_task_name' => task.name,
                 'rock_task_object_name' => name,
-                'rock_stream_type' => 'port']
+                'rock_stream_type' => 'port',
+                'rock_orocos_type_name' => orocos_type_name]
         end
 
 
