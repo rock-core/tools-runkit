@@ -1174,8 +1174,8 @@ module Orocos
         # configuration manager to the TaskContext
         #
         # See also #load_conf and #Orocos.load_config_dir
-        def apply_conf(section_names = Array.new)
-            Orocos.conf.apply(self, section_names)
+        def apply_conf(section_names = Array.new, override=false)
+            Orocos.conf.apply(self, section_names, override)
         end
 
         # Saves the current configuration into a file 
