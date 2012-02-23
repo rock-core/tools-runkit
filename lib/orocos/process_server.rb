@@ -321,7 +321,6 @@ module Orocos
 
         def register_loaded_project(name, orogen)
             super
-            puts "REG: #{name}"
             master.register_loaded_project(name, orogen)
         end
     end
