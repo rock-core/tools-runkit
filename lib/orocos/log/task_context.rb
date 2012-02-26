@@ -417,12 +417,14 @@ module Orocos
             attr_reader :file_path_config      #path of the dedicated log configuration file
             attr_reader :name
             attr_reader :state
+            attr_reader :log_replay
 
             #Creates a new instance of TaskContext.
             #
             #* task_name => name of the task
             #* file_path => path of the log file
-            def initialize(task_name,file_path,file_path_config)
+            def initialize(log_replay,task_name,file_path,file_path_config)
+                @log_replay = log_replay
                 @ports = Hash.new
 		@invalid_ports = Hash.new # ports that could not be loaded
                 @properties = Hash.new

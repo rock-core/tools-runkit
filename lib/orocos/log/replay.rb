@@ -115,6 +115,11 @@ module Orocos
                 @tasks.values
             end
 
+            #returns the time of the current sample replayed
+            def time
+                @base_time
+            end
+
             #returns false if no ports are or will be replayed
             def replay? 
                 #check if stream was initialized
@@ -569,7 +574,7 @@ module Orocos
 
                 task = @tasks[task_name]
                 if !task
-                    task = @tasks[task_name]= TaskContext.new(task_name, path,@log_config_file)
+                    task = @tasks[task_name]= TaskContext.new(self,task_name, path,@log_config_file)
                 end
 
                 begin
