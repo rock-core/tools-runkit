@@ -230,7 +230,7 @@ module Orocos
                     ports_ignored = port_mappings
                     port_mappings = Hash.new
                 end
-                ports_ignored = ports_ignored.to_a
+                ports_ignored = Array.new(ports_ignored)
 
                 #start task if necessary 
                 if task.state == :PRE_OPERATIONAL
