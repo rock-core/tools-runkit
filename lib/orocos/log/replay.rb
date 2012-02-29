@@ -225,6 +225,13 @@ module Orocos
             # *ports_ignored => array of port names which shall be ignored
             #
             def connect_to(task,port_mappings = Hash.new ,port_policies = Hash.new,ports_ignored = Array.new)
+                #convenience block to do connect_to(task,:auto_ignore)
+                if port_mappings == :auto_ignore
+                    ports_ignored = port_mappings
+                    port_mappings = Hash.new
+                end
+                ports_ignored = ports_ignored.to_a
+
                 #start task if necessary 
                 if task.state == :PRE_OPERATIONAL
                     task.configure
@@ -238,10 +245,15 @@ module Orocos
                 port_mappings = port_mappings.invert
 
                 task.each_port do |port|
-                    if port.kind_of?(Orocos::InputPort) && !ports_ignored.include?(port.name)
+                    if port.to_orocos_port.kind_of?(Orocos::InputPort) && !ports_ignored.include?(port.name)
                         target_port = find_port(port.type_name,port_mappings[port.name]||port.name)
-                        raise ArgumentError, "cannot find an output port for #{port.name}"  if !target_port
-                        target_port.connect_to(port,port_policies[port.name])
+                        if target_port
+                            target_port.connect_to(port,port_policies[port.name])
+                        elsif !ports_ignored.include? :auto_ignore
+                            raise ArgumentError, "cannot find an output port for #{port.name}"
+                        else
+                            Log.warn "No input port can be found for output port #{port.full_name}."
+                        end
                     end
                 end
             end
