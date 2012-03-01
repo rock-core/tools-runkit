@@ -129,6 +129,12 @@ module Orocos
         # This method raises ArgumentError if the policy is not valid.
         def self.validate_policy(policy)
             policy = validate_options policy, CONNECTION_POLICY_OPTIONS
+            if policy.has_key?(:type)
+                policy[:type] = policy[:type].to_sym
+            end
+            if policy.has_key?(:lock)
+                policy[:lock] = policy[:lock].to_sym
+            end
 
             if policy[:type] == :buffer && !policy[:size]
                 raise ArgumentError, "you must provide a 'size' argument for buffer connections"
