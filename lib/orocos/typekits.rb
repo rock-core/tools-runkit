@@ -127,7 +127,7 @@ module Orocos
         tlb = typekit_pkg.type_registry
         if tlb # this is an orogen typekit
             begin
-                Orocos.master_project.import_typekit(name)
+                Orocos.master_project.using_typekit(name)
                 Orocos.registry.import(tlb)
             rescue RuntimeError => e
                 raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
