@@ -418,7 +418,7 @@ module Orocos
                 #wait if replay is faster than the desired speed and time_sync is set to true
                 if time_sync
                     while (wait = @time_sync_proc.call(time,actual_delta,required_delta)) > 0.001
-                        #process qt events every 0.1 sec
+                        #process qt events every 0.01 sec
                         if @process_qt_events == true
                             start_wait = Time.now
                             while true
@@ -426,7 +426,7 @@ module Orocos
                                 break if !@start_time                           #break if start_time was reseted throuh processEvents
                                 wait2 =wait -(Time.now - start_wait)
                                 if wait2 > 0.001
-                                    sleep [0.1,wait2].min
+                                    sleep [0.01,wait2].min
                                 else
                                     break
                                 end
