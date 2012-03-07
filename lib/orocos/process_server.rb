@@ -302,11 +302,13 @@ module Orocos
         end
     end
 
-    class RemoteMasterProject < Orocos::Generation::Component
+    class RemoteMasterProject < Orocos::Generation::Project
         attr_reader :server
+        attr_reader :master
 
-        def initialize(server)
+        def initialize(server, master)
             @server = server
+            @master = master
             super()
         end
 
@@ -315,6 +317,11 @@ module Orocos
 	    	raise ArgumentError, "no project named #{name} is registered on #{server}"
 	    end
             return nil, server.available_projects[name]
+        end
+
+        def register_loaded_project(name, orogen)
+            super
+            master.register_loaded_project(name, orogen)
         end
     end
 
@@ -390,7 +397,7 @@ module Orocos
             @available_deployments = info[1]
             @available_typekits    = info[2]
             @server_pid            = info[3]
-            @master_project = RemoteMasterProject.new(self)
+            @master_project = RemoteMasterProject.new(self, Orocos.master_project)
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"

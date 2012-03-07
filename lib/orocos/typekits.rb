@@ -50,6 +50,7 @@ module Orocos
             raise "the RTT plugin system already refused to load #{libpath}, I'm not trying again"
         end
         begin
+            Orocos.info "loading plugin library #{libpath}"
             if !Orocos.load_rtt_plugin(libpath)
                 raise "the RTT plugin system refused to load #{libpath}"
             end
@@ -126,7 +127,7 @@ module Orocos
         tlb = typekit_pkg.type_registry
         if tlb # this is an orogen typekit
             begin
-                Orocos.master_project.using_project(name)
+                Orocos.master_project.using_typekit(name)
                 Orocos.registry.import(tlb)
             rescue RuntimeError => e
                 raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace

@@ -27,6 +27,11 @@ module Orocos
         # The main configuration manager object
         attr_reader :conf
 
+        # A set of oroGen files that should be loaded in addition to what can be
+        # discovered through pkg-config. Add new ones with
+        # #register_orogen_files
+        attr_reader :additional_orogen_files
+
         # The set of orogen projects that are available, as a mapping from a
         # name into the project's orogen description file
         attr_reader :available_projects
@@ -63,6 +68,7 @@ module Orocos
     end
     @use_mq_warning = true
     @keep_orocos_logfile = false
+    @additional_orogen_files = Array.new
 
     def self.max_sizes_for(type)
         Orocos.master_project.max_sizes[type.name]
@@ -196,6 +202,7 @@ module Orocos
             end
         end
 
+
         if !available_deployments
             @available_deployments = Hash.new
             Utilrb::PkgConfig.each_package(/^orogen-\w+$/) do |pkg_name|
@@ -214,6 +221,9 @@ module Orocos
             available_task_libraries.each do |tasklib_name, tasklib_pkg|
                 tasklib_pkg.task_models.split(",").
                     each { |class_name| available_task_models[class_name] = tasklib_name }
+            end
+            additional_orogen_files.each do |file|
+                load_independent_orogen_files(file)
             end
         end
 
@@ -243,6 +253,7 @@ module Orocos
     end
 
     def self.clear
+        @master_project = nil
         @available_projects.clear if @available_projects
     end
 
@@ -251,7 +262,23 @@ module Orocos
         load
     end
 
+    # Registers an orogen file, or all oroGen files contained in a directory, to
+    # be loaded in Orocos.load
+    def self.register_orogen_files(file_or_dir)
+        @additional_orogen_files << file_or_dir
+        if available_task_models
+            load_independent_orogen_files(file_or_dir)
+        end
+    end
+
+    # DEPRECATED. Use #register_orogen_files instead
     def self.load_dummy_models(file_or_dir)
+        load_independent_orogen_files(file_or_dir)
+    end
+
+    # Loads an oroGen file or all oroGen files contained in a directory, and
+    # registers them in the available_task_models set.
+    def self.load_independent_orogen_files(file_or_dir)
         paths = []
         if File.file?(file_or_dir)
             paths << file_or_dir
@@ -267,6 +294,7 @@ module Orocos
             paths.each do |file|
                 tasklib = Orocos.master_project.
                     using_task_library(file, :define_dummy_types => true)
+                Orocos.available_task_libraries[tasklib.name] = file
                 tasklib.self_tasks.each do |task|
                     Orocos.available_task_models[task.name] = file
                 end
