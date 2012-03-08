@@ -1,4 +1,9 @@
 module Orocos
+    class << self
+	attr_accessor :default_log_buffer_size
+    end
+    @default_log_buffer_size = 25
+
     extend_task 'logger::Logger' do
         attribute(:logged_ports) { Set.new }
 
@@ -25,7 +30,7 @@ module Orocos
             stream_name
         end
 
-        def log(object, buffer_size = 25)
+        def log(object, buffer_size = Orocos.default_log_buffer_size)
             stream_name = create_log(object)
             if object.kind_of?(Port)
                 port(stream_name).connect_to(object, :type => :buffer, :size => buffer_size)
