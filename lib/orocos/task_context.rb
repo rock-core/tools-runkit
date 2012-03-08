@@ -811,6 +811,24 @@ module Orocos
             end
         end
 
+        def input_port(name)
+            p = port(name)
+            if p.kind_of?(Orocos::InputPort)
+                return p
+            else
+                raise NotFound, "#{name} is an output port of #{self.name}, was expecting an input port"
+            end
+        end
+
+        def output_port(name)
+            p = port(name)
+            if p.kind_of?(Orocos::OutputPort)
+                return p
+            else
+                raise NotFound, "#{name} is an input port of #{self.name}, was expecting an output port"
+            end
+        end
+
         # Returns the Orocos::Generation::OutputPort instance that describes the
         # required port, or nil if the port does not exist
         def output_port_model(name)
