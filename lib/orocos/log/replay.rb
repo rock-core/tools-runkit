@@ -620,7 +620,7 @@ module Orocos
             def load(*paths)
                 paths.flatten!
 
-                logreg = Orocos.registry
+                logreg = nil
                 if paths.last.kind_of?(Typelib::Registry)
                     logreg = paths.pop
                 end
