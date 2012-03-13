@@ -128,25 +128,41 @@ module Orocos
         if tlb # this is an orogen typekit
             begin
                 Orocos.master_project.using_typekit(name)
-                Orocos.registry.import(tlb)
             rescue RuntimeError => e
                 raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
             end
-
-            if Orocos.export_types?
-                Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
-                    if type_name =~ /orogen_typekits/ # just ignore those
-                    elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
-                    elsif base_type.contains_opaques? # register the intermediate instead
-                        Orocos.master_project.intermediate_type_for(base_type)
-                    elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
-                    else exported_type
-                    end
-                end
-            end
+	    load_registry(tlb, name)
+	else
+	    @loaded_typekit_registries << name
         end
+    end
 
-        @loaded_typekit_registries << name
+    def self.load_registry(registry, name = nil)
+	if registry.respond_to?(:to_str)
+	    if File.file?(registry)
+	        Orocos.registry.import(registry)
+	    else
+		Orocos.registry.merge(Typelib::Registry.from_xml(registry))
+	    end
+	else
+	    Orocos.registry.merge(registry)
+	end
+
+	if Orocos.export_types?
+	    Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
+		if type_name =~ /orogen_typekits/ # just ignore those
+		elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
+		elsif base_type.contains_opaques? # register the intermediate instead
+		    Orocos.master_project.intermediate_type_for(base_type)
+		elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
+		else exported_type
+		end
+	    end
+	end
+
+	if name
+	    @loaded_typekit_registries << name
+	end
     end
 
     # Loads all typekits that are available on this system
