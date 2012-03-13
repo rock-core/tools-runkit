@@ -222,7 +222,10 @@ module Orocos
                 Orocos.available_projects.each do |name, (pkg, deffile)|
                     available_projects[name] = File.read(deffile)
                     if pkg && pkg.type_registry && !pkg.type_registry.empty?
-                        available_typekits[name] = File.read(pkg.type_registry)
+			registry = File.read(pkg.type_registry)
+			typelist = File.join(File.dirname(pkg.type_registry), "#{name}.typelist")
+			typelist = File.read(typelist)
+                        available_typekits[name] = [registry, typelist]
                     end
                 end
                 available_deployments = Hash.new
