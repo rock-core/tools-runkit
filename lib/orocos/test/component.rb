@@ -4,29 +4,37 @@ require 'test/unit'
 module Orocos
     module Test
         module Component
+            attribute(:processes)  { Array.new }
+            attribute(:data_readers)  { Array.new }
+            attribute(:data_writers) { Array.new }
             def setup
                 if !Orocos.initialized?
                     Orocos.initialize
                 end
 
-                @processes = Array.new
                 self.class.run_specs.each do |name, run_spec|
                     task = start(*run_spec)
                     instance_variable_set("@#{name}", task)
                 end
 
                 self.class.reader_specs.each do |task_name, port_name, reader_name, policy|
-                    instance_variable_set("@#{reader_name}", send("#{task_name}").port(port_name).reader(policy))
+                    reader = self.reader(send(task_name).port(port_name), policy)
+                    instance_variable_set("@#{reader_name}", reader)
                 end
                 self.class.writer_specs.each do |task_name, port_name, writer_name, policy|
-                    instance_variable_set("@#{writer_name}", send("#{task_name}").port(port_name).writer(policy))
+                    writer = self.data_writer(send(task_name).port(port_name), policy)
+                    instance_variable_set("@#{writer_name}", writer)
                 end
                 super if defined? super
             end
 
             def teardown
-                @processes.each { |p| p.kill }
-                @processes.clear
+                processes.each { |p| p.kill }
+                processes.clear
+                data_readers.each { |r| r.disconnect }
+                data_readers.clear
+                data_writers.each { |w| w.disconnect }
+                data_writers.clear
                 super if defined? super
             end
 
@@ -103,12 +111,28 @@ module Orocos
                 begin Orocos::TaskContext.get(task_name)
                 rescue Orocos::NotFound
                     if model_or_deployment =~ /::/
-                        @processes.concat(Orocos.run(model_or_deployment => task_name))
+                        processes.concat(Orocos.run(model_or_deployment => task_name))
                     else
-                        @processes.concat(Orocos.run(model_or_deployment => prefix))
+                        processes.concat(Orocos.run(model_or_deployment => prefix))
                     end
                 end
                 return Orocos::TaskContext.get(task_name)
+            end
+
+            # Gets the data reader for this port. It gets disconnected on
+            # teardown
+            def data_reader(port, policy = Hash.new)
+                reader = port.reader(policy)
+                data_readers << reader
+                reader
+            end
+
+            # Gets the data writer for this port. It gets disconnected on
+            # teardown
+            def data_writer(port, policy = Hash.new)
+                writer = port.writer(policy)
+                data_writers << writer
+                writer
             end
 
             # Support module for declarations in tests
