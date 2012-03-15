@@ -626,11 +626,17 @@ module Orocos
             # Stop all tasks and disconnect the ports
             if !signal
                 clean_shutdown = true
-                each_task do |task|
-                    if !self.class.try_task_cleanup(task)
-                        clean_shutdown = false
-                        break
+                begin
+                    each_task do |task|
+                        if !self.class.try_task_cleanup(task)
+                            clean_shutdown = false
+                            break
+                        end
                     end
+                rescue Orocos::NotFound
+                    # We're probably still starting the process. Just go on and
+                    # signal it
+                    clean_shutdown = false
                 end
                 if !clean_shutdown
                     Orocos.warn "clean shutdown of process #{name} failed"
