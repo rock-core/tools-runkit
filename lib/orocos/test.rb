@@ -1,9 +1,46 @@
 require 'fileutils'
 require 'typelib'
 require 'orogen'
+require 'flexmock/test_unit'
 
 module Orocos
     module Test
+        module Mocks
+            def mock_task_context_model(&block)
+                flexmock(Orocos.create_orogen_interface(&block))
+            end
+
+            def mock_input_port(port_model)
+                port = flexmock("mock for #{port_model}")
+                port.should_receive(:model).and_return(port_model)
+                port
+            end
+
+            def mock_output_port(port_model)
+                port = flexmock("mock for #{port_model}")
+                port.should_receive(:model).and_return(port_model)
+                port
+            end
+
+            def mock_task_context(orogen_model)
+                mock = flexmock(FakeTaskContext.new)
+                mock.should_receive(:model).and_return(orogen_model)
+                orogen_model.each_input_port do |port_model|
+                    port = mock_input_port(port_model)
+                    mock.should_receive(:port).with(port_model.name).and_return(port)
+                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
+                end
+                orogen_model.each_output_port do |port_model|
+                    port = mock_output_port(port_model)
+                    mock.should_receive(:port).with(port_model.name).and_return(port)
+                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
+                end
+                mock
+            end
+        end
+
+        include Mocks
+
         USE_MQUEUE =
             if ENV['USE_MQUEUE'] == '1'
                 puts "MQueue enabled through the USE_MQUEUE environment variable"

@@ -383,6 +383,14 @@ module Orocos
             sleep 0.1
         end
     end
+
+    def self.create_orogen_interface(name = nil, &block)
+        model = Orocos::Spec::TaskContext.new(Orocos.master_project, name)
+        if block
+            model.instance_eval(&block)
+        end
+        model
+    end
 end
 
 at_exit do
