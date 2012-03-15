@@ -58,6 +58,7 @@ module Orocos
             # Since we are loading typekits over and over again, we need to
             # disable type export
             Orocos.export_types = false
+            Orocos.default_working_directory = WORK_DIR
             @processes = Array.new
             super if defined? super
         end
@@ -66,6 +67,7 @@ module Orocos
             processes.each { |p| p.kill }
             processes.clear
             super if defined? super
+            Orocos.clear
         end
 
         # Generates, builds and installs the orogen component defined by the
@@ -126,6 +128,7 @@ module Orocos
 
     module Spec
         def setup
+            Orocos.default_working_directory = WORK_DIR
             Orocos::MQueue.auto = Test::USE_MQUEUE
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             ENV['PKG_CONFIG_PATH'] += ":#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
