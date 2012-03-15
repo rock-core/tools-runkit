@@ -255,6 +255,7 @@ module Orocos
     def self.clear
         @master_project = nil
         @available_projects.clear if @available_projects
+        @registry = nil
     end
 
     def self.reset

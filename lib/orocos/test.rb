@@ -105,6 +105,7 @@ module Orocos
             Orocos.instance_variable_set :@registry, nil
             Orocos::CORBA.instance_variable_set :@loaded_typekits, []
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
+            Orocos.clear
         end
     end
 end
