@@ -269,6 +269,7 @@ module Orocos
                 end
             end
         end
+        nil
     end
 
     def self.clear
