@@ -196,9 +196,14 @@ module Orocos
             Utilrb::PkgConfig.each_package(/-tasks-#{Orocos.orocos_target}$/) do |pkg_name|
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 tasklib_name = pkg_name.gsub(/-tasks-#{Orocos.orocos_target}$/, '')
-                available_task_libraries[tasklib_name] = pkg
 
-                add_project_from(pkg)
+                # Verify that the corresponding orogen project is indeed
+                # available. If not, just ignore the library
+                if Orocos.available_projects.has_key?(pkg.project_name)
+                    available_task_libraries[tasklib_name] = pkg
+                else
+                    Orocos.warn "found task library #{tasklib_name}, but the corresponding oroGen project #{pkg.project_name} could not be found. Consider deleting #{pkg.path}."
+                end
             end
         end
 
@@ -208,9 +213,14 @@ module Orocos
             Utilrb::PkgConfig.each_package(/^orogen-\w+$/) do |pkg_name|
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 deployment_name = pkg_name.gsub(/^orogen-/, '')
-                available_deployments[deployment_name] = pkg
 
-                add_project_from(pkg)
+                # Verify that the corresponding orogen project is indeed
+                # available. If not, just ignore the library
+                if Orocos.available_projects.has_key?(pkg.project_name)
+                    available_deployments[deployment_name] = pkg
+                else
+                    Orocos.warn "found deployment #{deployment_name}, but the corresponding oroGen project #{pkg.project_name} could not be found. Consider deleting #{pkg.path}."
+                end
             end
         end
 
@@ -232,7 +242,16 @@ module Orocos
             Utilrb::PkgConfig.each_package(/-typekit-#{Orocos.orocos_target}$/) do |pkg_name|
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 typekit_name = pkg_name.gsub(/-typekit-#{Orocos.orocos_target}$/, '')
-                available_typekits[typekit_name] = pkg
+
+                if Orocos.available_projects.has_key?(pkg.project_name)
+                    if Orocos.available_projects[pkg.project_name][0].type_registry
+                        available_typekits[typekit_name] = pkg
+                    else
+                        Orocos.warn "found typekit #{typekit_name}, but the corresponding oroGen project #{pkg.project_name} does not have a typekit. Consider deleting #{pkg.path}."
+                    end
+                else
+                    Orocos.warn "found typekit #{typekit_name}, but the corresponding oroGen project #{pkg.project_name} could not be found. Consider deleting #{pkg.path}."
+                end
             end
         end
 
