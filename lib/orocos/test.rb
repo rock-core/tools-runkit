@@ -6,6 +6,9 @@ require 'flexmock/test_unit'
 module Orocos
     module Test
         module Mocks
+            class FakeTaskContext
+            end
+
             def mock_task_context_model(&block)
                 flexmock(Orocos.create_orogen_interface(&block))
             end
