@@ -30,7 +30,12 @@ module Orocos
         # A set of oroGen files that should be loaded in addition to what can be
         # discovered through pkg-config. Add new ones with
         # #register_orogen_files
-        attr_reader :additional_orogen_files
+        attr_reader :registered_orogen_projects
+
+        # A set of typelist files that should be loaded in addition to what can be
+        # discovered through pkg-config. Add new ones with
+        # #register_typekit
+        attr_reader :registered_typekits
 
         # The set of orogen projects that are available, as a mapping from a
         # name into the project's orogen description file
@@ -69,6 +74,8 @@ module Orocos
     @use_mq_warning = true
     @keep_orocos_logfile = false
     @additional_orogen_files = Array.new
+    @registered_typekits = Hash.new
+    @registered_orogen_projects = Hash.new
 
     def self.max_sizes_for(type)
         Orocos.master_project.max_sizes[type.name]
@@ -229,8 +236,16 @@ module Orocos
                 tasklib_pkg.task_models.split(",").
                     each { |class_name| available_task_models[class_name] = tasklib_name }
             end
-            additional_orogen_files.each do |file|
-                load_independent_orogen_files(file)
+            registered_typekits.each do |name, (tlb, typelist)|
+                Orocos.master_project.register_typekit(name, tlb, typelist)
+            end
+            registered_orogen_projects.each do |name, orogen|
+                Orocos.master_project.register_orogen_file(orogen, name)
+            end
+            # We must now load the projects explicitely, so that we can register
+            # the task models as well
+            registered_orogen_projects.each_key do |name|
+                load_independent_orogen_project(name)
             end
         end
 
@@ -286,39 +301,46 @@ module Orocos
     # Registers an orogen file, or all oroGen files contained in a directory, to
     # be loaded in Orocos.load
     def self.register_orogen_files(file_or_dir)
-        @additional_orogen_files << file_or_dir
-        if available_task_models
-            load_independent_orogen_files(file_or_dir)
+        if File.directory?(file_or_dir)
+            Dir.glob(File.join(file_or_dir, "*.typelist")) do |file|
+                register_orogen_files(file)
+            end
+            Dir.glob(File.join(file_or_dir, "*.orogen")) do |file|
+                register_orogen_files(file)
+            end
+        elsif File.extname(file_or_dir) == ".typelist"
+            name = File.basename(file_or_dir, ".typelist")
+            tlb_file = File.join(File.dirname(file_or_dir), "#{name}.tlb")
+            if File.file?(tlb_file)
+                registered_typekits[name] = [File.read(tlb_file), File.read(file_or_dir)]
+            end
+        elsif File.extname(file_or_dir) == ".orogen"
+            name = File.basename(file_or_dir, ".orogen")
+            registered_orogen_projects[name] = File.read(file_or_dir)
+        else
+            raise ArgumentError, "don't know what to do with #{file_or_dir}"
         end
-    end
-
-    # DEPRECATED. Use #register_orogen_files instead
-    def self.load_dummy_models(file_or_dir)
-        load_independent_orogen_files(file_or_dir)
     end
 
     # Loads an oroGen file or all oroGen files contained in a directory, and
     # registers them in the available_task_models set.
-    def self.load_independent_orogen_files(file_or_dir)
-        paths = []
-        if File.file?(file_or_dir)
-            paths << file_or_dir
-        else
-            Dir.glob(File.join(file_or_dir, "*.orogen")) do |orogen_file|
-                paths << orogen_file
-            end
-        end
-
+    def self.load_independent_orogen_project(file)
         old_value = Orocos.master_project.define_dummy_types?
         begin
             Orocos.master_project.define_dummy_types = true
-            paths.each do |file|
-                tasklib = Orocos.master_project.
-                    using_task_library(file, :define_dummy_types => true)
+
+            tasklib = Orocos.master_project.
+                using_task_library(file, :define_dummy_types => true, :validate => false)
+
+            if !tasklib.self_tasks.empty?
                 Orocos.available_task_libraries[tasklib.name] = file
-                tasklib.self_tasks.each do |task|
-                    Orocos.available_task_models[task.name] = file
-                end
+            end
+            tasklib.self_tasks.each do |task|
+                Orocos.available_task_models[task.name] = file
+            end
+
+            tasklib.deployers.each do |dep|
+                Orocos.master_project.loaded_deployments[dep.name] = dep
             end
         ensure
             Orocos.master_project.define_dummy_types = old_value

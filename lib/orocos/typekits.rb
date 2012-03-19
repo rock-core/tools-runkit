@@ -119,22 +119,14 @@ module Orocos
         if @loaded_typekit_registries.include?(name)
             return
         end
-        typekit_pkg ||= find_typekit_pkg(name)
 
-        # Now, if this is an orogen typekit, then load the corresponding
-        # data types. orogen defines a type_registry field in the pkg-config
-        # file for that purpose.
-        tlb = typekit_pkg.type_registry
-        if tlb # this is an orogen typekit
-            begin
-                Orocos.master_project.using_typekit(name)
-            rescue RuntimeError => e
-                raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
-            end
-	    load_registry(tlb, name)
-	else
-	    @loaded_typekit_registries << name
+        begin
+            typekit = Orocos.master_project.using_typekit(name)
+        rescue RuntimeError => e
+            raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
         end
+
+        load_registry(typekit.registry, name)
     end
 
     def self.load_registry(registry, name = nil)
