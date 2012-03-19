@@ -1,6 +1,7 @@
 require 'orocos/task_context'
 require 'orocos/nameservice_avahi'
 require 'orocos/nameservice_corba'
+require 'orocos/nameservice_local'
 
 module Nameservice
         
