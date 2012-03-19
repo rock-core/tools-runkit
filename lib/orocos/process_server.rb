@@ -399,6 +399,7 @@ module Orocos
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"
+            @loaded_orogen_projects = Set.new
         end
 
         # Loads the oroGen project definition called 'name' using the data the
@@ -407,6 +408,10 @@ module Orocos
             name = name.to_str
             if !available_projects[name]
                 raise ArgumentError, "there is no orogen project called #{name} on #{host}:#{port}"
+            end
+
+            if @loaded_orogen_projects.include?(name)
+                Orocos.master_project.load_orogen_project(name)
             end
 
             # Ask the process server to load the information about that project.
@@ -418,7 +423,9 @@ module Orocos
             end
 
 	    Orocos.master_project.register_orogen_file(available_projects[name], name)
-	    Orocos.master_project.load_orogen_project(name)
+	    project = Orocos.master_project.load_orogen_project(name)
+            @loaded_orogen_projects << name.to_s
+            project
         end
 
         # Returns the StaticDeployment instance that represents the remote
