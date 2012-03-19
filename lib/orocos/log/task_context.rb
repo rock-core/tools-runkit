@@ -172,6 +172,8 @@ module Orocos
             def orocos_type_name
                 if metadata && metadata.has_key?(:rock_orocos_type_name)
                     metadata[:rock_orocos_type_name]
+		elsif type_name =~ /^(.*)_m$/
+		    $1
                 else
                     type_name
                 end
