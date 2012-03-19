@@ -14,9 +14,6 @@ module Nameservice
 	end
 
 	def resolve(name)
-	    pp name
-	    pp @registered_tasks
-	    pp Local.registered_tasks
 	    @registered_tasks[name] || Local.registered_tasks[name]
 	end
     end
