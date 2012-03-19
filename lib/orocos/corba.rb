@@ -107,6 +107,14 @@ module Orocos
             # self.connect_timeout = 10000
 	end
 
+	def self.get(method, name)
+            result = ::Orocos::CORBA.refine_exceptions("naming service") do
+                ::Orocos::TaskContext.send(method, name)
+            end
+	    result.send(:initialize)
+	    result
+	end
+
         # Deinitializes the CORBA layer
         #
         # It shuts down the CORBA access and deregisters the Ruby process from

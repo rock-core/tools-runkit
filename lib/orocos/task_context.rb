@@ -363,7 +363,6 @@ module Orocos
 
             result.instance_variable_set :@process, process
             result.instance_variable_set :@name, name
-            result.send(:initialize)
 
             if model = result.model
                 if ext = Orocos.extension_modules[model.name]

@@ -418,6 +418,7 @@ module Orocos
             attr_reader :name
             attr_reader :state
             attr_reader :log_replay
+	    attr_accessor :model
 
             #Creates a new instance of TaskContext.
             #
@@ -599,6 +600,8 @@ module Orocos
                     yield(port) if block_given?
                 end
             end
+
+	    alias each_output_port each_port
 
             #Returns the port with the given name.
             #If no port can be found a exception is raised.
