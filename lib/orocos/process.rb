@@ -237,8 +237,9 @@ module Orocos
             options = names.last.kind_of?(Hash) ? names.pop : Hash.new
             options, mapped_names = filter_options options,
                 :wait => nil, :output => nil, :working_directory => Orocos.default_working_directory,
-                :valgrind => false, :valgrind_options => [], :cmdline_args => nil
-
+                :gdb => false, :gdb_options => [],
+                :valgrind => false, :valgrind_options => [],
+                :cmdline_args => nil
 
             deployments, models = Hash.new, Hash.new
             names.each { |n| mapped_names[n] = nil }
@@ -254,8 +255,9 @@ module Orocos
             end
 
             if options[:wait].nil?
-                options[:wait] ||=
+                options[:wait] =
                     if options[:valgrind] then 60
+                    elsif options[:gdb] then 600
                     else 20
                     end
             end
@@ -264,6 +266,30 @@ module Orocos
                 options[:cmdline_args] = Hash.new
             end
             return deployments, models, options
+        end
+
+        def self.parse_cmdline_wrapper_option(cmd, deployments, options, all_deployments)
+            if !deployments
+                return Hash.new
+            end
+
+            # Check if the valgrind option is specified, no matter if 
+            # set to true or false
+            if !system("which #{cmd}")
+                raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed"
+            end
+
+            if !deployments.respond_to?(:to_hash)
+                if deployments.respond_to?(:to_str)
+                    deployments = [deployments]
+                elsif !deployments.respond_to?(:to_ary)
+                    deployments = all_deployments
+                end
+
+                deployments.inject(Hash.new) { |h, name| h[name] = options; h }
+            else
+                deployments
+            end
         end
         
         # Deprecated
@@ -277,24 +303,16 @@ module Orocos
             begin
                 deployments, models, options = parse_run_options(*names)
 		    
-                valgrind = options[:valgrind]
-                # Check if the valgrind option is specified, no matter if 
-                # set to true or false
-                if valgrind && !system("which valgrind")
-                    raise "'valgrind' option is specified, but valgrind seems not to be installed"
+                if valgrind = options[:valgrind]
+                    valgrind = parse_cmdline_wrapper_option('valgrind', options[:valgrind], options[:valgrind_options], deployments.keys + models.values)
+                else
+                    valgrind = Hash.new
                 end
 
-                if !valgrind.respond_to?(:to_hash)
-                    if !valgrind
-                        valgrind = Array.new
-                    elsif valgrind.respond_to?(:to_str)
-                        valgrind = [valgrind]
-                    elsif !valgrind.respond_to?(:to_ary)
-                        valgrind = deployments.keys + models.keys
-                    end
-
-                    valgrind_options = options[:valgrind_options]
-                    valgrind = valgrind.inject(Hash.new) { |h, name| h[name] = valgrind_options; h }
+                if gdb = options[:gdb]
+                    gdb = parse_cmdline_wrapper_option('gdbserver', options[:gdb], options[:gdb_options], deployments.keys + models.values)
+                else
+                    gdb = Hash.new
                 end
 
                 # First thing, do create all the named processes
@@ -330,6 +348,7 @@ module Orocos
                     p.spawn(:working_directory => options[:working_directory],
                             :output => output,
                             :valgrind => valgrind[name],
+                            :gdb => gdb[name],
                             :cmdline_args => options[:cmdline_args],
                             :wait => false)
                 end
@@ -373,7 +392,16 @@ module Orocos
                 processes.each { |p| p.join }
             end
         end
-        
+
+        def self.gdb_base_port=(port)
+            @@gdb_port = port - 1
+        end
+
+        @@gdb_port = 30000
+        def self.allocate_gdb_port
+            @@gdb_port += 1
+        end
+
         # Spawns this process
         #
         # Valid options:
@@ -407,10 +435,15 @@ module Orocos
             end
 
             options = Kernel.validate_options options, :output => nil,
-                :valgrind => nil, :working_directory => nil, :cmdline_args => Hash.new, :wait => nil
+                :gdb => nil, :valgrind => nil,
+                :working_directory => nil,
+                :cmdline_args => Hash.new, :wait => nil
+
             if !options.has_key?(:wait)
                 if options[:valgrind]
                     options[:wait] = 60
+                elsif options[:gdb]
+                    options[:wait] = 600
                 else
                     options[:wait] = 20
                 end
@@ -426,13 +459,23 @@ module Orocos
             end
 
             output   = options[:output]
+
             if options[:valgrind]
-                valgrind = true
-                valgrind_options =
+                cmdline_wrapper = 'valgrind'
+                cmdline_wrapper_options =
                     if options[:valgrind].respond_to?(:to_ary)
                         options[:valgrind]
                     else []
                     end
+            elsif options[:gdb]
+                cmdline_wrapper = 'gdbserver'
+                cmdline_wrapper_options =
+                    if options[:gdb].respond_to?(:to_ary)
+                        options[:gdb]
+                    else []
+                    end
+                gdb_port = Process.allocate_gdb_port
+                cmdline_wrapper_options << "localhost:#{gdb_port}"
             end
 
             workdir  = options[:working_directory]
@@ -477,12 +520,13 @@ module Orocos
 		    STDOUT.reopen(output)
 		end
 
-                if valgrind
-                    if output_file_name
-                        cmdline.unshift "--log-file=#{output_file_name}.valgrind"
-                    end
-                    cmdline = valgrind_options + cmdline
-                    cmdline.unshift "valgrind"
+                if output_file_name && options[:valgrind]
+                    cmdline.unshift "--log-file=#{output_file_name}.valgrind"
+                end
+
+                if cmdline_wrapper
+                    cmdline = cmdline_wrapper_options + cmdline
+                    cmdline.unshift cmdline_wrapper
                 end
                 
                 # Command line arguments have to be of type --<option>=<value>
@@ -519,6 +563,10 @@ module Orocos
 	    if read.read == "FAILED"
 		raise "cannot start #{name}"
 	    end
+
+            if options[:gdb]
+                Orocos.warn "process #{name} has been started under gdbserver, port=#{gdb_port}. The components will not be functional until you attach a GDB to the started server"
+            end
 
             if options[:wait]
                 timeout = if options[:wait].kind_of?(Numeric)
