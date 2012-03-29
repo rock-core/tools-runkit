@@ -407,25 +407,6 @@ module Orocos
         end
     end
 
-    # Polls the state of this set of task, and announces when a state changed
-    def self.watch(*tasks)
-        tasks.each do |t|
-            s = t.state
-            puts "#{t.name}: in state #{s}"
-        end
-
-        while true
-            tasks.each do |t|
-                if t.state_changed?
-                    s = t.state(false)
-                    puts "#{t.name}: state changed to #{s}"
-                end
-            end
-            yield if block_given?
-            sleep 0.1
-        end
-    end
-
     def self.create_orogen_interface(name = nil, &block)
         model = Orocos::Spec::TaskContext.new(Orocos.master_project, name)
         if block

@@ -1,6 +1,103 @@
-require 'orocos'
-
 module Orocos
+    # call-seq:
+    #   Orocos.watch task1, task2, port, :sleep => 0.2, :display => false
+    #   Orocos.watch(task1, task2, port, :sleep => 0.2, :display => false) { |updated_tasks, updated_ports| ... }
+    #
+    # Watch for a set of tasks, ports or port readers and display information
+    # about them during execution
+    #
+    # This method will display:
+    #
+    # * the current state of all the listed tasks. This display is updated only
+    #   when the state of one of the tasks changed
+    # * whether new data arrived on one of the ports. By default, the new
+    #   samples are pretty-printed. This can be changed by setting the :display
+    #   option to false
+    #
+    # The update period can be changed with the :sleep option. It defaults to
+    # 0.1. Note that all state changes are displayed regardless of the period
+    # chosen.
+    #
+    # If a task is given to the :main option, the loop will automatically quit
+    # if that task has finished execution.
+    #
+    # If a block is given, it is called at each loop with the set of tasks whose
+    # state changed and the set of ports which got new data (either or both can
+    # be empty). This block should return true if the loop should quit and false
+    # otherwise.
+    def self.watch(*objects)
+        options = Hash.new
+        if objects.last.kind_of?(Hash)
+            options = objects.pop
+        end
+        options = Kernel.validate_options options, :sleep => 0.1, :display => true, :main => nil
+
+        tasks, ports = objects.partition do |obj|
+            obj.kind_of?(TaskContext)
+        end
+        ports, readers = ports.partition do |obj|
+            obj.kind_of?(OutputPort)
+        end
+
+        tasks = tasks.sort_by { |t| t.name }
+        readers.concat(ports.map { |p| p.reader })
+        readers = readers.sort_by { |r| r.port.full_name }
+        
+        should_quit = false
+        while true
+            updated_tasks = Set.new
+            updated_ports = Set.new
+
+            needs_display = true
+            while needs_display
+                needs_display = false
+                info = tasks.map do |t|
+                    if !t.process.running?
+                        needs_display = true
+                        updated_tasks << t
+                        "#{t.name}=DEAD"
+                    elsif t.state_changed?
+                        needs_display = true
+                        updated_tasks << t
+                        "#{t.name}=#{t.state(false)}"
+                    else
+                        "#{t.name}=#{t.current_state}"
+                    end
+                end
+
+                if needs_display
+                    puts info.join(" | ")
+                end
+            end
+
+            readers.each do |r|
+                while data = r.read_new
+                    puts "new data on #{r.port.full_name}"
+                    updated_ports << r.port
+                    if options[:display]
+                        pp = PP.new(STDOUT)
+                        pp.nest(2) do
+                            pp.breakable
+                            data.pretty_print(pp)
+                        end
+                    end
+                end
+            end
+
+            if should_quit
+                break
+            end
+
+            if block_given?
+                should_quit = yield(updated_tasks, updated_ports) 
+            end
+            if options[:main]
+                should_quit = !options[:main].runtime_state?(options[:main].peek_current_state)
+            end
+            sleep options[:sleep]
+        end
+    end
+
     module Scripts
         class << self
             # If true, the script should try to attach to running tasks instead of

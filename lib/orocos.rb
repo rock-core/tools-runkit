@@ -20,6 +20,8 @@ require 'orocos/process'
 require 'orocos/corba'
 require 'orocos/mqueue'
 
+require 'orocos/scripts'
+
 require 'utilrb/hash/recursive_merge'
 require 'orocos/configurations'
 

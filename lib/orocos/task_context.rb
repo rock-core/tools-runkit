@@ -499,6 +499,9 @@ module Orocos
             reader
         end
 
+        # Returns the last-known state
+        attr_reader :current_state
+
         # Returns the current task's state without "hiding" any state change to
         # the task's user.
         #
