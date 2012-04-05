@@ -239,7 +239,8 @@ module Orocos
                 :wait => nil, :output => nil, :working_directory => Orocos.default_working_directory,
                 :gdb => false, :gdb_options => [],
                 :valgrind => false, :valgrind_options => [],
-                :cmdline_args => nil
+                :cmdline_args => nil,
+                :oro_logfile => nil
 
             deployments, models = Hash.new, Hash.new
             names.each { |n| mapped_names[n] = nil }
@@ -350,7 +351,8 @@ module Orocos
                             :valgrind => valgrind[name],
                             :gdb => gdb[name],
                             :cmdline_args => options[:cmdline_args],
-                            :wait => false)
+                            :wait => false,
+                            :oro_logfile => options[:oro_logfile])
                 end
 
                 # Finally, if the user required it, wait for the processes to run
@@ -437,7 +439,8 @@ module Orocos
             options = Kernel.validate_options options, :output => nil,
                 :gdb => nil, :valgrind => nil,
                 :working_directory => nil,
-                :cmdline_args => Hash.new, :wait => nil
+                :cmdline_args => Hash.new, :wait => nil,
+                :oro_logfile => "orocos.%m-%p.txt"
 
             if !options.has_key?(:wait)
                 if options[:valgrind]
@@ -459,6 +462,7 @@ module Orocos
             end
 
             output   = options[:output]
+            oro_logfile = options[:oro_logfile]
 
             if options[:valgrind]
                 cmdline_wrapper = 'valgrind'
@@ -489,31 +493,34 @@ module Orocos
                 module_bin = "#{pkg.exec_prefix}/bin/#{name}"
             end
             cmdline = [module_bin]
-
-	    if output.respond_to?(:to_str)
-		output_format = output.to_str
-		output = Tempfile.open('orocos-rb', File.dirname(output_format))
-	    end
 		    
 	    read, write = IO.pipe
 	    @pid = fork do 
                 pid = ::Process.pid
                 real_name = (name_mappings[name] || name)
-		if output_format
-		    output_file_name = output_format.
+
+		if output && output.respond_to?(:to_str)
+		    output_file_name = output.
 			gsub('%m', real_name).
 			gsub('%p', pid.to_s)
                     if workdir
                         output_file_name = File.expand_path(output_file_name, workdir)
                     end
-		    FileUtils.mv output.path, output_file_name
+
+                    output = File.open(output_file_name, 'a')
 		end
-        
-                oro_logfile_name = "orocos.#{real_name}-#{pid}.txt"
-                if workdir
-                    oro_logfile_name = File.expand_path(oro_logfile_name, workdir)
+
+                if oro_logfile
+                    oro_logfile = oro_logfile.
+                        gsub('%m', real_name).
+                        gsub('%p', pid.to_s)
+                    if workdir
+                        oro_logfile = File.expand_path(oro_logfile, workdir)
+                    end
+                    ENV['ORO_LOGFILE'] = oro_logfile
+                else
+                    ENV['ORO_LOGFILE'] = "/dev/null"
                 end
-                ENV['ORO_LOGFILE'] = oro_logfile_name
 
 		if output
 		    STDERR.reopen(output)
