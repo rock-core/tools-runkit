@@ -681,7 +681,7 @@ module Orocos
                             break
                         end
                     end
-                rescue Orocos::NotFound
+                rescue Orocos::NotFound, Orocos::NoModel
                     # We're probably still starting the process. Just go on and
                     # signal it
                     clean_shutdown = false
