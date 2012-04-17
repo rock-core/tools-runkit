@@ -367,7 +367,11 @@ module Orocos
 		    begin
 			kill(processes.map { |name, p| p if p.running? }.compact)
 		    rescue Exception => e
-			STDERR.puts "WARN: failed to kill the started processes, you will have to kill them yourself"
+			Orocos.warn "failed to kill the started processes, you will have to kill them yourself"
+			Orocos.warn e.message
+			e.backtrace.each do |l|
+			    Orocos.warn "  #{l}"
+			end
 			raise original_error
 		    end
                 end
