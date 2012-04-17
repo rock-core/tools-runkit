@@ -103,8 +103,8 @@ module Orocos
 	    end
 
             do_init(name || "")
-            # self.call_timeout    = 10000
-            # self.connect_timeout = 10000
+            self.call_timeout    = 20000
+            self.connect_timeout = 2000
 	end
 
 	def self.get(method, name)
