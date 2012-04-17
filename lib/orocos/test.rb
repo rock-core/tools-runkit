@@ -4,6 +4,7 @@ require 'orogen'
 require 'flexmock/test_unit'
 
 module Orocos
+    MODEL_LESS_TESTS = (ENV['OROCOS_MODEL_LESS_TESTS'] == '1')
     module Test
         module Mocks
             class FakeTaskContext
@@ -130,6 +131,9 @@ module Orocos
     end
 
     module Spec
+        include FlexMock::ArgumentTypes
+        include FlexMock::MockContainer
+
         def setup
             Orocos.default_working_directory = WORK_DIR
             Orocos::MQueue.auto = Test::USE_MQUEUE
@@ -138,11 +142,17 @@ module Orocos
             Orocos.initialize
             Orocos.export_types = false
 
+	    if MODEL_LESS_TESTS
+		flexmock(Orocos::TaskContext).new_instances(:get_from_ior).should_receive('model').and_return(nil)
+		flexmock(Orocos::TaskContext).new_instances(:do_get).should_receive('model').and_return(nil)
+	    end
+
             @old_timeout = Orocos::CORBA.connect_timeout
             Orocos::CORBA.connect_timeout = 50
             super
         end
         def teardown
+	    flexmock_teardown
             super
             Orocos::CORBA.connect_timeout = @old_timeout if @old_timeout
             Orocos.instance_variable_set :@registry, nil
