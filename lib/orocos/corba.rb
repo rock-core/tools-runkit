@@ -48,6 +48,7 @@ module Orocos
                     CORBA.info "trying task context #{n}"
                     TaskContext.get(n)
                 rescue Orocos::NotFound
+                    CORBA.unregister(n)
                     CORBA.warn "unregistered dangling CORBA name #{n}"
                 end
             end
