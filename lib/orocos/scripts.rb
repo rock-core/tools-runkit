@@ -42,6 +42,8 @@ module Orocos
         tasks = tasks.sort_by { |t| t.name }
         readers.concat(ports.map { |p| p.reader })
         readers = readers.sort_by { |r| r.port.full_name }
+
+        dead_processes = Set.new
         
         should_quit = false
         while true
@@ -53,9 +55,12 @@ module Orocos
                 needs_display = false
                 info = tasks.map do |t|
                     if !t.process.running?
-                        needs_display = true
-                        updated_tasks << t
-                        "#{t.name}=DEAD"
+                        if !dead_processes.include?(t)
+                            needs_display = true
+                            updated_tasks << t
+                            dead_processes << t
+                            "#{t.name}=DEAD"
+                        end
                     elsif t.state_changed?
                         needs_display = true
                         updated_tasks << t

@@ -1,6 +1,24 @@
-require 'rorocos_ext'
-require 'orogen'
+begin
+    require 'orogen'
+rescue LoadError
+    STDERR.puts "Cannot require 'orogen'"
+    STDERR.puts "If you are using Rock, the 'orogen' package should have been installed automatically."
+    STDERR.puts "It should be installed in tools/orogen from the root of your Rock installation"
+    STDERR.puts "Make sure that you have loaded autoproj's env.sh script before continuing"
+    exit 1
+end
 
+begin
+    require 'rorocos_ext'
+rescue LoadError
+    STDERR.puts "Cannot require orocos.rb's Ruby/C extension"
+    STDERR.puts "If you are using Rock, this should have been done automatically."
+    STDERR.puts "Run"
+    STDERR.puts "  amake orocos.rb"
+    STDERR.puts "and try again"
+    exit 1
+end
+    
 require 'orocos/base'
 require 'orocos/typekits'
 

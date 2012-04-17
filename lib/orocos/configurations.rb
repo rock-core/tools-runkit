@@ -44,6 +44,11 @@ module Orocos
             @merged_conf = Hash.new
         end
 
+        # Retrieves the configuration for the given section name 
+        def [](section_name)
+            sections[section_name]
+        end
+
         # Loads the configurations from a YAML file
         #
         # Multiple configurations can be saved in the file, in which case each
