@@ -417,6 +417,11 @@ module Orocos
 	    raise "#{name} is already running" if alive?
 	    Orocos.info "starting deployment #{name}"
 
+            options = Kernel.validate_options options, :output => nil,
+                :gdb => nil, :valgrind => nil,
+                :working_directory => nil,
+                :cmdline_args => Hash.new, :wait => nil
+
             # Setup mapping for prefixed tasks in Process class
             prefix = options[:cmdline_args][:prefix]
 
@@ -433,11 +438,6 @@ module Orocos
                     raise ArgumentError, "there is already a running task called #{name}, are you starting the same component twice ?"
                 end
             end
-
-            options = Kernel.validate_options options, :output => nil,
-                :gdb => nil, :valgrind => nil,
-                :working_directory => nil,
-                :cmdline_args => Hash.new, :wait => nil
 
             if !options.has_key?(:wait)
                 if options[:valgrind]
