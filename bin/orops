@@ -4,9 +4,13 @@ require 'orocos'
 require 'pp'
 require 'utilrb/pkgconfig'
 
+do_cleanup = false
 parser = OptionParser.new do |opt|
     opt.on('--host=HOST', String, 'the CORBA name server') do |hostname|
         Orocos::CORBA.name_service = hostname
+    end
+    opt.on('--cleanup', 'try to remove unreachable tasks from the name server') do
+        do_cleanup = true
     end
 end
 remaining = parser.parse(ARGV)
@@ -32,7 +36,14 @@ Orocos.task_names.each do |name|
         end
         result << (current_state || '[unknown]').to_s
     rescue Orocos::NotFound
-        result << "[defunct]"
+        if do_cleanup
+            Orocos.warn "#{name} is unreachable, deregistering it out of the name server"
+            Orocos::CORBA.unregister(name)
+            result << "[deregistered]"
+        else
+            result << "[defunct]"
+        end
+
     end
     result.map(&:size).each_with_index do |size, i|
         sizes[i] = size if sizes[i] < size
