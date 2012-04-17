@@ -4,7 +4,9 @@ require 'orogen'
 require 'flexmock/test_unit'
 
 module Orocos
-    MODEL_LESS_TESTS = (ENV['OROCOS_MODEL_LESS_TESTS'] == '1')
+    OROCOS_TEST_MODES = (ENV['OROCOS_TEST_MODES'] || "").split(',')
+    TEST_MODEL_LESS = OROCOS_TEST_MODES.include?('no_model')
+    TEST_MISSING_MODELS = OROCOS_TEST_MODES.include?('missing_model')
     module Test
         module Mocks
             class FakeTaskContext
@@ -142,9 +144,11 @@ module Orocos
             Orocos.initialize
             Orocos.export_types = false
 
-	    if MODEL_LESS_TESTS
+	    if TEST_MODEL_LESS
 		flexmock(Orocos::TaskContext).new_instances(:get_from_ior).should_receive('model').and_return(nil)
 		flexmock(Orocos::TaskContext).new_instances(:do_get).should_receive('model').and_return(nil)
+	    elsif TEST_MISSING_MODELS
+		flexmock(Orocos).should_receive(:task_model_from_name).and_raise(Orocos::NotFound)
 	    end
 
             @old_timeout = Orocos::CORBA.connect_timeout
