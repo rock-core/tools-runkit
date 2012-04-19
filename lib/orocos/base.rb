@@ -276,14 +276,14 @@ module Orocos
                 typelist = typelist - typelist_exported
                 typelist.each do |typename|
                     if existing = @available_types[typename]
-                        Orocos.warn "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
+                        Orocos.info "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
                     else
                         @available_types[typename] = [typekit_name, false]
                     end
                 end
                 typelist_exported.each do |typename|
                     if existing = @available_types[typename]
-                        Orocos.warn "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
+                        Orocos.info "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
                     end
                     @available_types[typename] = [typekit_name, true]
                 end
