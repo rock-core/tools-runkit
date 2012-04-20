@@ -1183,9 +1183,9 @@ module Orocos
         # into the main configuration manager and applies it to the TaskContext
         # 
         # See also #apply_conf and #Orocos.load_config_dir
-        def load_conf(file,section_names=Array.new)
+        def apply_conf_file(file,section_names=Array.new,override=false)
             Orocos.conf.load_file(file,model.name)
-            apply_conf(section_names)
+            apply_conf(section_names,override)
         end
 
         # Applies the TaskContext configuration stored by the main 
