@@ -249,7 +249,7 @@ module Orocos
     def self.load_typekit_for(typename, exported = true)
         typekit_name = find_typekit_for(typename, exported)
         load_typekit(typekit_name)
-        return Orocos.master_project.using_project(typekit_name).typekit
+        return Orocos.master_project.using_typekit(typekit_name)
     end
 
     # Returns the type that is used to manipulate +t+ in Typelib
