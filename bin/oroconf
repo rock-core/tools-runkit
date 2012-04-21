@@ -12,6 +12,7 @@ usage: oroconf apply   task_name /path/to/configuration conf_name1 conf_name2
 usage: oroconf extract task_model [--save=FILE_OR_DIR[:section_name]]
 usage: oroconf display task_name [--save=FILE_OR_DIR[:section_name]]
 usage: oroconf logextract logfile task_name time [--save=FILE_OR_DIR[:section_name]]
+usage: oroconf load /path/to/configuration
 
 Manages configuration through files. The following subcommands are available:
   
@@ -30,6 +31,8 @@ Manages configuration through files. The following subcommands are available:
     should be generated: the sample just before the provided time (in floating-point
     form) will be used. The special keyword @last can be used to use the last sample
     in each stream.
+  load: loads all configuration files from a directory, or a single config file.
+    Use it to check that your configuration files are valid
 
 The extract, display and logextract subcommand output the generated configuration to
 the console by default. If a --save option is provided, it is instead appended to the
@@ -172,13 +175,20 @@ when "apply"
     end
     Orocos.apply_conf(task, path, conf_names)
 
+when "load"
+    path = remaining.shift
+    Orocos.conf.load_dir(path)
+
 when "display"
     task_name = remaining.shift
     task = Orocos::TaskContext.get task_name
     dump_configuration(task, save_configuration)
 else
-    STDERR.puts "invalid operation mode #{mode}. Expected one of: extract, apply or display"
-    STDERR.puts "Use --help for more information"
+    if mode
+        STDERR.puts "Invalid operation mode #{mode}. Expected one of: extract, logextract, apply, display or load"
+    else
+        STDERR.puts "No operation mode specified. Expected one of: extract, logextract, apply, display or load"
+    end
     exit 1
 end
 
