@@ -42,6 +42,9 @@ module Orocos
         tasks = tasks.sort_by { |t| t.name }
         readers.concat(ports.map { |p| p.reader })
         readers = readers.sort_by { |r| r.port.full_name }
+        readers = readers.map do |r|
+            [r, r.new_sample]
+        end
 
         dead_processes = Set.new
         
@@ -75,15 +78,15 @@ module Orocos
                 end
             end
 
-            readers.each do |r|
-                while data = r.read_new
+            readers.each do |r, sample|
+                while r.read_new(sample)
                     puts "new data on #{r.port.full_name}"
                     updated_ports << r.port
                     if options[:display]
                         pp = PP.new(STDOUT)
                         pp.nest(2) do
                             pp.breakable
-                            data.pretty_print(pp)
+                            sample.pretty_print(pp)
                         end
                     end
                 end
