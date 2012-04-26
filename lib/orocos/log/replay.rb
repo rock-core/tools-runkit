@@ -285,8 +285,10 @@ module Orocos
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
-                        @replayed_ports << port
-                        @used_streams << port.stream
+                        if !port.stream.empty?
+                            @replayed_ports << port
+                            @used_streams << port.stream
+                        end
                     end
                     port.set_replay
                 end
