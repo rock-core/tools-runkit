@@ -521,6 +521,8 @@ module Orocos
                         Log.warn "For task #{name} ommiting log file \"#{file_path}\", because it is older than \"#{@file_path}\"."
                         return nil
                     end
+                else
+                    @file_path = file_path
                 end
                 begin
                     log_port = OutputPort.new(self,stream)
