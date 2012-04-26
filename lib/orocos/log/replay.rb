@@ -602,10 +602,6 @@ module Orocos
             def load_log_file(file, path)
                 Log.info "  loading log file #{path}"
                 file.streams.each do |s|
-                    if s.empty?
-                        Log.info "    ignored empty stream #{s.name} (#{s.type_name})"
-                        next
-                    end
                     if s.metadata["rock_stream_type"] == "annotations"
                         @annotations << Annotations.new(path,s)
                         next
