@@ -214,6 +214,24 @@ module Orocos
         libs
     end
 
+    # Exception raised when a typekit is required for a requested type, but the
+    # type is not exported.
+    class TypekitTypeNotExported < ArgumentError
+        attr_reader :typename
+        def initialize(typename)
+            @typename = typename
+        end
+    end
+
+    # Exception raised when a typekit is required for a type, but that
+    # particular type is not registered on any typekit.
+    class TypekitTypeNotFound < ArgumentError
+        attr_reader :typename
+        def initialize(typename)
+            @typename = typename
+        end
+    end
+
     # Looks for the typekit that handles the specified type, and returns its name
     #
     # If +exported+ is true (the default), the type needs to be both defined and
@@ -231,9 +249,9 @@ module Orocos
         if registered_type?(typename)
             typekit_name
         elsif !typekit_name
-            raise ArgumentError, "no type #{typename} has been registered in oroGen components"
+            raise TypekitTypeNotFound.new(typename), "no type #{typename} has been registered in oroGen components"
         elsif exported && !is_exported
-            raise ArgumentError, "the type #{typename} is registered, but is not exported to the RTT type system"
+            raise TypekitTypeNotExported.new(typename), "the type #{typename} is registered, but is not exported to the RTT type system"
         else
             typekit_name
         end
