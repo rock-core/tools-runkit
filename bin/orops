@@ -35,6 +35,8 @@ Orocos.task_names.each do |name|
             sleep 0.01
         end
         result << (current_state || '[unknown]').to_s
+    rescue Orocos::NoModel => e
+        result << "[cannot find model definition]"
     rescue Orocos::NotFound
         if do_cleanup
             Orocos.warn "#{name} is unreachable, deregistering it out of the name server"
