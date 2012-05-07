@@ -11,6 +11,7 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
 describe Orocos::TaskConfigurations do
     include Orocos::Spec
+    include Orocos::Test::Mocks
     TaskConfigurations = Orocos::TaskConfigurations
 
     attr_reader :conf
@@ -402,6 +403,66 @@ describe Orocos::TaskConfigurations do
             assert_conf_value 'array_of_vector_of_compound', 1, 0, 'intg', "/int32_t", Typelib::NumericType, 12
             assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
         end
+    end
+end
+
+class TC_Orocos_Configurations < Test::Unit::TestCase
+    include Orocos::Test
+
+    def setup
+        super
+        Orocos.load
+    end
+
+    def test_merge_conf_array
+        assert_raises(ArgumentError) { TaskConfigurations.merge_conf_array([nil, 1], [nil, 2], false) }
+        assert_equal([1, 2], TaskConfigurations.merge_conf_array([1, nil], [nil, 2], false))
+        assert_equal([nil, 2], TaskConfigurations.merge_conf_array([nil, 1], [nil, 2], true))
+        assert_equal([1, 2], TaskConfigurations.merge_conf_array([], [1, 2], false))
+        assert_equal([1, 2], TaskConfigurations.merge_conf_array([], [1, 2], true))
+
+        assert_equal([1, 2], TaskConfigurations.merge_conf_array([1], [nil, 2], false))
+        assert_equal([1, 2], TaskConfigurations.merge_conf_array([1], [nil, 2], true))
+        assert_equal([1, 4, 3, 5], TaskConfigurations.merge_conf_array([1, 2, 3], [nil, 4, nil, 5], true))
+        assert_equal([1, 2], TaskConfigurations.merge_conf_array([1, 2], [1, 2], false))
+        assert_equal([1, 2], TaskConfigurations.merge_conf_array([1, 2], [1, 2], true))
+    end
+
+    def test_override_arrays
+        if !Orocos.registry.include?('/base/Vector3d')
+            Orocos.registry.create_compound('/base/Vector3d') do |t|
+                t.data = '/double[4]'
+            end
+        end
+
+        model = mock_task_context_model do
+            property 'gyrorw', '/base/Vector3d'
+            property 'gyrorrw', '/base/Vector3d'
+        end
+
+        conf = Orocos::TaskConfigurations.new(model)
+        default_conf = {
+            'gyrorrw' => {
+                'data' => [2.65e-06, 4.01e-06, 5.19e-06]
+            },
+            'gyrorw' => {
+                'data' => [6.04E-05, 6.94E-05, 5.96E-05]
+            }
+        }
+        conf.add('default', default_conf)
+
+        xsens_conf = {
+            'gyrorw' => {
+                'data' => [0.0006898864, 0.0007219069, 0.0005708627]
+            }
+        }
+        conf.add('mti_xsens', xsens_conf)
+
+        result = conf.conf(['default', 'default'], true)
+        assert_equal(default_conf, result)
+
+        result = conf.conf(['default', 'mti_xsens'], true)
+        assert_equal({ 'gyrorrw' => default_conf['gyrorrw'], 'gyrorw' => xsens_conf['gyrorw'] }, result)
     end
 end
 

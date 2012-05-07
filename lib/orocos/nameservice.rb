@@ -1,6 +1,7 @@
 require 'orocos/task_context'
 require 'orocos/nameservice_avahi'
 require 'orocos/nameservice_corba'
+require 'orocos/nameservice_local'
 
 module Nameservice
         
@@ -80,13 +81,10 @@ module Nameservice
             @@priority_order.each do |type|
                    types << type
                    begin
-                       task = @@nameservices[type].resolve(name) 
+                       if task = @@nameservices[type].resolve(name) 
+			   return task
+		       end
                    rescue Orocos::NotFound
-                        next
-                   end
-                        
-                   if task and task.kind_of?(::Orocos::TaskContext)
-                       return task
                    end
             end
             raise Orocos::NotFound, "The service #{name} could not be resolved using following nameservices (in priority order): #{@@priority_order.join(', ')}"

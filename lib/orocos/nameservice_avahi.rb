@@ -80,9 +80,8 @@ module Nameservice
             ior = get_ior(name)
             result=nil
             if ior
-                result = ::Orocos::CORBA.refine_exceptions("naming service") do
-                     ::Orocos::TaskContext::do_get_from_ior(ior)
-                end
+		Orocos::CORBA.get(:do_get_from_ior, ior)
+
             else 
                 raise Orocos::NotFound
             end

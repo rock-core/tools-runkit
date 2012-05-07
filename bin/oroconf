@@ -8,14 +8,36 @@ debug = false
 save_configuration = nil
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOT
-usage: oroconf extract task_model
 usage: oroconf apply   task_name /path/to/configuration conf_name1 conf_name2
-usage: oroconf display task_name
+usage: oroconf extract task_model [--save=FILE_OR_DIR[:section_name]]
+usage: oroconf display task_name [--save=FILE_OR_DIR[:section_name]]
+usage: oroconf logextract logfile task_name time [--save=FILE_OR_DIR[:section_name]]
+usage: oroconf load /path/to/configuration
 
-  Manages configuration through files. The first form allows to generate a
-  configuration file from a task library / task model. The second form allows
-  to apply a particular configuration to a running task and the third form to
-  save the configuration from a running task.
+Manages configuration through files. The following subcommands are available:
+  
+  apply: apply a specified configuration to a running task, whose name is provided.
+    FILE_OR_DIR is either the path to a configuration file or to a configuration
+    directory, in which case the <task_model_name>.yml file is going to be used.
+  extract: generates a YAML config file from a task model, i.e which contains
+    the default values for the properties. This is usually used to create
+    new configuration files
+  display: generates a YAML config file from the current property values in a running
+    task, whose name is given.
+  logextract: generates a YAML config file from a property log (usually generated
+    using Orocos.log_all and named properties.0.log). This is usually used to debug
+    failing components, making sure that the same configuration has been used. The
+    provided time is used to identify from which sample this configuration file
+    should be generated: the sample just before the provided time (in floating-point
+    form) will be used. The special keyword @last can be used to use the last sample
+    in each stream.
+  load: loads all configuration files from a directory, or a single config file.
+    Use it to check that your configuration files are valid
+
+The extract, display and logextract subcommand output the generated configuration to
+the console by default. If a --save option is provided, it is instead appended to the
+specified file or, if it is a directory, to the <task_model_name>.yml file in this
+directory.
     EOT
 
     opt.on('--help') do
@@ -80,8 +102,18 @@ when "logextract"
         STDERR.puts "missing a log file name as argument"
     end
     logfile = Pocolog::Logfiles.open(logfile)
-    task_name = remaining.shift
-    time = remaining.shift
+    if !(task_name = remaining.shift)
+        STDERR.puts "no task name given. Available tasks: #{logfile.streams.map { |s| s.name.gsub(/\..*$/, '') }.uniq.sort.join(", ")}"
+        exit 1
+    end
+    if !(time = remaining.shift)
+        STDERR.puts "no time given. Expected either a time as a floating-point value or @last"
+        exit 1
+    end
+    if time != "@last" && time !~ /^\d+(\.\d+)?$/
+        STDERR.puts "expected either a time as a floating-point value or @last, but got #{time}"
+        exit 1
+    end
 
     sample_accessor =
         if time == "@last"
@@ -98,16 +130,38 @@ when "logextract"
         end
 
     result = Hash.new
+    model_name = nil
     logfile.streams.each do |stream|
         if !stream.metadata.empty?  && stream.metadata['rock_stream_type'] != 'property'
             next
         end
+        model_name ||= stream.metadata['rock_task_model']
 
         if stream.name =~ /^#{task_name}\.(.*)/
             result[$1] = Orocos::TaskConfigurations.typelib_to_yaml_value(Typelib.from_ruby(sample_accessor[stream], stream.type))
         end
     end
-    puts YAML.dump(result)
+    result = YAML.dump(result)
+
+    if save_configuration
+        file, section_name = *save_configuration
+        if File.directory?(file)
+            if !model_name
+                STDERR.puts "cannot use logextract --save=DIR with old logs. When running pocolog <file> --metadata, only streams that have a rock_task_model metadata can be saved in directories"
+            end
+            file = File.join(file, "#{model_name}.yml")
+        end
+        FileUtils.mkdir_p File.dirname(file)
+        result = result.split("\n")
+        result[0] = "--- name:#{section_name || 'default'}"
+        File.open(file, 'a') do |io|
+            io.puts result.join("\n")
+        end
+    else
+        result = result.split("\n")
+        result[0] = "--- name:#{section_name || 'default'}"
+        puts result.join("\n")
+    end
 
 when "apply"
     task_name = remaining.shift
@@ -121,13 +175,20 @@ when "apply"
     end
     Orocos.apply_conf(task, path, conf_names)
 
+when "load"
+    path = remaining.shift
+    Orocos.conf.load_dir(path)
+
 when "display"
     task_name = remaining.shift
     task = Orocos::TaskContext.get task_name
     dump_configuration(task, save_configuration)
 else
-    STDERR.puts "invalid operation mode #{mode}. Expected one of: extract, apply or display"
-    STDERR.puts "Use --help for more information"
+    if mode
+        STDERR.puts "Invalid operation mode #{mode}. Expected one of: extract, logextract, apply, display or load"
+    else
+        STDERR.puts "No operation mode specified. Expected one of: extract, logextract, apply, display or load"
+    end
     exit 1
 end
 

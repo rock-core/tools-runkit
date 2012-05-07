@@ -285,8 +285,10 @@ module Orocos
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
-                        @replayed_ports << port
-                        @used_streams << port.stream
+                        if !port.stream.empty?
+                            @replayed_ports << port
+                            @used_streams << port.stream
+                        end
                     end
                     port.set_replay
                 end
@@ -602,10 +604,6 @@ module Orocos
             def load_log_file(file, path)
                 Log.info "  loading log file #{path}"
                 file.streams.each do |s|
-                    if s.empty?
-                        Log.info "    ignored empty stream #{s.name} (#{s.type_name})"
-                        next
-                    end
                     if s.metadata["rock_stream_type"] == "annotations"
                         @annotations << Annotations.new(path,s)
                         next

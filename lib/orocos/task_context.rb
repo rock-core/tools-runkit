@@ -381,7 +381,6 @@ module Orocos
 
             result.instance_variable_set :@process, process
             result.instance_variable_set :@name, name
-            result.send(:initialize)
 
             if model = result.model
                 if ext = Orocos.extension_modules[model.name]
@@ -517,6 +516,9 @@ module Orocos
             reader.instance_variable_set :@state_symbols, @state_symbols
             reader
         end
+
+        # Returns the last-known state
+        attr_reader :current_state
 
         # Returns the current task's state without "hiding" any state change to
         # the task's user.

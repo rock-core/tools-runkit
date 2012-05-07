@@ -30,7 +30,12 @@ module Orocos
         # A set of oroGen files that should be loaded in addition to what can be
         # discovered through pkg-config. Add new ones with
         # #register_orogen_files
-        attr_reader :additional_orogen_files
+        attr_reader :registered_orogen_projects
+
+        # A set of typelist files that should be loaded in addition to what can be
+        # discovered through pkg-config. Add new ones with
+        # #register_typekit
+        attr_reader :registered_typekits
 
         # The set of orogen projects that are available, as a mapping from a
         # name into the project's orogen description file
@@ -69,6 +74,8 @@ module Orocos
     @use_mq_warning = true
     @keep_orocos_logfile = false
     @additional_orogen_files = Array.new
+    @registered_typekits = Hash.new
+    @registered_orogen_projects = Hash.new
 
     def self.max_sizes_for(type)
         Orocos.master_project.max_sizes[type.name]
@@ -171,9 +178,6 @@ module Orocos
         end
 
         @master_project = Orocos::Generation::Component.new
-        if registry && export_types?
-            registry.clear_exports(type_export_namespace)
-        end
         @registry = master_project.registry
         @conf = ConfigurationManager.new
         @available_projects ||= Hash.new
@@ -196,9 +200,14 @@ module Orocos
             Utilrb::PkgConfig.each_package(/-tasks-#{Orocos.orocos_target}$/) do |pkg_name|
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 tasklib_name = pkg_name.gsub(/-tasks-#{Orocos.orocos_target}$/, '')
-                available_task_libraries[tasklib_name] = pkg
 
-                add_project_from(pkg)
+                # Verify that the corresponding orogen project is indeed
+                # available. If not, just ignore the library
+                if Orocos.available_projects.has_key?(pkg.project_name)
+                    available_task_libraries[tasklib_name] = pkg
+                else
+                    Orocos.warn "found task library #{tasklib_name}, but the corresponding oroGen project #{pkg.project_name} could not be found. Consider deleting #{pkg.path}."
+                end
             end
         end
 
@@ -208,9 +217,14 @@ module Orocos
             Utilrb::PkgConfig.each_package(/^orogen-\w+$/) do |pkg_name|
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 deployment_name = pkg_name.gsub(/^orogen-/, '')
-                available_deployments[deployment_name] = pkg
 
-                add_project_from(pkg)
+                # Verify that the corresponding orogen project is indeed
+                # available. If not, just ignore the library
+                if Orocos.available_projects.has_key?(pkg.project_name)
+                    available_deployments[deployment_name] = pkg
+                else
+                    Orocos.warn "found deployment #{deployment_name}, but the corresponding oroGen project #{pkg.project_name} could not be found. Consider deleting #{pkg.path}."
+                end
             end
         end
 
@@ -222,8 +236,16 @@ module Orocos
                 tasklib_pkg.task_models.split(",").
                     each { |class_name| available_task_models[class_name] = tasklib_name }
             end
-            additional_orogen_files.each do |file|
-                load_independent_orogen_files(file)
+            registered_typekits.each do |name, (tlb, typelist)|
+                Orocos.master_project.register_typekit(name, tlb, typelist)
+            end
+            registered_orogen_projects.each do |name, orogen|
+                Orocos.master_project.register_orogen_file(orogen, name)
+            end
+            # We must now load the projects explicitely, so that we can register
+            # the task models as well
+            registered_orogen_projects.each_key do |name|
+                load_independent_orogen_project(name)
             end
         end
 
@@ -232,7 +254,16 @@ module Orocos
             Utilrb::PkgConfig.each_package(/-typekit-#{Orocos.orocos_target}$/) do |pkg_name|
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 typekit_name = pkg_name.gsub(/-typekit-#{Orocos.orocos_target}$/, '')
-                available_typekits[typekit_name] = pkg
+
+                if Orocos.available_projects.has_key?(pkg.project_name)
+                    if Orocos.available_projects[pkg.project_name][0].type_registry
+                        available_typekits[typekit_name] = pkg
+                    else
+                        Orocos.warn "found typekit #{typekit_name}, but the corresponding oroGen project #{pkg.project_name} does not have a typekit. Consider deleting #{pkg.path}."
+                    end
+                else
+                    Orocos.warn "found typekit #{typekit_name}, but the corresponding oroGen project #{pkg.project_name} could not be found. Consider deleting #{pkg.path}."
+                end
             end
         end
 
@@ -242,19 +273,32 @@ module Orocos
                 typelist = typekit_pkg.type_registry.gsub(/tlb$/, 'typelist')
                 typelist, typelist_exported =
                     Orocos::Generation::ImportedTypekit.parse_typelist(File.read(typelist))
+                typelist = typelist - typelist_exported
                 typelist.each do |typename|
-                    @available_types[typename] = [typekit_name, false]
+                    if existing = @available_types[typename]
+                        Orocos.info "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
+                    else
+                        @available_types[typename] = [typekit_name, false]
+                    end
                 end
                 typelist_exported.each do |typename|
+                    if existing = @available_types[typename]
+                        Orocos.info "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
+                    end
                     @available_types[typename] = [typekit_name, true]
                 end
             end
         end
+        nil
     end
 
     def self.clear
         @master_project = nil
         @available_projects.clear if @available_projects
+        if export_types?
+            registry.clear_exports(type_export_namespace)
+        end
+        @registry = nil
     end
 
     def self.reset
@@ -265,39 +309,46 @@ module Orocos
     # Registers an orogen file, or all oroGen files contained in a directory, to
     # be loaded in Orocos.load
     def self.register_orogen_files(file_or_dir)
-        @additional_orogen_files << file_or_dir
-        if available_task_models
-            load_independent_orogen_files(file_or_dir)
+        if File.directory?(file_or_dir)
+            Dir.glob(File.join(file_or_dir, "*.typelist")) do |file|
+                register_orogen_files(file)
+            end
+            Dir.glob(File.join(file_or_dir, "*.orogen")) do |file|
+                register_orogen_files(file)
+            end
+        elsif File.extname(file_or_dir) == ".typelist"
+            name = File.basename(file_or_dir, ".typelist")
+            tlb_file = File.join(File.dirname(file_or_dir), "#{name}.tlb")
+            if File.file?(tlb_file)
+                registered_typekits[name] = [File.read(tlb_file), File.read(file_or_dir)]
+            end
+        elsif File.extname(file_or_dir) == ".orogen"
+            name = File.basename(file_or_dir, ".orogen")
+            registered_orogen_projects[name] = File.read(file_or_dir)
+        else
+            raise ArgumentError, "don't know what to do with #{file_or_dir}"
         end
-    end
-
-    # DEPRECATED. Use #register_orogen_files instead
-    def self.load_dummy_models(file_or_dir)
-        load_independent_orogen_files(file_or_dir)
     end
 
     # Loads an oroGen file or all oroGen files contained in a directory, and
     # registers them in the available_task_models set.
-    def self.load_independent_orogen_files(file_or_dir)
-        paths = []
-        if File.file?(file_or_dir)
-            paths << file_or_dir
-        else
-            Dir.glob(File.join(file_or_dir, "*.orogen")) do |orogen_file|
-                paths << orogen_file
-            end
-        end
-
+    def self.load_independent_orogen_project(file)
         old_value = Orocos.master_project.define_dummy_types?
         begin
             Orocos.master_project.define_dummy_types = true
-            paths.each do |file|
-                tasklib = Orocos.master_project.
-                    using_task_library(file, :define_dummy_types => true)
+
+            tasklib = Orocos.master_project.
+                using_task_library(file, :define_dummy_types => true, :validate => false)
+
+            if !tasklib.self_tasks.empty?
                 Orocos.available_task_libraries[tasklib.name] = file
-                tasklib.self_tasks.each do |task|
-                    Orocos.available_task_models[task.name] = file
-                end
+            end
+            tasklib.self_tasks.each do |task|
+                Orocos.available_task_models[task.name] = file
+            end
+
+            tasklib.deployers.each do |dep|
+                Orocos.master_project.loaded_deployments[dep.name] = dep
             end
         ensure
             Orocos.master_project.define_dummy_types = old_value
@@ -364,23 +415,12 @@ module Orocos
         end
     end
 
-    # Polls the state of this set of task, and announces when a state changed
-    def self.watch(*tasks)
-        tasks.each do |t|
-            s = t.state
-            puts "#{t.name}: in state #{s}"
+    def self.create_orogen_interface(name = nil, &block)
+        model = Orocos::Spec::TaskContext.new(Orocos.master_project, name)
+        if block
+            model.instance_eval(&block)
         end
-
-        while true
-            tasks.each do |t|
-                if t.state_changed?
-                    s = t.state(false)
-                    puts "#{t.name}: state changed to #{s}"
-                end
-            end
-            yield if block_given?
-            sleep 0.1
-        end
+        model
     end
 end
 

@@ -222,7 +222,10 @@ module Orocos
                 Orocos.available_projects.each do |name, (pkg, deffile)|
                     available_projects[name] = File.read(deffile)
                     if pkg && pkg.type_registry && !pkg.type_registry.empty?
-                        available_typekits[name] = File.read(pkg.type_registry)
+			registry = File.read(pkg.type_registry)
+			typelist = File.join(File.dirname(pkg.type_registry), "#{name}.typelist")
+			typelist = File.read(typelist)
+                        available_typekits[name] = [registry, typelist]
                     end
                 end
                 available_deployments = Hash.new
@@ -352,10 +355,6 @@ module Orocos
         # Mapping from a deployment name to the corresponding RemoteProcess
         # instance, for processes that have been started by this client.
         attr_reader :processes
-        # The master oroGen project in which we load everything else. It is an
-        # instance of RemoteMasterProject, to use the data we got from the
-        # process server
-        attr_reader :master_project
 
         # The hostname we are connected to
         attr_reader :host
@@ -397,10 +396,10 @@ module Orocos
             @available_deployments = info[1]
             @available_typekits    = info[2]
             @server_pid            = info[3]
-            @master_project = RemoteMasterProject.new(self, Orocos.master_project)
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"
+            @loaded_orogen_projects = Set.new
         end
 
         # Loads the oroGen project definition called 'name' using the data the
@@ -411,6 +410,10 @@ module Orocos
                 raise ArgumentError, "there is no orogen project called #{name} on #{host}:#{port}"
             end
 
+            if @loaded_orogen_projects.include?(name)
+                Orocos.master_project.load_orogen_project(name)
+            end
+
             # Ask the process server to load the information about that project.
             # This reduces the process startup overhead quite heavily
             socket.write(ProcessServer::COMMAND_LOAD_PROJECT)
@@ -419,29 +422,10 @@ module Orocos
                 raise ArgumentError, "process server could not load information about the project #{name}"
             end
 
-            orogen = master_project.load_orogen_project(name)
-            if master_project.has_typekit?(name)
-                # Check that the typekit on the local machine exists and is
-                # compatible
-                local_project, _ = Orocos.available_projects[name]
-                local_typekit =
-                    if (registry_path = local_project.type_registry) && !registry_path.empty?
-                        Typelib::Registry.import(registry_path, 'tlb')
-                    end
-
-                if local_typekit
-                    registry = available_typekits[name]
-                    begin
-                        Typelib::Registry.from_xml(registry).merge(local_typekit)
-                    rescue Exception => e
-                        raise e.class, "failed to load the typekit of #{name} from #{host}:#{port}: #{e.message}"
-                    end
-                end
-            end
-
-            # Register it locally ...
-            # TODO: check that any local definition matches
-            Orocos.master_project.register_loaded_project(name, orogen)
+	    Orocos.master_project.register_orogen_file(available_projects[name], name)
+	    project = Orocos.master_project.load_orogen_project(name)
+            @loaded_orogen_projects << name.to_s
+            project
         end
 
         # Returns the StaticDeployment instance that represents the remote

@@ -172,6 +172,8 @@ module Orocos
             def orocos_type_name
                 if metadata && metadata.has_key?(:rock_orocos_type_name)
                     metadata[:rock_orocos_type_name]
+		elsif type_name =~ /^(.*)_m$/
+		    $1
                 else
                     type_name
                 end
@@ -418,6 +420,7 @@ module Orocos
             attr_reader :name
             attr_reader :state
             attr_reader :log_replay
+	    attr_accessor :model
 
             #Creates a new instance of TaskContext.
             #
@@ -518,6 +521,8 @@ module Orocos
                         Log.warn "For task #{name} ommiting log file \"#{file_path}\", because it is older than \"#{@file_path}\"."
                         return nil
                     end
+                else
+                    @file_path = file_path
                 end
                 begin
                     log_port = OutputPort.new(self,stream)
@@ -599,6 +604,8 @@ module Orocos
                     yield(port) if block_given?
                 end
             end
+
+	    alias each_output_port each_port
 
             #Returns the port with the given name.
             #If no port can be found a exception is raised.

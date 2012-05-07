@@ -119,34 +119,42 @@ module Orocos
         if @loaded_typekit_registries.include?(name)
             return
         end
-        typekit_pkg ||= find_typekit_pkg(name)
 
-        # Now, if this is an orogen typekit, then load the corresponding
-        # data types. orogen defines a type_registry field in the pkg-config
-        # file for that purpose.
-        tlb = typekit_pkg.type_registry
-        if tlb # this is an orogen typekit
-            begin
-                Orocos.master_project.using_typekit(name)
-                Orocos.registry.import(tlb)
-            rescue RuntimeError => e
-                raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
-            end
-
-            if Orocos.export_types?
-                Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
-                    if type_name =~ /orogen_typekits/ # just ignore those
-                    elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
-                    elsif base_type.contains_opaques? # register the intermediate instead
-                        Orocos.master_project.intermediate_type_for(base_type)
-                    elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
-                    else exported_type
-                    end
-                end
-            end
+        begin
+            typekit = Orocos.master_project.using_typekit(name)
+        rescue RuntimeError => e
+            raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
         end
 
-        @loaded_typekit_registries << name
+        load_registry(typekit.registry, name)
+    end
+
+    def self.load_registry(registry, name = nil)
+	if registry.respond_to?(:to_str)
+	    if File.file?(registry)
+	        Orocos.registry.import(registry)
+	    else
+		Orocos.registry.merge(Typelib::Registry.from_xml(registry))
+	    end
+	else
+	    Orocos.registry.merge(registry)
+	end
+
+	if Orocos.export_types?
+	    Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
+		if type_name =~ /orogen_typekits/ # just ignore those
+		elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
+		elsif base_type.contains_opaques? # register the intermediate instead
+		    Orocos.master_project.intermediate_type_for(base_type)
+		elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
+		else exported_type
+		end
+	    end
+	end
+
+	if name
+	    @loaded_typekit_registries << name
+	end
     end
 
     # Loads all typekits that are available on this system
@@ -241,7 +249,7 @@ module Orocos
     def self.load_typekit_for(typename, exported = true)
         typekit_name = find_typekit_for(typename, exported)
         load_typekit(typekit_name)
-        return Orocos.master_project.using_project(typekit_name).typekit
+        return Orocos.master_project.using_typekit(typekit_name)
     end
 
     # Returns the type that is used to manipulate +t+ in Typelib

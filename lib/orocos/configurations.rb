@@ -44,6 +44,11 @@ module Orocos
             @merged_conf = Hash.new
         end
 
+        # Retrieves the configuration for the given section name 
+        def [](section_name)
+            sections[section_name]
+        end
+
         # Loads the configurations from a YAML file
         #
         # Multiple configurations can be saved in the file, in which case each
@@ -94,26 +99,16 @@ module Orocos
 
             changed_sections = []
             @conf_options = options
+
             sections.each_with_index do |doc, idx|
                 doc = doc.join("")
                 result = YAML.load(StringIO.new(doc))
-                if result
-                    conf = config_from_hash(result)
-                else
-                    conf = Hash.new
-                end
 
                 conf_options = options[idx].first
-                name = conf_options['name']
-                if self.sections[name]
-                    if conf_options['merge']
-                        conf = merge_conf(self.sections[name], conf, true)
-                    end
-                    if self.sections[name] != conf
-                        changed_sections << name
-                    end
+                name = conf_options.delete('name')
+                if add(name, result || Hash.new, conf_options)
+                    changed_sections << name
                 end
-                self.sections[name] = conf
             end
 	    if !changed_sections.empty?
 	    	@merged_conf.clear
@@ -121,6 +116,25 @@ module Orocos
             changed_sections
         rescue Exception => e
             raise e, "error loading #{file}: #{e.message}", e.backtrace
+        end
+
+        def add(name, conf, options = Hash.new)
+            options = Kernel.validate_options options,
+                :merge => true, :chain => nil
+
+            conf = config_from_hash(conf)
+
+            changed = false
+            if self.sections[name]
+                if options[:merge]
+                    conf = TaskConfigurations.merge_conf(self.sections[name], conf, true)
+                end
+                changed = changed || self.sections[name] != conf
+            else
+                changed = true
+            end
+            self.sections[name] = conf
+            changed
         end
 
         def config_from_array(array, value_t)
@@ -171,7 +185,7 @@ module Orocos
             result
         end
 
-        def merge_conf_array(a, b, override)
+        def self.merge_conf_array(a, b, override)
             result = []
             a.each_with_index do |v1, idx|
                 v2 = b[idx]
@@ -179,13 +193,18 @@ module Orocos
                 if !v2
                     result << v1
                     next
+                elsif !v1
+                    result << v2
+                    next
                 end
 
                 if v1.kind_of?(Hash) && v2.kind_of?(Hash)
                     result << merge_conf(v1, v2, override)
                 elsif v1.respond_to?(:to_ary) && v2.respond_to?(:to_ary)
                     result << merge_conf_array(v1, v2, override)
-                elsif v1 != v2
+                elsif override || v1 == v2
+                    result << v2
+                else
                     raise ArgumentError, "cannot merge configuration: conflict in [#{idx}] between v1=#{v1} and v2=#{v2}"
                 end
             end
@@ -198,7 +217,7 @@ module Orocos
 
         # Helper method that adds the configuration of +b+ into the existing
         # configuration hash +a+
-        def merge_conf(a, b, override)
+        def self.merge_conf(a, b, override)
             result = if override
                 a.recursive_merge(b) do |k, v1, v2|
                     if v1.respond_to?(:to_ary) && v2.respond_to?(:to_ary)
@@ -265,7 +284,7 @@ module Orocos
                     raise ArgumentError, "#{names.last} is not a known configuration section"
                 end
                 config = conf(names[0..-2], override)
-                config = merge_conf(config, sections[names.last], override)
+                config = TaskConfigurations.merge_conf(config, sections[names.last], override)
 
                 @merged_conf[[names, override]] = config
                 return config

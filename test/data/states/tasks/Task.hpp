@@ -30,6 +30,7 @@ namespace states {
 
     public:
         Task(std::string const& name = "states::Task");
+        Task(std::string const& name, RTT::ExecutionEngine* engine);
 
         RTT::NonPeriodicActivity* getNonPeriodicActivity();
 

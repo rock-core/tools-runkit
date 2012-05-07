@@ -1,5 +1,3 @@
-require 'orocos/nameservice_corba.rb'
-
 module Nameservice
     class CORBA < Provider
         def initialize(options)
@@ -8,9 +6,7 @@ module Nameservice
         end
 
         def resolve(name)
-            result = ::Orocos::CORBA.refine_exceptions("naming service") do
-                ::Orocos::TaskContext.do_get(name)
-            end
+	    Orocos::CORBA.get(:do_get, name)
         end
 
         def self.options

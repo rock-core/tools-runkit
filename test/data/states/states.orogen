@@ -20,7 +20,17 @@ task_context "Task" do
     operation "do_recover"
 end
 
+task_context "Subtask" do
+    subclasses "Task"
+
+    runtime_states "SUBCLASS_CUSTOM_RUNTIME"
+    exception_states "SUBCLASS_CUSTOM_EXCEPTION"
+    error_states "SUBCLASS_CUSTOM_ERROR"
+    fatal_states "SUBCLASS_CUSTOM_FATAL"
+end
+
 deployment "states" do
     task "states_Task", "Task"
+    task "states_Subtask", "Subtask"
 end
 

@@ -369,7 +369,11 @@ module Orocos
 		    begin
 			kill(processes.map { |name, p| p if p.running? }.compact)
 		    rescue Exception => e
-			STDERR.puts "WARN: failed to kill the started processes, you will have to kill them yourself"
+			Orocos.warn "failed to kill the started processes, you will have to kill them yourself"
+			Orocos.warn e.message
+			e.backtrace.each do |l|
+			    Orocos.warn "  #{l}"
+			end
 			raise original_error
 		    end
                 end
@@ -419,6 +423,12 @@ module Orocos
 	    raise "#{name} is already running" if alive?
 	    Orocos.info "starting deployment #{name}"
 
+            options = Kernel.validate_options options, :output => nil,
+                :gdb => nil, :valgrind => nil,
+                :working_directory => nil,
+                :cmdline_args => Hash.new, :wait => nil,
+                :oro_logfile => "orocos.%m-%p.txt"
+
             # Setup mapping for prefixed tasks in Process class
             prefix = options[:cmdline_args][:prefix]
 
@@ -435,12 +445,6 @@ module Orocos
                     raise ArgumentError, "there is already a running task called #{name}, are you starting the same component twice ?"
                 end
             end
-
-            options = Kernel.validate_options options, :output => nil,
-                :gdb => nil, :valgrind => nil,
-                :working_directory => nil,
-                :cmdline_args => Hash.new, :wait => nil,
-                :oro_logfile => "orocos.%m-%p.txt"
 
             if !options.has_key?(:wait)
                 if options[:valgrind]

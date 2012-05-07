@@ -48,6 +48,7 @@ module Orocos
                     CORBA.info "trying task context #{n}"
                     TaskContext.get(n)
                 rescue Orocos::NotFound
+                    CORBA.unregister(n)
                     CORBA.warn "unregistered dangling CORBA name #{n}"
                 end
             end
@@ -103,8 +104,16 @@ module Orocos
 	    end
 
             do_init(name || "")
-            # self.call_timeout    = 10000
-            # self.connect_timeout = 10000
+            self.call_timeout    = 20000
+            self.connect_timeout = 2000
+	end
+
+	def self.get(method, name)
+            result = ::Orocos::CORBA.refine_exceptions("naming service") do
+                ::Orocos::TaskContext.send(method, name)
+            end
+	    result.send(:initialize)
+	    result
 	end
 
         # Deinitializes the CORBA layer
