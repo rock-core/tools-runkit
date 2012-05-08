@@ -301,6 +301,13 @@ module Orocos
             def write(data)
                 @last_update = Time.now
                 @current_data = @filter ? @filter.call(data) : data
+                if @filter && data.class != @current_data.class 
+                    Log.error "Filter block for port #{full_name} returned #{@current_data.class.name} but #{data.class.name} was expected."
+                    Log.error "If a statement like #{name} do |sample,port| or #{name}.connect_to(port) do |sample,port| is used, the code block always needs to return 'sample'!"
+                    Log.error "Disabling Filter for port #{full_name}"
+                    @filter = nil
+                    @current_data = data
+                end
                 @connections.each do |connection|
                     connection.update(@current_data)
                 end
