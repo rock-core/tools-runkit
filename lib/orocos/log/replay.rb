@@ -667,7 +667,17 @@ module Orocos
             def method_missing(m,*args,&block) #:nodoc:
                 task = @tasks[m.to_s]
                 return task if task
-                super
+
+                begin  
+                    super(m.to_sym,*args,&block)
+                rescue  NoMethodError => e
+                    Log.error "#{m} is not a Log::Task of the current log file(s)"
+                    Log.error "The following tasks are availabe:"
+                    @tasks.each_value do |task|
+                        Log.error "  #{task.name}"
+                    end
+                    raise e 
+                end
             end
         end
     end

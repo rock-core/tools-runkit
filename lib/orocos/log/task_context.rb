@@ -716,7 +716,20 @@ module Orocos
                 if has_property?(m) 
                    return property(m)
                 end
-                super(m.to_sym, *args)
+                begin
+                    super(m.to_sym,*args,&block)
+                rescue  NoMethodError => e
+                    Log.error "#{m} is neither a port nor a portperty of #{self.name}"
+                    Log.error "The following ports are availabe:"
+                    @ports.each_value do |port|
+                        Log.error "  #{port.name}"
+                    end
+                    Log.error "The following properties are availabe:"
+                    @properties.each_value do |proptery|
+                        Log.error "  #{property.name}"
+                    end
+                    raise e 
+                end
             end
         end
 
