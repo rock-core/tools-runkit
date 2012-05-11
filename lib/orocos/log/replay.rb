@@ -282,6 +282,12 @@ module Orocos
                 @replayed_ports = Array.new
                 @used_streams = Array.new
 
+                if !replay?
+                    Log.warn "No ports are selected. Assuming that all ports shall be replayed."
+                    Log.warn "Connect port(s) or set their track flag to true to get rid of this message."
+                    track(true)
+                end
+
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
@@ -305,20 +311,16 @@ module Orocos
                 @replayed_objects = @replayed_ports + @replayed_properties
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
-
                 if @used_streams.size == 0
-                    Log.warn "No ports are replayed."
-                    Log.warn "Connect replay ports or set their track flag to true."
+                    Log.warn "No log data are replayed. All selected streams are empty."
                     return
                 end
 
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
 
-                if @replayed_ports.size == 0
-                    Log.warn "No log data are marked for replay !!!"
-                    return
-                end
+                #register task on the local name server
+                register_tasks
 
                 #join streams 
                 @stream = Pocolog::StreamAligner.new(option, *@used_streams)
@@ -336,6 +338,16 @@ module Orocos
                 end
             end
 
+            # registers all replayed log tasks on the local name server
+            def register_tasks
+                #enable local name service 
+                service = Nameservice::enable(:Local)
+                each_task do |task|
+                    if task.used?
+                        service.registered_tasks[task.name] = task
+                    end
+                end
+            end
 
             def stream_index_for_name(name)
                 if @stream
