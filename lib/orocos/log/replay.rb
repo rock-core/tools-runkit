@@ -82,6 +82,12 @@ module Orocos
                 replay = new
                 replay.load(*path)
                 replay
+            rescue ArgumentError => e
+                Vizkit.error "Cannot load logfiles"
+                raise e 
+            rescue Pocolog::Logfiles::MissingPrologue => e
+                Vizkit.error "Wrong log format"
+                raise e
             end
 
             #Creates a new instance of Replay
@@ -629,6 +635,7 @@ module Orocos
             #more than one directory or file simultaneously you can use an array.
             def load(*paths)
                 paths.flatten!
+                raise ArgumentError, "No log file was given" if paths.empty?
 
                 logreg = nil
                 if paths.last.kind_of?(Typelib::Registry)
@@ -664,6 +671,7 @@ module Orocos
                         raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
                     end
                 end
+                raise ArgumentError, "Nothing was loded from the following log files #{paths.join("; ")}" if @tasks.empty?
             end
 
             #Clears all reader buffers.
