@@ -87,6 +87,10 @@ module Orocos
             def new_sample
                 @port.new_sample
             end
+
+            def doc?
+                false
+            end
         end
 
         #Simulates a port based on log files
@@ -345,6 +349,10 @@ module Orocos
             def number_of_samples
                 return @stream.size
             end
+
+            def doc?
+                false
+            end
         end
         
         #Simulated Property based on a configuration log file
@@ -372,6 +380,10 @@ module Orocos
                 @task = task
                 @current_value = nil
                 @type_name = stream.typename
+            end
+
+            def doc?
+                false
             end
 
             # Read the current value of the property/attribute
@@ -453,6 +465,18 @@ module Orocos
 
             #to be compatible wiht Orocos::TaskContext
             def reachable?
+                true
+            end
+
+            def doc?
+                false
+            end
+
+            def error?
+                false
+            end
+
+            def stop
                 true
             end
 
