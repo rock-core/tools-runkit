@@ -347,7 +347,11 @@ module Orocos
             # registers all replayed log tasks on the local name server
             def register_tasks
                 #enable local name service 
-                service = Nameservice::enable(:Local)
+                service = if Nameservice.enabled? :Local
+                              Nameservice.get :Local 
+                          else
+                              Nameservice.enable :Local
+                          end
                 each_task do |task|
                     if task.used?
                         service.registered_tasks[task.name] = task
