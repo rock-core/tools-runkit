@@ -53,6 +53,10 @@ module Orocos
                 @buffer.clear
             end
 
+            def connected?
+                true
+            end
+
             #Reads data from the associated port.
             def read(sample =nil)
                 if @policy_type == :data
