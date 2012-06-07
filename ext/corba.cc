@@ -198,6 +198,7 @@ RTT::corba::CTaskContext_ptr CorbaAccess::findByIOR(std::string const& ior)
             rb_raise(eNotFound, "cannot create a proxy object for ior '%s'. Initialize ORB first. ", ior.c_str());
         }
     }
+    rb_raise(eNotFound, "task context could not be found - IOR does not refer to a task");
 }
 
 

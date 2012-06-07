@@ -226,7 +226,7 @@ static VALUE task_context_property_names(VALUE self)
     try {
         RTT::corba::CConfigurationInterface::CPropertyNames_var names =
             context.main_service->getPropertyList();
-        for (int i = 0; i != names->length(); ++i)
+        for (unsigned int i = 0; i != names->length(); ++i)
         {
             CORBA::String_var name = names[i].name;
             rb_ary_push(result, rb_str_new2(name));
@@ -244,7 +244,7 @@ static VALUE task_context_attribute_names(VALUE self)
     try {
         RTT::corba::CConfigurationInterface::CAttributeNames_var names =
             context.main_service->getAttributeList();
-        for (int i = 0; i != names->length(); ++i)
+        for (unsigned int i = 0; i != names->length(); ++i)
         {
             CORBA::String_var name = names[i];
             rb_ary_push(result, rb_str_new2(name));
@@ -448,7 +448,7 @@ static VALUE call_checked_state_change(VALUE task, char const* msg, bool (RTT::c
     {
         RTT::corba::_objref_CTaskContext& obj = *context.task;
         if (!((obj.*m)()))
-            rb_raise(eStateTransitionFailed, msg);
+            rb_raise(eStateTransitionFailed, "%s", msg);
         return Qnil;
     }
     CORBA_EXCEPTION_HANDLERS
@@ -636,6 +636,7 @@ static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_
             case RTT::NewData: return INT2FIX(1);
         }
     }
+    return Qnil; // Never reached
 }
 static VALUE output_reader_clear(VALUE port_access)
 {
@@ -739,7 +740,7 @@ static VALUE orocos_load_rtt_typekit(VALUE orocos, VALUE path)
     }
     catch(std::runtime_error e)
     {
-        rb_raise(rb_eArgError, e.what());
+        rb_raise(rb_eArgError, "%s", e.what());
     }
 }
 
@@ -751,7 +752,7 @@ static VALUE orocos_load_rtt_plugin(VALUE orocos, VALUE path)
     }
     catch(std::runtime_error e)
     {
-        rb_raise(rb_eArgError, e.what());
+        rb_raise(rb_eArgError, "%s", e.what());
     }
 }
 
