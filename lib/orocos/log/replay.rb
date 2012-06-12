@@ -344,6 +344,14 @@ module Orocos
                 end
             end
 
+            def first_sample_pos(stream)
+                @stream.first_sample_pos(stream)
+            end
+
+            def last_sample_pos(stream)
+                @stream.last_sample_pos(stream)
+            end
+
             # registers all replayed log tasks on the local name server
             def register_tasks
                 #enable local name service 
