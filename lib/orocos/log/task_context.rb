@@ -483,6 +483,11 @@ module Orocos
             def stop
                 true
             end
+             
+            #to be compatible wiht Orocos::TaskContext
+            def log_all_ports(options = Hash.new)
+
+            end
 
             #pretty print for TaskContext
 	    def pretty_print(pp)
