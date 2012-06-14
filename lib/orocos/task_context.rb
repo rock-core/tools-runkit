@@ -831,6 +831,24 @@ module Orocos
             end
         end
 
+        # Connects all ports of the task with the logger of the deployment 
+        # @param [Hash] options option hash to exclude specific ports
+        # @option options [String,Array<String>] :exclude_ports The name of the excluded ports 
+        # @return [Set<String,String>] Sets of task and port names 
+        #
+        # @example logging all ports beside a port called frame
+        # task.log_all_ports(:exclude_ports => "frame")
+        def log_all_ports(options = Hash.new)
+            # Right now, the only allowed option is :exclude_ports
+            options, logger_options = Kernel.filter_options options,:exclude_ports => nil
+            exclude_ports = Array(options[:exclude_ports])
+
+            logger_options[:tasks] = Regexp.new(name)
+            Orocos.log_all_process_ports(process,logger_options) do |port|
+                !exclude_ports.include? port.name
+            end
+        end
+
         def input_port(name)
             p = port(name)
             if p.kind_of?(Orocos::InputPort)
