@@ -686,12 +686,20 @@ module Orocos
                 raise ArgumentError, "Nothing was loded from the following log files #{paths.join("; ")}" if @tasks.empty?
             end
 
-            #Clears all reader buffers.
-            #This is usfull if you are changing the replay direction.
+            # Clears all reader buffers.
+            # This is usefull if you are changing the replay direction.
             def clear_reader_buffers
                 @tasks.each_value do |task|
                     task.clear_reader_buffers
                 end
+            end
+
+            # exports all aligned stream to a new log file 
+            # if no start and end index is given all data are exported
+            # otherwise the data are truncated according to the given global indexes 
+            # the block is called for each sample to update a progress bar 
+            def export_to_file(file,start_index=0,end_index=0,&block)
+                @stream.export_to_file(file,start_index,end_index,&block)
             end
 
             #This is used to support the syntax.
