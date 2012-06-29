@@ -687,8 +687,25 @@ module Orocos
             def find_all_ports(type_name, port_name=nil)
                 Orocos::TaskContext.find_all_ports(@ports.values, type_name, port_name)
             end
+
+            def find_all_output_ports(type_name, port_name=nil)
+                Orocos::TaskContext.find_all_input_ports(@ports.values, type_name, port_name)
+            end
+
+            def find_all_input_ports(type_name, port_name=nil)
+                Orocos::TaskContext.find_all_output_ports(@ports.values, type_name, port_name)
+            end
+
             def find_port(type_name, port_name=nil)
                 Orocos::TaskContext.find_port(@ports.values, type_name, port_name)
+            end
+
+            def find_output_port(type_name, port_name=nil)
+                Orocos::TaskContext.find_output_port(@ports.values, type_name, port_name)
+            end
+
+            def find_input_port(type_name, port_name=nil)
+               nil
             end
 
             #Tries to find a OutputPort for a specefic data type.

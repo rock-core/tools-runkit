@@ -918,6 +918,11 @@ module Orocos
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
         end
 
+        # Returns an array of all the ports defined on this task context
+        def ports
+            enum_for(:each_port).to_a
+        end
+
         # Returns the names of all the ports defined on this task context
         def port_names
             CORBA.refine_exceptions(self) do
@@ -1176,6 +1181,25 @@ module Orocos
             candidates
         end
 
+
+        # Searches for an input port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_all_input_ports(port_set, type, port_name)
+            find_all_ports(port_set,type,port_name).delete_if { |port| !port.respond_to?(:writer) }
+        end
+
+        # Searches for an output object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_all_output_ports(port_set, type, port_name)
+            find_all_ports(port_set,type,port_name).delete_if { |port| !port.respond_to?(:reader) }
+        end
+
         # Searches for a port object in +port_set+ that matches the type and
         # name specification. +type+ is either a string or a Typelib::Type
         # class, +port_name+ is either a string or a regular expression.
@@ -1198,22 +1222,100 @@ module Orocos
             end
         end
 
+        # Searches for a input port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_input_port(port_set, type, port_name)
+            candidates = find_all_input_ports(port_set, type, port_name)
+            if candidates.size > 1
+                type_name = if !type.respond_to?(:to_str)
+                                type.name
+                            else type.to_str
+                            end
+                if port_name
+                    raise ArgumentError, "#{type_name} is provided by multiple input ports #{port_name}: #{candidates.map(&:name).join(", ")}"
+                else
+                    raise ArgumentError, "#{type_name} is provided by multiple input ports: #{candidates.map(&:name).join(", ")}"
+                end
+            else candidates.first
+            end
+        end
+
+        # Searches for an output port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_output_port(port_set, type, port_name)
+            candidates = find_all_output_ports(port_set, type, port_name)
+            if candidates.size > 1
+                type_name = if !type.respond_to?(:to_str)
+                                type.name
+                            else type.to_str
+                            end
+                if port_name
+                    raise ArgumentError, "#{type_name} is provided by multiple output ports #{port_name}: #{candidates.map(&:name).join(", ")}"
+                else
+                    raise ArgumentError, "#{type_name} is provided by multiple output ports: #{candidates.map(&:name).join(", ")}"
+                end
+            else candidates.first
+            end
+        end
+
         # Returns the set of ports in +self+ that match the given specification.
         # Set one of the criteria to nil to ignore it.
         #
         # See also #find_port and TaskContext.find_all_ports
-        def find_all_ports(type_name, port_name)
-            TaskContext.find_all_ports(@ports.values, type_name, port_name)
+        def find_all_ports(type_name, port_name =nil)
+            TaskContext.find_all_ports(ports, type_name, port_name)
+        end
+
+        # Returns the set of input ports in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        #
+        # See also #find_port and TaskContext.find_all_ports
+        def find_all_input_ports(type_name, port_name =nil)
+            TaskContext.find_all_input_ports(ports, type_name, port_name)
+        end
+
+        # Returns the set of output ports in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        #
+        # See also #find_port and TaskContext.find_all_ports
+        def find_all_output_ports(type_name, port_name =nil)
+            TaskContext.find_all_output_ports(ports, type_name, port_name)
         end
 
         # Returns a single port in +self+ that match the given specification.
         # Set one of the criteria to nil to ignore it.
-        #
+        # 
         # Raises ArgumentError if multiple candidates are available
         #
         # See also #find_all_ports and TaskContext.find_port
-        def find_port(type_name, port_name)
-            TaskContext.find_port(@ports.values, type_name, port_name)
+        def find_port(type_name, port_name = nil)
+            TaskContext.find_port(ports, type_name, port_name)
+        end
+
+        # Returns a single input port in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        # 
+        # Raises ArgumentError if multiple candidates are available
+        #
+        # See also #find_all_ports and TaskContext.find_port
+        def find_input_port(type_name, port_name = nil)
+            TaskContext.find_input_port(ports, type_name, port_name)
+        end
+
+        # Returns a single output port in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        # 
+        # Raises ArgumentError if multiple candidates are available
+        #
+        # See also #find_all_ports and TaskContext.find_port
+        def find_output_port(type_name, port_name = nil)
+            TaskContext.find_output_port(ports, type_name, port_name)
         end
 
         # Loads the configuration for the TaskContext from a file,
