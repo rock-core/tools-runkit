@@ -297,8 +297,12 @@ module Orocos
         #
         # Use Orocos.run directly instead
         def self.run(*names)
+            if !Orocos.initialized?
+                #try to initialize orocos before bothering the user
+                Orocos.initialize
+            end
             if !Orocos::CORBA.initialized?
-                raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
+                raise "CORBA layer is not initialized! There might be problem with the installation."
             end
 
             begin
