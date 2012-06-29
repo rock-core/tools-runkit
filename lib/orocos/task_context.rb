@@ -1190,9 +1190,9 @@ module Orocos
                     else type.to_str
                     end
                 if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple streams that match #{port_name}: #{candidates.map(&:stream).map(&:name).join(", ")}"
+                    raise ArgumentError, "#{type_name} is provided by multiple ports #{port_name}: #{candidates.map(&:name).join(", ")}"
                 else
-                    raise ArgumentError, "#{type_name} is provided by multiple streams: #{candidates.map(&:stream).map(&:name).join(", ")}"
+                    raise ArgumentError, "#{type_name} is provided by multiple ports: #{candidates.map(&:name).join(", ")}"
                 end
             else candidates.first
             end
