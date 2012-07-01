@@ -292,7 +292,16 @@ module Orocos
 
             #Register InputPort which is updated each time write is called
             def connect_to(port=nil,policy = OutputPort::default_policy,&block)
-                port = port.to_orocos_port if port.respond_to?(:to_orocos_port)
+                port = if port.respond_to? :find_input_port
+                           #assuming port is a TaskContext
+                           if !(result = port.find_input_port(type,nil))
+                               raise NotFound, "port #{name} does not match any port of the TaskContext #{port.name}."
+                           end
+                           result.to_orocos_port
+                       else
+                           port = port.to_orocos_port 
+                       end
+
                 self.tracked = true
                 policy[:filter] = block if block
                 if !port 
@@ -706,6 +715,10 @@ module Orocos
 
             def find_input_port(type_name, port_name=nil)
                nil
+            end
+
+            def connect_to(task=nil,policy = OutputPort::default_policy,&block)
+                Orocos::TaskContext.connect_to(self,task,policy,&block)
             end
 
             #Tries to find a OutputPort for a specefic data type.

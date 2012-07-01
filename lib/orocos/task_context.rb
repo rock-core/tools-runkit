@@ -1153,6 +1153,36 @@ module Orocos
             end
         end
 
+        # Connects all output ports with the input ports of given task.
+        # If one connection is ambiguous or none of the port is connected
+        # an exception is raised. All output ports which does not match
+        # any input port are ignored
+        #
+        # Instead of a task the method can also be called with a port
+        # as argument
+        def self.connect_to(task,task2,policy = Hash.new, &block)
+            if task2.respond_to? :each_port
+                count = 0
+                task.each_port do |port|
+                    next if !port.respond_to? :reader
+                    if other = task2.find_input_port(port.type,nil)
+                        port.connect_to other, policy, &block
+                        count += 1
+                    end
+                end
+                if count == 0
+                    raise NotFound, "#{task.name} has no port matching the ones of #{task2.name}."
+                end
+            else # assuming task2 is a port
+                if port = task.find_output_port(task2.type,nil)
+                    port.connect_to task2, policy, &block
+                else
+                    raise NotFound, "no port of #{task.name} matches the given port #{task2.name}"
+                end
+            end
+            self
+        end
+
         # Searches for a port object in +port_set+ that matches the type and
         # name specification. +type+ is either a string or a Typelib::Type
         # class, +port_name+ is either a string or a regular expression.
@@ -1178,6 +1208,7 @@ module Orocos
                 end
                 candidates.delete_if { |port| port.full_name !~ port_name }
             end
+
             candidates
         end
 
@@ -1340,8 +1371,19 @@ module Orocos
             Orocos.conf.save(self,file,section_names)
         end
 
+        # Connects all output ports with the input ports of given task.
+        # If one connection is ambiguous or none of the port is connected
+        # an exception is raised. All output ports which does not match
+        # any input port are ignored
+        #
+        # Instead of a task the method can also be called with a port
+        # as argument
+        def connect_to(task,policy = Hash.new)
+            TaskContext.connect_to(self,task,policy)
+        end
+
         # Returns true if a documentation about the task is available
-        # otherwise it retuns false
+        # otherwise it returns false
         def doc?
             (doc && !doc.empty?)
         end
