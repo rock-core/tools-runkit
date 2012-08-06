@@ -83,10 +83,10 @@ module Orocos
                 replay.load(*path)
                 replay
             rescue ArgumentError => e
-                Vizkit.error "Cannot load logfiles"
+                Orocos.error "Cannot load logfiles"
                 raise e 
             rescue Pocolog::Logfiles::MissingPrologue => e
-                Vizkit.error "Wrong log format"
+                Orocos.error "Wrong log format"
                 raise e
             end
 
