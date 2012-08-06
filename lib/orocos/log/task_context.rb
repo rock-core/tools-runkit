@@ -196,9 +196,17 @@ module Orocos
                 self
             end
 
+            def filter(&block)
+                if block
+                    self.filter = block
+                else
+                    @filter
+                end
+            end
+
             def filter=(filter)
-              @filter=filter
-              self.tracked=true
+                @filter = filter
+                self.tracked=true
             end
 
             #Pretty print for OutputPort.
@@ -298,8 +306,8 @@ module Orocos
                                raise NotFound, "port #{name} does not match any port of the TaskContext #{port.name}."
                            end
                            result.to_orocos_port
-                       else
-                           port = port.to_orocos_port 
+                       elsif port
+                           port.to_orocos_port 
                        end
 
                 self.tracked = true
