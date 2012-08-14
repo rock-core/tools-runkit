@@ -32,7 +32,8 @@ void Echo::write_opaque(int value)
 
 void Echo::kill()
 {
-    *((int*)0) = 0;
+    while(true)
+        *((int*)0) = 0;
 }
 
 

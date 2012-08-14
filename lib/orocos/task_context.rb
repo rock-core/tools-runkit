@@ -831,6 +831,24 @@ module Orocos
             end
         end
 
+        # Connects all ports of the task with the logger of the deployment 
+        # @param [Hash] options option hash to exclude specific ports
+        # @option options [String,Array<String>] :exclude_ports The name of the excluded ports 
+        # @return [Set<String,String>] Sets of task and port names 
+        #
+        # @example logging all ports beside a port called frame
+        # task.log_all_ports(:exclude_ports => "frame")
+        def log_all_ports(options = Hash.new)
+            # Right now, the only allowed option is :exclude_ports
+            options, logger_options = Kernel.filter_options options,:exclude_ports => nil
+            exclude_ports = Array(options[:exclude_ports])
+
+            logger_options[:tasks] = Regexp.new(name)
+            Orocos.log_all_process_ports(process,logger_options) do |port|
+                !exclude_ports.include? port.name
+            end
+        end
+
         def input_port(name)
             p = port(name)
             if p.kind_of?(Orocos::InputPort)
@@ -898,6 +916,11 @@ module Orocos
 
         rescue Orocos::NotFound => e
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
+        end
+
+        # Returns an array of all the ports defined on this task context
+        def ports
+            enum_for(:each_port).to_a
         end
 
         # Returns the names of all the ports defined on this task context
@@ -1130,6 +1153,36 @@ module Orocos
             end
         end
 
+        # Connects all output ports with the input ports of given task.
+        # If one connection is ambiguous or none of the port is connected
+        # an exception is raised. All output ports which does not match
+        # any input port are ignored
+        #
+        # Instead of a task the method can also be called with a port
+        # as argument
+        def self.connect_to(task,task2,policy = Hash.new, &block)
+            if task2.respond_to? :each_port
+                count = 0
+                task.each_port do |port|
+                    next if !port.respond_to? :reader
+                    if other = task2.find_input_port(port.type,nil)
+                        port.connect_to other, policy, &block
+                        count += 1
+                    end
+                end
+                if count == 0
+                    raise NotFound, "#{task.name} has no port matching the ones of #{task2.name}."
+                end
+            else # assuming task2 is a port
+                if port = task.find_output_port(task2.type,nil)
+                    port.connect_to task2, policy, &block
+                else
+                    raise NotFound, "no port of #{task.name} matches the given port #{task2.name}"
+                end
+            end
+            self
+        end
+
         # Searches for a port object in +port_set+ that matches the type and
         # name specification. +type+ is either a string or a Typelib::Type
         # class, +port_name+ is either a string or a regular expression.
@@ -1155,7 +1208,27 @@ module Orocos
                 end
                 candidates.delete_if { |port| port.full_name !~ port_name }
             end
+
             candidates
+        end
+
+
+        # Searches for an input port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_all_input_ports(port_set, type, port_name)
+            find_all_ports(port_set,type,port_name).delete_if { |port| !port.respond_to?(:writer) }
+        end
+
+        # Searches for an output object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_all_output_ports(port_set, type, port_name)
+            find_all_ports(port_set,type,port_name).delete_if { |port| !port.respond_to?(:reader) }
         end
 
         # Searches for a port object in +port_set+ that matches the type and
@@ -1172,9 +1245,51 @@ module Orocos
                     else type.to_str
                     end
                 if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple streams that match #{port_name}: #{candidates.map(&:stream).map(&:name).join(", ")}"
+                    raise ArgumentError, "#{type_name} is provided by multiple ports #{port_name}: #{candidates.map(&:name).join(", ")}"
                 else
-                    raise ArgumentError, "#{type_name} is provided by multiple streams: #{candidates.map(&:stream).map(&:name).join(", ")}"
+                    raise ArgumentError, "#{type_name} is provided by multiple ports: #{candidates.map(&:name).join(", ")}"
+                end
+            else candidates.first
+            end
+        end
+
+        # Searches for a input port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_input_port(port_set, type, port_name)
+            candidates = find_all_input_ports(port_set, type, port_name)
+            if candidates.size > 1
+                type_name = if !type.respond_to?(:to_str)
+                                type.name
+                            else type.to_str
+                            end
+                if port_name
+                    raise ArgumentError, "#{type_name} is provided by multiple input ports #{port_name}: #{candidates.map(&:name).join(", ")}"
+                else
+                    raise ArgumentError, "#{type_name} is provided by multiple input ports: #{candidates.map(&:name).join(", ")}"
+                end
+            else candidates.first
+            end
+        end
+
+        # Searches for an output port object in +port_set+ that matches the type and
+        # name specification. +type+ is either a string or a Typelib::Type
+        # class, +port_name+ is either a string or a regular expression.
+        #
+        # This is a helper method used in various places
+        def self.find_output_port(port_set, type, port_name)
+            candidates = find_all_output_ports(port_set, type, port_name)
+            if candidates.size > 1
+                type_name = if !type.respond_to?(:to_str)
+                                type.name
+                            else type.to_str
+                            end
+                if port_name
+                    raise ArgumentError, "#{type_name} is provided by multiple output ports #{port_name}: #{candidates.map(&:name).join(", ")}"
+                else
+                    raise ArgumentError, "#{type_name} is provided by multiple output ports: #{candidates.map(&:name).join(", ")}"
                 end
             else candidates.first
             end
@@ -1184,18 +1299,54 @@ module Orocos
         # Set one of the criteria to nil to ignore it.
         #
         # See also #find_port and TaskContext.find_all_ports
-        def find_all_ports(type_name, port_name)
-            TaskContext.find_all_ports(@ports.values, type_name, port_name)
+        def find_all_ports(type_name, port_name =nil)
+            TaskContext.find_all_ports(ports, type_name, port_name)
+        end
+
+        # Returns the set of input ports in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        #
+        # See also #find_port and TaskContext.find_all_ports
+        def find_all_input_ports(type_name, port_name =nil)
+            TaskContext.find_all_input_ports(ports, type_name, port_name)
+        end
+
+        # Returns the set of output ports in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        #
+        # See also #find_port and TaskContext.find_all_ports
+        def find_all_output_ports(type_name, port_name =nil)
+            TaskContext.find_all_output_ports(ports, type_name, port_name)
         end
 
         # Returns a single port in +self+ that match the given specification.
         # Set one of the criteria to nil to ignore it.
-        #
+        # 
         # Raises ArgumentError if multiple candidates are available
         #
         # See also #find_all_ports and TaskContext.find_port
-        def find_port(type_name, port_name)
-            TaskContext.find_port(@ports.values, type_name, port_name)
+        def find_port(type_name, port_name = nil)
+            TaskContext.find_port(ports, type_name, port_name)
+        end
+
+        # Returns a single input port in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        # 
+        # Raises ArgumentError if multiple candidates are available
+        #
+        # See also #find_all_ports and TaskContext.find_port
+        def find_input_port(type_name, port_name = nil)
+            TaskContext.find_input_port(ports, type_name, port_name)
+        end
+
+        # Returns a single output port in +self+ that match the given specification.
+        # Set one of the criteria to nil to ignore it.
+        # 
+        # Raises ArgumentError if multiple candidates are available
+        #
+        # See also #find_all_ports and TaskContext.find_port
+        def find_output_port(type_name, port_name = nil)
+            TaskContext.find_output_port(ports, type_name, port_name)
         end
 
         # Loads the configuration for the TaskContext from a file,
@@ -1220,8 +1371,19 @@ module Orocos
             Orocos.conf.save(self,file,section_names)
         end
 
+        # Connects all output ports with the input ports of given task.
+        # If one connection is ambiguous or none of the port is connected
+        # an exception is raised. All output ports which does not match
+        # any input port are ignored
+        #
+        # Instead of a task the method can also be called with a port
+        # as argument
+        def connect_to(task,policy = Hash.new)
+            TaskContext.connect_to(self,task,policy)
+        end
+
         # Returns true if a documentation about the task is available
-        # otherwise it retuns false
+        # otherwise it returns false
         def doc?
             (doc && !doc.empty?)
         end

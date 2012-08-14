@@ -82,6 +82,12 @@ module Orocos
                 replay = new
                 replay.load(*path)
                 replay
+            rescue ArgumentError => e
+                Orocos.error "Cannot load logfiles"
+                raise e 
+            rescue Pocolog::Logfiles::MissingPrologue => e
+                Orocos.error "Wrong log format"
+                raise e
             end
 
             #Creates a new instance of Replay
@@ -282,6 +288,12 @@ module Orocos
                 @replayed_ports = Array.new
                 @used_streams = Array.new
 
+                if !replay?
+                    Log.warn "No ports are selected. Assuming that all ports shall be replayed."
+                    Log.warn "Connect port(s) or set their track flag to true to get rid of this message."
+                    track(true)
+                end
+
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
@@ -305,20 +317,16 @@ module Orocos
                 @replayed_objects = @replayed_ports + @replayed_properties
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
-
                 if @used_streams.size == 0
-                    Log.warn "No ports are replayed."
-                    Log.warn "Connect replay ports or set their track flag to true."
+                    Log.warn "No log data are replayed. All selected streams are empty."
                     return
                 end
 
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
 
-                if @replayed_ports.size == 0
-                    Log.warn "No log data are marked for replay !!!"
-                    return
-                end
+                #register task on the local name server
+                register_tasks
 
                 #join streams 
                 @stream = Pocolog::StreamAligner.new(option, *@used_streams)
@@ -336,6 +344,28 @@ module Orocos
                 end
             end
 
+            def first_sample_pos(stream)
+                @stream.first_sample_pos(stream)
+            end
+
+            def last_sample_pos(stream)
+                @stream.last_sample_pos(stream)
+            end
+
+            # registers all replayed log tasks on the local name server
+            def register_tasks
+                #enable local name service 
+                service = if Nameservice.enabled? :Local
+                              Nameservice.get :Local 
+                          else
+                              Nameservice.enable :Local
+                          end
+                each_task do |task|
+                    if task.used?
+                        service.registered_tasks[task.name] = task
+                    end
+                end
+            end
 
             def stream_index_for_name(name)
                 if @stream
@@ -617,6 +647,7 @@ module Orocos
             #more than one directory or file simultaneously you can use an array.
             def load(*paths)
                 paths.flatten!
+                raise ArgumentError, "No log file was given" if paths.empty?
 
                 logreg = nil
                 if paths.last.kind_of?(Typelib::Registry)
@@ -652,14 +683,23 @@ module Orocos
                         raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
                     end
                 end
+                raise ArgumentError, "Nothing was loded from the following log files #{paths.join("; ")}" if @tasks.empty?
             end
 
-            #Clears all reader buffers.
-            #This is usfull if you are changing the replay direction.
+            # Clears all reader buffers.
+            # This is usefull if you are changing the replay direction.
             def clear_reader_buffers
                 @tasks.each_value do |task|
                     task.clear_reader_buffers
                 end
+            end
+
+            # exports all aligned stream to a new log file 
+            # if no start and end index is given all data are exported
+            # otherwise the data are truncated according to the given global indexes 
+            # the block is called for each sample to update a progress bar 
+            def export_to_file(file,start_index=0,end_index=0,&block)
+                @stream.export_to_file(file,start_index,end_index,&block)
             end
 
             #This is used to support the syntax.
@@ -667,7 +707,17 @@ module Orocos
             def method_missing(m,*args,&block) #:nodoc:
                 task = @tasks[m.to_s]
                 return task if task
-                super
+
+                begin  
+                    super(m.to_sym,*args,&block)
+                rescue  NoMethodError => e
+                    Log.error "#{m} is not a Log::Task of the current log file(s)"
+                    Log.error "The following tasks are availabe:"
+                    @tasks.each_value do |task|
+                        Log.error "  #{task.name}"
+                    end
+                    raise e 
+                end
             end
         end
     end

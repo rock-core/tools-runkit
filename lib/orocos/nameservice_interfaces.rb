@@ -22,6 +22,11 @@ module Nameservice
         def self.options
             # return here the option the nameservice provider requires, including a description
         end
+
+        # Overload method to allow disabling of the name service 
+        def enabled?
+            true
+        end
         
         # Retrieve an instance of a certain nameservice type
         # Provide options as Hash

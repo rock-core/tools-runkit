@@ -274,14 +274,14 @@ module Orocos
                 typelist, typelist_exported =
                     Orocos::Generation::ImportedTypekit.parse_typelist(File.read(typelist))
                 typelist = typelist - typelist_exported
-                typelist.each do |typename|
+                typelist.compact.each do |typename|
                     if existing = @available_types[typename]
                         Orocos.info "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
                     else
                         @available_types[typename] = [typekit_name, false]
                     end
                 end
-                typelist_exported.each do |typename|
+                typelist_exported.compact.each do |typename|
                     if existing = @available_types[typename]
                         Orocos.info "#{typename} is defined by both #{existing[0]} and #{typekit_name}"
                     end

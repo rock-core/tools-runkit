@@ -390,12 +390,16 @@ module Orocos
         end
 
         # Connect this output port to an input port. +options+ defines the
-        # connection policy for the connection. The following options are
-        # available:
+        # connection policy for the connection. If a task is given instead of
+        # an input port the method will try to find the right input port
+        # by type and will raise an error if there are
+        # none or more than one matching input ports
+        #
+        # The following options are available:
         #
         # Data connections. In that connection, the reader will see only the
         # last sample he received. Such a connection is set up with
-        #   
+        #
         #   input_port.connect_to output_port, :type => :data
         #
         # Buffered connections. In that case, the reader will be able to read
@@ -409,7 +413,15 @@ module Orocos
         # Note that new samples will be lost if they are received when the
         # buffer is full.
         def connect_to(input_port, options = Hash.new)
-            input_port = input_port.to_orocos_port
+            input_port = if input_port.respond_to? :find_port
+                              #assuming input_port is a TaskContext
+                              if !(port = input_port.find_input_port(type,nil))
+                                  raise NotFound, "port #{name} does not match any input port of the TaskContext #{input_port.name}."
+                              end
+                              port.to_orocos_port
+                          else
+                              input_port.to_orocos_port
+                          end
 
             if !input_port.kind_of?(InputPort)
                 raise ArgumentError, "an output port can only connect to an input port"

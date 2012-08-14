@@ -53,6 +53,10 @@ module Orocos
                 @buffer.clear
             end
 
+            def connected?
+                true
+            end
+
             #Reads data from the associated port.
             def read(sample =nil)
                 if @policy_type == :data
@@ -86,6 +90,10 @@ module Orocos
 
             def new_sample
                 @port.new_sample
+            end
+
+            def doc?
+                false
             end
         end
 
@@ -188,9 +196,17 @@ module Orocos
                 self
             end
 
+            def filter(&block)
+                if block
+                    self.filter = block
+                else
+                    @filter
+                end
+            end
+
             def filter=(filter)
-              @filter=filter
-              self.tracked=true
+                @filter = filter
+                self.tracked=true
             end
 
             #Pretty print for OutputPort.
@@ -284,7 +300,16 @@ module Orocos
 
             #Register InputPort which is updated each time write is called
             def connect_to(port=nil,policy = OutputPort::default_policy,&block)
-                port = port.to_orocos_port if port.respond_to?(:to_orocos_port)
+                port = if port.respond_to? :find_input_port
+                           #assuming port is a TaskContext
+                           if !(result = port.find_input_port(type,nil))
+                               raise NotFound, "port #{name} does not match any port of the TaskContext #{port.name}."
+                           end
+                           result.to_orocos_port
+                       elsif port
+                           port.to_orocos_port 
+                       end
+
                 self.tracked = true
                 policy[:filter] = block if block
                 if !port 
@@ -345,6 +370,10 @@ module Orocos
             def number_of_samples
                 return @stream.size
             end
+
+            def doc?
+                false
+            end
         end
         
         #Simulated Property based on a configuration log file
@@ -372,6 +401,10 @@ module Orocos
                 @task = task
                 @current_value = nil
                 @type_name = stream.typename
+            end
+
+            def doc?
+                false
             end
 
             # Read the current value of the property/attribute
@@ -454,6 +487,23 @@ module Orocos
             #to be compatible wiht Orocos::TaskContext
             def reachable?
                 true
+            end
+
+            def doc?
+                false
+            end
+
+            def error?
+                false
+            end
+
+            def stop
+                true
+            end
+             
+            #to be compatible wiht Orocos::TaskContext
+            def log_all_ports(options = Hash.new)
+
             end
 
             #pretty print for TaskContext
@@ -654,8 +704,29 @@ module Orocos
             def find_all_ports(type_name, port_name=nil)
                 Orocos::TaskContext.find_all_ports(@ports.values, type_name, port_name)
             end
+
+            def find_all_output_ports(type_name, port_name=nil)
+                Orocos::TaskContext.find_all_input_ports(@ports.values, type_name, port_name)
+            end
+
+            def find_all_input_ports(type_name, port_name=nil)
+                Orocos::TaskContext.find_all_output_ports(@ports.values, type_name, port_name)
+            end
+
             def find_port(type_name, port_name=nil)
                 Orocos::TaskContext.find_port(@ports.values, type_name, port_name)
+            end
+
+            def find_output_port(type_name, port_name=nil)
+                Orocos::TaskContext.find_output_port(@ports.values, type_name, port_name)
+            end
+
+            def find_input_port(type_name, port_name=nil)
+               nil
+            end
+
+            def connect_to(task=nil,policy = OutputPort::default_policy,&block)
+                Orocos::TaskContext.connect_to(self,task,policy,&block)
             end
 
             #Tries to find a OutputPort for a specefic data type.
@@ -716,7 +787,22 @@ module Orocos
                 if has_property?(m) 
                    return property(m)
                 end
-                super(m.to_sym, *args)
+                begin
+                    super(m.to_sym,*args,&block)
+                rescue  NoMethodError => e
+                    if m.to_sym != :to_ary
+                        Log.error "#{m} is neither a port nor a portperty of #{self.name}"
+                        Log.error "The following ports are availabe:"
+                        @ports.each_value do |port|
+                            Log.error "  #{port.name}"
+                        end
+                        Log.error "The following properties are availabe:"
+                        @properties.each_value do |proptery|
+                            Log.error "  #{property.name}"
+                        end
+                    end
+                    raise e 
+                end
             end
         end
 

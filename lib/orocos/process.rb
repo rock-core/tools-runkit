@@ -297,8 +297,12 @@ module Orocos
         #
         # Use Orocos.run directly instead
         def self.run(*names)
+            if !Orocos.initialized?
+                #try to initialize orocos before bothering the user
+                Orocos.initialize
+            end
             if !Orocos::CORBA.initialized?
-                raise "CORBA layer is not initialized, did you forget to call 'Orocos.initialize' ?"
+                raise "CORBA layer is not initialized! There might be problem with the installation."
             end
 
             begin
@@ -680,7 +684,8 @@ module Orocos
         # Kills the process either cleanly by requesting a shutdown if signal ==
         # nil, or forcefully by using UNIX signals if signal is a signal name.
         def kill(wait = true, signal = nil)
-            return if !pid # already dead
+            tpid = pid
+            return if !tpid # already dead
 
             # Stop all tasks and disconnect the ports
             if !signal
@@ -725,7 +730,7 @@ module Orocos
 
                 @expected_exit = expected_exit
                 begin
-                    ::Process.kill(signal, pid)
+                    ::Process.kill(signal, tpid)
                 rescue Errno::ESRCH
                     # Already exited
                     return
