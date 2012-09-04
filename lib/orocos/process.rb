@@ -232,6 +232,11 @@ module Orocos
         #   deployments = { 'xsens' => nil }
         #   models = { 'xsens_imu::Task' => 'imu' }
         #   options = { valgrind => true }
+	#
+	# In case multiple instances of a single model need to be started, the
+	# names can be given as an Array. E.g. 
+	# 
+        #   Orocos.run 'xsens_imu::Task' => ['imu1', 'imu2']
         #   
         def self.parse_run_options(*names)
             options = names.last.kind_of?(Hash) ? names.pop : Hash.new
@@ -249,9 +254,9 @@ module Orocos
                     if !new_name
                         raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
                     end
-                    models[name.to_s] = new_name.to_s
+                    models[name.to_s] = new_name
                 else
-                    deployments[name.to_s] = (new_name.to_s if new_name)
+                    deployments[name.to_s] = (new_name if new_name)
                 end
             end
 
@@ -338,11 +343,15 @@ module Orocos
 
                     [process_name, process]
                 end
-                processes += models.map do |model_name, desired_name|
-                    process = Process.new(Orocos::Generation.default_deployment_name(model_name))
-                    process.map_name(Orocos::Generation.default_deployment_name(model_name), desired_name)
-                    process.map_name("#{Orocos::Generation.default_deployment_name(model_name)}_Logger", "#{desired_name}_Logger")
-                    [desired_name, process]
+		models.each do |model_name, desired_names|
+		    pp desired_names
+		    desired_names = [desired_names] unless desired_names.kind_of? Array 
+		    desired_names.each do |desired_name|
+			process = Process.new(Orocos::Generation.default_deployment_name(model_name))
+			process.map_name(Orocos::Generation.default_deployment_name(model_name), desired_name)
+			process.map_name("#{Orocos::Generation.default_deployment_name(model_name)}_Logger", "#{desired_name}_Logger")
+			processes << [desired_name, process]
+		    end
                 end
                 # Then spawn them, but without waiting for them
                 processes.each do |name, p|
