@@ -344,7 +344,6 @@ module Orocos
                     [process_name, process]
                 end
 		models.each do |model_name, desired_names|
-		    pp desired_names
 		    desired_names = [desired_names] unless desired_names.kind_of? Array 
 		    desired_names.each do |desired_name|
 			process = Process.new(Orocos::Generation.default_deployment_name(model_name))
