@@ -78,6 +78,32 @@ module Orocos
             #array of stream annotations
             attr_reader :annotations
 
+            # Returns where from the time used for alignment should be taken. It
+            # can be one of
+            #
+            # [false]
+            #   use the time at which the logger received the data ("logical
+            #   time")
+            # [:use_sample_time]
+            #   for streams whose data contains a field called "time" of type
+            #   base/Time (from Rock's base/types package), use the time
+            #   contained in that field. Otherwise, use the logical time.
+            #
+            # See #use_sample_time, #use_sample_time=
+            def time_source
+                if use_sample_time
+                    return :use_sample_time
+                else return false
+                end
+            end
+
+            # If true, the alignment algorithm is going to use the sample time
+            # for alignment. Otherwise, it uses the time at which the sample got
+            # written on disk (logical time)
+            #
+            # See also #time_source
+            attr_accessor :use_sample_time
+
             def self.open(*path)
                 replay = new
                 replay.load(*path)
@@ -270,21 +296,18 @@ module Orocos
                 return @tasks[name]
             end
 
-            #Aligns all streams which have at least: 
-            # *one reader 
-            # *or one connections
-            # *or track set to true.
+            # Aligns all streams which have at least: 
+            # * one reader 
+            # * or one connections
+            # * or track set to true.
             #
-            #After calling this method no more ports can be tracked.
+            # After calling this method no more ports can be tracked.
             #
-            # option is passed through to the StreamAligner and can 
-            # be one of the following
+            # time_source is passed through to the StreamAligner. It can be used
+            # to override the global #time_source parameter. See #time_source
+            # for available values.
             #
-            # true - use rt
-            # false - use lg
-            # :use_sample_time - use the timestamp in the data sample
-            #
-            def align( option = false )
+            def align( time_source = self.time_source )
                 @replayed_ports = Array.new
                 @used_streams = Array.new
 
@@ -329,7 +352,7 @@ module Orocos
                 register_tasks
 
                 #join streams 
-                @stream = Pocolog::StreamAligner.new(option, *@used_streams)
+                @stream = Pocolog::StreamAligner.new(time_source, *@used_streams)
                 @stream.rewind
 
                 reset_time_sync
