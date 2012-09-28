@@ -56,6 +56,7 @@ module Orocos
 
         class << self
             # Returns the current timeout for method calls, in milliseconds
+            # Orocos.rb sets it to 20000 ms by default
             #
             # See #call_timeout= for a complete description
             attr_reader :call_timeout
@@ -70,6 +71,7 @@ module Orocos
 
             # Returns the timeout, in milliseconds, before a connection creation
             # fails.
+            # Orocos.rb sets it to 2000 ms by default
             #
             # See #connect_timeout=
             attr_reader :connect_timeout
