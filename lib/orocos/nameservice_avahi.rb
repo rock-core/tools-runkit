@@ -80,8 +80,7 @@ module Nameservice
             ior = get_ior(name)
             result=nil
             if ior
-		Orocos::CORBA.get(:do_get_from_ior, ior)
-
+		result = Orocos::CORBA.get(:do_get_from_ior, ior)
             else 
                 raise Orocos::NotFound
             end
