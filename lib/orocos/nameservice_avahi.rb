@@ -32,12 +32,14 @@ module Nameservice
         def get_ior(name)
             ior = nil
             services = @avahi_nameserver.find_services(name)
-            if services.size > 1
-                raise ArgumentError, "Nameservice: multiple services #{name} found. By definition this should not be possible. Cannot proceed with resolution"
+            if services.empty?
+                raise Orocos::NotFound, "AVAHI nameservice could not find a task named '#{name}'"
+            elsif services.size > 1
+                warn "Nameservice: multiple services '#{name}' found. Possibly due to publishing on IPv4 and IPv6, or on multiple interfaces -- picking first one in list"
             end
-            services.each do |desc|
-                ior = desc.get_description("IOR")
-            end
+
+            service = services.first
+            ior = service.get_description("IOR")
             if not ior 
                 raise Orocos::NotFound, "AVAHI nameservice could not retrieve an ior for task #{name}"
             end
