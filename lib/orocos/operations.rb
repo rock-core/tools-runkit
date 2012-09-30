@@ -127,7 +127,12 @@ module Orocos
         # on the Ruby side
         def typelib_types_for(types)
             types.map do |t|
-                Orocos.typelib_type_for(t)
+                begin
+                    Orocos.typelib_type_for(t)
+                rescue Typelib::NotFound
+                    Orocos.load_typekit_for(t)
+                    Orocos.typelib_type_for(t)
+                end
             end
         end
 
