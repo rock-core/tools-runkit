@@ -24,7 +24,7 @@ CMAKE_USE_FULL_RPATH("")
 
 include(FindPkgConfig)
 
-pkg_check_modules(RTT_Typelib REQUIRED rtt_typelib-${OROCOS_TARGET})
+pkg_check_modules(RTT_Typelib REQUIRED rtt-typelib)
 include_directories( ${RTT_Typelib_INCLUDE_DIRS} )
 link_directories( ${RTT_Typelib_LIBRARY_DIRS} )
 
