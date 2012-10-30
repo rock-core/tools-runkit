@@ -453,7 +453,7 @@ module Orocos
             # If possible, check that we won't clash with an already running
             # process
             task_names.each do |name|
-                if TaskContext.reachable?(name)
+                if Orocos::CORBA.name_service.task_reachable?(name)
                     raise ArgumentError, "there is already a running task called #{name}, are you starting the same component twice ?"
                 end
             end
@@ -500,8 +500,8 @@ module Orocos
 
             workdir  = options[:working_directory]
 
-	    if CORBA.name_service
-		ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
+	    if CORBA.name_service.ip
+		ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service.ip}"
 	    end
 
             module_bin = pkg.binfile

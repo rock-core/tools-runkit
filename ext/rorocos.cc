@@ -1,4 +1,5 @@
 #include "rorocos.hh"
+
 #include <typeinfo>
 
 #include <memory>
@@ -29,15 +30,22 @@ using namespace std;
 using namespace boost;
 using namespace RTT::corba;
 
-static VALUE mOrocos;
-static VALUE cTaskContext;
+VALUE mOrocos;
+VALUE mCORBA;
+VALUE eCORBA;
+VALUE eComError;
+VALUE cNameService;
+VALUE cTaskContext;
+VALUE eNotFound;
+VALUE eNotInitialized;
+VALUE corba_access = Qnil;
+
 static VALUE cInputPort;
 static VALUE cOutputPort;
 static VALUE cPortAccess;
 static VALUE cInputWriter;
 static VALUE cOutputReader;
 static VALUE cPort;
-VALUE eNotFound;
 static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
 
@@ -99,51 +107,40 @@ tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
     return make_tuple(&task_context, task_name, port_name);
 }
 
-static VALUE orocos_do_task_names(VALUE mod)
-{
-    VALUE result = rb_ary_new();
-
-    list<string> names = CorbaAccess::instance()->knownTasks();
-    for (list<string>::const_iterator it = names.begin(); it != names.end(); ++it)
-        rb_ary_push(result, rb_str_new2(it->c_str()));
-
-    return result;
-}
-
 // call-seq:
-//  TaskContext.get(name) => task
+//  TaskContext.new(ior,process=Hash.new) => task
 //
 // Returns the TaskContext instance representing the remote task context
-// with the given name. Raises Orocos::NotFound if the task name does
-// not exist.
+// with the given ior. Raises Orocos::NotFound if the task does
+// not exist. Use the CORBA name service to retrieve a task
+// by its name.
 ///
-static VALUE task_context_get(VALUE klass, VALUE name)
+static VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
 {
-    try {
-        std::auto_ptr<RTaskContext> new_context( new RTaskContext );
-        new_context->task       = CorbaAccess::instance()->findByName(StringValuePtr(name));
-        new_context->main_service = new_context->task->getProvider("this");
-        new_context->ports      = new_context->task->ports();
+    if(!CorbaAccess::instance())
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
 
-        VALUE obj = simple_wrap(cTaskContext, new_context.release());
+    // all parametes are forwarded to ruby initialize
+    if(argc < 1)
+        rb_raise(rb_eArgError, "no ior given");
+    std::string ior(StringValueCStr(argv[0]));
+
+    try
+    {
+        RTaskContext *context = CorbaAccess::instance()->createRTaskContext(ior);
+        VALUE obj = simple_wrap(cTaskContext, context);
+        rb_obj_call_init(obj,argc,argv);
         return obj;
     }
-    CORBA_EXCEPTION_HANDLERS;
-}
-
-static VALUE task_context_get_from_ior(VALUE klass, VALUE ior)
-{
-    try {
-        std::auto_ptr<RTaskContext> new_context( new RTaskContext );
-        new_context->task       = CorbaAccess::instance()->findByIOR(StringValuePtr(ior));
-
-        new_context->main_service = new_context->task->getProvider("this");
-        new_context->ports      = new_context->task->ports();
-
-        VALUE obj = simple_wrap(cTaskContext, new_context.release());
-        return obj;
+    catch(InvalidIORError &e)
+    {
+        rb_raise(rb_eArgError, e.what());
     }
-    CORBA_EXCEPTION_HANDLERS;
+    catch(std::runtime_error &e)
+    {
+        rb_raise(eComError, e.what());
+    }
+    CORBA_EXCEPTION_HANDLERS
 }
 
 static VALUE task_context_equal_p(VALUE self, VALUE other)
@@ -171,6 +168,12 @@ static VALUE task_context_has_port_p(VALUE self, VALUE name)
     catch(RTT::corba::CNoSuchPortException) { return Qfalse; }
     CORBA_EXCEPTION_HANDLERS
     return Qtrue;
+}
+
+static VALUE task_context_real_name(VALUE self)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+    return rb_str_new2(context.name.c_str());
 }
 
 static VALUE task_context_has_operation_p(VALUE self, VALUE name)
@@ -353,6 +356,8 @@ static void delete_port(RTT::base::PortInterface* port)
 static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
 {
     CorbaAccess* corba = CorbaAccess::instance();
+    if(!corba)
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
 
     // Get the port and create an anti-clone of it
     RTaskContext* task; VALUE port_name;
@@ -387,6 +392,8 @@ static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
 static VALUE do_output_port_reader(VALUE port, VALUE klass, VALUE type_name, VALUE policy)
 {
     CorbaAccess* corba = CorbaAccess::instance();
+    if(!corba)
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
 
     // Get the port and create an anti-clone of it
     RTaskContext* task; VALUE port_name;
@@ -805,21 +812,27 @@ extern "C" void Init_rorocos_ext()
 {
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");
+    eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
+    eComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
+    eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
+
     rb_define_singleton_method(mOrocos, "load_standard_typekits", RUBY_METHOD_FUNC(orocos_load_standard_typekits), 0);
     rb_define_singleton_method(mOrocos, "load_rtt_plugin",  RUBY_METHOD_FUNC(orocos_load_rtt_plugin), 1);
     rb_define_singleton_method(mOrocos, "load_rtt_typekit", RUBY_METHOD_FUNC(orocos_load_rtt_typekit), 1);
     rb_define_singleton_method(mOrocos, "registered_type?", RUBY_METHOD_FUNC(orocos_registered_type_p), 1);
     rb_define_singleton_method(mOrocos, "do_typelib_type_for", RUBY_METHOD_FUNC(orocos_typelib_type_for), 1);
 
-    cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
-    rb_const_set(cTaskContext, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::corba::CPreOperational));
-    rb_const_set(cTaskContext, rb_intern("STATE_FATAL_ERROR"),          INT2FIX(RTT::corba::CFatalError));
-    rb_const_set(cTaskContext, rb_intern("STATE_EXCEPTION"),            INT2FIX(RTT::corba::CException));
-    rb_const_set(cTaskContext, rb_intern("STATE_STOPPED"),              INT2FIX(RTT::corba::CStopped));
-    rb_const_set(cTaskContext, rb_intern("STATE_RUNNING"),              INT2FIX(RTT::corba::CRunning));
-    rb_const_set(cTaskContext, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::corba::CRunTimeError));
+    VALUE cTaskContextBase = rb_define_class_under(mOrocos, "TaskContextBase",rb_cObject);
+    rb_const_set(cTaskContextBase, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::corba::CPreOperational));
+    rb_const_set(cTaskContextBase, rb_intern("STATE_FATAL_ERROR"),          INT2FIX(RTT::corba::CFatalError));
+    rb_const_set(cTaskContextBase, rb_intern("STATE_EXCEPTION"),            INT2FIX(RTT::corba::CException));
+    rb_const_set(cTaskContextBase, rb_intern("STATE_STOPPED"),              INT2FIX(RTT::corba::CStopped));
+    rb_const_set(cTaskContextBase, rb_intern("STATE_RUNNING"),              INT2FIX(RTT::corba::CRunning));
+    rb_const_set(cTaskContextBase, rb_intern("STATE_RUNTIME_ERROR"),        INT2FIX(RTT::corba::CRunTimeError));
 
     rb_const_set(mOrocos, rb_intern("TRANSPORT_CORBA"), INT2FIX(ORO_CORBA_PROTOCOL_ID));
+
+    cTaskContext = rb_define_class_under(mOrocos, "TaskContext", cTaskContextBase);
 
 #ifdef HAS_MQUEUE
     VALUE mMQueue  = rb_define_module_under(mOrocos, "MQueue");
@@ -838,9 +851,8 @@ extern "C" void Init_rorocos_ext()
     eStateTransitionFailed = rb_define_class_under(mOrocos, "StateTransitionFailed", rb_eRuntimeError);
     eConnectionFailed = rb_define_class_under(mOrocos, "ConnectionFailed", rb_eRuntimeError);
 
-    rb_define_singleton_method(mOrocos, "do_task_names", RUBY_METHOD_FUNC(orocos_do_task_names), 0);
-    rb_define_singleton_method(cTaskContext, "do_get", RUBY_METHOD_FUNC(task_context_get), 1);
-    rb_define_singleton_method(cTaskContext, "do_get_from_ior", RUBY_METHOD_FUNC(task_context_get_from_ior), 1);
+    rb_define_singleton_method(cTaskContext, "new", RUBY_METHOD_FUNC(task_context_create), -1);
+    rb_define_method(cTaskContext, "do_real_name", RUBY_METHOD_FUNC(task_context_real_name), 0);
     rb_define_method(cTaskContext, "==", RUBY_METHOD_FUNC(task_context_equal_p), 1);
     rb_define_method(cTaskContext, "do_state", RUBY_METHOD_FUNC(task_context_state), 0);
     rb_define_method(cTaskContext, "do_configure", RUBY_METHOD_FUNC(task_context_configure), 0);

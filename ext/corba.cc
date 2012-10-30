@@ -1,4 +1,6 @@
 #include "rorocos.hh"
+#include "lib/corba_name_service_client.hh"
+
 #include <list>
 #include <typeinfo>
 #include <rtt/types/Types.hpp>
@@ -15,18 +17,19 @@
 using namespace CORBA;
 using namespace std;
 using namespace boost;
+using namespace corba;
 
-VALUE mCORBA;
-VALUE eCORBA;
-VALUE eComError;
-VALUE corba_access = Qnil;
+extern VALUE mCORBA;
+extern VALUE mOrocos;
+extern VALUE eCORBA;
+extern VALUE eComError;
+extern VALUE corba_access;
 extern VALUE eNotFound;
-VALUE eNotInitialized;
+extern VALUE eNotInitialized;
 
-CORBA::ORB_var               CorbaAccess::orb;
-CosNaming::NamingContext_var CorbaAccess::rootContext;
+static VALUE cNameService;
 
-CorbaAccess* CorbaAccess::the_instance;
+CorbaAccess* CorbaAccess::the_instance = NULL;
 void CorbaAccess::init(std::string const& name, int argc, char* argv[])
 {
     if (the_instance)
@@ -45,13 +48,6 @@ CorbaAccess::CorbaAccess(std::string const& name, int argc, char* argv[])
     // First initialize the ORB. We use TaskContextProxy::InitORB as we will
     // have to create a servant for our local DataFlowInterface object.
     RTT::corba::TaskContextServer::InitOrb(argc, argv);
-    orb = RTT::corba::ApplicationServer::orb;
-
-    // Now, get the name service once and for all
-    CORBA::Object_var rootObj = orb->resolve_initial_references("NameService");
-    rootContext = CosNaming::NamingContext::_narrow(rootObj.in());
-    if (CORBA::is_nil(rootContext))
-        rb_raise(eCORBA, "cannot find CORBA naming service");
 
     // Finally, create a dataflow interface and export it to CORBA. This is
     // needed to use the port interface. Since we're lazy, we just create a
@@ -83,6 +79,44 @@ CorbaAccess::~CorbaAccess()
     delete m_task;
 }
 
+RTaskContext* CorbaAccess::createRTaskContext(std::string const& ior)
+{
+    std::auto_ptr<RTaskContext> new_context( new RTaskContext );
+    // check if ior is a valid IOR if not an exception is thrown
+    new_context->task = getCTaskContext(ior);
+    new_context->main_service = new_context->task->getProvider("this");
+    new_context->ports      = new_context->task->ports();
+    CORBA::String_var nm =  new_context->task->getName();
+    new_context->name = std::string(nm.in());
+    return new_context.release();
+}
+
+RTT::corba::CTaskContext_var CorbaAccess::getCTaskContext(std::string const& ior)
+{
+    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
+        throw std::runtime_error("Corba is not initialized. Call Orocos.initialize first.");
+
+    // Use the ior to create the task object reference,
+    CORBA::Object_var task_object;
+    try
+    {
+        task_object = RTT::corba::ApplicationServer::orb->string_to_object ( ior.c_str() );
+    }
+    catch(CORBA::SystemException &e)
+    {
+        throw InvalidIORError("given IOR " + ior + " is not valid");
+    }
+
+    // Then check we can actually access it
+    RTT::corba::CTaskContext_var mtask;
+    // Now downcast the object reference to the appropriate type
+    mtask = RTT::corba::CTaskContext::_narrow (task_object.in());
+
+    if(CORBA::is_nil( mtask ))
+        throw std::runtime_error("cannot narrorw task context.");
+    return mtask;
+}
+
 RTT::corba::CDataFlowInterface_ptr CorbaAccess::getDataFlowInterface() const
 { return m_corba_dataflow; }
 
@@ -103,129 +137,6 @@ void CorbaAccess::removePort(RTT::base::PortInterface* local_port)
     m_task->ports()->removePort(local_port->getName());
 }
 
-list<string> CorbaAccess::knownTasks()
-{
-    CosNaming::Name serverName;
-    serverName.length(1);
-    serverName[0].id = CORBA::string_dup("TaskContexts");
-
-    list<string> names;
-    try {
-        CORBA::Object_var control_tasks_var = rootContext->resolve(serverName);
-        CosNaming::NamingContext_var control_tasks = CosNaming::NamingContext::_narrow (control_tasks_var);
-
-        CosNaming::BindingList_var binding_list;
-        CosNaming::BindingIterator_var binding_it;
-        control_tasks->list(0, binding_list, binding_it);
-        if (CORBA::is_nil(binding_it))
-            return names;
-
-        while(binding_it->next_n(10, binding_list))
-        {
-            CosNaming::BindingList list = binding_list.in();
-            for (unsigned int i = 0; i < list.length(); ++i)
-                names.push_back(list[i].binding_name[0].id.in());
-        }
-    }
-    catch(CosNaming::NamingContext::NotFound)
-    { return names; }
-    CORBA_EXCEPTION_HANDLERS 
-
-    return names;
-}
-
-RTT::corba::CTaskContext_ptr CorbaAccess::findByName(std::string const& name)
-{
-    if (NIL_P(corba_access))
-        rb_raise(eNotInitialized, "you must call Orocos.initialize before trying to access remote tasks");
-
-    // First thing, try to get a reference from the name server
-    CosNaming::Name serverName;
-    serverName.length(2);
-    serverName[0].id = CORBA::string_dup("TaskContexts");
-    serverName[1].id = CORBA::string_dup( name.c_str() );
-
-    CORBA::Object_var task_object;
-    try { task_object = rootContext->resolve(serverName); }
-    catch(CosNaming::NamingContext::NotFound&)
-    { rb_raise(eNotFound, "task context '%s' does not exist", name.c_str()); }
-    CORBA_EXCEPTION_HANDLERS 
-
-    // Then check we can actually access it
-    RTT::corba::CTaskContext_var mtask;
-    try { mtask = RTT::corba::CTaskContext::_narrow (task_object.in ()); }
-    catch(CORBA::Exception&)
-    { rb_raise(eNotFound, "task context '%s' is registered but the registered object is of wrong type", name.c_str()); }
-
-    if ( !CORBA::is_nil( mtask ) )
-    {
-        try {
-            CORBA::String_var nm = mtask->getName();
-            return mtask._retn();
-        }
-        catch(CORBA::Exception&)
-        {
-            rb_raise(eNotFound, "task context '%s' was registered but cannot be contacted", name.c_str());
-        }
-    }
-    rb_raise(eNotFound, "task context '%s' not found", name.c_str());
-}
-
-RTT::corba::CTaskContext_ptr CorbaAccess::findByIOR(std::string const& ior)
-{
-    if (NIL_P(corba_access))
-        rb_raise(eNotInitialized, "you must call Orocos.initialize before trying to access remote tasks");
-
-    if( ior.substr(0,3) != "IOR")
-    	rb_raise(eNotFound, "task context could not be found - ior format invalid %s", ior.c_str());
-
-    // Use the ior to create the task object reference,
-    CORBA::Object_var task_object =
-          orb->string_to_object ( ior.c_str() );
-    
-    RTT::corba::CTaskContext_var mtask;
-    // Now downcast the object reference to the appropriate type
-    mtask = RTT::corba::CTaskContext::_narrow (task_object.in());
-
-    if ( !CORBA::is_nil( mtask ) )
-    {
-        try {
-            CORBA::String_var nm = mtask->getName();
-            return mtask._retn();
-        }
-        catch(CORBA::Exception&)
-        {
-            rb_raise(eNotFound, "cannot create a proxy object for ior '%s'. Initialize ORB first. ", ior.c_str());
-        }
-    }
-    rb_raise(eNotFound, "task context could not be found - IOR does not refer to a task");
-}
-
-
-void CorbaAccess::unbind(std::string const& name)
-{
-    CosNaming::Name serverName;
-    try {
-        serverName.length(2);
-        serverName[0].id = CORBA::string_dup( "TaskContexts" );
-        serverName[1].id = CORBA::string_dup( name.c_str() );
-        rootContext->unbind(serverName);
-    } catch(CosNaming::NamingContext::NotFound) {}
-    CORBA_EXCEPTION_HANDLERS
-}
-
-/* call-seq:
- *  Orocos::CORBA.unregister(name)
- *
- * Remove this name from the list of task contexts registered on the name server
- */
-static VALUE corba_unregister(VALUE mod, VALUE name)
-{
-    string task_name = StringValuePtr(name);
-    CorbaAccess::instance()->unbind(task_name);
-    return Qnil;
-}
-
 static VALUE corba_set_call_timeout(VALUE mod, VALUE duration)
 {
     omniORB::setClientCallTimeout(NUM2INT(duration));
@@ -241,6 +152,8 @@ static VALUE corba_set_connect_timeout(VALUE mod, VALUE duration)
 static void corba_deinit(void*)
 {
     CorbaAccess::deinit();
+    rb_iv_set(mCORBA, "@corba", Qnil);
+    corba_access = Qnil;
 }
 
 /* call-seq:
@@ -296,20 +209,402 @@ static VALUE corba_transportable_type_names(VALUE mod)
     return result;
 }
 
+static VALUE name_service_create(int argc, VALUE *argv,VALUE klass)
+{
+    // all parametes are forwarded to ruby initialize
+    std::string ip;
+    std::string port;
+
+    if(argc > 0)
+    {
+        if(TYPE(argv[0]) == T_STRING)
+            ip = StringValueCStr(argv[0]);
+    }
+    if(argc > 1)
+    {
+        if(TYPE(argv[1]) == T_STRING)
+            port = StringValueCStr(argv[1]);
+    }
+
+    std::auto_ptr<NameServiceClient> new_name_service(new NameServiceClient(ip,port));
+    VALUE obj = simple_wrap(cNameService, new_name_service.release());
+    rb_obj_call_init(obj,argc,argv);
+    return obj;
+}
+
+static VALUE name_service_ip(VALUE self)
+{
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+    return rb_str_new2(name_service.getIp().c_str());
+}
+
+static VALUE name_service_port(VALUE self)
+{
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+    return rb_str_new2(name_service.getPort().c_str());
+}
+
+static VALUE name_service_reset(VALUE self,VALUE ip, VALUE port)
+{
+    std::string sip = StringValueCStr(ip);
+    std::string sport = StringValueCStr(port);
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+    name_service.reset(sip,sport);
+    return self;
+}
+
+enum error_code_t
+{
+    NO_ERROR,
+    ERROR,
+    NOT_FOUND_ERROR
+};
+
+#ifdef HAVE_RUBY_INTERN_H
+struct NameServiceBlockingMsg
+{
+    NameServiceClient *name_service;   // pointer to the nameservice object
+    void *return_value;          // must be initialized by the caller with the right type
+    void *para;                  // parameter
+    void *para2;                 // parameter
+    std::string error_message;   // empty or string with the error message
+    error_code_t error_code;
+
+    NameServiceBlockingMsg():
+        name_service(NULL),
+        return_value(NULL),
+        para(NULL),
+        para2(NULL),
+        error_code(NO_ERROR)
+    {}
+};
+
+void processErrors(NameServiceBlockingMsg &msg)
+{
+    if(!msg.error_message.empty() || msg.error_code)
+    {
+        switch(msg.error_code)
+        {
+        case NOT_FOUND_ERROR:
+            rb_raise(eNotFound,"%s", msg.error_message.c_str());
+            break;
+        case ERROR:
+        default:
+            rb_raise(eComError,"%s", msg.error_message.c_str());
+        }
+    }
+}
+
+
+static VALUE name_service_ior_blocking(void *ptr)
+{
+    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
+    std::string &ior = *(std::string *) msg.return_value;
+    std::string &name = *(std::string *) msg.para;
+    try
+    {
+        ior = msg.name_service->getIOR(name);
+    }
+    catch(CosNaming::NamingContext::NotFound &e)
+    {
+        msg.error_message = "NamingContex::NotFound";
+        msg.error_code = NOT_FOUND_ERROR;
+    }
+    catch(CORBA::Exception &e)
+    {
+        msg.error_message = "Corba error " + std::string(e._name());
+    }
+    catch(std::runtime_error &e)
+    {
+        msg.error_message = e.what();
+    }
+    catch(...)
+    {
+        msg.error_message = "Unspecific exception in NameServiceClient::getIOR";
+    }
+    return Qnil;
+}
+
+static VALUE name_service_unbind_blocking(void *ptr)
+{
+    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
+    bool &result = *(bool *) msg.return_value;
+    std::string &name = *(std::string *) msg.para;
+    try
+    {
+        result = msg.name_service->unbind(name);
+    }
+    catch(CORBA::Exception &e)
+    {
+        msg.error_message = "Corba error " + std::string(e._name());
+    }
+    catch(std::runtime_error &e)
+    {
+        msg.error_message = e.what();
+    }
+    catch(...)
+    {
+        msg.error_message = "Unspecific exception in NameServiceClient::unbind";
+    }
+    return Qnil;
+}
+
+static VALUE name_service_validate_blocking(void *ptr)
+{
+    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
+    try
+    {
+        msg.name_service->validate();
+    }
+    catch(CORBA::Exception &e)
+    {
+        msg.error_message = "Corba error " + std::string(e._name());
+    }
+    catch(std::runtime_error &e)
+    {
+        msg.error_message = e.what();
+    }
+    catch(...)
+    {
+        msg.error_message = "Unspecific exception in NameServiceClient::unbind";
+    }
+    return Qnil;
+}
+
+static VALUE name_service_bind_blocking(void *ptr)
+{
+    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
+    RTaskContext &task = *(RTaskContext *) msg.para;
+    std::string &name = *(std::string *) msg.para2;
+    try
+    {
+        CORBA::Object_var obj = CORBA::Object::_duplicate(task.task);
+        msg.name_service->bind(obj,name);
+    }
+    catch(CORBA::Exception &e)
+    {
+        msg.error_message = "Corba error " + std::string(e._name());
+    }
+    catch(std::runtime_error &e)
+    {
+        msg.error_message = e.what();
+    }
+    catch(...)
+    {
+        msg.error_message = "Unspecific exception in NameServiceClient::bind";
+    }
+    return Qnil;
+}
+
+static void name_service_task_context_names_abort(void *ptr)
+{
+    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
+    msg.name_service->abort();
+}
+
+static VALUE name_service_task_context_names_blocking(void *ptr)
+{
+    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
+    std::vector<std::string> &names = *(std::vector<std::string>*)msg.return_value;
+    try
+    {
+        names = msg.name_service->getTaskContextNames();
+    }
+    catch(CORBA::Exception &e)
+    {
+        msg.error_message = "Corba error " + std::string(e._name());
+    }
+    catch(std::runtime_error &e)
+    {
+        msg.error_message = e.what();
+    }
+    catch(...)
+    {
+        msg.error_message = "Unspecific exception in NameServiceClient::getTaskContextNames";
+    }
+    return Qnil;
+}
+#endif
+
+static VALUE name_service_task_context_names(VALUE self)
+{
+    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+    std::vector<std::string> names;
+
+#ifdef HAVE_RUBY_INTERN_H
+    NameServiceBlockingMsg msg;
+    msg.name_service = &name_service;
+    msg.return_value = &names;
+    msg.para = NULL;
+    msg.para2 = NULL;
+    //rb_thread_call_without_gvl
+    rb_thread_blocking_region(name_service_task_context_names_blocking,(void*)&msg,
+                              name_service_task_context_names_abort, (void*)&msg);
+    processErrors(msg);
+#else
+    try
+    {
+        names = name_service.getTaskContextNames();
+    }
+    catch(NameServiceClientError &e)
+    {
+        rb_raise(eComError,"%s", e.what());
+    }
+    CORBA_EXCEPTION_HANDLERS
+#endif
+
+    VALUE result = rb_ary_new();
+    for (vector<string>::const_iterator it = names.begin(); it != names.end(); ++it)
+        rb_ary_push(result, rb_str_new2(it->c_str()));
+    return result;
+}
+
+
+static VALUE name_service_unbind(VALUE self,VALUE task_name)
+{
+    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    
+    std::string name = StringValueCStr(task_name);
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+    bool result = false;
+
+#ifdef HAVE_RUBY_INTERN_H
+    NameServiceBlockingMsg msg;
+    msg.name_service = &name_service;
+    msg.return_value = &result;
+    msg.para = &name;
+    msg.para2 = NULL;
+    rb_thread_blocking_region(name_service_unbind_blocking,(void*)&msg,NULL,NULL);
+    processErrors(msg);
+#else
+    try
+    {
+        result = name_service.unbind(name);
+    }
+    catch(NameServiceClientError &e)
+    {
+        rb_raise(eComError,"%s",e.what());
+    }
+    CORBA_EXCEPTION_HANDLERS
+#endif
+    return result ? Qtrue : Qfalse;
+}
+
+static VALUE name_service_validate(VALUE self)
+{
+    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+
+#ifdef HAVE_RUBY_INTERN_H
+    NameServiceBlockingMsg msg;
+    msg.name_service = &name_service;
+    msg.return_value = NULL;
+    msg.para = NULL;
+    msg.para2 = NULL;
+    rb_thread_blocking_region(name_service_validate_blocking,(void*)&msg,NULL,NULL);
+    processErrors(msg);
+#else
+    try
+    {
+        name_service.validate();
+    }
+    catch(NameServiceClientError &e)
+    {
+        rb_raise(eComError, "%s",e.what());
+    }
+    CORBA_EXCEPTION_HANDLERS
+#endif
+    return Qnil;
+}
+
+static VALUE name_service_bind(VALUE self,VALUE task,VALUE task_name)
+{
+    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    
+    std::string name = StringValueCStr(task_name);
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+    RTaskContext& context = get_wrapped<RTaskContext>(task);
+
+#ifdef HAVE_RUBY_INTERN_H
+    NameServiceBlockingMsg msg;
+    msg.name_service = &name_service;
+    msg.return_value = NULL;
+    msg.para = &context;
+    msg.para2 = &name;
+    rb_thread_blocking_region(name_service_bind_blocking,(void*)&msg,NULL,NULL);
+    processErrors(msg);
+#else
+    try
+    {
+        CORBA::Object_var obj = CORBA::Object::_duplicate(context.task);
+        name_service.bind(obj,name);
+    }
+    catch(NameServiceClientError &e)
+    {
+        rb_raise(eComError,"%s", e.what());
+    }
+    CORBA_EXCEPTION_HANDLERS
+#endif
+    return Qnil;
+}
+
+static VALUE name_service_ior(VALUE self,VALUE task_name)
+{
+    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
+        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+
+    std::string ior;
+    std::string name = StringValueCStr(task_name);
+    NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
+
+#ifdef HAVE_RUBY_INTERN_H
+    NameServiceBlockingMsg msg;
+    msg.name_service = &name_service;
+    msg.para = &name;
+    msg.para2 = NULL;
+    msg.return_value = &ior;
+    rb_thread_blocking_region(name_service_ior_blocking,(void*)&msg,NULL,NULL);
+    processErrors(msg);
+#else
+    try
+    {
+        ior = name_service.getIOR(name);
+    }
+    catch(NameServiceClientError &e)
+    {
+        rb_raise(eComError,"%s", e.what());
+    }
+    CORBA_EXCEPTION_HANDLERS
+#endif
+
+    return rb_str_new2(ior.c_str());
+}
+
+
 void Orocos_init_CORBA()
 {
-    VALUE mOrocos = rb_define_module("Orocos");
-    mCORBA    = rb_define_module_under(mOrocos, "CORBA");
-    eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
-    eComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
-    eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
-
     rb_define_singleton_method(mCORBA, "initialized?", RUBY_METHOD_FUNC(corba_is_initialized), 0);
     rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 1);
     rb_define_singleton_method(mCORBA, "do_deinit", RUBY_METHOD_FUNC(corba_deinit), 0);
-    rb_define_singleton_method(mCORBA, "unregister", RUBY_METHOD_FUNC(corba_unregister), 1);
     rb_define_singleton_method(mCORBA, "do_call_timeout", RUBY_METHOD_FUNC(corba_set_call_timeout), 1);
     rb_define_singleton_method(mCORBA, "do_connect_timeout", RUBY_METHOD_FUNC(corba_set_connect_timeout), 1);
     rb_define_singleton_method(mCORBA, "transportable_type_names", RUBY_METHOD_FUNC(corba_transportable_type_names), 0);
-}
 
+    VALUE cNameServiceBase = rb_define_class_under(mOrocos, "NameServiceBase",rb_cObject);
+    cNameService = rb_define_class_under(mCORBA, "NameService",cNameServiceBase);
+    rb_define_singleton_method(cNameService, "new", RUBY_METHOD_FUNC(name_service_create), -1);
+    rb_define_method(cNameService, "do_task_context_names", RUBY_METHOD_FUNC(name_service_task_context_names), 0);
+    rb_define_method(cNameService, "do_ior", RUBY_METHOD_FUNC(name_service_ior), 1);
+    rb_define_method(cNameService, "do_ip", RUBY_METHOD_FUNC(name_service_ip), 0);
+    rb_define_method(cNameService, "do_port", RUBY_METHOD_FUNC(name_service_port), 0);
+    rb_define_method(cNameService, "do_validate", RUBY_METHOD_FUNC(name_service_validate), 0);
+    rb_define_method(cNameService, "do_reset", RUBY_METHOD_FUNC(name_service_reset), 2);
+    rb_define_method(cNameService, "do_unbind", RUBY_METHOD_FUNC(name_service_unbind), 1);
+    rb_define_method(cNameService, "do_bind", RUBY_METHOD_FUNC(name_service_bind), 2);
+}

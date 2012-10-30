@@ -12,8 +12,11 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 describe Orocos::TaskContext do
     include Orocos::Spec
 
-    it "should not be possible to create one directly" do
-	assert_raises(NoMethodError) { Orocos::TaskContext.new }
+    it "should be possible to create one directly" do
+        Orocos.run('process') do
+            ior = Orocos.name_service.ior("process_Test")
+            assert(t1 = Orocos::TaskContext.new(ior))
+        end
     end
 
     it "should raise NotFound on unknown task contexts" do
@@ -86,6 +89,7 @@ describe Orocos::TaskContext do
             assert(t.has_port?("cycle"))
         end
     end
+
 
     it "should raise NotFound if a port does not exist" do
         Orocos.run('simple_source') do
@@ -364,4 +368,3 @@ describe Orocos::TaskContext do
 
     end
 end
-

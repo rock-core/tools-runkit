@@ -7,17 +7,6 @@ module Orocos
         extend Logger::Hierarchy
 
         class << self
-            # The address at which to contact the CORBA naming service
-            attr_reader :name_service
-
-            def name_service=(hostname)
-                if initialized?
-                    raise "the hostname for the CORBA name service can only be changed before the CORBA layer is initialized"
-                end
-
-                @name_service = hostname
-            end
-
             # The maximum message size, in bytes, allowed by the omniORB. It can
             # only be set before Orocos.initialize is called
             #
@@ -30,27 +19,6 @@ module Orocos
                 end
 
                 ENV['ORBgiopMaxMsgSize'] = value.to_int.to_s
-            end
-        end
-        @name_service     =
-		if ENV['ORBInitRef'] then nil
-		else '127.0.0.1'
-		end
-
-        # Removes dangling references from the name server
-        #
-        # This method removes objects that are not accessible anymore from the
-        # name server
-        def self.cleanup
-            names = Orocos.task_names.dup
-            names.each do |n|
-                begin
-                    CORBA.info "trying task context #{n}"
-                    TaskContext.get(n)
-                rescue Orocos::NotFound
-                    CORBA.unregister(n)
-                    CORBA.warn "unregistered dangling CORBA name #{n}"
-                end
             end
         end
 
@@ -94,27 +62,27 @@ module Orocos
         # It does not need to be called explicitely, as it is called by
         # Orocos.initialize
 	def self.init(name = nil)
-            if not Nameservice.available?
-                if not CORBA.name_service
-                    CORBA.name_service = "127.0.0.1"
-                end
-                Nameservice::enable(:CORBA, :host => CORBA.name_service)
-            end
-
-	    if CORBA.name_service
-	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service}"
+            #setup environment which is used by the orocos.rb
+	    if CORBA.name_service.ip
+	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service.ip}"
 	    end
 
             do_init(name || "")
             self.call_timeout    ||= 20000
             self.connect_timeout ||= 2000
+
+            #check if name service is reachable
+            CORBA.name_service.validate
 	end
 
 	def self.get(method, name)
+            if !Orocos::CORBA.initialized?
+                raise NotInitialized, "the CORBA layer is not initialized, call Orocos.initialize first"
+            end
+
             result = ::Orocos::CORBA.refine_exceptions("naming service") do
                 ::Orocos::TaskContext.send(method, name)
             end
-	    result.send(:initialize)
 	    result
 	end
 
@@ -140,9 +108,5 @@ module Orocos
         end
     end
 
-    # Returns the task names that are registered on CORBA
-    def self.task_names
-        do_task_names.find_all { |n| n !~ /^orocosrb_(\d+)$/ }
-    end
 end
 

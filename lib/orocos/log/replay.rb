@@ -1,7 +1,7 @@
 require 'utilrb/logger'
 
-# Module for replaying log files
 module Orocos
+    # Module for replaying log files
     module Log
 	extend Logger::Hierarchy
 	extend Logger::Forward
@@ -377,17 +377,8 @@ module Orocos
 
             # registers all replayed log tasks on the local name server
             def register_tasks
-                #enable local name service 
-                service = if Nameservice.enabled? :Local
-                              Nameservice.get :Local 
-                          else
-                              Nameservice.enable :Local
-                          end
-                each_task do |task|
-                    if task.used?
-                        service.registered_tasks[task.name] = task
-                    end
-                end
+                service = Local::NameService.new @tasks
+                Orocos::name_service.add service
             end
 
             def stream_index_for_name(name)

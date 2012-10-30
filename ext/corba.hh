@@ -15,10 +15,13 @@
 
 using namespace std;
 
-extern VALUE mCORBA;
 extern VALUE corba_access;
 extern VALUE eCORBA;
 extern VALUE eComError;
+extern VALUE mCORBA;
+extern VALUE eNotFound;
+extern VALUE eNotInitialized;
+
 namespace RTT
 {
     class TaskContext;
@@ -31,15 +34,30 @@ namespace RTT
     }
 }
 
+class InvalidIORError :public std::runtime_error
+{
+    public:
+        InvalidIORError(const std::string& what_arg):
+            std::runtime_error(what_arg)
+    {
+    };
+};
+
+struct RTaskContext
+{
+    RTT::corba::CTaskContext_var         task;
+    RTT::corba::CService_var     main_service;
+    RTT::corba::CDataFlowInterface_var   ports;
+    std::string name;
+};
+
 /**
  * This class locates and connects to a Corba TaskContext.
- * It can do that through an IOR or through the NameService.
+ * It can do that through an IOR.
  */
 class CorbaAccess
 {
-    static CORBA::ORB_var orb;
-    static CosNaming::NamingContext_var rootContext;
-
+private:
     RTT::TaskContext* m_task;
     RTT::corba::TaskContextServer* m_task_server;
     RTT::corba::CTaskContext_ptr m_corba_task;
@@ -47,8 +65,10 @@ class CorbaAccess
 
     CorbaAccess(std::string const& name, int argc, char* argv[] );
     ~CorbaAccess();
-    static CorbaAccess* the_instance;
 
+    RTT::corba::CTaskContext_var getCTaskContext(std::string const& ior);
+
+    static CorbaAccess* the_instance;
     // This counter is used to generate local port names that are unique
     int64_t port_id_counter;
 
@@ -56,6 +76,11 @@ public:
     static void init(std::string const& name, int argc, char* argv[]);
     static void deinit();
     static CorbaAccess* instance() { return the_instance; }
+
+    /** Returns a new RTaskContext for the given IOR or throws an exception
+     *  if the remote task context cannot be reached.
+     */
+    RTaskContext* createRTaskContext(std::string const& ior);
 
     /** Returns an automatic name for a port used to access the given remote
      * port
@@ -74,34 +99,17 @@ public:
     /** De-references a port that had been added by addPort
      */
     void removePort(RTT::base::PortInterface* local_port);
-
-    /** Returns the list of tasks that are registered on the name service. Some
-     * of them can be invalid references, as for instance a process crashed and
-     * did not clean up its references
-     */
-    std::list<std::string> knownTasks();
-
-    /** Returns a TaskContext reference to a remote control task. The reference
-     * is assured to be valid.
-     */
-    RTT::corba::CTaskContext_ptr findByName(std::string const& name);
-
-    /**
-     * Returns a ControlTask reference to a remote control task, based on the IOR. 
-     */
-    RTT::corba::CTaskContext_ptr findByIOR(std::string const& ior);
-
-    /** Unbinds a particular control task on the name server
-     */
-    void unbind(std::string const& name);
 };
+
 extern VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::Any& src);
 extern CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src);
 
 #define CORBA_EXCEPTION_HANDLERS \
+    catch(CosNaming::NamingContext::NotFound& e) { rb_raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
     catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, "CORBA communication failure"); } \
     catch(CORBA::TRANSIENT&) { rb_raise(eComError, "CORBA transient exception"); } \
+    catch(CORBA::INV_OBJREF&) { rb_raise(eCORBA, "CORBA invalid obj reference"); } \
+    catch(CORBA::SystemException&) { rb_raise(eCORBA, "CORBA system exception"); } \
     catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
-
 #endif
 
