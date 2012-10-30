@@ -9,15 +9,6 @@
 #include <rtt/typelib/TypelibMarshallerBase.hpp>
 #include <rtt/transports/corba/CorbaTypeTransporter.hpp>
 
-extern VALUE eNotFound;
-
-struct RTaskContext
-{
-    RTT::corba::CTaskContext_var         task;
-    RTT::corba::CService_var     main_service;
-    RTT::corba::CDataFlowInterface_var   ports;
-};
-
 struct RInputPort { };
 struct ROutputPort { };
 
@@ -33,6 +24,7 @@ extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(std::stri
 extern RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* type, bool do_check = true);
 extern RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name, bool do_check = true);
 extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
+extern VALUE cTaskContext;
 
 namespace
 {

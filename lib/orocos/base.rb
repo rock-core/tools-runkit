@@ -398,23 +398,6 @@ module Orocos
         @initialized = true
     end
 
-    # call-seq:
-    #   Orocos.each_task do |task| ...
-    #   end
-    #
-    # Enumerates the tasks that are currently available on this sytem (i.e.
-    # registered on the name server). They are provided as TaskContext
-    # instances.
-    def self.each_task
-        task_names.each do |name|
-            task = begin TaskContext.get(name)
-                   rescue Orocos::NotFound
-                       CORBA.unregister(name)
-                   end
-            yield(task) if task
-        end
-    end
-
     def self.create_orogen_interface(name = nil, &block)
         model = Orocos::Spec::TaskContext.new(Orocos.master_project, name)
         if block

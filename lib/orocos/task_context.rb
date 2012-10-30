@@ -1,111 +1,9 @@
 require 'utilrb/object/attribute'
-require 'orocos/nameservice'
 
 module Orocos
     # Exception raised when an operation requires the CORBA layer to be
     # initialized by Orocos.initialize has not yet been called
     class NotInitialized < RuntimeError; end
-
-    # Emitted when an interface object is requested, that does not exist
-    class InterfaceObjectNotFound < Orocos::NotFound
-        attr_reader :task
-        attr_reader :name
-
-        def initialize(task, name)
-            @task = task
-            @name = name
-            super()
-        end
-    end
-
-    # This class represents both RTT attributes and properties
-    class AttributeBase
-        # The underlying TaskContext instance
-        attr_reader :task
-        # The property/attribute name
-        attr_reader :name
-        # The attribute type, as a subclass of Typelib::Type
-        attr_reader :type
-        # If set, this is a Pocolog::DataStream object in which new values set
-        # from within Ruby are set
-        attr_accessor :log_stream
-        # If set, this is an input port object in which new values set from
-        # within Ruby are sent
-        attr_accessor :log_port
-        # The type name as registered in the orocos type system
-        attr_reader :orocos_type_name
-
-        def initialize(task, name, orocos_type_name)
-            @task, @name = task, name
-            @orocos_type_name = orocos_type_name
-            @type =
-                begin
-                    Orocos.typelib_type_for(orocos_type_name)
-                rescue Typelib::NotFound
-                    Orocos.load_typekit_for(orocos_type_name)
-                    Orocos.typelib_type_for(orocos_type_name)
-                end
-
-            @type_name = type.name
-        end
-
-        def log_metadata
-            Hash['rock_task_model' => task.model.name,
-                'rock_task_name' => task.name,
-                'rock_task_object_name' => name,
-                'rock_orocos_type_name' => orocos_type_name]
-        end
-
-        def raw_read
-            value = type.new
-            do_read(@orocos_type_name, value)
-            value
-        end
-
-        # Read the current value of the property/attribute
-        def read
-            Typelib.to_ruby(raw_read)
-        end
-
-        # Sets a new value for the property/attribute
-        def write(value, timestamp = Time.now)
-            value = Typelib.from_ruby(value, type)
-            do_write(@orocos_type_name, value)
-            log_value(value, timestamp)
-            value
-        end
-
-        # Write the current value of the property or attribute to #log_stream
-        def log_current_value(timestamp = Time.now)
-            log_value(read)
-        end
-
-        def log_value(value, timestamp = Time.now)
-            if log_stream
-                log_stream.write(timestamp, timestamp, value)
-            end
-            if log_port
-                log_port.write(value)
-            end
-        end
-
-        def new_sample
-            type.new
-        end
-
-        def pretty_print(pp) # :nodoc:
-            pp.text "attribute #{name} (#{type.name})"
-        end
-
-        def doc?
-            (doc && !doc.empty?)
-        end
-
-        def doc
-            property = task.model.find_property(name)
-            property.doc if property
-        end
-    end
 
     class Property < AttributeBase
         def log_metadata
@@ -167,13 +65,6 @@ module Orocos
         end
     end
 
-    # Exception raised in TaskContext#initialize for tasks for which we can't determine the model
-    #
-    # This is a workaround: orocos.rb should work fine in these cases. However, it seems that it
-    # currently does not, so block this case for now
-    class NoModel < RuntimeError
-    end
-
     # A proxy for a remote task context. The communication between Ruby and the
     # RTT component is done through the CORBA transport.
     #
@@ -187,286 +78,6 @@ module Orocos
     #   pp task_object
     #
     class TaskContext
-        # The name of this task context
-        attr_reader :name
-	# The process that supports it
-	attr_accessor :process
-
-        RUNNING_STATES = []
-        RUNNING_STATES[STATE_PRE_OPERATIONAL] = false
-        RUNNING_STATES[STATE_STOPPED]         = false
-        RUNNING_STATES[STATE_RUNNING]         = true
-        RUNNING_STATES[STATE_RUNTIME_ERROR]   = true
-        RUNNING_STATES[STATE_FATAL_ERROR]     = false
-        RUNNING_STATES[STATE_EXCEPTION]     = false
-
-        # If set, this is a Pocolog::Logfiles object in which the values of
-        # properties and attributes should be logged.
-        #
-        # Orocos.rb only logs the values that are set from within Ruby. There
-        # are no ways to log the values changed from within the task context.
-        attr_reader :configuration_log
-
-        def initialize
-            @ports = Hash.new
-            @properties = Hash.new
-            @attributes = Hash.new
-            @state_queue = Array.new
-
-            # This is important as it will make the system load the task model
-            # (if needed)
-	    #
-	    # The error handling is a workaround: orocos.rb should work fine in
-	    # these cases.  However, it seems that it currently does not, so
-	    # block this case for now
-            model = self.model
-
-            if model
-                @state_symbols = model.each_state.map { |name, type| name.to_sym }
-                @error_states  = model.each_state.
-                    map { |name, type| name.to_sym if (type == :error || type == :exception || type == :fatal) }.
-                    compact.to_set
-                @exception_states  = model.each_state.
-                    map { |name, type| name.to_sym if type == :exception }.
-                    compact.to_set
-                @runtime_states = model.each_state.
-                    map { |name, type| name.to_sym if (type == :error || type == :runtime) }.
-                    compact.to_set
-                @fatal_states = model.each_state.
-                    map { |name, type| name.to_sym if type == :fatal }.
-                    compact.to_set
-
-                if model.component.typekit
-                    Orocos.load_typekit(model.component.name)
-                end
-                model.used_typekits.each do |tk|
-                    next if tk.virtual?
-                    Orocos.load_typekit(tk.name)
-                end
-            else
-                @state_symbols = []
-                @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL
-                @state_symbols[STATE_STOPPED]         = :STOPPED
-                @state_symbols[STATE_RUNNING]         = :RUNNING
-                @state_symbols[STATE_RUNTIME_ERROR]   = :RUNTIME_ERROR
-                @state_symbols[STATE_EXCEPTION]       = :EXCEPTION
-                @state_symbols[STATE_FATAL_ERROR]     = :FATAL_ERROR
-                @error_states     = Set.new
-                @runtime_states   = Set.new
-                @exception_states = Set.new
-                @fatal_states     = Set.new
-            end
-
-            @error_states   << :RUNTIME_ERROR << :FATAL_ERROR << :EXCEPTION
-            @runtime_states << :RUNNING << :RUNTIME_ERROR
-            @exception_states << :EXCEPTION
-            @fatal_states     << :FATAL_ERROR
-        end
-
-        def ping
-            rtt_state
-            nil
-        end
-
-        # True if it is known that this task runs on the local machine
-        #
-        # This requires the process handling to be done by orocos.rb (the method
-        # checks if the process runs on the local machine)
-        def on_localhost?
-            process && process.on_localhost?
-        end
-
-        def to_s
-            "#<TaskContext: #{self.class.name}/#{name}>"
-        end
-	class << self
-	    # The only way to create TaskContext is TaskContext.get
-	    private :new
-	end
-
-        # Returns an array of symbols that give the tasks' state names from
-        # their integer value. This is mostly for internal use.
-        def available_states # :nodoc:
-            if @states
-                return @states
-            end
-
-        end
-
-        # Find the running tasks from the provided names.
-        def self.find_running(*names)
-            names.map do |name|
-                begin TaskContext.get name
-                rescue Orocos::NotFound
-                end
-            end.compact.map(&:running?)
-        end
-
-        # Find one running tasks from the provided names. Raises if there is not
-        # exactly one
-        def self.find_one_running(*names)
-            candidates = names.map do |name|
-                begin TaskContext.get name
-                rescue Orocos::NotFound
-                end
-            end.compact
-
-            if candidates.empty?
-                raise "cannot find any task in #{names.join(", ")}"
-            end
-
-            running_candidates = candidates.find_all(&:running?)
-            if running_candidates.empty?
-                raise "none of #{running_candidates.map(&:name).join(", ")} is running"
-            elsif running_candidates.size > 1
-                raise "multiple candidates are running: #{running_candidates.map(&:name)}"
-            else
-                running_candidates.first
-            end
-        end
-
-        # Returns a task which provides the +type+ interface.
-        #
-        # Use TaskContext.get(:provides => name) instead.
-        def self.get_provides(type) # :nodoc:
-            results = Orocos.enum_for(:each_task).find_all do |task|
-                task.implements?(type)
-            end
-
-            if results.empty?
-                raise Orocos::NotFound, "no task implements #{type}"
-            elsif results.size > 1
-                candidates = results.map { |t| t.name }.join(", ")
-                raise Orocos::NotFound, "more than one task implements #{type}: #{candidates}"
-            end
-            get(results.first.name)
-        end
-
-	# :call-seq:
-        #   TaskContext.get(name) => task
-        #   TaskContext.get(:provides => interface_name) => tas
-        #
-        # In the first form, returns the TaskContext instance representing the
-        # remote task context with the given name.
-        #
-        # In the second form, searches for a task context that implements the given
-        # interface. This is doable only if orogen has been used to generate the
-        # components.
-        #
-        # Raises Orocos::NotFound if the task name does not exist, if no task
-        # implements the given interface, or if more than one task does
-        # implement the required interface
-	def self.get(options, process = nil)
-            if !Orocos::CORBA.initialized?
-                raise NotInitialized, "the CORBA layer is not initialized, call Orocos.initialize first"
-            end
-
-            if options.kind_of?(Hash)
-                # Right now, the only allowed option is :provides
-                options = Kernel.validate_options options, :provides => nil
-                return get_provides(options[:provides].to_str)
-            else
-                name = options.to_str
-            end
-
-            result = Nameservice::resolve(name)
-
-            # Try to find ourselves a process object if none is given
-            if !process
-                process = Orocos.enum_for(:each_process).
-                    find do |p|
-                        p.task_names.any? { |n| n == name }
-                    end
-            end
-
-            result.instance_variable_set :@process, process
-            result.instance_variable_set :@name, name
-
-            if model = result.model
-                if ext = Orocos.extension_modules[model.name]
-                    ext.each { |m_ext| result.extend(m_ext) }
-                end
-            end
-
-            result
-	end
-
-        # Returns true if +task_name+ is a TaskContext object that can be
-        # reached through CORBA
-        def self.reachable?(task_name)
-            # TaskContext.do_get already checks if the remote task is
-            # accessible, so no need to do it again
-            t = CORBA.refine_exceptions("naming service") do
-                TaskContext.get(task_name)
-            end
-            true
-        rescue Orocos::NotFound
-            false
-        end
-
-        # Returns true if the remote task context can still be reached through
-        # CORBA, and false otherwise.
-        def reachable?
-            ping
-            true
-        rescue CORBA::ComError
-            false
-        end
-
-        # Waits for the task to be in state +state_name+ for the specified
-        # amount of time
-        #
-        # Raises RuntimeError on timeout
-        def wait_for_state(state_name, timeout = nil, polling = 0.1)
-            state_name = state_name.to_sym
-
-            start = Time.now
-            peek_state
-            while !@state_queue.include?(state_name)
-                if timeout && (Time.now - start) > timeout
-                    raise "timing out while waiting for #{self} to be in state #{state_name}. It currently is in state #{current_state}"
-                end
-                sleep polling
-                peek_state
-            end
-        end
-
-        # True if the given symbol is the name of a runtime state
-        def runtime_state?(sym); @runtime_states.include?(sym) end
-        # True if the given symbol is the name of an error state
-        def error_state?(sym); @error_states.include?(sym) end
-        # True if the given symbol is the name of an exception state
-        def exception_state?(sym); @exception_states.include?(sym) end
-        # True if the given symbol is the name of a fatal error state
-        def fatal_error_state?(sym); @fatal_states.include?(sym) end
-
-        # Returns true if the task is in a state where code is executed. This
-        # includes of course the running state, but also runtime error states.
-        def running?
-            runtime_state?(peek_current_state)
-        end
-        # Returns true if the task has been configured.
-        def ready?; peek_current_state && (peek_current_state != :PRE_OPERATIONAL) end
-        # Returns true if the task is in an error state (runtime or fatal)
-        def error?
-            error_state?(peek_current_state)
-        end
-        # Returns true if the task is in a runtime error state
-        def runtime_error?
-            state = self.peek_current_state
-            error_state?(state) &&
-                !exception_state?(state) &&
-                !fatal_error_state?(state)
-        end
-        # Returns true if the task is in an exceptional state
-        def exception?
-            exception_state?(peek_current_state)
-        end
-        # Returns true if the task is in a fatal error state
-        def fatal_error?
-            fatal_error_state?(peek_current_state)
-        end
-
         # Automated wrapper to handle CORBA exceptions coming from the C
         # extension
         def self.corba_wrap(m, *args) # :nodoc:
@@ -505,6 +116,34 @@ module Orocos
             EOD
         end
 
+        # A new TaskContext instance representing the
+        # remote task context with the given IOR
+        # 
+        # If a remote task is only known by its name use {Orocos.name_service}
+        # to create an handle to the remote task.
+        #
+        # @param [String] ior The IOR of the remote task.
+        # @param [Hash] options The options.
+        # @option options [String] :name Overwrites the real name of remote task
+        # @option options [Orocos::Process] :process The process supporting the task
+        # @option options [String] :namespace The namespace of the task
+        def initialize(ior,options=Hash.new)
+            options = Kernel.validate_options options,:name,:namespace,:process
+
+            name = if options.has_key?(:name)
+                       options[:name]
+                   else
+                       do_real_name
+                   end
+            super(name,options)
+            @ior = ior
+        end
+
+        def ping
+            rtt_state
+            nil
+        end
+
         # Returns a StateReader object that allows to flexibly monitor the
         # task's state
         def state_reader(policy = Hash.new)
@@ -515,17 +154,6 @@ module Orocos
             reader = p.do_reader(StateReader, p.orocos_type_name, policy)
             reader.instance_variable_set :@state_symbols, @state_symbols
             reader
-        end
-
-        # Returns the last-known state
-        attr_reader :current_state
-
-        # Returns the current task's state without "hiding" any state change to
-        # the task's user.
-        #
-        # This is meant to be used internally
-        def peek_current_state
-            peek_state.last || @current_state
         end
 
         # Reads all state transitions that have been announced by the task and
@@ -543,58 +171,12 @@ module Orocos
                     @state_queue << new_state
                 end
             else
-                current_state = rtt_state
-                if (@state_queue.empty? && current_state != @current_state) || (@state_queue.last != current_state)
-                    @state_queue << current_state
-                end
+                super
             end
             @state_queue
 
         rescue Orocos::CORBAError
             @state_queue = []
-        end
-
-        # True if we got a state change announcement
-        def state_changed?
-            peek_state
-            !@state_queue.empty?
-        end
-
-        # Returns the state of the task, as a symbol. The possible values for
-        # all task contexts are:
-        # 
-        #   :PRE_OPERATIONAL
-        #   :STOPPED
-        #   :ACTIVE
-        #   :RUNNING
-        #   :RUNTIME_WARNING
-        #   :RUNTIME_ERROR
-        #   :FATAL_ERROR
-        #
-        # If the component is an oroGen component on which custom states have
-        # been defined, these custom states are also reported with their name.
-        # For instance, after the orogen definition
-        #
-        #   runtime_states "CUSTOM_RUNTIME"
-        #
-        # #state will return :CUSTOM_RUNTIME if the component goes into that
-        # state.
-        #
-        # If +return_current+ is true, the current component state is returned.
-        # Otherwise, only the next state in the state queue is returned. This is
-        # only valid for oroGen components with extended state support (for
-        # which all state changes are saved instead of only the last one)
-        def state(return_current = true)
-            peek_state
-            if @state_queue.empty?
-                @current_state
-            elsif return_current
-                @current_state = @state_queue.last
-                @state_queue.clear 
-            else
-                @current_state = @state_queue.shift
-            end
-            @current_state
         end
 
         # Returns the PID of the thread this task runs on
@@ -616,6 +198,87 @@ module Orocos
         def rtt_state
             value = CORBA.refine_exceptions(self) { do_state() }
             @state_symbols[value]
+        end
+
+        # Connects all ports of the task with the logger of the deployment 
+        # @param [Hash] options option hash to exclude specific ports
+        # @option options [String,Array<String>] :exclude_ports The name of the excluded ports 
+        # @return [Set<String,String>] Sets of task and port names 
+        #
+        # @example logging all ports beside a port called frame
+        # task.log_all_ports(:exclude_ports => "frame")
+        def log_all_ports(options = Hash.new)
+            # Right now, the only allowed option is :exclude_ports
+            options, logger_options = Kernel.filter_options options,:exclude_ports => nil
+            exclude_ports = Array(options[:exclude_ports])
+
+            logger_options[:tasks] = Regexp.new(name)
+            Orocos.log_all_process_ports(process,logger_options) do |port|
+                !exclude_ports.include? port.name
+            end
+        end
+
+        def create_property_log_stream(p)
+            stream_name = "#{self.name}.#{p.name}"
+            if !configuration_log.has_stream?(stream_name)
+                p.log_stream = configuration_log.create_stream(stream_name, p.type, p.log_metadata)
+            else
+                p.log_stream = configuration_log.stream(stream_name)
+            end
+        end
+
+        # Tell the task to use the given Pocolog::Logfile object to log all
+        # changes to its properties
+        def log_all_configuration(logfile)
+            @configuration_log = logfile
+            each_property do |p|
+                create_property_log_stream(p)
+                p.log_current_value
+            end
+        end
+
+        # Waits for the task to be in state +state_name+ for the specified
+        # amount of time
+        #
+        # Raises RuntimeError on timeout
+        def wait_for_state(state_name, timeout = nil, polling = 0.1)
+            state_name = state_name.to_sym
+
+            start = Time.now
+            peek_state
+            while !@state_queue.include?(state_name)
+                if timeout && (Time.now - start) > timeout
+                    raise "timing out while waiting for #{self} to be in state #{state_name}. It currently is in state #{current_state}"
+                end
+                sleep polling
+                peek_state
+            end
+        end
+
+        # Loads the configuration for the TaskContext from a file,
+        # into the main configuration manager and applies it to the TaskContext
+        # 
+        # See also #apply_conf and #Orocos.load_config_dir
+        def apply_conf_file(file,section_names=Array.new,override=false)
+            Orocos.conf.load_file(file,model.name)
+            apply_conf(section_names,override)
+        end
+
+        def to_s
+            "#<TaskContext: #{self.class.name}/#{name}>"
+        end
+
+        # Applies the TaskContext configuration stored by the main 
+        # configuration manager to the TaskContext
+        #
+        # See also #load_conf and #Orocos.load_config_dir
+        def apply_conf(section_names = Array.new, override=false)
+            Orocos.conf.apply(self, section_names, override)
+        end
+
+        # Saves the current configuration into a file 
+        def save_conf(file, section_names = nil)
+            Orocos.conf.save(self,file,section_names)
         end
 
         ##
@@ -673,14 +336,6 @@ module Orocos
         # transition (but can take an arbitrarily long time to do it).
         state_transition_call :cleanup, 'STOPPED', 'PRE_OPERATIONAL'
 
-        # Returns true if this task context has either a property or an attribute with the given name
-        def has_property?(name)
-            name = name.to_s
-            CORBA.refine_exceptions(self) do
-                do_has_property?(name)
-            end
-        end
-
         # Returns true if this task context has a command with the given name
         def has_operation?(name)
             name = name.to_s
@@ -712,19 +367,6 @@ module Orocos
                 do_attribute_names
             end
         end
-
-        # Returns true if +name+ is the name of a property on this task context
-        def has_property?(name)
-            property_names.include?(name.to_str)
-        end
-
-        # Returns true if +name+ is the name of a attribute on this task context
-        def has_attribute?(name)
-            attribute_names.include?(name.to_str)
-        end
-
-        # A name => Attribute instance mapping of cached attribute objects
-        attr_reader :attributes
 
         # Returns an Attribute object representing the given attribute
         #
@@ -766,9 +408,6 @@ module Orocos
             end
             attributes[name] = a
         end
-
-        # A name => Property instance mapping of cached properties
-        attr_reader :properties
 
         # Returns a Property object representing the given property
         #
@@ -812,79 +451,6 @@ module Orocos
             properties[name] = p
         end
 
-        def create_property_log_stream(p)
-            stream_name = "#{self.name}.#{p.name}"
-            if !configuration_log.has_stream?(stream_name)
-                p.log_stream = configuration_log.create_stream(stream_name, p.type, p.log_metadata)
-            else
-                p.log_stream = configuration_log.stream(stream_name)
-            end
-        end
-
-        # Tell the task to use the given Pocolog::Logfile object to log all
-        # changes to its properties
-        def log_all_configuration(logfile)
-            @configuration_log = logfile
-            each_property do |p|
-                create_property_log_stream(p)
-                p.log_current_value
-            end
-        end
-
-        # Connects all ports of the task with the logger of the deployment 
-        # @param [Hash] options option hash to exclude specific ports
-        # @option options [String,Array<String>] :exclude_ports The name of the excluded ports 
-        # @return [Set<String,String>] Sets of task and port names 
-        #
-        # @example logging all ports beside a port called frame
-        # task.log_all_ports(:exclude_ports => "frame")
-        def log_all_ports(options = Hash.new)
-            # Right now, the only allowed option is :exclude_ports
-            options, logger_options = Kernel.filter_options options,:exclude_ports => nil
-            exclude_ports = Array(options[:exclude_ports])
-
-            logger_options[:tasks] = Regexp.new(name)
-            Orocos.log_all_process_ports(process,logger_options) do |port|
-                !exclude_ports.include? port.name
-            end
-        end
-
-        def input_port(name)
-            p = port(name)
-            if p.kind_of?(Orocos::InputPort)
-                return p
-            else
-                raise NotFound, "#{name} is an output port of #{self.name}, was expecting an input port"
-            end
-        end
-
-        def output_port(name)
-            p = port(name)
-            if p.kind_of?(Orocos::OutputPort)
-                return p
-            else
-                raise NotFound, "#{name} is an input port of #{self.name}, was expecting an output port"
-            end
-        end
-
-        # Returns the Orocos::Generation::OutputPort instance that describes the
-        # required port, or nil if the port does not exist
-        def output_port_model(name)
-            if port_model = model.each_output_port.find { |p| p.name == name }
-                port_model
-            else model.find_dynamic_output_ports(name, nil).first
-            end
-        end
-
-        # Returns the Orocos::Generation::InputPort instance that describes the
-        # required port, or nil if the port does not exist
-        def input_port_model(name)
-            if port_model = model.each_input_port.find { |p| p.name == name }
-                port_model
-            else model.find_dynamic_input_ports(name, nil).first
-            end
-        end
-
         # Returns an object that represents the given port on the remote task
         # context. The returned object is either an InputPort or an OutputPort
         #
@@ -918,85 +484,11 @@ module Orocos
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
         end
 
-        # Returns an array of all the ports defined on this task context
-        def ports
-            enum_for(:each_port).to_a
-        end
 
         # Returns the names of all the ports defined on this task context
         def port_names
             CORBA.refine_exceptions(self) do
                 do_port_names
-            end
-        end
-
-        # call-seq:
-        #  task.each_port { |p| ... } => task
-        # 
-        # Enumerates the ports that are available on this task, as instances of
-        # either Orocos::InputPort or Orocos::OutputPort
-        def each_port(&block)
-            port_names.each do |name|
-                yield(port(name))
-            end
-            self
-        end
-
-        # call-seq:
-        #  task.each_input_port { |p| ... } => task
-        # 
-        # Enumerates the input ports that are available on this task, as
-        # instances of Orocos::InputPort
-        def each_input_port
-            each_port do |p|
-                yield(p) if p.kind_of?(InputPort)
-            end
-        end
-
-        # call-seq:
-        #  task.each_output_port { |p| ... } => task
-        # 
-        # Enumerates the input ports that are available on this task, as
-        # instances of Orocos::OutputPort
-        def each_output_port
-            each_port do |p|
-                yield(p) if p.kind_of?(OutputPort)
-            end
-        end
-
-        # call-seq:
-        #  task.each_property { |a| ... } => task
-        # 
-        # Enumerates the properties that are available on
-        # this task, as instances of Orocos::Attribute
-        def each_property(&block)
-            if !block_given?
-                return enum_for(:each_property)
-            end
-
-            names = CORBA.refine_exceptions(self) do
-                do_property_names
-            end
-            names.each do |name|
-                yield(property(name))
-            end
-        end
-
-        # call-seq:
-        #  task.each_attribute { |a| ... } => task
-        # 
-        # Enumerates the attributes that are available on
-        # this task, as instances of Orocos::Attribute
-        def each_attribute(&block)
-            if !block_given?
-                return enum_for(:each_attribute)
-            end
-
-            names = CORBA.refine_exceptions(self) do
-                do_attribute_names
-            end
-            names.each do |name|
-                yield(attribute(name))
             end
         end
 
@@ -1030,55 +522,6 @@ module Orocos
             operation(name).sendop(*args)
         end
 
-        def method_missing(m, *args) # :nodoc:
-            m = m.to_s
-            if m =~ /^(\w+)=/
-                name = $1
-                begin
-                    return property(name).write(*args)
-                rescue Orocos::NotFound
-                end
-
-            else
-                if has_port?(m) && args.empty?
-                    return port(m)
-                elsif has_operation?(m)
-                    return operation(m).callop(*args)
-                end
-
-		if args.empty?
-		    begin
-			prop = property(m)
-			value = prop.read(*args)
-			if block_given?
-			    yield(value)
-			    prop.write(value)
-			end
-			return value
-		    rescue Orocos::NotFound
-		    end
-		end
-            end
-            super(m.to_sym, *args)
-        end
-
-        # Returns the Orogen specification object for this task instance.
-        # This is available only if the deployment in which this task context
-        # runs has been generated by orogen *and* this deployment has been
-        # started by this Ruby instance
-        #
-        # To get the Orogen specification for the task context itself (an
-        # Orocos::Generation::TaskContext instance), use #model.
-        #
-        # The returned value is an instance of Orocos::Generation::TaskDeployment
-        #
-        # See also #model
-        def info
-            if process
-                @info ||= process.orogen.task_activities.find { |act| act.name == name }
-            end
-        end
-
         # Returns the Orogen specification object for this task's model. It will
         # return nil if the remote task does not expose its model name with
         # a getModelName operation, and raise Orocos::NotFound if the task model
@@ -1086,339 +529,18 @@ module Orocos
         #
         # See also #info
         def model
-            if @model
-                @model
-            elsif info
-                @model = info.context
-            elsif has_operation?("getModelName")
+            model = super
+            if !model && has_operation?("getModelName")
                 model_name = self.getModelName
-                @model =
+                self.model =
                     begin Orocos.task_model_from_name(model_name)
                     rescue Orocos::NotFound
                         Orocos.warn "#{name} is a task context of class #{model_name}, but I cannot find the description for it, falling back"
                         Orocos::Spec::TaskContext.new(Orocos.master_project, model_name)
                     end
-            end
-        end
-
-        # True if this task's model is a subclass of the provided class name
-        #
-        # This is available only if the deployment in which this task context
-        # runs has been generated by orogen.
-        def implements?(class_name)
-            model && model.implements?(class_name)
-        end
-
-        def pretty_print(pp) # :nodoc:
-            states_description = TaskContext.constants.grep(/^STATE_/).
-                inject([]) do |map, name|
-                    map[TaskContext.const_get(name)] = name.to_s.gsub /^STATE_/, ''
-                    map
-                end
-
-            pp.text "Component #{name}"
-            pp.breakable
-            pp.text "  state: #{peek_current_state}"
-            pp.breakable
-
-            [['attributes', each_attribute], ['properties', each_property]].each do |kind, enum|
-                objects = enum.to_a
-                if objects.empty?
-                    pp.text "No #{kind}"
-                    pp.breakable
-                else
-                    pp.text "#{kind.capitalize}:"
-                    pp.breakable
-                    pp.nest(2) do
-                        pp.text "  "
-                        objects.each do |o|
-                            o.pretty_print(pp)
-                            pp.breakable
-                        end
-                    end
-                    pp.breakable
-                end
-            end
-
-            ports = enum_for(:each_port).to_a
-            if ports.empty?
-                pp.text "No ports"
-                pp.breakable
             else
-                pp.text "Ports:"
-                pp.breakable
-                pp.nest(2) do
-                    pp.text "  "
-                    each_port do |port|
-                        port.pretty_print(pp)
-                        pp.breakable
-                    end
-                end
-                pp.breakable
+                model
             end
         end
-
-        # Connects all output ports with the input ports of given task.
-        # If one connection is ambiguous or none of the port is connected
-        # an exception is raised. All output ports which does not match
-        # any input port are ignored
-        #
-        # Instead of a task the method can also be called with a port
-        # as argument
-        def self.connect_to(task,task2,policy = Hash.new, &block)
-            if task2.respond_to? :each_port
-                count = 0
-                task.each_port do |port|
-                    next if !port.respond_to? :reader
-                    if other = task2.find_input_port(port.type,nil)
-                        port.connect_to other, policy, &block
-                        count += 1
-                    end
-                end
-                if count == 0
-                    raise NotFound, "#{task.name} has no port matching the ones of #{task2.name}."
-                end
-            else # assuming task2 is a port
-                if port = task.find_output_port(task2.type,nil)
-                    port.connect_to task2, policy, &block
-                else
-                    raise NotFound, "no port of #{task.name} matches the given port #{task2.name}"
-                end
-            end
-            self
-        end
-
-        # Searches for a port object in +port_set+ that matches the type and
-        # name specification. +type+ is either a string or a Typelib::Type
-        # class, +port_name+ is either a string or a regular expression.
-        #
-        # This is a helper method used in various places
-        def self.find_all_ports(port_set, type, port_name)
-            candidates = port_set.dup
-
-            # Filter out on type
-            if type
-                type_name =
-                    if !type.respond_to?(:to_str)
-                        type.name
-                    else type.to_str
-                    end
-                candidates.delete_if { |port| port.type_name != type_name }
-            end
-
-            # Filter out on name
-            if port_name
-                if !port_name.kind_of?(Regexp)
-                    port_name = Regexp.new(port_name) 
-                end
-                candidates.delete_if { |port| port.full_name !~ port_name }
-            end
-
-            candidates
-        end
-
-
-        # Searches for an input port object in +port_set+ that matches the type and
-        # name specification. +type+ is either a string or a Typelib::Type
-        # class, +port_name+ is either a string or a regular expression.
-        #
-        # This is a helper method used in various places
-        def self.find_all_input_ports(port_set, type, port_name)
-            find_all_ports(port_set,type,port_name).delete_if { |port| !port.respond_to?(:writer) }
-        end
-
-        # Searches for an output object in +port_set+ that matches the type and
-        # name specification. +type+ is either a string or a Typelib::Type
-        # class, +port_name+ is either a string or a regular expression.
-        #
-        # This is a helper method used in various places
-        def self.find_all_output_ports(port_set, type, port_name)
-            find_all_ports(port_set,type,port_name).delete_if { |port| !port.respond_to?(:reader) }
-        end
-
-        # Searches for a port object in +port_set+ that matches the type and
-        # name specification. +type+ is either a string or a Typelib::Type
-        # class, +port_name+ is either a string or a regular expression.
-        #
-        # This is a helper method used in various places
-        def self.find_port(port_set, type, port_name)
-            candidates = find_all_ports(port_set, type, port_name)
-            if candidates.size > 1
-                type_name =
-                    if !type.respond_to?(:to_str)
-                        type.name
-                    else type.to_str
-                    end
-                if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple ports #{port_name}: #{candidates.map(&:name).join(", ")}"
-                else
-                    raise ArgumentError, "#{type_name} is provided by multiple ports: #{candidates.map(&:name).join(", ")}"
-                end
-            else candidates.first
-            end
-        end
-
-        # Searches for a input port object in +port_set+ that matches the type and
-        # name specification. +type+ is either a string or a Typelib::Type
-        # class, +port_name+ is either a string or a regular expression.
-        #
-        # This is a helper method used in various places
-        def self.find_input_port(port_set, type, port_name)
-            candidates = find_all_input_ports(port_set, type, port_name)
-            if candidates.size > 1
-                type_name = if !type.respond_to?(:to_str)
-                                type.name
-                            else type.to_str
-                            end
-                if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple input ports #{port_name}: #{candidates.map(&:name).join(", ")}"
-                else
-                    raise ArgumentError, "#{type_name} is provided by multiple input ports: #{candidates.map(&:name).join(", ")}"
-                end
-            else candidates.first
-            end
-        end
-
-        # Searches for an output port object in +port_set+ that matches the type and
-        # name specification. +type+ is either a string or a Typelib::Type
-        # class, +port_name+ is either a string or a regular expression.
-        #
-        # This is a helper method used in various places
-        def self.find_output_port(port_set, type, port_name)
-            candidates = find_all_output_ports(port_set, type, port_name)
-            if candidates.size > 1
-                type_name = if !type.respond_to?(:to_str)
-                                type.name
-                            else type.to_str
-                            end
-                if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple output ports #{port_name}: #{candidates.map(&:name).join(", ")}"
-                else
-                    raise ArgumentError, "#{type_name} is provided by multiple output ports: #{candidates.map(&:name).join(", ")}"
-                end
-            else candidates.first
-            end
-        end
-
-        # Returns the set of ports in +self+ that match the given specification.
-        # Set one of the criteria to nil to ignore it.
-        #
-        # See also #find_port and TaskContext.find_all_ports
-        def find_all_ports(type_name, port_name =nil)
-            TaskContext.find_all_ports(ports, type_name, port_name)
-        end
-
-        # Returns the set of input ports in +self+ that match the given specification.
-        # Set one of the criteria to nil to ignore it.
-        #
-        # See also #find_port and TaskContext.find_all_ports
-        def find_all_input_ports(type_name, port_name =nil)
-            TaskContext.find_all_input_ports(ports, type_name, port_name)
-        end
-
-        # Returns the set of output ports in +self+ that match the given specification.
-        # Set one of the criteria to nil to ignore it.
-        #
-        # See also #find_port and TaskContext.find_all_ports
-        def find_all_output_ports(type_name, port_name =nil)
-            TaskContext.find_all_output_ports(ports, type_name, port_name)
-        end
-
-        # Returns a single port in +self+ that match the given specification.
-        # Set one of the criteria to nil to ignore it.
-        # 
-        # Raises ArgumentError if multiple candidates are available
-        #
-        # See also #find_all_ports and TaskContext.find_port
-        def find_port(type_name, port_name = nil)
-            TaskContext.find_port(ports, type_name, port_name)
-        end
-
-        # Returns a single input port in +self+ that match the given specification.
-        # Set one of the criteria to nil to ignore it.
-        # 
-        # Raises ArgumentError if multiple candidates are available
-        #
-        # See also #find_all_ports and TaskContext.find_port
-        def find_input_port(type_name, port_name = nil)
-            TaskContext.find_input_port(ports, type_name, port_name)
-        end
-
-        # Returns a single output port in +self+ that match the given specification.
-        # Set one of the criteria to nil to ignore it.
-        # 
-        # Raises ArgumentError if multiple candidates are available
-        #
-        # See also #find_all_ports and TaskContext.find_port
-        def find_output_port(type_name, port_name = nil)
-            TaskContext.find_output_port(ports, type_name, port_name)
-        end
-
-        # Loads the configuration for the TaskContext from a file,
-        # into the main configuration manager and applies it to the TaskContext
-        # 
-        # See also #apply_conf and #Orocos.load_config_dir
-        def apply_conf_file(file,section_names=Array.new,override=false)
-            Orocos.conf.load_file(file,model.name)
-            apply_conf(section_names,override)
-        end
-
-        # Applies the TaskContext configuration stored by the main 
-        # configuration manager to the TaskContext
-        #
-        # See also #load_conf and #Orocos.load_config_dir
-        def apply_conf(section_names = Array.new, override=false)
-            Orocos.conf.apply(self, section_names, override)
-        end
-
-        # Saves the current configuration into a file 
-        def save_conf(file, section_names = nil)
-            Orocos.conf.save(self,file,section_names)
-        end
-
-        # Connects all output ports with the input ports of given task.
-        # If one connection is ambiguous or none of the port is connected
-        # an exception is raised. All output ports which does not match
-        # any input port are ignored
-        #
-        # Instead of a task the method can also be called with a port
-        # as argument
-        def connect_to(task,policy = Hash.new)
-            TaskContext.connect_to(self,task,policy)
-        end
-
-        # Returns true if a documentation about the task is available
-        # otherwise it returns false
-        def doc?
-            (doc && !doc.empty?)
-        end
-
-        # Returns a documentation string describing the task
-        # If no documentation is available it returns nil
-        def doc
-            model.doc
-        end
-    end
-
-    class << self
-        attr_reader :extension_modules
-    end
-    @extension_modules = Hash.new { |h, k| h[k] = Array.new }
-
-    # Requires orocos.rb to extend tasks of the given model with the given
-    # block.
-    #
-    # For instance, the #log method that is defined on every logger task is
-    # implemented with
-    #
-    #  Orocos.extend_task 'logger::Logger' do
-    #    def log(port, buffer_size = 25)
-    #      # setup the logging component to log the given port
-    #    end
-    #  end
-    #
-    def self.extend_task(model_name, &block)
-        extension_modules[model_name] << Module.new(&block)
     end
 end
-

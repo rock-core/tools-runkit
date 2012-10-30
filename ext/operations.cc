@@ -5,6 +5,7 @@
 using namespace std;
 using namespace RTT::corba;
 
+extern VALUE cTaskContext;
 static VALUE cOperation;
 static VALUE cSendHandle;
 
@@ -15,7 +16,7 @@ static void corba_args_to_ruby(VALUE type_names, VALUE result, CAnyArguments& ar
     VALUE* types_ptr = RARRAY_PTR(type_names);
     
     if (len != args.length())
-        rb_raise(rb_eArgError, "size mismatch in demarshalling of returned values (internal error), got %i elements but the CORBA array has %i", len, args.length());
+        rb_raise(rb_eArgError, "size mismatch in demarshalling of returned values (internal error), got %i elements but the CORBA array has %i", (int)len, (int)args.length());
 
     for (size_t i = 0; i < len; ++i)
     {
@@ -229,7 +230,6 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
 void Orocos_init_methods()
 {
     VALUE mOrocos      = rb_define_module("Orocos");
-    VALUE cTaskContext = rb_define_class_under(mOrocos, "TaskContext", rb_cObject);
     cOperation   = rb_define_class_under(mOrocos, "Operation",  rb_cObject);
     cSendHandle  = rb_define_class_under(mOrocos, "SendHandle", rb_cObject);
 

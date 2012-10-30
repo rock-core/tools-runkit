@@ -31,6 +31,9 @@ end
 
 require 'orocos/logging'
 require 'orocos/version'
+require 'orocos/namespace'
+require 'orocos/name_service'
+require 'orocos/task_context_base'
 require 'orocos/task_context'
 require 'orocos/ports'
 require 'orocos/operations'
