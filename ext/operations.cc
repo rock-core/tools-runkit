@@ -16,7 +16,7 @@ static void corba_args_to_ruby(VALUE type_names, VALUE result, CAnyArguments& ar
     VALUE* types_ptr = RARRAY_PTR(type_names);
     
     if (len != args.length())
-        rb_raise(rb_eArgError, "size mismatch in demarshalling of returned values (internal error), got %i elements but the CORBA array has %i", (int)len, (int)args.length());
+        rb_raise(rb_eArgError, "size mismatch in demarshalling of returned values (internal error), got %i elements but the CORBA array has %i", static_cast<int>(len), static_cast<int>(args.length()));
 
     for (size_t i = 0; i < len; ++i)
     {
