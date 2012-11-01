@@ -3,6 +3,7 @@ require 'typelib'
 require 'utilrb/module/attr_predicate'
 require 'orogen'
 
+# The Orocos main class
 module Orocos
     class InternalError < Exception; end
 

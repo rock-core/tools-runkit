@@ -335,7 +335,11 @@ module Orocos
         def has_operation?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
-                do_has_operation?(name)
+                begin
+                    do_has_operation?(name)
+                rescue Orocos::NotFound
+                    false
+                end
             end
         end
 
@@ -343,7 +347,11 @@ module Orocos
         def has_port?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
-                do_has_port?(name)
+                begin
+                    do_has_port?(name)
+                rescue Orocos::NotFound
+                    false
+                end
             end
         end
 

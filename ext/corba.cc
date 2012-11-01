@@ -12,8 +12,8 @@
 #include <rtt/transports/corba/CorbaDispatcher.hpp>
 
 #include <rtt/Activity.hpp>
-
 #include <boost/lexical_cast.hpp>
+
 using namespace CORBA;
 using namespace std;
 using namespace boost;
@@ -208,179 +208,6 @@ static VALUE name_service_reset(VALUE self,VALUE ip, VALUE port)
     return self;
 }
 
-enum error_code_t
-{
-    NO_ERROR,
-    ERROR,
-    NOT_FOUND_ERROR
-};
-
-#ifdef HAVE_RUBY_INTERN_H
-struct NameServiceBlockingMsg
-{
-    NameServiceClient *name_service;   // pointer to the nameservice object
-    void *return_value;          // must be initialized by the caller with the right type
-    void *para;                  // parameter
-    void *para2;                 // parameter
-    std::string error_message;   // empty or string with the error message
-    error_code_t error_code;
-
-    NameServiceBlockingMsg():
-        name_service(NULL),
-        return_value(NULL),
-        para(NULL),
-        para2(NULL),
-        error_code(NO_ERROR)
-    {}
-};
-
-void processErrors(NameServiceBlockingMsg &msg)
-{
-    if(!msg.error_message.empty() || msg.error_code)
-    {
-        switch(msg.error_code)
-        {
-        case NOT_FOUND_ERROR:
-            rb_raise(eNotFound,"%s", msg.error_message.c_str());
-            break;
-        case ERROR:
-        default:
-            rb_raise(eCORBAComError,"%s", msg.error_message.c_str());
-        }
-    }
-}
-
-
-static VALUE name_service_ior_blocking(void *ptr)
-{
-    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
-    std::string &ior = *(std::string *) msg.return_value;
-    std::string &name = *(std::string *) msg.para;
-    try
-    {
-        ior = msg.name_service->getIOR(name);
-    }
-    catch(CosNaming::NamingContext::NotFound &e)
-    {
-        msg.error_message = "NamingContex::NotFound";
-        msg.error_code = NOT_FOUND_ERROR;
-    }
-    catch(CORBA::Exception &e)
-    {
-        msg.error_message = "Corba error " + std::string(e._name());
-    }
-    catch(std::runtime_error &e)
-    {
-        msg.error_message = e.what();
-    }
-    catch(...)
-    {
-        msg.error_message = "Unspecific exception in NameServiceClient::getIOR";
-    }
-    return Qnil;
-}
-
-static VALUE name_service_unbind_blocking(void *ptr)
-{
-    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
-    bool &result = *(bool *) msg.return_value;
-    std::string &name = *(std::string *) msg.para;
-    try
-    {
-        result = msg.name_service->unbind(name);
-    }
-    catch(CORBA::Exception &e)
-    {
-        msg.error_message = "Corba error " + std::string(e._name());
-    }
-    catch(std::runtime_error &e)
-    {
-        msg.error_message = e.what();
-    }
-    catch(...)
-    {
-        msg.error_message = "Unspecific exception in NameServiceClient::unbind";
-    }
-    return Qnil;
-}
-
-static VALUE name_service_validate_blocking(void *ptr)
-{
-    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
-    try
-    {
-        msg.name_service->validate();
-    }
-    catch(CORBA::Exception &e)
-    {
-        msg.error_message = "Corba error " + std::string(e._name());
-    }
-    catch(std::runtime_error &e)
-    {
-        msg.error_message = e.what();
-    }
-    catch(...)
-    {
-        msg.error_message = "Unspecific exception in NameServiceClient::unbind";
-    }
-    return Qnil;
-}
-
-static VALUE name_service_bind_blocking(void *ptr)
-{
-    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
-    RTaskContext &task = *(RTaskContext *) msg.para;
-    std::string &name = *(std::string *) msg.para2;
-    try
-    {
-        CORBA::Object_var obj = CORBA::Object::_duplicate(task.task);
-        msg.name_service->bind(obj,name);
-    }
-    catch(CORBA::Exception &e)
-    {
-        msg.error_message = "Corba error " + std::string(e._name());
-    }
-    catch(std::runtime_error &e)
-    {
-        msg.error_message = e.what();
-    }
-    catch(...)
-    {
-        msg.error_message = "Unspecific exception in NameServiceClient::bind";
-    }
-    return Qnil;
-}
-
-static void name_service_task_context_names_abort(void *ptr)
-{
-    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
-    msg.name_service->abort();
-}
-
-static VALUE name_service_task_context_names_blocking(void *ptr)
-{
-    NameServiceBlockingMsg &msg = *(NameServiceBlockingMsg*)ptr;
-    std::vector<std::string> &names = *(std::vector<std::string>*)msg.return_value;
-    try
-    {
-        names = msg.name_service->getTaskContextNames();
-    }
-    catch(CORBA::Exception &e)
-    {
-        msg.error_message = "Corba error " + std::string(e._name());
-    }
-    catch(std::runtime_error &e)
-    {
-        msg.error_message = e.what();
-    }
-    catch(...)
-    {
-        msg.error_message = "Unspecific exception in NameServiceClient::getTaskContextNames";
-    }
-    return Qnil;
-}
-#endif
-
 static VALUE name_service_task_context_names(VALUE self)
 {
     if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
@@ -389,27 +216,8 @@ static VALUE name_service_task_context_names(VALUE self)
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
     std::vector<std::string> names;
 
-#ifdef HAVE_RUBY_INTERN_H
-    NameServiceBlockingMsg msg;
-    msg.name_service = &name_service;
-    msg.return_value = &names;
-    msg.para = NULL;
-    msg.para2 = NULL;
-    //rb_thread_call_without_gvl
-    rb_thread_blocking_region(name_service_task_context_names_blocking,(void*)&msg,
-                              name_service_task_context_names_abort, (void*)&msg);
-    processErrors(msg);
-#else
-    try
-    {
-        names = name_service.getTaskContextNames();
-    }
-    catch(NameServiceClientError &e)
-    {
-        rb_raise(eCORBAComError,"%s", e.what());
-    }
-    CORBA_EXCEPTION_HANDLERS
-#endif
+    names = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::getTaskContextNames,&name_service),
+                              boost::bind(&NameServiceClient::abort,&name_service));
 
     VALUE result = rb_ary_new();
     for (vector<string>::const_iterator it = names.begin(); it != names.end(); ++it)
@@ -425,27 +233,7 @@ static VALUE name_service_unbind(VALUE self,VALUE task_name)
     
     std::string name = StringValueCStr(task_name);
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
-    bool result = false;
-
-#ifdef HAVE_RUBY_INTERN_H
-    NameServiceBlockingMsg msg;
-    msg.name_service = &name_service;
-    msg.return_value = &result;
-    msg.para = &name;
-    msg.para2 = NULL;
-    rb_thread_blocking_region(name_service_unbind_blocking,(void*)&msg,NULL,NULL);
-    processErrors(msg);
-#else
-    try
-    {
-        result = name_service.unbind(name);
-    }
-    catch(NameServiceClientError &e)
-    {
-        rb_raise(eCORBAComError,"%s",e.what());
-    }
-    CORBA_EXCEPTION_HANDLERS
-#endif
+    bool result = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::unbind,&name_service,name));
     return result ? Qtrue : Qfalse;
 }
 
@@ -454,26 +242,7 @@ static VALUE name_service_validate(VALUE self)
     if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
         rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
-
-#ifdef HAVE_RUBY_INTERN_H
-    NameServiceBlockingMsg msg;
-    msg.name_service = &name_service;
-    msg.return_value = NULL;
-    msg.para = NULL;
-    msg.para2 = NULL;
-    rb_thread_blocking_region(name_service_validate_blocking,(void*)&msg,NULL,NULL);
-    processErrors(msg);
-#else
-    try
-    {
-        name_service.validate();
-    }
-    catch(NameServiceClientError &e)
-    {
-        rb_raise(eCORBAComError, "%s",e.what());
-    }
-    CORBA_EXCEPTION_HANDLERS
-#endif
+    corba_blocking_fct_call(boost::bind(&NameServiceClient::validate,&name_service));
     return Qnil;
 }
 
@@ -485,27 +254,8 @@ static VALUE name_service_bind(VALUE self,VALUE task,VALUE task_name)
     std::string name = StringValueCStr(task_name);
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
     RTaskContext& context = get_wrapped<RTaskContext>(task);
-
-#ifdef HAVE_RUBY_INTERN_H
-    NameServiceBlockingMsg msg;
-    msg.name_service = &name_service;
-    msg.return_value = NULL;
-    msg.para = &context;
-    msg.para2 = &name;
-    rb_thread_blocking_region(name_service_bind_blocking,(void*)&msg,NULL,NULL);
-    processErrors(msg);
-#else
-    try
-    {
-        CORBA::Object_var obj = CORBA::Object::_duplicate(context.task);
-        name_service.bind(obj,name);
-    }
-    catch(NameServiceClientError &e)
-    {
-        rb_raise(eCORBAComError,"%s", e.what());
-    }
-    CORBA_EXCEPTION_HANDLERS
-#endif
+    CORBA::Object_var obj = CORBA::Object::_duplicate(context.task);
+    corba_blocking_fct_call(boost::bind(&NameServiceClient::bind,&name_service,obj,name));
     return Qnil;
 }
 
@@ -517,27 +267,7 @@ static VALUE name_service_ior(VALUE self,VALUE task_name)
     std::string ior;
     std::string name = StringValueCStr(task_name);
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
-
-#ifdef HAVE_RUBY_INTERN_H
-    NameServiceBlockingMsg msg;
-    msg.name_service = &name_service;
-    msg.para = &name;
-    msg.para2 = NULL;
-    msg.return_value = &ior;
-    rb_thread_blocking_region(name_service_ior_blocking,(void*)&msg,NULL,NULL);
-    processErrors(msg);
-#else
-    try
-    {
-        ior = name_service.getIOR(name);
-    }
-    catch(NameServiceClientError &e)
-    {
-        rb_raise(eCORBAComError,"%s", e.what());
-    }
-    CORBA_EXCEPTION_HANDLERS
-#endif
-
+    ior = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::getIOR,&name_service,name));
     return rb_str_new2(ior.c_str());
 }
 

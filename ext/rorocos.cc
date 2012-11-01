@@ -126,22 +126,10 @@ VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
         rb_raise(rb_eArgError, "no ior given");
     std::string ior(StringValueCStr(argv[0]));
 
-    try
-    {
-        RTaskContext *context = CorbaAccess::instance()->createRTaskContext(ior);
-        VALUE obj = simple_wrap(klass, context);
-        rb_obj_call_init(obj,argc,argv);
-        return obj;
-    }
-    catch(InvalidIORError &e)
-    {
-        rb_raise(rb_eArgError, "%s", e.what());
-    }
-    catch(std::runtime_error &e)
-    {
-        rb_raise(eCORBAComError, "%s", e.what());
-    }
-    CORBA_EXCEPTION_HANDLERS
+    RTaskContext *context =  corba_blocking_fct_call_with_result(boost::bind(&CorbaAccess::createRTaskContext,CorbaAccess::instance(),ior));
+    VALUE obj = simple_wrap(cTaskContext, context);
+    rb_obj_call_init(obj,argc,argv);
+    return obj;
 }
 
 static VALUE task_context_equal_p(VALUE self, VALUE other)
@@ -159,15 +147,11 @@ static VALUE task_context_equal_p(VALUE self, VALUE other)
 //
 // Returns true if the given name is the name of a port on this task context,
 // and false otherwise
-///
+//
 static VALUE task_context_has_port_p(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
-    try {
-        context.ports->getPortType(StringValuePtr(name));
-    }
-    catch(RTT::corba::CNoSuchPortException) { return Qfalse; }
-    CORBA_EXCEPTION_HANDLERS
+    corba_blocking_fct_call(bind(&_objref_CDataFlowInterface::getPortType,(CDataFlowInterface_ptr)context.ports,StringValuePtr(name)));
     return Qtrue;
 }
 
@@ -180,11 +164,7 @@ static VALUE task_context_real_name(VALUE self)
 static VALUE task_context_has_operation_p(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
-    try {
-        context.main_service->getResultType(StringValuePtr(name));
-    }
-    catch(RTT::corba::CNoSuchNameException) { return Qfalse; }
-    CORBA_EXCEPTION_HANDLERS
+    corba_blocking_fct_call(bind(&_objref_COperationInterface::getResultType,(_objref_COperationInterface*)context.main_service,StringValuePtr(name)));
     return Qtrue;
 }
 
@@ -192,16 +172,13 @@ static VALUE task_context_attribute_type_name(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     std::string const expected_name = StringValuePtr(name);
-    try {
-        CORBA::String_var attribute_type_name =
-            context.main_service->getAttributeTypeName(StringValuePtr(name));
-        std::string type_name = std::string(attribute_type_name);
-        if (type_name != "na")
-            return rb_str_new(type_name.c_str(), type_name.length());
+    CORBA::String_var attribute_type_name =
+        corba_blocking_fct_call_with_result(bind(&_objref_CConfigurationInterface::getAttributeTypeName,(_objref_CConfigurationInterface*)context.main_service,StringValuePtr(name)));
+    std::string type_name = std::string(attribute_type_name);
+    if (type_name != "na")
+        return rb_str_new(type_name.c_str(), type_name.length());
 
-        rb_raise(rb_eArgError, "no such attribute %s", StringValuePtr(name));
-    }
-    CORBA_EXCEPTION_HANDLERS
+    rb_raise(rb_eArgError, "no such attribute %s", StringValuePtr(name));
     return Qfalse;
 }
 
@@ -209,16 +186,13 @@ static VALUE task_context_property_type_name(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     std::string const expected_name = StringValuePtr(name);
-    try {
-        CORBA::String_var attribute_type_name =
-            context.main_service->getPropertyTypeName(StringValuePtr(name));
-        std::string type_name = std::string(attribute_type_name);
-        if (type_name != "na")
-            return rb_str_new(type_name.c_str(), type_name.length());
+    CORBA::String_var attribute_type_name =
+        corba_blocking_fct_call_with_result(bind(&_objref_CConfigurationInterface::getPropertyTypeName,(_objref_CConfigurationInterface*)context.main_service,StringValuePtr(name)));
+    std::string type_name = std::string(attribute_type_name);
+    if (type_name != "na")
+        return rb_str_new(type_name.c_str(), type_name.length());
 
-        rb_raise(rb_eArgError, "no such property %s", StringValuePtr(name));
-    }
-    CORBA_EXCEPTION_HANDLERS
+    rb_raise(rb_eArgError, "no such property %s", StringValuePtr(name));
     return Qfalse;
 }
 
@@ -227,16 +201,13 @@ static VALUE task_context_property_names(VALUE self)
     RTaskContext& context = get_wrapped<RTaskContext>(self);
 
     VALUE result = rb_ary_new();
-    try {
-        RTT::corba::CConfigurationInterface::CPropertyNames_var names =
-            context.main_service->getPropertyList();
-        for (unsigned int i = 0; i != names->length(); ++i)
-        {
-            CORBA::String_var name = names[i].name;
-            rb_ary_push(result, rb_str_new2(name));
-        }
+    RTT::corba::CConfigurationInterface::CPropertyNames_var names =
+        corba_blocking_fct_call_with_result(bind(&_objref_CConfigurationInterface::getPropertyList,(_objref_CConfigurationInterface*)context.main_service));
+    for (unsigned int i = 0; i != names->length(); ++i)
+    {
+        CORBA::String_var name = names[i].name;
+        rb_ary_push(result, rb_str_new2(name));
     }
-    CORBA_EXCEPTION_HANDLERS
     return result;
 }
 
@@ -245,16 +216,13 @@ static VALUE task_context_attribute_names(VALUE self)
     RTaskContext& context = get_wrapped<RTaskContext>(self);
 
     VALUE result = rb_ary_new();
-    try {
-        RTT::corba::CConfigurationInterface::CAttributeNames_var names =
-            context.main_service->getAttributeList();
-        for (unsigned int i = 0; i != names->length(); ++i)
-        {
-            CORBA::String_var name = names[i];
-            rb_ary_push(result, rb_str_new2(name));
-        }
+    RTT::corba::CConfigurationInterface::CAttributeNames_var names =
+        corba_blocking_fct_call_with_result(bind(&_objref_CConfigurationInterface::getAttributeList,(_objref_CConfigurationInterface*)context.main_service));
+    for (unsigned int i = 0; i != names->length(); ++i)
+    {
+        CORBA::String_var name = names[i];
+        rb_ary_push(result, rb_str_new2(name));
     }
-    CORBA_EXCEPTION_HANDLERS
     return result;
 }
 
@@ -270,18 +238,8 @@ static VALUE task_context_do_port(VALUE self, VALUE name, VALUE model)
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     RTT::corba::CPortType port_type;
     CORBA::String_var    type_name;
-    try {
-        port_type = context.ports->getPortType(StringValuePtr(name));
-        type_name = context.ports->getDataType(StringValuePtr(name));
-    }
-    catch(RTT::corba::CNoSuchPortException)
-    { 
-        VALUE task_name = rb_iv_get(self, "@name");
-        rb_raise(eNotFound, "task %s does not have a '%s' port",
-                StringValuePtr(task_name),
-                StringValuePtr(name));
-    }
-    CORBA_EXCEPTION_HANDLERS
+    port_type = corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::getPortType,(_objref_CDataFlowInterface*)context.ports,StringValuePtr(name)));
+    type_name = corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::getDataType,(_objref_CDataFlowInterface*)context.ports,StringValuePtr(name)));
 
     VALUE obj = Qnil;
     VALUE args[4] = { self, rb_str_dup(name), rb_str_new2(type_name), model };
@@ -320,13 +278,11 @@ static VALUE task_context_port_names(VALUE self)
 {
     VALUE result = rb_ary_new();
     RTaskContext& context = get_wrapped<RTaskContext>(self);
-    try {
-        RTT::corba::CDataFlowInterface::CPortNames_var ports = context.ports->getPorts();
+    RTT::corba::CDataFlowInterface::CPortNames_var ports =
+        corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::getPorts,(_objref_CDataFlowInterface*)context.ports));
 
-        for (unsigned int i = 0; i < ports->length(); ++i)
-            rb_ary_push(result, rb_str_new2(ports[i]));
-    }
-    CORBA_EXCEPTION_HANDLERS
+    for (unsigned int i = 0; i < ports->length(); ++i)
+        rb_ary_push(result, rb_str_new2(ports[i]));
 
     return result;
 }
