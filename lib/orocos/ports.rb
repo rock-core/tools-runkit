@@ -183,6 +183,55 @@ module Orocos
             self
         end
 
+        ##
+        # :method: max_sizes
+        #
+        # :call-seq:
+        #   max_sizes('name.to[].field' => value, 'name.other' => value) => self
+        #   max_sizes => current size specification
+        #
+        # Sets the maximum allowed size for the variable-size containers in
+        # +type+. If the type is a compound, the mapping is given as
+        # path.to.field => size. If it is a container, the size of the
+        # container itself is given as first argument, and the sizes for the
+        # contained values as a second map argument.
+        #
+        # For instance, with the types
+        #
+        #   struct A
+        #   {
+        #       std::vector<int> values;
+        #   };
+        #   struct B
+        #   {
+        #       std::vector<A> field;
+        #   };
+        #
+        # Then sizes on a port of type B would be given with
+        #
+        #   port.max_sizes('field' => 10, 'field[].values' => 20)
+        #
+        # while the sizes on a port of type std::vector<A> would be given
+        # with
+        #
+        #   port.max_sizes(10, 'values' => 20)
+        #
+        dsl_attribute :max_sizes do |*values|
+            # Validate that all values are integers and all names map to
+            # known types
+            value = Orocos::Spec::OutputPort.validate_max_sizes_spec(type, values)
+            max_sizes.merge(value)
+        end
+
+        # Returns the maximum marshalled size of a sample from this port, as
+        # marshalled by typelib
+        #
+        # If the type contains variable-size containers, the result is dependent
+        # on the values given to #max_sizes. If not enough is known, this method
+        # will return nil.
+        def max_marshalling_size
+            Orocos::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
+        end
 
         # Publishes or subscribes this port on a stream
         def create_stream(transport, name_id, policy = Hash.new)
@@ -274,56 +323,6 @@ module Orocos
 
             policy
         end
-        ##
-        # :method: max_sizes
-        #
-        # :call-seq:
-        #   max_sizes('name.to[].field' => value, 'name.other' => value) => self
-        #   max_sizes => current size specification
-        #
-        # Sets the maximum allowed size for the variable-size containers in
-        # +type+. If the type is a compound, the mapping is given as
-        # path.to.field => size. If it is a container, the size of the
-        # container itself is given as first argument, and the sizes for the
-        # contained values as a second map argument.
-        #
-        # For instance, with the types
-        #
-        #   struct A
-        #   {
-        #       std::vector<int> values;
-        #   };
-        #   struct B
-        #   {
-        #       std::vector<A> field;
-        #   };
-        #
-        # Then sizes on a port of type B would be given with
-        #
-        #   port.max_sizes('field' => 10, 'field[].values' => 20)
-        #
-        # while the sizes on a port of type std::vector<A> would be given
-        # with
-        #
-        #   port.max_sizes(10, 'values' => 20)
-        #
-        dsl_attribute :max_sizes do |*values|
-            # Validate that all values are integers and all names map to
-            # known types
-            value = Orocos::Spec::OutputPort.validate_max_sizes_spec(type, values)
-            max_sizes.merge(value)
-        end
-
-        # Returns the maximum marshalled size of a sample from this port, as
-        # marshalled by typelib
-        #
-        # If the type contains variable-size containers, the result is dependent
-        # on the values given to #max_sizes. If not enough is known, this method
-        # will return nil.
-        def max_marshalling_size
-            Orocos::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
-        end
-
     end
 
     # This class represents output ports on remote task contexts.
