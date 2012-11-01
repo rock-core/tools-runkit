@@ -25,6 +25,9 @@
 #include <mqueue.h>
 #include <boost/lexical_cast.hpp>
 #endif
+#ifdef HAS_ROS
+#include <rtt/transports/ros/RosLib.hpp>
+#endif
 
 using namespace std;
 using namespace boost;
@@ -876,6 +879,11 @@ extern "C" void Init_rorocos_ext()
     rb_const_set(mOrocos, rb_intern("RTT_TRANSPORT_MQ_ID"),    INT2FIX(ORO_MQUEUE_PROTOCOL_ID));
     rb_define_singleton_method(mMQueue, "try_mq_open", RUBY_METHOD_FUNC(try_mq_open), 0);
     rb_define_singleton_method(mMQueue, "transportable_type_names", RUBY_METHOD_FUNC(mqueue_transportable_type_names), 0);
+#endif
+
+#ifdef HAS_ROS
+    VALUE mROS  = rb_define_module_under(mOrocos, "ROS");
+    rb_const_set(mOrocos, rb_intern("TRANSPORT_ROS"),    INT2FIX(ORO_ROS_PROTOCOL_ID));
 #endif
     
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
