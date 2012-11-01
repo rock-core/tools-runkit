@@ -11,6 +11,18 @@ module Orocos
 	    private :new
 	end
 
+        @transport_names = Hash.new
+        class << self
+            # A mapping from a transport ID to its name in plain text
+            attr_reader :transport_names
+        end
+
+        # Returns the transport name for the given transport ID or a placeholder
+        # sentence if no name is known for this transport ID
+        def self.transport_name(id)
+            transport_names[id] || "unknown transport with ID #{id}"
+        end
+
         # The task this port is part of
         attr_reader :task
         # The port name
@@ -92,7 +104,8 @@ module Orocos
             :data_size => 0,
             :size => 0,
             :lock => :lock_free,
-            :transport => 0
+            :transport => 0,
+            :name_id => ""
         }
         CONNECTION_POLICY_OPTIONS = DEFAULT_CONNECTION_POLICY.keys
 
@@ -170,6 +183,26 @@ module Orocos
             self
         end
 
+
+        # Publishes or subscribes this port on a stream
+        def create_stream(transport, name_id, policy = Hash.new)
+            policy = Port.prepare_policy(policy)
+            policy[:transport] = transport
+            policy[:name_id] = name_id
+            do_create_stream(policy)
+                    
+            self
+        rescue Orocos::ConnectionFailed => e
+            raise e, "failed to create stream from #{full_name} on transport #{Port.transport_name(transport)}, name #{name_id} and policy #{policy.inspect}"
+        end
+
+        # Removes a stream publication. The name should be the same than the one
+        # given to the 
+        def remove_stream(name_id)
+            do_remove_stream(name_id)
+            self
+        end
+
     private
         def refine_exceptions(other = nil) # :nodoc:
             CORBA.refine_exceptions(self, other) do
@@ -241,7 +274,6 @@ module Orocos
 
             policy
         end
-
         ##
         # :method: max_sizes
         #

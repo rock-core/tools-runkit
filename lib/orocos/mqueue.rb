@@ -5,6 +5,7 @@ module Orocos
     # The comparison with the actual value from the RTT is done in
     # MQueue.available?
     TRANSPORT_MQ = 2
+    Port.transport_names[TRANSPORT_MQ] = 'MQueue'
 
     # Support for the POSIX Message Queues transport in RTT
     module MQueue

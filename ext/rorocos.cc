@@ -527,6 +527,8 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
     result.init = RTEST(rb_hash_aref(options, ID2SYM(rb_intern("init"))));
     result.pull = RTEST(rb_hash_aref(options, ID2SYM(rb_intern("pull"))));
     result.size = NUM2INT(rb_hash_aref(options, ID2SYM(rb_intern("size"))));
+    VALUE name_id = rb_hash_aref(options, ID2SYM(rb_intern("name_id")));
+    result.name_id = CORBA::string_dup(StringValuePtr(name_id));
 
     VALUE lock_type = SYM2ID(rb_hash_aref(options, ID2SYM(rb_intern("lock"))));
     if (lock_type == rb_intern("locked"))
@@ -594,6 +596,41 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
         return result ? Qtrue : Qfalse;
     }
     catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
+    CORBA_EXCEPTION_HANDLERS
+    return Qnil; // never reached
+}
+
+static VALUE do_port_create_stream(VALUE rport, VALUE _policy)
+{
+    RTaskContext* task; VALUE name;
+    tie(task, tuples::ignore, name) = getPortReference(rport);
+
+    RTT::corba::CConnPolicy policy = policyFromHash(_policy);
+
+    try
+    {
+        if (!task->ports->createStream(StringValuePtr(name),
+                policy))
+            rb_raise(eConnectionFailed, "failed to create stream");
+        return Qnil;
+    }
+    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
+    CORBA_EXCEPTION_HANDLERS
+    return Qnil; // never reached
+}
+
+static VALUE do_port_remove_stream(VALUE rport, VALUE stream_name)
+{
+    RTaskContext* task; VALUE name;
+    tie(task, tuples::ignore, name) = getPortReference(rport);
+
+    try
+    {
+        task->ports->removeStream(StringValuePtr(name),
+                StringValuePtr(stream_name));
+        return Qnil;
+    }
+    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
     CORBA_EXCEPTION_HANDLERS
     return Qnil; // never reached
 }
@@ -872,6 +909,8 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
     rb_define_method(cPort, "do_disconnect_from", RUBY_METHOD_FUNC(do_port_disconnect_from), 1);
     rb_define_method(cPort, "do_disconnect_all", RUBY_METHOD_FUNC(do_port_disconnect_all), 0);
+    rb_define_method(cPort, "do_create_stream", RUBY_METHOD_FUNC(do_port_create_stream), 1);
+    rb_define_method(cPort, "do_remove_stream", RUBY_METHOD_FUNC(do_port_remove_stream), 1);
     rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
     rb_define_method(cOutputPort, "do_reader", RUBY_METHOD_FUNC(do_output_port_reader), 3);
     rb_define_method(cInputPort, "do_writer", RUBY_METHOD_FUNC(do_input_port_writer), 2);

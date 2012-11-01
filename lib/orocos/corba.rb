@@ -2,6 +2,8 @@ require 'rorocos_ext'
 require 'typelib'
 
 module Orocos
+    Port.transport_names[TRANSPORT_CORBA] = 'CORBA'
+
     module CORBA
         extend Logger::Forward
         extend Logger::Hierarchy
