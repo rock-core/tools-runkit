@@ -137,11 +137,11 @@ static VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
     }
     catch(InvalidIORError &e)
     {
-        rb_raise(rb_eArgError, e.what());
+        rb_raise(rb_eArgError, "%s", e.what());
     }
     catch(std::runtime_error &e)
     {
-        rb_raise(eComError, e.what());
+        rb_raise(eComError, "%s", e.what());
     }
     CORBA_EXCEPTION_HANDLERS
 }
