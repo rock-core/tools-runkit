@@ -120,10 +120,6 @@ module Orocos
             return
         end
 
-        if !Orocos.initialized?
-            raise NotInitialized, "Orocos is not initialized, call Orocos.initialize first."
-        end
-
         begin
             typekit = Orocos.master_project.using_typekit(name)
         rescue RuntimeError => e
