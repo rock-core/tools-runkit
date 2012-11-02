@@ -15,6 +15,7 @@
 #include <rtt/TaskContext.hpp>
 #include <rtt/transports/corba/TaskContextServer.hpp>
 #include <rtt/transports/corba/CorbaDispatcher.hpp>
+#include "rblocking_call.h"
 
 static VALUE cRubyTaskContext;
 static VALUE cLocalTaskContext;
@@ -130,7 +131,7 @@ static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_
     {
         RTT::base::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
-        switch(local_port.read(ds))
+        switch(blocking_fct_call_with_result(boost::bind(&RTT::base::InputPortInterface::read,&local_port,ds,RTEST(copy_old_data))))
         {
             case RTT::NoData:  return Qfalse;
             case RTT::OldData: return INT2FIX(0);
@@ -146,8 +147,8 @@ static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_
         typelib_transport->setTypelibSample(handle, value, false);
         RTT::base::DataSourceBase::shared_ptr ds =
             typelib_transport->getDataSource(handle);
-        RTT::FlowStatus did_read = local_port.read(ds, RTEST(copy_old_data));
-
+        RTT::FlowStatus did_read = blocking_fct_call_with_result(boost::bind(&RTT::base::InputPortInterface::read,&local_port,ds,RTEST(copy_old_data)));
+       
         if (did_read == RTT::NewData || (did_read == RTT::OldData && RTEST(copy_old_data)))
         {
             typelib_transport->refreshTypelibSample(handle);
@@ -189,7 +190,7 @@ static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE r
         RTT::base::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
 
-        local_port.write(ds);
+        blocking_fct_call(boost::bind(&RTT::base::OutputPortInterface::write,&local_port,ds));
     }
     else
     {
@@ -199,10 +200,11 @@ static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE r
         transport->setTypelibSample(handle, static_cast<uint8_t*>(value.getData()));
         RTT::base::DataSourceBase::shared_ptr ds =
             transport->getDataSource(handle);
-        local_port.write(ds);
+        blocking_fct_call(boost::bind(&RTT::base::OutputPortInterface::write,&local_port,ds));
         transport->deleteHandle(handle);
     }
-    return local_port.connected() ? Qtrue : Qfalse;
+    bool result = blocking_fct_call_with_result(boost::bind(&RTT::base::OutputPortInterface::connected,&local_port));
+    return result ? Qtrue : Qfalse;
 }
 
 void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOutputPort, VALUE cInputPort)

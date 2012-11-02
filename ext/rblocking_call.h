@@ -132,4 +132,29 @@ class BlockingFunctionWithResult : public BlockingFunction<F, A>
         result_t return_val;
 };
 
+// template functions can automatically pick up their template paramters
+template<typename F, typename A>
+void blocking_fct_call(F processing, A abort)
+{
+    BlockingFunction<F,A>::call(processing,abort);
+}
+
+template<typename F>
+void blocking_fct_call(F processing)
+{
+    BlockingFunction<F>::call(processing);
+}
+
+template<typename F, typename A>
+typename F::result_type blocking_fct_call_with_result(F processing, A abort)
+{
+    return BlockingFunctionWithResult<F,A>::call(processing,abort);
+}
+
+template<typename F>
+typename F::result_type blocking_fct_call_with_result(F processing)
+{
+    return BlockingFunctionWithResult<F>::call(processing);
+}
+
 #endif

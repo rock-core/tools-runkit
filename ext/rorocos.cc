@@ -306,21 +306,16 @@ static VALUE task_context_port_names(VALUE self)
 static VALUE task_context_state(VALUE task)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
-    try { return INT2FIX(context.task->getTaskState()); }
-    CORBA_EXCEPTION_HANDLERS
+    return INT2FIX(corba_blocking_fct_call_with_result(boost::bind(&_objref_CTaskContext::getTaskState,(CTaskContext_ptr)context.task)));
 }
 
 static VALUE call_checked_state_change(VALUE task, char const* msg, bool (RTT::corba::_objref_CTaskContext::*m)())
 {
     RTaskContext& context = get_wrapped<RTaskContext>(task);
-    try
-    {
-        RTT::corba::_objref_CTaskContext& obj = *context.task;
-        if (!((obj.*m)()))
-            rb_raise(eStateTransitionFailed, "%s", msg);
-        return Qnil;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    RTT::corba::_objref_CTaskContext& obj = *context.task;
+    if (!(corba_blocking_fct_call_with_result(boost::bind(m,&obj))))
+        rb_raise(eStateTransitionFailed, "%s", msg);
+    return Qnil;
 }
 
 // Do the transition between STATE_PRE_OPERATIONAL and STATE_STOPPED
@@ -362,12 +357,9 @@ static VALUE port_connected_p(VALUE self)
 {
     RTaskContext* task; VALUE name;
     tie(task, tuples::ignore, name) = getPortReference(self);
-
-    try
-    { return task->ports->isConnected(StringValuePtr(name)) ? Qtrue : Qfalse; }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // is refined on the Ruby side
-    CORBA_EXCEPTION_HANDLERS
-    return Qnil; // never reached
+    bool result = corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::isConnected,(_objref_CDataFlowInterface*)task->ports,
+                                                      StringValuePtr(name)));
+    return result ? Qtrue : Qfalse;
 }
 
 static RTT::corba::CConnPolicy policyFromHash(VALUE options)
@@ -416,33 +408,20 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
     tie(in_task, tuples::ignore, in_name) = getPortReference(rinput_port);
 
     RTT::corba::CConnPolicy policy = policyFromHash(options);
-
-    try
-    {
-        if (!out_task->ports->createConnection(StringValuePtr(out_name),
-                in_task->ports, StringValuePtr(in_name),
-                policy))
-            rb_raise(eConnectionFailed, "failed to connect ports");
-        return Qnil;
-    }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
-    CORBA_EXCEPTION_HANDLERS
-    return Qnil; // never reached
+    bool result = corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::createConnection,(_objref_CDataFlowInterface*)out_task->ports,
+                StringValuePtr(out_name),in_task->ports,StringValuePtr(in_name),policy));
+    if(!result)
+        rb_raise(eConnectionFailed, "failed to connect ports");
+    return Qnil;
 }
 
 static VALUE do_port_disconnect_all(VALUE port)
 {
     RTaskContext* task; VALUE name;
     tie(task, tuples::ignore, name) = getPortReference(port);
-
-    try
-    {
-        task->ports->disconnectPort(StringValuePtr(name));
-        return Qnil;
-    }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
-    CORBA_EXCEPTION_HANDLERS
-    return Qnil; // never reached
+    corba_blocking_fct_call(bind(&_objref_CDataFlowInterface::disconnectPort,(_objref_CDataFlowInterface*)task->ports,
+                            StringValuePtr(name)));
+    return Qnil;
 }
 
 static VALUE do_port_disconnect_from(VALUE self, VALUE other)
@@ -451,15 +430,9 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
     tie(self_task, tuples::ignore, self_name) = getPortReference(self);
     RTaskContext* other_task; VALUE other_name;
     tie(other_task, tuples::ignore, other_name) = getPortReference(other);
-
-    try
-    {
-        bool result = self_task->ports->removeConnection(StringValuePtr(self_name), other_task->ports, StringValuePtr(other_name));
-        return result ? Qtrue : Qfalse;
-    }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
-    CORBA_EXCEPTION_HANDLERS
-    return Qnil; // never reached
+    bool result = corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::removeConnection,(_objref_CDataFlowInterface*)self_task->ports,
+                StringValuePtr(self_name),other_task->ports,StringValuePtr(other_name)));
+    return result ? Qtrue : Qfalse;
 }
 
 static VALUE do_port_create_stream(VALUE rport, VALUE _policy)
@@ -468,17 +441,11 @@ static VALUE do_port_create_stream(VALUE rport, VALUE _policy)
     tie(task, tuples::ignore, name) = getPortReference(rport);
 
     RTT::corba::CConnPolicy policy = policyFromHash(_policy);
-
-    try
-    {
-        if (!task->ports->createStream(StringValuePtr(name),
-                policy))
-            rb_raise(eConnectionFailed, "failed to create stream");
-        return Qnil;
-    }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
-    CORBA_EXCEPTION_HANDLERS
-    return Qnil; // never reached
+    bool result = corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::createStream,(_objref_CDataFlowInterface*)task->ports,
+                StringValuePtr(name),policy));
+    if(!result)
+        rb_raise(eConnectionFailed, "failed to create stream");
+    return Qnil;
 }
 
 static VALUE do_port_remove_stream(VALUE rport, VALUE stream_name)
@@ -486,15 +453,9 @@ static VALUE do_port_remove_stream(VALUE rport, VALUE stream_name)
     RTaskContext* task; VALUE name;
     tie(task, tuples::ignore, name) = getPortReference(rport);
 
-    try
-    {
-        task->ports->removeStream(StringValuePtr(name),
-                StringValuePtr(stream_name));
-        return Qnil;
-    }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); } // should be refined on the Ruby side
-    CORBA_EXCEPTION_HANDLERS
-    return Qnil; // never reached
+    corba_blocking_fct_call(bind(&_objref_CDataFlowInterface::removeStream,(_objref_CDataFlowInterface*)task->ports,
+                            StringValuePtr(name),StringValuePtr(name)));
+    return Qnil;
 }
 
 /* Document-class: Orocos::NotFound

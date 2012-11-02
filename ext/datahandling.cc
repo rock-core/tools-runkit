@@ -8,6 +8,7 @@
 using namespace RTT;
 using namespace RTT::base;
 using namespace RTT::types;
+using namespace RTT::corba;
 
 // Unmarshals the data that is included in the given any into the memory held in
 // +dest+. +dest+ must be holding a memory zone that is valid to hold a value of
@@ -84,15 +85,14 @@ static VALUE property_do_read_string(VALUE rbtask, VALUE property_name)
 {
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
 
-    try {
-        CORBA::Any_var corba_value = task.main_service->getProperty(StringValuePtr(property_name));
-        char const* result = 0;
-        if (!(corba_value >>= result))
-            rb_raise(rb_eArgError, "no such property");
-        VALUE rb_result = rb_str_new2(result);
-        return rb_result;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::getProperty,
+                                                                    (_objref_CConfigurationInterface*)task.main_service,
+                                                                    StringValuePtr(property_name)));
+    char const* result = 0;
+    if (!(corba_value >>= result))
+        rb_raise(rb_eArgError, "no such property");
+    VALUE rb_result = rb_str_new2(result);
+    return rb_result;
 }
 
 static VALUE property_do_read(VALUE rbtask, VALUE property_name, VALUE type_name, VALUE rb_typelib_value)
@@ -100,27 +100,25 @@ static VALUE property_do_read(VALUE rbtask, VALUE property_name, VALUE type_name
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
     Typelib::Value value = typelib_get(rb_typelib_value);
 
-    try {
-        CORBA::Any_var corba_value = task.main_service->getProperty(StringValuePtr(property_name));
-        corba_to_ruby(StringValuePtr(type_name), value, corba_value);
-        return rb_typelib_value;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::getProperty,
+                (_objref_CConfigurationInterface*)task.main_service,
+                StringValuePtr(property_name)));
+    corba_to_ruby(StringValuePtr(type_name), value, corba_value);
+    return rb_typelib_value;
 }
 
 static VALUE property_do_write_string(VALUE rbtask, VALUE property_name, VALUE rb_value)
 {
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
 
-    try {
-        CORBA::Any_var corba_value = new CORBA::Any;
-        corba_value <<= StringValuePtr(rb_value);
-        if (!task.main_service->setProperty(StringValuePtr(property_name), corba_value))
-            rb_raise(rb_eArgError, "failed to write the property");
-
-        return Qnil;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = new CORBA::Any;
+    corba_value <<= StringValuePtr(rb_value);
+    bool result = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::setProperty,
+                (_objref_CConfigurationInterface*)task.main_service,
+                StringValuePtr(property_name),corba_value));
+    if(!result)
+        rb_raise(rb_eArgError, "failed to write the property");
+    return Qnil;
 }
 
 static VALUE property_do_write(VALUE rbtask, VALUE property_name, VALUE type_name, VALUE rb_typelib_value)
@@ -128,29 +126,27 @@ static VALUE property_do_write(VALUE rbtask, VALUE property_name, VALUE type_nam
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
     Typelib::Value value = typelib_get(rb_typelib_value);
 
-    try {
-        CORBA::Any_var corba_value = ruby_to_corba(StringValuePtr(type_name), value);
-        if (!task.main_service->setProperty(StringValuePtr(property_name), corba_value))
-            rb_raise(rb_eArgError, "failed to write the property");
-        return Qnil;
-    }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = ruby_to_corba(StringValuePtr(type_name), value);
+    bool result = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::setProperty,
+                (_objref_CConfigurationInterface*)task.main_service,
+                StringValuePtr(property_name),corba_value));
+    if(!result)
+        rb_raise(rb_eArgError, "failed to write the property");
+    return Qnil;
 }
 
 static VALUE attribute_do_read_string(VALUE rbtask, VALUE property_name)
 {
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
 
-    try {
-        CORBA::Any_var corba_value = task.main_service->getAttribute(StringValuePtr(property_name));
-        char const* result = 0;
-        if (!(corba_value >>= result))
-            rb_raise(rb_eArgError, "no such attribute");
-        VALUE rb_result = rb_str_new2(result);
-        return rb_result;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::getAttribute,
+                                                                    (_objref_CConfigurationInterface*)task.main_service,
+                                                                    StringValuePtr(property_name)));
+    char const* result = 0;
+    if (!(corba_value >>= result))
+        rb_raise(rb_eArgError, "no such attribute");
+    VALUE rb_result = rb_str_new2(result);
+    return rb_result;
 }
 
 static VALUE attribute_do_read(VALUE rbtask, VALUE property_name, VALUE type_name, VALUE rb_typelib_value)
@@ -158,27 +154,25 @@ static VALUE attribute_do_read(VALUE rbtask, VALUE property_name, VALUE type_nam
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
     Typelib::Value value = typelib_get(rb_typelib_value);
 
-    try {
-        CORBA::Any_var corba_value = task.main_service->getAttribute(StringValuePtr(property_name));
-        corba_to_ruby(StringValuePtr(type_name), value, corba_value);
-        return rb_typelib_value;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::getAttribute,
+                (_objref_CConfigurationInterface*)task.main_service,
+                StringValuePtr(property_name)));
+    corba_to_ruby(StringValuePtr(type_name), value, corba_value);
+    return rb_typelib_value;
 }
 
 static VALUE attribute_do_write_string(VALUE rbtask, VALUE property_name, VALUE rb_value)
 {
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
 
-    try {
-        CORBA::Any_var corba_value = new CORBA::Any;
-        corba_value <<= StringValuePtr(rb_value);
-        if (!task.main_service->setAttribute(StringValuePtr(property_name), corba_value))
-            rb_raise(rb_eArgError, "failed to write the property");
-
-        return Qnil;
-    }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = new CORBA::Any;
+    corba_value <<= StringValuePtr(rb_value);
+    bool result = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::setAttribute,
+                (_objref_CConfigurationInterface*)task.main_service,
+                StringValuePtr(property_name),corba_value));
+    if(!result)
+        rb_raise(rb_eArgError, "failed to write the attribute");
+    return Qnil;
 }
 
 static VALUE attribute_do_write(VALUE rbtask, VALUE property_name, VALUE type_name, VALUE rb_typelib_value)
@@ -186,14 +180,13 @@ static VALUE attribute_do_write(VALUE rbtask, VALUE property_name, VALUE type_na
     RTaskContext& task = get_wrapped<RTaskContext>(rbtask);
     Typelib::Value value = typelib_get(rb_typelib_value);
 
-    try {
-        CORBA::Any_var corba_value = ruby_to_corba(StringValuePtr(type_name), value);
-        if (!task.main_service->setAttribute(StringValuePtr(property_name), corba_value))
-            rb_raise(rb_eArgError, "failed to write the property");
-        return Qnil;
-    }
-    catch(RTT::corba::CNoSuchPortException&) { rb_raise(eNotFound, "no such port"); }
-    CORBA_EXCEPTION_HANDLERS
+    CORBA::Any_var corba_value = ruby_to_corba(StringValuePtr(type_name), value);
+    bool result = corba_blocking_fct_call_with_result(boost::bind(&_objref_CConfigurationInterface::setAttribute,
+                (_objref_CConfigurationInterface*)task.main_service,
+                StringValuePtr(property_name),corba_value));
+    if(!result)
+        rb_raise(rb_eArgError, "failed to write the attribute");
+    return Qnil;
 }
 
 void Orocos_init_data_handling(VALUE cTaskContext)

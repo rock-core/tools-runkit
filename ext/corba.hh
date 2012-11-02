@@ -98,8 +98,8 @@ class InvalidIORError :public std::runtime_error
     catch(RTT::corba::CNoSuchPortException) { BlockingFunctionBase::raise(eNotFound,"");}\
     catch(RTT::corba::CNoSuchNameException) { BlockingFunctionBase::raise(eNotFound,"");}\
     catch(CosNaming::NamingContext::NotFound& e) { BlockingFunctionBase::raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
-    catch(CORBA::COMM_FAILURE&) { BlockingFunctionBase::raise(eComError, "CORBA communication failure"); } \
-    catch(CORBA::TRANSIENT&) { BlockingFunctionBase::raise(eComError, "CORBA transient exception"); } \
+    catch(CORBA::COMM_FAILURE&) { BlockingFunctionBase::raise(eCORBAComError, "CORBA communication failure"); } \
+    catch(CORBA::TRANSIENT&) { BlockingFunctionBase::raise(eCORBAComError, "CORBA transient exception"); } \
     catch(CORBA::INV_OBJREF&) { BlockingFunctionBase::raise(eCORBA, "CORBA invalid obj reference"); } \
     catch(CORBA::SystemException&) { BlockingFunctionBase::raise(eCORBA, "CORBA system exception"); } \
     catch(CORBA::Exception& e) { BlockingFunctionBase::raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }\

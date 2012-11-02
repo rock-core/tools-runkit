@@ -88,19 +88,17 @@ static VALUE operation_call(VALUE task_, VALUE name, VALUE result_type_name, VAL
     RTaskContext& task = get_wrapped<RTaskContext>(task_);
     CAnyArguments_var corba_args = corba_args_from_ruby(args_type_names, args);
 
-    try {
-	CORBA::Any_var corba_result = task.main_service->callOperation(StringValuePtr(name), corba_args);
+    CORBA::Any_var corba_result = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::callOperation,
+                (_objref_COperationInterface*)task.main_service,
+                StringValuePtr(name),corba_args));
 
-        if (!NIL_P(result))
-        {
-            Typelib::Value v = typelib_get(result);
-            corba_to_ruby(StringValuePtr(result_type_name), v, corba_result);
-        }
-        corba_args_to_ruby(args_type_names, args, corba_args);
-        return result;
+    if (!NIL_P(result))
+    {
+        Typelib::Value v = typelib_get(result);
+        corba_to_ruby(StringValuePtr(result_type_name), v, corba_result);
     }
-    CORBA_EXCEPTION_HANDLERS;
-    return Qnil;
+    corba_args_to_ruby(args_type_names, args, corba_args);
+    return result;
 }
 
 struct RSendHandle
@@ -126,18 +124,17 @@ static VALUE operation_send(VALUE task_, VALUE name, VALUE args_type_names, VALU
     RTaskContext& task = get_wrapped<RTaskContext>(task_);
     CAnyArguments_var corba_args = corba_args_from_ruby(args_type_names, args);
 
-    try {
-	RTT::corba::CSendHandle_var corba_result = task.main_service->sendOperation(StringValuePtr(name), corba_args);
-	return simple_wrap(cSendHandle, new RSendHandle(corba_result));
-    }
-    CORBA_EXCEPTION_HANDLERS;
-    return Qnil;
+    RTT::corba::CSendHandle_var corba_result = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::sendOperation,
+                (_objref_COperationInterface*)task.main_service,
+                StringValuePtr(name),corba_args));
+    return simple_wrap(cSendHandle, new RSendHandle(corba_result));
 }
 
 static VALUE send_handle_check_status(VALUE handle_)
 {
     RSendHandle& handle = get_wrapped<RSendHandle>(handle_);
-    RTT::corba::CSendStatus status = handle.handle->checkStatus();
+    RTT::corba::CSendStatus status = corba_blocking_fct_call_with_result(boost::bind(&_objref_CSendHandle::checkStatus,
+                (CSendHandle_ptr)handle.handle));
     return INT2FIX(status);
 }
 
@@ -146,14 +143,11 @@ static VALUE send_handle_collect_if_done(VALUE handle_, VALUE result_type_names,
     RSendHandle& handle = get_wrapped<RSendHandle>(handle_);
     CAnyArguments_var corba_result = new CAnyArguments;
 
-    try {
-	CSendStatus ss = handle.handle->collectIfDone(corba_result);
-        if (ss == RTT::corba::CSendSuccess)
-            corba_args_to_ruby(result_type_names, results, corba_result);
-        return INT2FIX(ss);
-    }
-    CORBA_EXCEPTION_HANDLERS;
-    return Qnil;
+    CSendStatus ss = corba_blocking_fct_call_with_result(boost::bind(&_objref_CSendHandle::collectIfDone,
+                (CSendHandle_ptr)handle.handle,(CAnyArguments_out)corba_result));
+    if (ss == RTT::corba::CSendSuccess)
+        corba_args_to_ruby(result_type_names, results, corba_result);
+    return INT2FIX(ss);
 }
 
 static VALUE send_handle_collect(VALUE handle_, VALUE result_type_names, VALUE results)
@@ -161,14 +155,11 @@ static VALUE send_handle_collect(VALUE handle_, VALUE result_type_names, VALUE r
     RSendHandle& handle = get_wrapped<RSendHandle>(handle_);
     CAnyArguments_var corba_result = new CAnyArguments;
 
-    try {
-	CSendStatus ss = handle.handle->collect(corba_result);
-        if (ss == RTT::corba::CSendSuccess)
-            corba_args_to_ruby(result_type_names, results, corba_result);
-        return INT2FIX(ss);
-    }
-    CORBA_EXCEPTION_HANDLERS;
-    return Qnil;
+    CSendStatus ss = corba_blocking_fct_call_with_result(boost::bind(&_objref_CSendHandle::collect,
+                (CSendHandle_ptr)handle.handle,(CAnyArguments_out)corba_result));
+    if (ss == RTT::corba::CSendSuccess)
+        corba_args_to_ruby(result_type_names, results, corba_result);
+    return INT2FIX(ss);
 }
 
 static VALUE operation_return_types(VALUE task_, VALUE opname)
@@ -176,27 +167,20 @@ static VALUE operation_return_types(VALUE task_, VALUE opname)
     RTaskContext& task = get_wrapped<RTaskContext>(task_);
 
     VALUE result = rb_ary_new();
-    try
-    {
-        int retcount =
-            task.main_service->getCollectArity(StringValuePtr(opname));
+        int retcount = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getCollectArity,
+                (_objref_COperationInterface*)task.main_service,StringValuePtr(opname)));
 
-        CORBA::String_var type_name =
-            task.main_service->getResultType(StringValuePtr(opname));
+        CORBA::String_var type_name = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getResultType,
+                (_objref_COperationInterface*)task.main_service,StringValuePtr(opname)));
         rb_ary_push(result, rb_str_new2(type_name));
 
         for (int i = 0; i < retcount - 1; ++i)
         {
-            type_name = task.main_service->getCollectType(StringValuePtr(opname), i + 1);
+            type_name = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getCollectType,
+                (_objref_COperationInterface*)task.main_service,StringValuePtr(opname),i+1));
             rb_ary_push(result, rb_str_new2(type_name));
         }
-
         return result;
-    }
-    catch(RTT::corba::CNoSuchNameException)
-    { rb_raise(eNotFound, "there is not operation called %s", StringValuePtr(opname)); }
-    CORBA_EXCEPTION_HANDLERS;
-    return Qnil; // never reached
 }
 
 static VALUE operation_argument_types(VALUE task_, VALUE opname)
@@ -204,26 +188,20 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
     RTaskContext& task = get_wrapped<RTaskContext>(task_);
 
     VALUE result = rb_ary_new();
-    try
-    {
-        RTT::corba::CDescriptions_var args =
-            task.main_service->getArguments(StringValuePtr(opname));
+    RTT::corba::CDescriptions_var args = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getArguments,
+                (_objref_COperationInterface*)task.main_service,StringValuePtr(opname)));
 
-        for (int i = 0; i < args->length(); ++i)
-        {
-            RTT::corba::CArgumentDescription arg =
-                args[i];
-            VALUE tuple = rb_ary_new();
-            rb_ary_push(tuple, rb_str_new2(arg.name));
-            rb_ary_push(tuple, rb_str_new2(arg.description));
-            rb_ary_push(tuple, rb_str_new2(arg.type));
-            rb_ary_push(result, tuple);
-        }
-        return result;
+    for (int i = 0; i < args->length(); ++i)
+    {
+        RTT::corba::CArgumentDescription arg =
+            args[i];
+        VALUE tuple = rb_ary_new();
+        rb_ary_push(tuple, rb_str_new2(arg.name));
+        rb_ary_push(tuple, rb_str_new2(arg.description));
+        rb_ary_push(tuple, rb_str_new2(arg.type));
+        rb_ary_push(result, tuple);
     }
-    catch(RTT::corba::CNoSuchNameException)
-    { rb_raise(eNotFound, "there is not operation called %s", StringValuePtr(opname)); }
-    CORBA_EXCEPTION_HANDLERS;
+    return result;
     return Qnil; // never reached
 }
 
