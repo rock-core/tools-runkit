@@ -500,7 +500,7 @@ module Orocos
 
             workdir  = options[:working_directory]
 
-	    if CORBA.name_service.ip
+	    if !CORBA.name_service.ip.empty?
 		ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service.ip}"
 	    end
 

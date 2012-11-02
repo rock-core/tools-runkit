@@ -65,7 +65,7 @@ module Orocos
         # Orocos.initialize
 	def self.init(name = nil)
             #setup environment which is used by the orocos.rb
-	    if CORBA.name_service.ip
+	    if !CORBA.name_service.ip.empty?
 	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service.ip}"
 	    end
 
