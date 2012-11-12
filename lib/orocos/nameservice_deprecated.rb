@@ -26,7 +26,8 @@ module Nameservice
                          end
                 Orocos.name_service << klass.new(domain)
             elsif klass == Orocos::CORBA::NameService
-                Orocos.name_service << klass.new(options[:host])
+                Orocos::CORBA.name_service.ip = options[:host] if options.has_key?(:host)
+                Orocos.name_service << Orocos::CORBA.name_service unless Orocos.name_service.include?(Orocos::CORBA::NameService)
             else
                 Orocos.name_service << klass.new(options)
             end

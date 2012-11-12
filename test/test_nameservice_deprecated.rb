@@ -32,6 +32,12 @@ describe "Nameservice" do
         assert_raises(NameError) { Nameservice::Provider::get_instance_of("foo", {}) }
     end
 
+    it "changes the ip of the default CORBA name service" do
+        Nameservice::enable(:CORBA, :host => "222.222.222.222")
+        assert_equal "222.222.222.222",Orocos::CORBA.name_service.ip
+        assert Orocos.name_service.include? Orocos::CORBA::NameService
+    end
+
     it "throws on resolve without providers" do
         assert_raises(Orocos::NotFound) { Nameservice::resolve("foo") }
     end
