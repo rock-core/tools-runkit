@@ -64,7 +64,9 @@ module Orocos
             # Since we are loading typekits over and over again, we need to
             # disable type export
             Orocos.export_types = false
-            Orocos.default_working_directory = WORK_DIR
+            if File.directory?(WORK_DIR)
+                Orocos.default_working_directory = WORK_DIR
+            end
             @processes = Array.new
             super if defined? super
         end
@@ -96,7 +98,9 @@ module Orocos
         include FlexMock::MockContainer
 
         def setup
-            Orocos.default_working_directory = WORK_DIR
+            if File.directory?(WORK_DIR)
+                Orocos.default_working_directory = WORK_DIR
+            end
             Orocos::MQueue.auto = Test::USE_MQUEUE
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             ENV['PKG_CONFIG_PATH'] += ":#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
