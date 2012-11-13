@@ -70,6 +70,11 @@ module Orocos
 
         # The name of the orocos logfile for this Ruby process
         attr_reader :orocos_logfile
+
+        # [RubyTaskContext] the ruby task context that is used to provide a RTT
+        # interface to this Ruby process. Among other things, it manages the
+        # data readers and writers
+        attr_reader :ruby_task
     end
     @use_mq_warning = true
     @keep_orocos_logfile = false
@@ -295,6 +300,7 @@ module Orocos
     def self.clear
         @master_project = nil
         @available_projects.clear if @available_projects
+        @ruby_task.dispose
         if export_types? && registry
             registry.clear_exports(type_export_namespace)
         end
@@ -396,6 +402,8 @@ module Orocos
             Orocos::CORBA.init(name)
         end
         @initialized = true
+
+        @ruby_task = RubyTaskContext.new(name || "orocosrb_#{::Process.pid}")
     end
 
     def self.create_orogen_interface(name = nil, &block)

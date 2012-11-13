@@ -41,6 +41,7 @@ require 'orocos/process'
 require 'orocos/corba'
 require 'orocos/mqueue'
 require 'orocos/ros'
+require 'orocos/ruby_task_context'
 
 require 'orocos/scripts'
 

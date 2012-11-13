@@ -49,9 +49,17 @@ describe Orocos::OutputPort do
     it "should not be possible to create an instance directly" do
 	assert_raises(NoMethodError) { Orocos::OutputPort.new }
     end
+    
+    it "should have the right model" do
+        Orocos.run('simple_source') do
+            task = Orocos::TaskContext.get('simple_source_source')
+            source = task.port("cycle")
+            assert_same source.model, task.model.find_output_port('cycle')
+        end
+    end
 
     it "should be able to connect to an input" do
-        Orocos.run('simple_source', 'simple_sink') do |p_source, p_sink|
+        Orocos.run('simple_source', 'simple_sink') do
             source = Orocos::TaskContext.get('simple_source_source').port("cycle")
             sink   = Orocos::TaskContext.get('simple_sink_sink').port("cycle")
 
@@ -226,6 +234,14 @@ describe Orocos::InputPort do
 
     it "should not be possible to create an instance directly" do
 	assert_raises(NoMethodError) { Orocos::InputPort.new }
+    end
+
+    it "should have the right model" do
+        Orocos.run('simple_sink') do
+            task = Orocos::TaskContext.get('simple_sink_sink')
+            port = task.port("cycle")
+            assert_same port.model, task.model.find_input_port('cycle')
+        end
     end
 
     it "should be able to disconnect from all connected outputs" do
@@ -505,7 +521,7 @@ describe Orocos::InputWriter do
             input = echo.port('input')
             
             writer = input.writer
-            assert(writer.kind_of?(Orocos::InputWriter))
+            assert_kind_of Orocos::InputWriter, writer
             writer.write(0)
         end
     end

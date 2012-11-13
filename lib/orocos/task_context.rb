@@ -42,29 +42,6 @@ module Orocos
         end
     end
 
-    # Specialization of the OutputReader to read the task'ss state port. Its
-    # read method will return a state in the form of a symbol. For instance, the
-    # RUNTIME_ERROR state is returned as :RUNTIME_ERROR
-    #
-    # StateReader objects are created by TaskContext#state_reader
-    class StateReader < OutputReader
-        class << self
-            private :new
-        end
-
-        def read
-            if value = super
-                @state_symbols[value]
-            end
-        end
-
-        def read_new
-            if value = super
-                @state_symbols[value]
-            end
-        end
-    end
-
     # A proxy for a remote task context. The communication between Ruby and the
     # RTT component is done through the CORBA transport.
     #
@@ -144,14 +121,30 @@ module Orocos
             nil
         end
 
+        # Specialization of the OutputReader to read the task'ss state port. Its
+        # read method will return a state in the form of a symbol. For instance, the
+        # RUNTIME_ERROR state is returned as :RUNTIME_ERROR
+        #
+        # StateReader objects are created by TaskContext#state_reader
+        module StateReader
+            def read
+                if value = super
+                    @state_symbols[value]
+                end
+            end
+
+            def read_new
+                if value = super
+                    @state_symbols[value]
+                end
+            end
+        end
+
         # Returns a StateReader object that allows to flexibly monitor the
         # task's state
         def state_reader(policy = Hash.new)
-            p = port('state')
-            policy = Port.prepare_policy({:init => true, :type => :buffer, :size => 10}.merge(policy))
-
-            # Create the mapping from state integers to state symbols
-            reader = p.do_reader(StateReader, p.orocos_type_name, policy)
+            reader = port('state').reader(policy)
+            reader.extend StateReader
             reader.instance_variable_set :@state_symbols, @state_symbols
             reader
         end
@@ -476,7 +469,10 @@ module Orocos
                         raise NotFound, "no port named '#{name}' on task '#{self.name}'"
                     end
                 else
-                    @ports[name] = do_port(name)
+                    port_model = if model
+                                     model.find_port(name)
+                                 end
+                    @ports[name] = do_port(name, port_model)
                 end
             end
 

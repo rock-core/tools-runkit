@@ -11,6 +11,11 @@ module Orocos
 	    private :new
 	end
 
+        @@transient_port_id_counter = 0
+        def self.transient_local_port_name(base_name)
+            "#{base_name}.#{@@transient_port_id_counter += 1}"
+        end
+
         @transport_names = Hash.new
         class << self
             # A mapping from a transport ID to its name in plain text
@@ -37,11 +42,7 @@ module Orocos
         attr_reader :type
         # The port's model as either a Orocos::Generation::InputPort or
         # Orocos::Generation::OutputPort
-        def model
-            if task_model = task.model
-                @model ||= task_model.find_port(name)
-            end
-        end
+        attr_reader :model
 
         def log_metadata
             Hash['rock_task_model' => task.model.name,
@@ -52,7 +53,11 @@ module Orocos
         end
 
 
-        def initialize
+        def initialize(task, name, orocos_type_name, model)
+            @task = task
+            @name = name
+            @orocos_type_name = orocos_type_name
+            @model = model
             @type =
                 begin
                     Orocos.typelib_type_for(@orocos_type_name)
@@ -332,23 +337,10 @@ module Orocos
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
         def writer(policy = Hash.new)
-            policy = Port.prepare_policy(policy)
-            policy = handle_mq_transport("#{full_name}.writer", policy) do
-                task.process && task.process.on_localhost?
-            end
-
-            begin
-                do_writer(orocos_type_name, policy)
-            rescue Orocos::ConnectionFailed => e
-                if policy[:transport] == TRANSPORT_MQ && Orocos::MQueue.auto_fallback_to_corba?
-                    policy[:transport] = TRANSPORT_CORBA
-                    Orocos.warn "failed to create a port writer on #{full_name} using the MQ transport, falling back to CORBA"
-                    retry
-                end
-                raise
-            end
-        rescue Orocos::ConnectionFailed => e
-            raise e, "failed to create a port writer on #{full_name} of type #{type_name} with policy #{policy.inspect}"
+            writer = Orocos.ruby_task.create_output_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => InputWriter) 
+            writer.port = self
+            writer.connect_to(self, policy)
+            writer
         end
 
         # Writes one sample with a default policy.
@@ -373,7 +365,7 @@ module Orocos
         # See OutputPort#connect_to for a in-depth explanation on +options+.
         def connect_to(output_port, options = Hash.new)
             unless output_port.kind_of?(OutputPort)
-                raise ArgumentError, "an input port can only connect to an output port"
+                raise ArgumentError, "an input port can only connect to an output port (got #{output_port})"
             end
             output_port.connect_to self, options
             self
@@ -402,22 +394,10 @@ module Orocos
         # The policy dictates how data should flow between the port and the
         # reader object. See #prepare_policy
         def reader(policy = Hash.new)
-            policy = Port.prepare_policy(policy)
-            policy = handle_mq_transport("#{full_name}.reader", policy) do
-                task.process && task.process.on_localhost?
-            end
-            begin
-                do_reader(OutputReader, orocos_type_name, policy)
-            rescue Orocos::ConnectionFailed => e
-                if policy[:transport] == TRANSPORT_MQ && Orocos::MQueue.auto_fallback_to_corba?
-                    policy[:transport] = TRANSPORT_CORBA
-                    Orocos.warn "failed to create a port reader on #{full_name} using the MQ transport, falling back to CORBA"
-                    retry
-                end
-                raise
-            end
-        rescue Orocos::ConnectionFailed => e
-            raise e, "failed to create a port reader on #{full_name} of type #{type_name} with policy #{policy.inspect}"
+            reader = Orocos.ruby_task.create_input_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => OutputReader)
+            reader.port = self
+            connect_to(reader, policy)
+            reader
         end
 
         # Connect this output port to an input port. +options+ defines the
@@ -455,7 +435,7 @@ module Orocos
                           end
 
             if !input_port.kind_of?(InputPort)
-                raise ArgumentError, "an output port can only connect to an input port"
+                raise ArgumentError, "an output port can only connect to an input port (got #{input_port})"
             elsif input_port.type_name != type_name
                 raise ArgumentError, "trying to connect an output port of type #{type_name} to an input port of type #{input_port.type_name}"
             end
@@ -479,154 +459,6 @@ module Orocos
         rescue Orocos::ConnectionFailed => e
             raise e, "failed to connect #{full_name} => #{input_port.full_name} with policy #{policy.inspect}"
         end
-    end
-
-    # Instances of this class allow to read a component's output port. They are
-    # obtained from OutputPort#reader
-    class OutputReader
-	class << self
-	    # The only way to create an OutputReader object is OutputPort#reader
-	    private :new
-	end
-
-        def full_name
-            "#{port.full_name}.reader"
-        end
-
-        OLD_DATA = 0
-        NEW_DATA = 1
-
-        # The OutputPort object this reader is linked to
-        attr_reader :port
-
-        def read_helper(sample, copy_old_data) # :nodoc:
-	    if process = port.task.process
-		if !process.alive?
-		    disconnect
-		    raise CORBA::ComError, "remote end is dead"
-		end
-	    end
-
-            if sample
-                if sample.class != port.type
-                    raise ArgumentError, "wrong sample type #{sample.class}, expected #{port.type}"
-                end
-                value = sample
-            else
-                value = port.type.new
-            end
-
-            result = do_read(port.orocos_type_name, value, copy_old_data)
-            if result == 1 || (result == 0 && copy_old_data)
-                if sample
-                    sample.invalidate_changes_from_converted_types
-                end
-                return [Typelib.to_ruby(value), result]
-            end
-        end
-
-        # Reads a sample on the associated output port.
-        #
-        # For simple types, the returned value is the Ruby representation of the
-        # C value.  For instance, C++ strings are represented as String objects,
-        # integers as Integer, ...
-        #
-        # For structures and vectors, the returned value is a representation of
-        # that type that Ruby can understand. Field access is transparent:
-        #
-        #   struct = reader.read
-        #   struct.a_field # returns either a simple value or another structure
-        #   struct.an_array.each do |element|
-        #   end
-        #   
-        # Raises CORBA::ComError if the communication is broken.
-        def read(sample = nil)
-            if value = read_helper(sample, true)
-                value[0]
-            end
-        end
-
-        # Reads a new sample on the associated output port.
-        #
-        # Unlike #read, it will return a non-nil value only if it it different
-        # from the last time #read or #read_new has been called
-        #
-        # For simple types, the returned value is the Ruby representation of the
-        # C value.  For instance, C++ strings are represented as String objects,
-        # integers as Integer, ...
-        #
-        # For structures and vectors, the returned value is a representation of
-        # that type that Ruby can understand. Field access is transparent:
-        #
-        #   struct = reader.read
-        #   struct.a_field # returns either a simple value or another structure
-        #   struct.an_array.each do |element|
-        #   end
-        #   
-        # Raises CORBA::ComError if the communication is broken.
-        def read_new(sample = nil)
-            if value = read_helper(sample, false)
-                value[0] if value[1] == NEW_DATA
-            end
-        end
-        
-        # Returns a new sample that can be used with read_new 
-        def new_sample; port.new_sample end
-
-        # Returns the type_name of the sample
-        def type_name; port.type_name end
-    end
-
-    # Instances of InputWriter allows to write data to a component's input port.
-    # 
-    # They are returned by InputPort#writer
-    class InputWriter
-	class << self
-	    # The only way to create an InputWriter object is InputPort#writer
-	    private :new
-	end
-
-        def full_name
-            "#{port.full_name}.writer"
-        end
-
-        # The InputPort object this writer is linked to
-        attr_reader :port
-
-        # Returns a new sample that can be used to write on this port
-        def new_sample; port.new_sample end
-
-        # Write a sample on the associated input port.
-        #
-        # If the data type is a struct, the sample can be provided either as a
-        # Typelib instance object or as a hash.
-        #
-        # In the first case, one can do:
-        #
-        #   value = input_port.new_sample # Get a new sample from the port
-        #   value = input_writer.new_sample # Get a new sample from the writer
-        #   value.field = 10
-        #   value.other_field = "a_string"
-        #   input_writer.write(value)
-        #
-        # In the second case, 
-        #   input_writer.write(:field => 10, :other_field => "a_string")
-        #   
-        # Raises CORBA::ComError if the communication is broken.
-        def write(data)
-	    if process = port.task.process
-		if !process.alive?
-		    disconnect
-		    raise CORBA::ComError, "remote end is dead"
-		end
-	    end
-
-            data = Typelib.from_ruby(data, port.type)
-            do_write(port.orocos_type_name, data)
-        end
-
-        # Returns the type_name of the sample
-        def type_name; port.type_name end
     end
 end
 

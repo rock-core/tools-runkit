@@ -69,9 +69,9 @@ module Orocos
 	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service.ip}"
 	    end
 
-            do_init(name || "")
             self.call_timeout    ||= 20000
             self.connect_timeout ||= 2000
+            do_init
 
             #check if name service is reachable
             CORBA.name_service.validate

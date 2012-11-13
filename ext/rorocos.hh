@@ -18,6 +18,9 @@ namespace RTT
         class TypeInfo;
     }
 }
+
+extern VALUE task_context_create(int argc, VALUE *argv,VALUE klass);
+
 extern RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
 extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(RTT::types::TypeInfo* type, bool do_check = true);
 extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(std::string const& name, bool do_check = true);

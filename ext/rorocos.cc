@@ -46,8 +46,6 @@ VALUE corba_access = Qnil;
 static VALUE cInputPort;
 static VALUE cOutputPort;
 static VALUE cPortAccess;
-static VALUE cInputWriter;
-static VALUE cOutputReader;
 static VALUE cPort;
 static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
@@ -55,6 +53,7 @@ static VALUE eStateTransitionFailed;
 extern void Orocos_init_CORBA();
 extern void Orocos_init_data_handling(VALUE cTaskContext);
 extern void Orocos_init_methods();
+extern void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOutputPort, VALUE cInputPort);
 static RTT::corba::CConnPolicy policyFromHash(VALUE options);
 
 RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check)
@@ -118,7 +117,7 @@ tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 // not exist. Use the CORBA name service to retrieve a task
 // by its name.
 ///
-static VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
+VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
 {
     if(!CorbaAccess::instance())
         rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
@@ -131,7 +130,7 @@ static VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
     try
     {
         RTaskContext *context = CorbaAccess::instance()->createRTaskContext(ior);
-        VALUE obj = simple_wrap(cTaskContext, context);
+        VALUE obj = simple_wrap(klass, context);
         rb_obj_call_init(obj,argc,argv);
         return obj;
     }
@@ -267,7 +266,7 @@ static VALUE task_context_attribute_names(VALUE self)
 // remote port +name+. Raises NotFound if the port does not exist. This is an
 // internal method. Use TaskContext#port to get a port object.
 ///
-static VALUE task_context_do_port(VALUE self, VALUE name)
+static VALUE task_context_do_port(VALUE self, VALUE name, VALUE model)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     RTT::corba::CPortType port_type;
@@ -286,22 +285,12 @@ static VALUE task_context_do_port(VALUE self, VALUE name)
     CORBA_EXCEPTION_HANDLERS
 
     VALUE obj = Qnil;
+    VALUE args[4] = { self, rb_str_dup(name), rb_str_new2(type_name), model };
     if (port_type == RTT::corba::CInput)
-    {
-        auto_ptr<RInputPort> rport( new RInputPort );
-        obj = simple_wrap(cInputPort, rport.release());
-    }
+        obj = rb_class_new_instance(4, args, cInputPort);
     else if (port_type == RTT::corba::COutput)
-    {
-        auto_ptr<ROutputPort> rport( new ROutputPort );
-        obj = simple_wrap(cOutputPort, rport.release());
-    }
+        obj = rb_class_new_instance(4, args, cOutputPort);
 
-    rb_iv_set(obj, "@name", rb_str_dup(name));
-    rb_iv_set(obj, "@task", self);
-    rb_iv_set(obj, "@orocos_type_name", rb_str_new2(type_name));
-
-    rb_funcall(obj, rb_intern("initialize"), 0);
     return obj;
 }
 
@@ -341,91 +330,6 @@ static VALUE task_context_port_names(VALUE self)
     CORBA_EXCEPTION_HANDLERS
 
     return result;
-}
-
-static void delete_port(RTT::base::PortInterface* port)
-{
-    // At process shutdown, CorbaAccess::instance() might be deinitialized
-    // BEFORE the port gets garbage collected. In this case, we have nothing to
-    // do
-    if (CorbaAccess::instance())
-    {
-        port->disconnect();
-        CorbaAccess::instance()->removePort(port);
-        delete port;
-    }
-}
-
-static VALUE do_input_port_writer(VALUE port, VALUE type_name, VALUE policy)
-{
-    CorbaAccess* corba = CorbaAccess::instance();
-    if(!corba)
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
-
-    // Get the port and create an anti-clone of it
-    RTaskContext* task; VALUE port_name;
-    tie(task, tuples::ignore, port_name) = getPortReference(port);
-    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
-
-    std::string local_name = corba->getLocalPortName(port);
-    RTT::base::PortInterface* local_port = ti->outputPort(local_name);
-
-    // Register this port on our data flow interface, and call CORBA to connect
-    // both ports
-    corba->addPort(local_port);
-    try {
-        RTT::corba::CConnPolicy corba_policy = policyFromHash(policy);
-	bool result = corba->getDataFlowInterface()->createConnection(local_name.c_str(),
-		task->ports, StringValuePtr(port_name),
-		corba_policy);
-        if (!local_port->connected() || !result)
-        {
-            corba->removePort(local_port);
-            rb_raise(eConnectionFailed, "failed to connect the writer object to its remote port");
-        }
-    }
-    CORBA_EXCEPTION_HANDLERS
-
-    // Finally, wrap the new port in a Ruby object
-    VALUE robj = Data_Wrap_Struct(cInputWriter, 0, delete_port, local_port);
-    rb_iv_set(robj, "@port", port);
-    return robj;
-}
-
-static VALUE do_output_port_reader(VALUE port, VALUE klass, VALUE type_name, VALUE policy)
-{
-    CorbaAccess* corba = CorbaAccess::instance();
-    if(!corba)
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
-
-    // Get the port and create an anti-clone of it
-    RTaskContext* task; VALUE port_name;
-    tie(task, tuples::ignore, port_name) = getPortReference(port);
-    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
-
-    std::string local_name = corba->getLocalPortName(port);
-    RTT::base::PortInterface* local_port = ti->inputPort(local_name);
-
-    // Register this port on our data flow interface, and call CORBA to connect
-    // both ports
-    corba->addPort(local_port);
-    try {
-        RTT::corba::CConnPolicy corba_policy = policyFromHash(policy);
-        bool result = task->ports->createConnection(StringValuePtr(port_name),
-                corba->getDataFlowInterface(), local_name.c_str(),
-                corba_policy);
-        if (!result)
-        {
-            corba->removePort(local_port);
-            rb_raise(eConnectionFailed, "failed to connect specified ports");
-        }
-    }
-    CORBA_EXCEPTION_HANDLERS
-
-    // Finally, wrap the new port in a Ruby object
-    VALUE robj = Data_Wrap_Struct(klass, 0, delete_port, local_port);
-    rb_iv_set(robj, "@port", port);
-    return robj;
 }
 
 // call-seq:
@@ -638,113 +542,6 @@ static VALUE do_port_remove_stream(VALUE rport, VALUE stream_name)
     return Qnil; // never reached
 }
 
-static VALUE do_output_reader_read(VALUE port_access, VALUE type_name, VALUE rb_typelib_value, VALUE copy_old_data)
-{
-    RTT::base::InputPortInterface& local_port = get_wrapped<RTT::base::InputPortInterface>(port_access);
-    Typelib::Value value = typelib_get(rb_typelib_value);
-
-    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
-    orogen_transports::TypelibMarshallerBase* typelib_transport =
-        get_typelib_transport(ti, false);
-
-    if (!typelib_transport || typelib_transport->isPlainTypelibType())
-    {
-        RTT::base::DataSourceBase::shared_ptr ds =
-            ti->buildReference(value.getData());
-        switch(local_port.read(ds))
-        {
-            case RTT::NoData:  return Qfalse;
-            case RTT::OldData: return INT2FIX(0);
-            case RTT::NewData: return INT2FIX(1);
-        }
-    }
-    else
-    {
-        orogen_transports::TypelibMarshallerBase::Handle* handle =
-            typelib_transport->createHandle();
-        // Set the typelib sample using the value passed from ruby to avoid
-        // unnecessary convertions. Don't touch the orocos sample though.
-        typelib_transport->setTypelibSample(handle, value, false);
-        RTT::base::DataSourceBase::shared_ptr ds =
-            typelib_transport->getDataSource(handle);
-        RTT::FlowStatus did_read = local_port.read(ds, RTEST(copy_old_data));
-
-        if (did_read == RTT::NewData || (did_read == RTT::OldData && RTEST(copy_old_data)))
-        {
-            typelib_transport->refreshTypelibSample(handle);
-            Typelib::copy(value, Typelib::Value(typelib_transport->getTypelibSample(handle), value.getType()));
-        }
-
-        typelib_transport->deleteHandle(handle);
-        switch(did_read)
-        {
-            case RTT::NoData:  return Qfalse;
-            case RTT::OldData: return INT2FIX(0);
-            case RTT::NewData: return INT2FIX(1);
-        }
-    }
-    return Qnil; // Never reached
-}
-static VALUE output_reader_clear(VALUE port_access)
-{
-    RTT::base::InputPortInterface& local_port = get_wrapped<RTT::base::InputPortInterface>(port_access);
-    local_port.clear();
-    return Qnil;
-}
-
-static VALUE do_input_writer_write(VALUE port_access, VALUE type_name, VALUE rb_typelib_value)
-{
-    RTT::base::OutputPortInterface& local_port = get_wrapped<RTT::base::OutputPortInterface>(port_access);
-    Typelib::Value value = typelib_get(rb_typelib_value);
-
-    orogen_transports::TypelibMarshallerBase* transport = 0;
-    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
-    if (ti && ti->hasProtocol(orogen_transports::TYPELIB_MARSHALLER_ID))
-    {
-        transport =
-            dynamic_cast<orogen_transports::TypelibMarshallerBase*>(ti->getProtocol(orogen_transports::TYPELIB_MARSHALLER_ID));
-    }
-
-    if (!transport)
-    {
-        RTT::base::DataSourceBase::shared_ptr ds =
-            ti->buildReference(value.getData());
-
-        local_port.write(ds);
-    }
-    else
-    {
-        orogen_transports::TypelibMarshallerBase::Handle* handle =
-            transport->createSample();
-
-        transport->setTypelibSample(handle, static_cast<uint8_t*>(value.getData()));
-        RTT::base::DataSourceBase::shared_ptr ds =
-            transport->getDataSource(handle);
-        local_port.write(ds);
-        transport->deleteHandle(handle);
-    }
-    return local_port.connected() ? Qtrue : Qfalse;
-}
-
-static VALUE do_local_port_disconnect(VALUE port_access)
-{
-    RTT::base::PortInterface& local_port = get_wrapped<RTT::base::PortInterface>(port_access);
-    local_port.disconnect();
-    return Qnil;
-}
-
-/*
- * call-seq: connected? => true or false
- *
- * Returns true if this port reader or writer is still connected to a remote
- * port
- */
-static VALUE do_local_port_connected(VALUE port_access)
-{
-    RTT::base::PortInterface& local_port = get_wrapped<RTT::base::PortInterface>(port_access);
-    return local_port.connected() ? Qtrue : Qfalse;
-}
-
 /* Document-class: Orocos::NotFound
  *
  * This exception is raised every time an Orocos object is required by name,
@@ -890,8 +687,6 @@ extern "C" void Init_rorocos_ext()
     cOutputPort   = rb_define_class_under(mOrocos, "OutputPort", cPort);
     cInputPort    = rb_define_class_under(mOrocos, "InputPort", cPort);
     cPortAccess   = rb_define_class_under(mOrocos, "PortAccess", rb_cObject);
-    cOutputReader = rb_define_class_under(mOrocos, "OutputReader", cPortAccess);
-    cInputWriter  = rb_define_class_under(mOrocos, "InputWriter", cPortAccess);
     eNotFound     = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
     eStateTransitionFailed = rb_define_class_under(mOrocos, "StateTransitionFailed", rb_eRuntimeError);
     eConnectionFailed = rb_define_class_under(mOrocos, "ConnectionFailed", rb_eRuntimeError);
@@ -911,7 +706,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_attribute_type_name", RUBY_METHOD_FUNC(task_context_attribute_type_name), 1);
     rb_define_method(cTaskContext, "do_attribute_names", RUBY_METHOD_FUNC(task_context_attribute_names), 0);
     rb_define_method(cTaskContext, "do_property_names", RUBY_METHOD_FUNC(task_context_property_names), 0);
-    rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 1);
+    rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 2);
     rb_define_method(cTaskContext, "do_port_names", RUBY_METHOD_FUNC(task_context_port_names), 0);
 
     rb_define_method(cPort, "connected?", RUBY_METHOD_FUNC(port_connected_p), 0);
@@ -920,17 +715,10 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cPort, "do_create_stream", RUBY_METHOD_FUNC(do_port_create_stream), 1);
     rb_define_method(cPort, "do_remove_stream", RUBY_METHOD_FUNC(do_port_remove_stream), 1);
     rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
-    rb_define_method(cOutputPort, "do_reader", RUBY_METHOD_FUNC(do_output_port_reader), 3);
-    rb_define_method(cInputPort, "do_writer", RUBY_METHOD_FUNC(do_input_port_writer), 2);
-
-    rb_define_method(cPortAccess, "disconnect", RUBY_METHOD_FUNC(do_local_port_disconnect), 0);
-    rb_define_method(cPortAccess, "connected?", RUBY_METHOD_FUNC(do_local_port_connected), 0);
-    rb_define_method(cOutputReader, "do_read", RUBY_METHOD_FUNC(do_output_reader_read), 3);
-    rb_define_method(cOutputReader, "clear", RUBY_METHOD_FUNC(output_reader_clear), 0);
-    rb_define_method(cInputWriter, "do_write", RUBY_METHOD_FUNC(do_input_writer_write), 2);
 
     Orocos_init_CORBA();
     Orocos_init_data_handling(cTaskContext);
+    Orocos_init_ruby_task_context(mOrocos, cTaskContext, cOutputPort, cInputPort);
     Orocos_init_methods();
 }
 

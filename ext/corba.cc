@@ -30,11 +30,11 @@ extern VALUE eNotInitialized;
 static VALUE cNameService;
 
 CorbaAccess* CorbaAccess::the_instance = NULL;
-void CorbaAccess::init(std::string const& name, int argc, char* argv[])
+void CorbaAccess::init(int argc, char* argv[])
 {
     if (the_instance)
         return;
-    the_instance = new CorbaAccess(name, argc, argv);
+    the_instance = new CorbaAccess(argc, argv);
 }
 void CorbaAccess::deinit()
 {
@@ -42,41 +42,16 @@ void CorbaAccess::deinit()
     the_instance = NULL;
 }
 
-CorbaAccess::CorbaAccess(std::string const& name, int argc, char* argv[])
-    : port_id_counter(0)
+CorbaAccess::CorbaAccess(int argc, char* argv[])
 {
     // First initialize the ORB. We use TaskContextProxy::InitORB as we will
     // have to create a servant for our local DataFlowInterface object.
     RTT::corba::TaskContextServer::InitOrb(argc, argv);
-
-    // Finally, create a dataflow interface and export it to CORBA. This is
-    // needed to use the port interface. Since we're lazy, we just create a
-    // normal TaskContext and use TaskContextServer to create the necessary
-    // interfaces.
-    std::string task_name;
-    if (name.empty())
-        task_name = std::string("orocosrb_") + boost::lexical_cast<std::string>(getpid());
-    else
-        task_name = name;
-
-    m_task   = new RTT::TaskContext(task_name);
-    RTT::corba::CorbaDispatcher::Instance(m_task->ports(), ORO_SCHED_OTHER, RTT::os::LowestPriority);
-
-    // NOTE: should not be deleted by us, RTT's shutdown will do it
-    m_task_server = RTT::corba::TaskContextServer::Create(m_task);
-    m_corba_task = m_task_server->server();
-    m_corba_dataflow = m_corba_task->ports();
 }
 
 CorbaAccess::~CorbaAccess()
 {
-    m_corba_task     = RTT::corba::CTaskContext::_nil();
-    m_corba_dataflow = RTT::corba::CDataFlowInterface::_nil();
-
     RTT::corba::TaskContextServer::ShutdownOrb(true);
-
-    // DON'T DELETE m_task_server: shutdown() will do it for us
-    delete m_task;
 }
 
 RTaskContext* CorbaAccess::createRTaskContext(std::string const& ior)
@@ -117,26 +92,6 @@ RTT::corba::CTaskContext_var CorbaAccess::getCTaskContext(std::string const& ior
     return mtask;
 }
 
-RTT::corba::CDataFlowInterface_ptr CorbaAccess::getDataFlowInterface() const
-{ return m_corba_dataflow; }
-
-string CorbaAccess::getLocalPortName(VALUE port)
-{
-    RTaskContext* task; VALUE task_name, port_name;
-    tie(task, task_name, port_name) = getPortReference(port);
-    return std::string(StringValuePtr(task_name)) + "." + StringValuePtr(port_name) + "." + boost::lexical_cast<string>(++port_id_counter);
-}
-
-void CorbaAccess::addPort(RTT::base::PortInterface* local_port)
-{
-    m_task->ports()->addPort(*local_port);
-}
-
-void CorbaAccess::removePort(RTT::base::PortInterface* local_port)
-{
-    m_task->ports()->removePort(local_port->getName());
-}
-
 static VALUE corba_set_call_timeout(VALUE mod, VALUE duration)
 {
     omniORB::setClientCallTimeout(NUM2INT(duration));
@@ -166,7 +121,7 @@ static void corba_deinit(void*)
  * It raises Orocos::CORBAError if either the ORB failed to initialize or the
  * name server cannot be found.
  */
-static VALUE corba_init(VALUE mod, VALUE name)
+static VALUE corba_init(VALUE mod)
 {
     // Initialize only once ...
     if (!NIL_P(corba_access))
@@ -174,7 +129,7 @@ static VALUE corba_init(VALUE mod, VALUE name)
 
     try {
         char const* argv[2] = { "bla", 0 };
-        CorbaAccess::init(StringValuePtr(name), 1, const_cast<char**>(argv));
+        CorbaAccess::init(1, const_cast<char**>(argv));
         corba_access = Data_Wrap_Struct(rb_cObject, 0, corba_deinit, CorbaAccess::instance());
         rb_iv_set(mCORBA, "@corba", corba_access);
     } catch(CORBA::Exception& e) {
@@ -590,7 +545,7 @@ static VALUE name_service_ior(VALUE self,VALUE task_name)
 void Orocos_init_CORBA()
 {
     rb_define_singleton_method(mCORBA, "initialized?", RUBY_METHOD_FUNC(corba_is_initialized), 0);
-    rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 1);
+    rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 0);
     rb_define_singleton_method(mCORBA, "do_deinit", RUBY_METHOD_FUNC(corba_deinit), 0);
     rb_define_singleton_method(mCORBA, "do_call_timeout", RUBY_METHOD_FUNC(corba_set_call_timeout), 1);
     rb_define_singleton_method(mCORBA, "do_connect_timeout", RUBY_METHOD_FUNC(corba_set_connect_timeout), 1);
