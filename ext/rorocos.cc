@@ -25,9 +25,6 @@
 #include <mqueue.h>
 #include <boost/lexical_cast.hpp>
 #endif
-#ifdef HAS_ROS
-#include <rtt/transports/ros/RosLib.hpp>
-#endif
 
 using namespace std;
 using namespace boost;
@@ -51,6 +48,7 @@ static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
 
 extern void Orocos_init_CORBA();
+extern void Orocos_init_ROS(VALUE mOrocos);
 extern void Orocos_init_data_handling(VALUE cTaskContext);
 extern void Orocos_init_methods();
 extern void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOutputPort, VALUE cInputPort);
@@ -678,11 +676,6 @@ extern "C" void Init_rorocos_ext()
     rb_define_singleton_method(mMQueue, "transportable_type_names", RUBY_METHOD_FUNC(mqueue_transportable_type_names), 0);
 #endif
 
-#ifdef HAS_ROS
-    VALUE mROS  = rb_define_module_under(mOrocos, "ROS");
-    rb_const_set(mOrocos, rb_intern("TRANSPORT_ROS"),    INT2FIX(ORO_ROS_PROTOCOL_ID));
-#endif
-    
     cPort         = rb_define_class_under(mOrocos, "Port", rb_cObject);
     cOutputPort   = rb_define_class_under(mOrocos, "OutputPort", cPort);
     cInputPort    = rb_define_class_under(mOrocos, "InputPort", cPort);
@@ -717,6 +710,9 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cOutputPort, "do_connect_to", RUBY_METHOD_FUNC(do_port_connect_to), 2);
 
     Orocos_init_CORBA();
+#ifdef HAS_ROS
+    Orocos_init_ROS(mOrocos);
+#endif
     Orocos_init_data_handling(cTaskContext);
     Orocos_init_ruby_task_context(mOrocos, cTaskContext, cOutputPort, cInputPort);
     Orocos_init_methods();

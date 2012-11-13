@@ -68,7 +68,8 @@ module Orocos
     AUTOLOADED_TRANSPORTS = {
         'typelib' => true,
         'corba' => true,
-        'mqueue' => false
+        'mqueue' => false,
+        'ros' => false
     }
 
     # Load the typekit whose name is given
