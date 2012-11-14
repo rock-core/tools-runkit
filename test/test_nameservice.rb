@@ -102,13 +102,13 @@ describe Orocos::CORBA::NameService do
     describe "when unreachable namservice is accessed" do
         it "must raise ComError" do 
             assert_raises(Orocos::CORBA::ComError) do
-                service = Orocos::CORBA::NameService.new("UNREACHABLE_HOST_NAME")
+                service = Orocos::CORBA::NameService.new("UNREACHABLE_HOST_NAME.does.not.exist")
                 service.names
             end
         end
         it "must raise ComError" do 
             assert_raises(Orocos::CORBA::ComError) do
-                service = Orocos::CORBA::NameService.new("UNREACHABLE_HOST_NAME")
+                service = Orocos::CORBA::NameService.new("UNREACHABLE_HOST_NAME.does.not.exist")
                 service.validate
             end
         end
