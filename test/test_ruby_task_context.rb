@@ -13,22 +13,6 @@ describe Orocos::RubyTaskContext do
     include Orocos
     include Orocos::Spec
 
-    def setup
-        super
-        @allocated_task_contexts = Array.new
-    end
-
-    def teardown
-        @allocated_task_contexts.each(&:dispose)
-        super
-    end
-
-    def new_ruby_task_context(name)
-        task = Orocos::RubyTaskContext.new(name)
-        @allocated_task_contexts << task
-        task
-    end
-
     it "should be registered on the name server" do
         task = new_ruby_task_context("task")
         assert Orocos.name_service.get("task")

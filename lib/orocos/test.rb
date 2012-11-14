@@ -116,9 +116,11 @@ module Orocos
 
             @old_timeout = Orocos::CORBA.connect_timeout
             Orocos::CORBA.connect_timeout = 50
+            @allocated_task_contexts = Array.new
             super
         end
         def teardown
+            @allocated_task_contexts.each(&:dispose)
 	    flexmock_teardown
             super
             Orocos::CORBA.connect_timeout = @old_timeout if @old_timeout
@@ -126,6 +128,12 @@ module Orocos
             Orocos::CORBA.instance_variable_set :@loaded_typekits, []
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
             Orocos.clear
+        end
+
+        def new_ruby_task_context(name)
+            task = Orocos::RubyTaskContext.new(name)
+            @allocated_task_contexts << task
+            task
         end
     end
 end
