@@ -423,7 +423,7 @@ module Orocos
                     # To support deprecated way of setting the host name
                     CORBA.warn "Orocos::CORBA.name_service = 'host_name' is deprecated."
                     CORBA.warn "Use Orocos::CORBA.name_service.ip = 'host_name' instead."
-                    name_service.ip = name_service
+                    name_service.ip = service
                 else
                     #check if the old name service is added to the global Orocos.name_service
                     #and replace it with the new one
