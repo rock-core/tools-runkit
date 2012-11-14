@@ -24,7 +24,29 @@ module Orocos
             def initialize(server, name)
                 @server = server
                 @name = name
-                @topics = Hash.new
+                @input_topics = Hash.new
+                @output_topics = Hash.new
+            end
+
+            def state
+                :RUNNING
+            end
+
+            def reachable?
+                server.pid
+                true
+            rescue ComError
+                false
+            end
+
+            def doc?; false end
+            attr_reader :doc
+
+            def each_property; end
+
+
+            def has_port?(name)
+                !!(find_output_port(name) || find_input_port(name))
             end
 
             def port(name)
@@ -80,7 +102,7 @@ module Orocos
                 return enum_for(:each_output_port) if !block_given?
                 server.publications.each do |topic_name, topic_type|
                     if ROS.compatible_message_type?(topic_type)
-                        topic = (@topics[topic_name] ||= Topic.new(self, topic_name, topic_type))
+                        topic = (@output_topics[topic_name] ||= OutputTopic.new(self, topic_name, topic_type))
                         yield(topic)
                     end
                 end
@@ -91,7 +113,7 @@ module Orocos
                 return enum_for(:each_input_port) if !block_given?
                 server.subscriptions.each do |topic_name, topic_type|
                     if ROS.compatible_message_type?(topic_type)
-                        topic = (@topics[topic_name] ||= Topic.new(self, topic_name, topic_type))
+                        topic = (@input_topics[topic_name] ||= InputTopic.new(self, topic_name, topic_type))
                         yield(topic)
                     end
                 end

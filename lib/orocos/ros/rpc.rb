@@ -52,6 +52,8 @@ module Orocos
                 else
                     result
                 end
+            rescue Errno::ECONNREFUSED, Errno::EPIPE, Errno::ECONNRESET => e
+                raise ComError, e.message, e.backtrace
             end
         end
 
@@ -78,6 +80,16 @@ module Orocos
             # [topic_name, topic_type_name] pairs
             def publications
                 call('getPublications', caller_id)
+            end
+
+            # [String] the URI of the master that manages this slave
+            def pid
+                call('getPid', caller_id)
+            end
+
+            # [String] the URI of the master that manages this slave
+            def master_uri
+                call('getMasterUri', caller_id)
             end
         end
     end

@@ -16,10 +16,15 @@ module Orocos
             end
 
             def get(name, options = Hash.new)
-                node_uri = ros_master.lookup_node(name)
+                node_uri =
+                    begin ros_master.lookup_node(name)
+                    rescue ArgumentError
+                        raise Orocos::NotFound, "no such ROS node #{name}"
+                    end
                 server = ROSSlave.new(node_uri, caller_id)
                 return Node.new(server, name)
             end
+
             def names
                 state = ros_master.system_state
 
@@ -29,13 +34,12 @@ module Orocos
                         result |= node_names.to_set
                     end
                 end
-                result
+                result.to_a
             end
             def validate
-                ros_master
+                names
             end
         end
-
     end
 end
 

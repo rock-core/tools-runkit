@@ -18,6 +18,14 @@ module Orocos
             attr_reader :orocos_type_name
             # The ROS message type name
             attr_reader :ros_message_type
+            # Documentation string
+            attr_reader :doc
+
+            def doc?; false end
+
+            def full_name
+                "#{task.name}/#{name}"
+            end
 
             @@local_transient_port_id = 0
             def self.transient_local_port_name(topic_name)
@@ -52,7 +60,13 @@ module Orocos
                 @type_name = @type.name
             end
 
-            def reader
+            def pretty_print(pp) # :nodoc:
+                pp.text " #{name} (#{type_name}), ros: #{topic_name}(#{ros_message_type})"
+            end
+        end
+
+        class OutputTopic < Topic
+            def reader(policy = Hash.new)
                 # Create ourselves a transient port on Orocos.ruby_task and
                 # connect it to the topic
                 reader = Orocos.ruby_task.create_input_port(
@@ -62,8 +76,10 @@ module Orocos
                 reader.create_stream(Orocos::TRANSPORT_ROS, topic_name)
                 reader
             end
+        end
 
-            def writer
+        class InputTopic < Topic
+            def writer(policy = Hash.new)
                 # Create ourselves a transient port on Orocos.ruby_task and
                 # connect it to the topic
                 writer = Orocos.ruby_task.create_output_port(
@@ -72,10 +88,6 @@ module Orocos
                     :permanent => false)
                 writer.create_stream(Orocos::TRANSPORT_ROS, topic_name)
                 writer
-            end
-
-            def pretty_print(pp) # :nodoc:
-                pp.text " #{name} (#{type_name}), ros: #{topic_name}(#{ros_message_type})"
             end
         end
     end
