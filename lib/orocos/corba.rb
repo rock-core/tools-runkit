@@ -63,7 +63,7 @@ module Orocos
         # 
         # It does not need to be called explicitely, as it is called by
         # Orocos.initialize
-	def self.init(name = nil)
+	def self.initialize
             #setup environment which is used by the orocos.rb
 	    if !CORBA.name_service.ip.empty?
 	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service.ip}"

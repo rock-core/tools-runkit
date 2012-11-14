@@ -383,7 +383,7 @@ module Orocos
     # a RuntimeError exception whose message will describe the particular
     # problem. See the "Error messages" package in the user's guide for more
     # information on how to fix those.
-    def self.initialize(name = nil)
+    def self.initialize(name = "orocosrb_#{::Process.pid}")
         if !registry
             self.load(name)
         end
@@ -403,11 +403,15 @@ module Orocos
         end
 
         if !Orocos::CORBA.initialized?
-            Orocos::CORBA.init(name)
+            Orocos::CORBA.initialize
         end
         @initialized = true
 
-        @ruby_task = RubyTaskContext.new(name || "orocosrb_#{::Process.pid}")
+        if Orocos::ROS.enabled?
+            Orocos::ROS.initialize(name)
+        end
+
+        @ruby_task = RubyTaskContext.new(name)
     end
 
     def self.create_orogen_interface(name = nil, &block)

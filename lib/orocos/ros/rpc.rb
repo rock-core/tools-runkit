@@ -1,6 +1,28 @@
 module Orocos
     module ROS
-        def self.initialize(name)
+        class << self
+            # The caller ID for this process. Defaults to orocosrb_#{pid}
+            attr_accessor :caller_id
+            # Returns the URI to the ROS master
+            def self.ros_master_uri
+                ENV['ROS_MASTER_URI']
+            end
+            # The global ROS master as a XMLRPC object
+            #
+            # It gets initialized on first call
+            #
+            # @raise [Orocos::ComError] if the ROS master is not available
+            def self.ros_master
+                @ros_master ||= XMLRPC::Client::Proxy.new(ros_master_uri, '')
+            end
+        end
+        @caller_id = "/orocosrb_#{::Process.pid}"
+
+        def self.initialize(name = ROS.caller_id[1..-1])
+            if initialized?
+                raise RuntimeError, "cannot initialize the ROS layer multiple times"
+            end
+
             do_initialize(name)
             at_exit do
                 Orocos::ROS.shutdown
