@@ -31,8 +31,11 @@ ELSE(NOT RUBY_INCLUDE_PATH)
 
 	SET_SOURCE_FILES_PROPERTIES(${ARGN} PROPERTIES COMPILE_FLAGS "${RUBY_CFLAGS}")
 	ADD_LIBRARY(${target} MODULE ${ARGN})
-        set_target_properties(${target} PROPERTIES
-            LINK_FLAGS "-z noexecstack")
+        STRING(REGEX MATCH "arm.*" ARCH ${CMAKE_SYSTEM_PROCESSOR})
+        IF("${ARCH}" STREQUAL "")
+            set_target_properties(${target} PROPERTIES
+                LINK_FLAGS "-z noexecstack")
+        ENDIF("${ARCH}" STREQUAL "")
 	SET_TARGET_PROPERTIES(${target} PROPERTIES PREFIX "")
     ENDMACRO(ADD_RUBY_EXTENSION)
 ENDIF(NOT RUBY_INCLUDE_PATH)
