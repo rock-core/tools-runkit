@@ -20,12 +20,15 @@ describe "Nameservice" do
 
     def setup
         Nameservice::reset
+        @current_ip = Orocos::CORBA.name_service.ip
+        super
     end
 
     def teardown
         # Reenable CORBA
         Nameservice.reset
         Nameservice.enable('CORBA')
+        Orocos::CORBA.name_service.ip = @current_ip
     end
 
     it "throws on enabling unknown type" do
