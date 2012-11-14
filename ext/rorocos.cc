@@ -32,8 +32,9 @@ using namespace RTT::corba;
 
 VALUE mOrocos;
 VALUE mCORBA;
-VALUE eCORBA;
 VALUE eComError;
+VALUE eCORBA;
+VALUE eCORBAComError;
 VALUE cNameService;
 VALUE cTaskContext;
 VALUE eNotFound;
@@ -48,7 +49,7 @@ static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
 
 extern void Orocos_init_CORBA();
-extern void Orocos_init_ROS(VALUE mOrocos);
+extern void Orocos_init_ROS(VALUE mOrocos, VALUE eComError);
 extern void Orocos_init_data_handling(VALUE cTaskContext);
 extern void Orocos_init_methods();
 extern void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOutputPort, VALUE cInputPort);
@@ -138,7 +139,7 @@ VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
     }
     catch(std::runtime_error &e)
     {
-        rb_raise(eComError, "%s", e.what());
+        rb_raise(eCORBAComError, "%s", e.what());
     }
     CORBA_EXCEPTION_HANDLERS
 }
@@ -647,8 +648,9 @@ extern "C" void Init_rorocos_ext()
 {
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");
-    eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
-    eComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
+    eComError    = rb_define_class_under(mOrocos, "ComError", rb_eRuntimeError);
+    eCORBA    = rb_define_class_under(mOrocos, "CORBAError", eComError);
+    eCORBAComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
     eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "load_standard_typekits", RUBY_METHOD_FUNC(orocos_load_standard_typekits), 0);
@@ -711,7 +713,7 @@ extern "C" void Init_rorocos_ext()
 
     Orocos_init_CORBA();
 #ifdef HAS_ROS
-    Orocos_init_ROS(mOrocos);
+    Orocos_init_ROS(mOrocos, eComError);
 #endif
     Orocos_init_data_handling(cTaskContext);
     Orocos_init_ruby_task_context(mOrocos, cTaskContext, cOutputPort, cInputPort);

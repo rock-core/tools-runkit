@@ -38,10 +38,10 @@ static VALUE ros_shutdown()
     ros::shutdown();
 }
 
-void Orocos_init_ROS(VALUE mOrocos)
+void Orocos_init_ROS(VALUE mOrocos, VALUE eComError)
 {
     VALUE mROS  = rb_define_module_under(mOrocos, "ROS");
-    eROSComError = rb_define_class_under(mROS, "ComError", rb_eRuntimeError);
+    eROSComError = rb_define_class_under(mROS, "ComError", eComError);
     rb_define_singleton_method(mROS, "do_initialize", RUBY_METHOD_FUNC(ros_init), -1);
     rb_define_singleton_method(mROS, "shutdown", RUBY_METHOD_FUNC(ros_shutdown), 0);
     rb_const_set(mOrocos, rb_intern("TRANSPORT_ROS"),    INT2FIX(ORO_ROS_PROTOCOL_ID));

@@ -168,7 +168,7 @@ module Orocos
             end
             @state_queue
 
-        rescue Orocos::CORBAError
+        rescue Orocos::ComError
             @state_queue = []
         end
 

@@ -22,7 +22,7 @@ using namespace corba;
 extern VALUE mCORBA;
 extern VALUE mOrocos;
 extern VALUE eCORBA;
-extern VALUE eComError;
+extern VALUE eCORBAComError;
 extern VALUE corba_access;
 extern VALUE eNotFound;
 extern VALUE eNotInitialized;
@@ -245,7 +245,7 @@ void processErrors(NameServiceBlockingMsg &msg)
             break;
         case ERROR:
         default:
-            rb_raise(eComError,"%s", msg.error_message.c_str());
+            rb_raise(eCORBAComError,"%s", msg.error_message.c_str());
         }
     }
 }
@@ -406,7 +406,7 @@ static VALUE name_service_task_context_names(VALUE self)
     }
     catch(NameServiceClientError &e)
     {
-        rb_raise(eComError,"%s", e.what());
+        rb_raise(eCORBAComError,"%s", e.what());
     }
     CORBA_EXCEPTION_HANDLERS
 #endif
@@ -442,7 +442,7 @@ static VALUE name_service_unbind(VALUE self,VALUE task_name)
     }
     catch(NameServiceClientError &e)
     {
-        rb_raise(eComError,"%s",e.what());
+        rb_raise(eCORBAComError,"%s",e.what());
     }
     CORBA_EXCEPTION_HANDLERS
 #endif
@@ -470,7 +470,7 @@ static VALUE name_service_validate(VALUE self)
     }
     catch(NameServiceClientError &e)
     {
-        rb_raise(eComError, "%s",e.what());
+        rb_raise(eCORBAComError, "%s",e.what());
     }
     CORBA_EXCEPTION_HANDLERS
 #endif
@@ -502,7 +502,7 @@ static VALUE name_service_bind(VALUE self,VALUE task,VALUE task_name)
     }
     catch(NameServiceClientError &e)
     {
-        rb_raise(eComError,"%s", e.what());
+        rb_raise(eCORBAComError,"%s", e.what());
     }
     CORBA_EXCEPTION_HANDLERS
 #endif
@@ -533,7 +533,7 @@ static VALUE name_service_ior(VALUE self,VALUE task_name)
     }
     catch(NameServiceClientError &e)
     {
-        rb_raise(eComError,"%s", e.what());
+        rb_raise(eCORBAComError,"%s", e.what());
     }
     CORBA_EXCEPTION_HANDLERS
 #endif

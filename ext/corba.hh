@@ -17,7 +17,7 @@ using namespace std;
 
 extern VALUE corba_access;
 extern VALUE eCORBA;
-extern VALUE eComError;
+extern VALUE eCORBAComError;
 extern VALUE mCORBA;
 extern VALUE eNotFound;
 extern VALUE eNotInitialized;
@@ -86,8 +86,8 @@ extern CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value sr
 
 #define CORBA_EXCEPTION_HANDLERS \
     catch(CosNaming::NamingContext::NotFound& e) { rb_raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
-    catch(CORBA::COMM_FAILURE&) { rb_raise(eComError, "CORBA communication failure"); } \
-    catch(CORBA::TRANSIENT&) { rb_raise(eComError, "CORBA transient exception"); } \
+    catch(CORBA::COMM_FAILURE&) { rb_raise(eCORBAComError, "CORBA communication failure"); } \
+    catch(CORBA::TRANSIENT&) { rb_raise(eCORBAComError, "CORBA transient exception"); } \
     catch(CORBA::INV_OBJREF&) { rb_raise(eCORBA, "CORBA invalid obj reference"); } \
     catch(CORBA::SystemException&) { rb_raise(eCORBA, "CORBA system exception"); } \
     catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
