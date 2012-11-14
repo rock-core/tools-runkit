@@ -143,6 +143,8 @@ module Orocos
         # Returns a StateReader object that allows to flexibly monitor the
         # task's state
         def state_reader(policy = Hash.new)
+            policy = Port.prepare_policy({:init => true, :type => :buffer, :size => 10}.merge(policy))
+
             reader = port('state').reader(policy)
             reader.extend StateReader
             reader.instance_variable_set :@state_symbols, @state_symbols
