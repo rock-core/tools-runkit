@@ -15,7 +15,11 @@ describe Orocos::Local::NameService do
     before do 
         @service = Orocos::Local::NameService.new "dummy" => :dummy
     end
-    
+
+    after do
+        Orocos.clear
+    end
+
     describe "when asked for task names" do
         it "must return all registered task names" do 
             assert(@service.names.include?("dummy"))
@@ -83,6 +87,10 @@ describe Orocos::CORBA::NameService do
             end
         end
         Orocos.initialize
+    end
+
+    after do
+        Orocos.clear
     end
 
     describe "when orocos is initialized" do
