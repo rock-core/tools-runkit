@@ -21,7 +21,7 @@ static VALUE ros_init(int argc, VALUE* _argv, VALUE mod)
 
     if(!ros::isInitialized()){
         int argc = 0;
-        ros::init(argc,NULL,StringValuePtr(name), ros::init_options::NoSigintHandler | ros::init_options::AnonymousName | ros::init_options::NoRosout);
+        ros::init(argc,NULL,StringValuePtr(name), ros::init_options::NoSigintHandler | ros::init_options::NoRosout);
       if(ros::master::check())
           ros::start();
       else{
