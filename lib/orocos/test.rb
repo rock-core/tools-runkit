@@ -124,7 +124,6 @@ module Orocos
 	    flexmock_teardown
             super
             Orocos::CORBA.connect_timeout = @old_timeout if @old_timeout
-            Orocos.instance_variable_set :@registry, nil
             Orocos::CORBA.instance_variable_set :@loaded_typekits, []
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
             Orocos.clear
