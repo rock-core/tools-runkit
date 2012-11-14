@@ -23,7 +23,7 @@ Orocos.initialize
 
 all_tasks = []
 sizes = [0, 0]
-Orocos.task_names.each do |name|
+Orocos.name_service.names.each do |name|
     result = [name]
     begin
         task = Orocos::TaskContext.get(name)
