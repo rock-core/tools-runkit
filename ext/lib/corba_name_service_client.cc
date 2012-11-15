@@ -60,7 +60,7 @@ std::vector<std::string> NameServiceClient::getTaskContextNames()
     CosNaming::Name server_name;
     server_name.length(1);
     server_name[0].id = CORBA::string_dup(TOPIC);
-    std::vector<string> task_names;
+    std::vector<std::string> task_names;
     CosNaming::BindingList_var binding_list;
     CosNaming::BindingIterator_var binding_it;
     CosNaming::NamingContext_var root_context = getNameService();
