@@ -36,7 +36,11 @@ module Orocos
         @name_service ||= NameService.new(Orocos::CORBA.name_service)
     end
 
+    # @deprecated
+    #
     # Returns the task names that are registered on CORBA
+    #
+    # You should use Orocos.name_service.names
     def self.task_names
         name_service.names
     end
@@ -97,10 +101,11 @@ module Orocos
             raise NotImplementedError
         end
 
-        # Gets all Orocos Task names known by the name service.
+        # Returns all Orocos Task names known by the name service 
+        # inclusive the namespace of the NameService instance.
         #
         # @return [Array<String>]
-        def names()
+        def names
             raise NotImplementedError
         end
 
@@ -116,7 +121,7 @@ module Orocos
         #
         # @return [Boolean]
         def reachable?
-            do_validate
+            validate
             true
         rescue
             false
@@ -148,7 +153,7 @@ module Orocos
         def each_task
             names.each do |name|
                 task = begin
-                           TaskContext.get(name)
+                           get(name)
                        rescue Orocos::NotFound
                        end
                 yield(task) if task
@@ -162,7 +167,7 @@ module Orocos
         # @raise [RuntimeError] if none of the tasks are running, reachable or more than one of them is running.
         def find_one_running(*names)
             candidates = names.map do |name|
-                begin Orocos.name_service.get name
+                begin get name
                 rescue Orocos::NotFound
                 end
             end.compact
@@ -209,12 +214,9 @@ module Orocos
 
         #(see Namespace#same_namespace?)
         def same_namespace?(name)
-            name_services.each do |service|
-                if !service.respond_to?(:same_namespace?) || service.same_namespace?(name)
-                    return true
-                end
+            name_services.any? do |service|
+                service.same_namespace?(name)
             end
-            false
         end
 
         # @return [Array] The array with all underlying name services
@@ -259,7 +261,7 @@ module Orocos
         # @param [class] klass the class
         # @return [Boolean]
         def include?(klass)
-            nil != find(klass)
+            !!find(klass)
         end
 
         # Checks if there is at least one underlying name service
@@ -274,7 +276,7 @@ module Orocos
             verify_same_namespace(name)
             tasks = name_services.collect do |service|
                 begin
-                    if !service.respond_to?(:namespace?) || service.namespace?(name)
+                    if service.same_namespace?(name)
                         service.get(name,options)
                     end
                 rescue Orocos::NotFound
@@ -290,9 +292,10 @@ module Orocos
         def ior(name)
             verify_same_namespace(name)
             name_services.each do |service|
+                next if !service.respond_to?(:ior)
                 begin
-                    if !service.respond_to?(:namespace?) || service.namespace?(name)
-                        return service.ior(name) if service.respond_to?(:ior)
+                    if service.same_namespace?(name)
+                        return service.ior(name)
                     end
                 rescue Orocos::NotFound
                 end
@@ -303,19 +306,15 @@ module Orocos
         #(see NameServiceBase#names)
         def names
             names = name_services.collect do |service|
-                if service.respond_to? :names
-                    service.names
-                elsif service.respond_to? :full_names
-                    service.full_names
-                end
+                service.names
             end
-            names.flatten.uniq.compact
+            names.flatten.uniq
         end
 
         # Calls cleanup on all underlying name services which support cleanup
         def cleanup
             name_services.each do |service|
-                service.cleanup if service.respond_to? :cleanup
+                service.cleanup
             end
         end
 
@@ -326,8 +325,8 @@ module Orocos
         
         private
         # NameService does not support its own namespace as it abstracts all underlying name services.
+        # Therefore, overwrite the one from the included module.
         def namespace=(name)
-            NotImplementedError
         end
 
         # Generates an error message if a {TaskContext} of the given name cannot be found
@@ -354,7 +353,7 @@ module Orocos
             # @note The namespace is always "Local"
             def initialize(tasks = Hash.new)
                 @registered_tasks = tasks
-                self.namespace = "Local"
+                namespace = "Local"
             end
 
             #(see NameServiceBase#get)
@@ -380,8 +379,8 @@ module Orocos
             #
             # @param [String,TaskContext] name The name or task
             def deregister(name)
-                name = if name.respond_to? :full_name
-                           name.full_name
+                name = if name.respond_to? :name
+                           name.name
                        else
                            name
                        end
@@ -389,17 +388,9 @@ module Orocos
                 @registered_tasks.delete basename(name)
             end
 
-            #(see NameServiceBase#names)
+            # (see NameServiceBase#names)
             def names
-                @registered_tasks.keys
-            end
-
-            # Returns all Orocos Task names known by the name service 
-            # inclusive the namespace of the NameService instance.
-            #
-            # @return [Array<String>]
-            def full_names
-                map_to_namespace(names)
+                map_to_namespace(@registered_tasks.keys)
             end
         end
     end
@@ -522,17 +513,10 @@ module Orocos
 
             # (see NameServiceBase#names)
             def names
-                CORBA.refine_exceptions("corba naming service(#{ip})") do
+                result = CORBA.refine_exceptions("corba naming service(#{ip})") do
                     do_task_context_names.find_all { |n| n !~ /^orocosrb_(\d+)$/ }
                 end
-            end
-
-            # Returns all Orocos Task names known by the name service 
-            # inclusive the namespace of the NameService instance.
-            #
-            # @return [Array<String>]
-            def full_names
-                map_to_namespace(names)
+                map_to_namespace(result)
             end
 
             # (see NameServiceBase#get)
@@ -558,8 +542,8 @@ module Orocos
             #
             # @param [String,TaskContext] name The name or task
             def deregister(name)
-                name = if name.respond_to? :full_name
-                           name.full_name
+                name = if name.respond_to? :name
+                           name.name
                        else
                            name
                        end
@@ -628,6 +612,10 @@ module Orocos
             #(see NameServiceBase#names)
             def names
                 @avahi_nameserver.get_all_services.uniq
+            end
+
+            def same_namespace?(name)
+                true
             end
 
             # Registers the IOR of the given {Orocos::TaskContext} on the Avahi name service

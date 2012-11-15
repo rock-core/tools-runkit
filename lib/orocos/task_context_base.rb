@@ -263,9 +263,6 @@ module Orocos
             self
         end
         
-        # The name of this task context
-        attr_reader :name
-
         # The IOR of this task context
         attr_reader :ior
 
@@ -331,8 +328,14 @@ module Orocos
             end
         end
 
-        def full_name
-            map_to_namespace(name)
+        # The full name of the task context
+        def name
+            map_to_namespace(@name)
+        end
+
+        # returns self 
+        def to_task_context
+            self
         end
 
         # call-seq:

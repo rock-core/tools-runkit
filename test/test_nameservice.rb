@@ -22,7 +22,7 @@ describe Orocos::Local::NameService do
 
     describe "when asked for task names" do
         it "must return all registered task names" do 
-            assert(@service.names.include?("dummy"))
+            assert(@service.names.include?("/dummy"))
         end
     end
 
@@ -61,11 +61,11 @@ describe Orocos::Local::NameService do
     describe "when new tasks is bound" do
         it "it must return them the next time when asked for task names" do 
             @service.register :dummy2,"dummy2"
-            assert(@service.names.include?("dummy2"))
+            assert(@service.names.include?("/dummy2"))
             assert_equal(:dummy2,@service.get(@service.map_to_namespace("dummy2")))
             assert_equal(:dummy2,@service.get("dummy2"))
             @service.deregister "dummy2"
-            assert(!@service.names.include?("dummy2"))
+            assert(!@service.names.include?("/dummy2"))
         end
     end
 end
@@ -182,7 +182,7 @@ describe Orocos::CORBA::NameService do
     describe "when remote task is reachable" do
         it "must return its name" do
             Orocos.run('simple_source') do
-                assert(Orocos::CORBA::name_service.names.include?("simple_source_source"))
+                assert(Orocos::CORBA::name_service.names.include?("/simple_source_source"))
             end
         end
         it "must return its ior" do
@@ -201,21 +201,21 @@ describe Orocos::CORBA::NameService do
                 task = service.get("foo#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert(task)
                 assert_equal("foo",task.namespace)
-                assert_equal("simple_source_source",task.name)
+                assert_equal("foo/simple_source_source",task.name)
 
                 task = Orocos::CORBA::name_service.get("#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert task
                 assert_equal "",task.namespace
-                assert_equal("simple_source_source",task.name)
+                assert_equal("/simple_source_source",task.name)
             end
         end
         it "must be able to deregister and reregister it to the name service" do
             Orocos.run('simple_source') do
                 task = Orocos::CORBA.name_service.get("simple_source_source")
-                Orocos::CORBA::name_service.deregister("simple_source_source")
-                assert(!Orocos::CORBA::name_service.names.include?("simple_source_source"))
+                Orocos::CORBA::name_service.deregister("/simple_source_source")
+                assert(!Orocos::CORBA::name_service.names.include?("/simple_source_source"))
                 Orocos::CORBA::name_service.register(task)
-                assert(Orocos::CORBA::name_service.names.include?("simple_source_source"))
+                assert(Orocos::CORBA::name_service.names.include?("/simple_source_source"))
                 #check if register does not produce an error if task is already bound 
                 Orocos::CORBA::name_service.register(task)
             end
@@ -226,7 +226,7 @@ describe Orocos::CORBA::NameService do
                 Orocos::CORBA.name_service.each_task do |task|
                     tasks << task
                 end
-                assert tasks.map(&:name).include?("simple_source_source")
+                assert tasks.map(&:name).include?("/simple_source_source")
             end
         end
         it "must iterate over running tasks" do
@@ -300,7 +300,7 @@ describe Orocos::CORBA::NameService do
         describe "when a task is running" do 
             it "it must return its name and interface" do 
                 Orocos.run('simple_source') do
-                    assert Orocos.name_service.names.include?("simple_source_source")
+                    assert Orocos.name_service.names.include?("/simple_source_source")
                     task = Orocos.name_service.get(::Orocos::Namespace::DELIMATOR+"simple_source_source")
                     ior = Orocos.name_service.ior(::Orocos::Namespace::DELIMATOR+"simple_source_source")
                     assert_equal ior, task.ior

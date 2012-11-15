@@ -127,7 +127,7 @@ VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
     std::string ior(StringValueCStr(argv[0]));
 
     RTaskContext *context =  corba_blocking_fct_call_with_result(boost::bind(&CorbaAccess::createRTaskContext,CorbaAccess::instance(),ior));
-    VALUE obj = simple_wrap(cTaskContext, context);
+    VALUE obj = simple_wrap(klass, context);
     rb_obj_call_init(obj,argc,argv);
     return obj;
 }

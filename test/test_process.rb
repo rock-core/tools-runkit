@@ -31,7 +31,7 @@ describe Orocos::Process do
 
     it "can stop a running process and clean up the name server" do
         Orocos.run('process') do |process|
-            assert( Orocos.task_names.find { |name| name == 'process_Test' } )
+            assert( Orocos.task_names.find { |name| name == '/process_Test' } )
             process.kill
             assert(!process.alive?, "process has been killed but alive? returns true")
             assert( !Orocos.task_names.find { |name| name == 'process_Test' } )
