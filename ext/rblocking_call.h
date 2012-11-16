@@ -7,6 +7,7 @@
 #include <boost/function_types/result_type.hpp>
 #include <boost/bind.hpp>
 #include <ruby.h>
+#include <stdarg.h>
 
 #define EXCEPTION_HANDLERS \
     catch(std::runtime_error &e) { BlockingFunctionBase::raise(rb_eRuntimeError, e.what());}\
