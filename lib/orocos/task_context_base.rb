@@ -333,6 +333,10 @@ module Orocos
             map_to_namespace(@name)
         end
 
+        def basename
+            @name
+        end
+
         # returns self 
         def to_task_context
             self

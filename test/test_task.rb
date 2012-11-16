@@ -39,6 +39,14 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should return its name and basename"do
+        Orocos.run('simple_source') do
+            source = Orocos::TaskContext.get("simple_source_source")
+            assert_equal "/simple_source_source", source.name
+            assert_equal "simple_source_source", source.basename
+        end
+    end
+
     it "should allow enumerating its ports" do
         Orocos.run('simple_source', 'simple_sink') do
             source = Orocos::TaskContext.get("simple_source_source")
