@@ -453,14 +453,16 @@ module Orocos
         #Simulates task based on a log file.
         #Each stream is modeled as one OutputPort which supports the connect_to method
         class TaskContext
+            include Namespace
+
             attr_accessor :ports               #all simulated ports
             attr_accessor :properties          #all simulated properties
             attr_reader :file_path             #path of the dedicated log file
             attr_reader :file_path_config      #path of the dedicated log configuration file
-            attr_reader :name
             attr_reader :state
             attr_reader :log_replay
 	    attr_accessor :model
+
 
             #Creates a new instance of TaskContext.
             #
@@ -482,6 +484,14 @@ module Orocos
             #indecates if the task is replayed
             def running?
                 used?
+            end
+
+            def name
+                map_to_namespace(@name)
+            end
+
+            def basename
+                @name
             end
 
             #to be compatible wiht Orocos::TaskContext
