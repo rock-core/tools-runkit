@@ -507,7 +507,7 @@ module Orocos
                 false
             end
 
-            def stop
+            def stop( arg )
                 true
             end
              
