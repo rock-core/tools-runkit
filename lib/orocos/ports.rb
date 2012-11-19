@@ -3,7 +3,6 @@ require 'utilrb/module/attr_predicate'
 
 module Orocos
     class << self
-	puts "loading ports.rb"
 	##
 	# :method:logger_guess_timestamp_field?
 	# :call-seq:
