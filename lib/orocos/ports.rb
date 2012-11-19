@@ -1,6 +1,24 @@
 require 'utilrb/kernel/options'
+require 'utilrb/module/attr_predicate'
 
 module Orocos
+    class << self
+	puts "loading ports.rb"
+	##
+	# :method:logger_guess_timestamp_field?
+	# :call-seq:
+	#   Orocos.logger_guess_timestamp_field? => true or false
+	#   Orocos.logger_guess_timestamp_field = new_value
+	#
+	# Setup of the logger will try to determine the timestamp field in a
+	# datatype. For this it uses the first field in the type, which is of type
+	# base/Time. If set to false (default), Time::now is used for the log time
+	# of each log sample.
+	attr_predicate :logger_guess_timestamp_field?, true
+    end
+
+    self.logger_guess_timestamp_field = false
+
     # Base class for port classes.
     #
     # See OutputPort and InputPort
@@ -45,11 +63,28 @@ module Orocos
         attr_reader :model
 
         def log_metadata
-            Hash['rock_task_model' => task.model.name,
+            metadata = Hash['rock_task_model' => task.model.name,
                 'rock_task_name' => task.name,
                 'rock_task_object_name' => name,
                 'rock_stream_type' => 'port',
                 'rock_orocos_type_name' => orocos_type_name]
+
+	    if Orocos.logger_guess_timestamp_field?
+		# see if we can find a time field in the type, which
+		# would qualify as being used as the default time stamp
+		if @type.respond_to? :each_field
+		    @type.each_field do |name, type|
+			if type.name == "/base/Time"
+			    metadata['rock_timestamp_field'] = name
+			    break
+			end
+		    end
+		else
+		    # TODO what about if the type is a base::Time itself
+		end
+	    end
+
+	    metadata
         end
 
 
