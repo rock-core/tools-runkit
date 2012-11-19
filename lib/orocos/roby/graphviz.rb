@@ -54,10 +54,10 @@ module Orocos
 
             # Add an annotation block to a task label.
             #
-            # @arg task is the task to which the information should be added
-            # @arg name is the annotation name. It appears on the left column of
+            # @param task is the task to which the information should be added
+            # @param name is the annotation name. It appears on the left column of
             #           the task label
-            # @arg ann is the annotation itself, as an array. Each line in the
+            # @param ann is the annotation itself, as an array. Each line in the
             #          array is displayed as a separate line in the label.
             def add_task_annotation(task, name, ann)
                 if !ann.respond_to?(:to_ary)
@@ -83,11 +83,11 @@ module Orocos
 
             # Add an annotation block to a port label.
             #
-            # @arg task is the task in which the port 
-            # @arg port_name is the port name
-            # @arg name is the annotation name. It appears on the left column of
+            # @param task is the task in which the port 
+            # @param port_name is the port name
+            # @param name is the annotation name. It appears on the left column of
             #           the task label
-            # @arg ann is the annotation itself, as an array. Each line in the
+            # @param ann is the annotation itself, as an array. Each line in the
             #          array is displayed as a separate line in the label.
             def add_port_annotation(task, port_name, name, ann)
                 port_annotations[[task, port_name]].merge!(name => ann) do |_, old, new|

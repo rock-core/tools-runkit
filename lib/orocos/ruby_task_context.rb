@@ -151,8 +151,6 @@ module Orocos
 
         # Write data on the associated input port
         #
-        # @overload
-        #
         # @raise [CORBA::ComError] if the remote process is known to be dead.
         # This is only possible if the remote deployment has been started by
         # this Ruby instance

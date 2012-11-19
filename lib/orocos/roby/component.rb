@@ -102,7 +102,7 @@ module Orocos
 
                 # Returns a DataSource that represents this port
                 #
-                # @arg context either an Engine or a task instance. If it is an
+                # @param context either an Engine or a task instance. If it is an
                 #              engine, the method adds a new instance of the
                 #              right model and returns the corresponding
                 #              DataSource. Otherwise, simply returns the

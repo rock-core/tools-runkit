@@ -1,7 +1,7 @@
 module Orocos
     module ROS
         class << self
-            # The caller ID for this process. Defaults to orocosrb_#{pid}
+            # The caller ID for this process. Defaults to orocosrb_<pid>
             attr_accessor :caller_id
             # Returns the URI to the ROS master
             def self.ros_master_uri

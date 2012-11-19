@@ -14,7 +14,6 @@ module Orocos::Async
         #
         # @param [String,#to_task_context] ior The ior of the task or a task context.
         # @param [Hash] options The options.
-        # @param [Orocos::TaskContext,#to_task_context] task The underlying task context.
         # @option options [String] :name The name of the task.
         # @option options [#get] :name_service The name service which is used to find the task.
         # @option options [Utilrb::EventLoop] :event_loop The event loop.

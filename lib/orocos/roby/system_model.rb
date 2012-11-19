@@ -204,9 +204,9 @@ module Orocos
             # Any of the arguments can be nil, in which case this criteria will
             # be ignored.
             #
-            # @arg [Class] the specific port class, usually Orocos::Spec::InputPort or Orocos::Spec::OutputPort
-            # @arg [String] the port name
-            # @arg [String] the type name of the port, as a string
+            # @param [Class] port_type the specific port class, usually Orocos::Spec::InputPort or Orocos::Spec::OutputPort
+            # @param [String] port_name the port name
+            # @param [String] port_type_name the type name of the port, as a string
             #
             # It is usually used by plugins that manage certain ports
             def ignore_port_for_autoconnection(port_type, port_name, port_type_name)
