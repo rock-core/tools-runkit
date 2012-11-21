@@ -35,6 +35,8 @@ module Orocos
         #
         #This class creates TaskContexts and OutputPorts to simulate the recorded tasks.
         class Replay
+            include Namespace
+
             class << self 
                 attr_accessor :log_config_file 
             end
@@ -292,6 +294,7 @@ module Orocos
 
             #Returns the simulated task with the given namen. 
             def task(name)
+                name = map_to_namespace name
                 raise "cannot find TaskContext which is called #{name}" if !@tasks.has_key?(name)
                 return @tasks[name]
             end
@@ -630,6 +633,13 @@ module Orocos
                     Log.warn "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME and has no metadata, assuming as TASKNAME \"#{task_name}\""
                 end
 
+                #check if there is a namespace
+                task_name = if task_name == basename(task_name)
+                                map_to_namespace(task_name)
+                            else
+                                task_name
+                            end
+
                 task = @tasks[task_name]
                 if !task
                     task = @tasks[task_name]= TaskContext.new(self,task_name, path,@log_config_file)
@@ -719,7 +729,7 @@ module Orocos
             #This is used to support the syntax.
             #log_replay.task 
             def method_missing(m,*args,&block) #:nodoc:
-                task = @tasks[m.to_s]
+                task = @tasks[map_to_namespace(m.to_s)]
                 return task if task
 
                 begin  

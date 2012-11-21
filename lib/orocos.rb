@@ -29,9 +29,9 @@ rescue LoadError
     Orocos::HAS_POCOLOG = false
 end
 
+require 'orocos/namespace'
 require 'orocos/logging'
 require 'orocos/version'
-require 'orocos/namespace'
 require 'orocos/name_service'
 require 'orocos/task_context_base'
 require 'orocos/task_context'
