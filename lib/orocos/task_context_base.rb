@@ -337,11 +337,6 @@ module Orocos
             @name
         end
 
-        # returns self 
-        def to_task_context
-            self
-        end
-
         # call-seq:
         #  task.each_property { |a| ... } => task
         # 
@@ -695,6 +690,19 @@ module Orocos
                 @current_state = @state_queue.shift
             end
             @current_state
+        end
+
+        # Returns all states which were received since the last call
+        # and sets the current state to the last one.
+        def states
+            peek_state
+            if !@state_queue.empty?
+                @current_state = @state_queue.last
+                @state_queue,old = [],@state_queue
+                old
+            else
+                []
+            end
         end
 
         def pretty_print(pp) # :nodoc:

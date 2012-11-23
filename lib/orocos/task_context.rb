@@ -105,14 +105,14 @@ module Orocos
         # @option options [Orocos::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
         def initialize(ior,options=Hash.new)
-            options = Kernel.validate_options options,:name,:namespace,:process
+            options,other_options = Kernel.filter_options options,:name
 
             name = if options.has_key?(:name)
                        options[:name]
                    else
                        do_real_name
                    end
-            super(name,options)
+            super(name,other_options)
             @ior = ior
         end
 

@@ -81,14 +81,7 @@ module Orocos::Async
         #
         # @!method wait_for(&block)
         #   (see Utilrb::EventLoop#wait_for)
-        def_delegators :event_loop,:exec,:wait_for,:step,:steps,:clear
-    end
-
-    # Returns the event loop used by {Orocos::Async}
-    #
-    # @return [Utilrb::EventLoop] The event loop
-    def self.name_service
-        @name_service = Orocos.name_service
+        def_delegators :event_loop,:exec,:wait_for,:step,:steps,:clear,:stop
     end
 
     # Returns the event loop used by {Orocos::Async}
