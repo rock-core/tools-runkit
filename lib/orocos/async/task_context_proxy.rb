@@ -1,9 +1,101 @@
+require 'forwardable'
+
 module Orocos::Async
-    class TaskContextProxy
-        extend Utilrb::EventLoop::Forwardable
+
+    # Place holder class for the designated object
+    class PlaceHolderObject
+        def initialize(name,event_loop,type)
+            @name
+            @event_loop = event_loop
+            @type = type
+        end
+
+        def reset_callbacks
+        end
+
+        def disconnect
+        end
+
+        def method_missing(m,*args,&block)
+            error = raise Orocos::NotFound.new "#{@type} #{@name} is not reachable - still trying"
+            if !block
+                raise error
+            else
+                t = Utilrb::ThreadPool::Task.new do
+                    raise error
+                end
+                task.execute
+                if block.arity == 2
+                    block.call nil,error
+                end
+                @event_loop.handle_error(error)
+                # fake a task which raises an error
+                task
+            end
+        end
+    end
+
+    class PortProxy < ObjectBase
+        extend Forwardable
+        attr_reader :policy
+        methods = Orocos::Port.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+        methods -= PortProxy.instance_methods + [:method_missing,:name]
+        methods << :disconnect
+        def_delegators :@port,*methods
+        
+        def initialize(task_proxy,port_name,policy=Hash.new)
+            super()
+            @policy = policy
+            @task_proxy = task_proxy
+            @port_name = port_name
+            @event_loop = task_proxy.event_loop
+            @port = PlaceHolderObject.new(@name,@event_loop,"Port")
+        end
+
+        def name
+            @port_name
+        end
+
+        def designated_port=(port)
+            @port.reset_callbacks
+            @port = port
+
+            port.on_error do |error|
+                event :on_error,error
+            end
+
+            #check which kind port we have
+            if port.respond_to? :reader
+                port.on_data @policy do |data|
+                    event :on_data, data
+                end
+            else
+                if !@callbacks[:on_data].empty?
+                    raise ArgumentError, "Port #{name} is an input port but callbacks for on_data are registered" 
+                end
+            end
+        end
+
+        def on_data(policy = Hash.new,&block)
+            @policy.merge! policy
+            if !@port.is_a?(Orocos::Async::PlaceHolderObject) && !@port.respond_to?(:reader)
+                raise ArgumentError, "Port #{name} is an input port."
+            end
+            @callbacks[:on_data] << block
+        end
+    end
+
+    class TaskContextProxy < ObjectBase
+
+        # forward methods to designated object
+        extend Forwardable
+        methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+        methods -= TaskContextProxy.instance_methods + [:method_missing,:reachable?,:port]
+        def_delegators :@task_context,*methods
 
         def initialize(name,options=Hash.new)
-            options,@task_options = Kernel.filter_options options,{:name_service => Orocos::Async.name_service,
+            super()
+            @options,@task_options = Kernel.filter_options options,{:name_service => Orocos::Async.name_service,
                                                        :event_loop => Orocos::Async.event_loop,
                                                        :reconnect => true,
                                                        :retry_period => 1.0,
@@ -11,140 +103,121 @@ module Orocos::Async
                                                        :raise => false}
 
             @name = name
-            @name_service = options[:name_service]
-            @event_loop = options[:event_loop]
-            @retry_period = options[:retry_period]
-            @reconnect = options[:reconnect]
-            @raise = options[:raise]
-
-            @callblocks = Hash.new{ |hash,key| hash[key] = []}
-            @task_context = options[:use]
+            @name_service = @options[:name_service]
+            @event_loop = @options[:event_loop]
+            @task_context = @options[:use]
+            @task_context ||= PlaceHolderObject.new(@name,@event_loop,"TaskContext")
             @resolve_task = nil
-
             @task_options[:event_loop] = @event_loop
+            @mutex = Mutex.new
+            @ports = Hash.new
 
-            on_disconnected do
-                connect if @reconnect
+            on_unreachable do
+                disconnect_ports
+                connect if @options[:reconnect]
             end
 
-            if @task_context
-                event :on_connected
+            if !@task_context.is_a? PlaceHolderObject
+                event :on_reachable
             else
                 connect
             end
         end
 
-        def connect(wait = false)
+        def connect()
             if !@resolve_task
                 event :on_connect
                 @resolve_task = @name_service.get @name,@task_options do |task_context,error|
                     if error
-                        raise error if @raise
-                        t = [0,@retry_period - (Time.now - @resolve_task.started_at)].max
+                        raise error if @options[:raise]
+                        t = [0,@options[:retry_period] - (Time.now - @resolve_task.started_at)].max
                         @event_loop.once(t) do
                             @event_loop.add_task @resolve_task
                         end
                     else
-                        event :on_reconnected if @task_context
-                        @task_context = task_context
-                        @resolve_task = nil
-                        register_callbacks(@task_context)
+                        ports = @mutex.synchronize do
+                            @resolve_task = nil
+                            @task_context.reset_callbacks
+                            @task_context = task_context
+                            @ports.values
+                        end
+                        ports.each do |port|
+                            connect_port(port)
+                        end
+                        register_callbacks(task_context)
                     end
                 end
             end
         end
 
-        def event(name,*args)
-            @callblocks[name].each do |block|
-                block.call *args
-            end
-        end
-
-        def on_connected(&block)
-            @callblocks[:on_connected] << block
+        def on_reachable(&block)
+            @callbacks[:on_reachable] << block
         end
 
         def on_connect(&block)
-            @callblocks[:on_connect] << block
+            @callbacks[:on_connect] << block
         end
 
-        def on_reconnected(&block)
-            @callblocks[:on_reconnected] << block
+        def on_unreachable(&block)
+            @callbacks[:on_unreachable] << block
         end
 
-        def on_disconnected(&block)
-            @callblocks[:on_disconnected] << block
+        def on_state_change(&block)
+            @callbacks[:on_state_change] << block
         end
 
-        def on_error(&block)
-            @callblocks[:on_error] << block
-        end
-
-        def on_state_changed(&block)
-            @callblocks[:on_state_changed] << block
-        end
-
-        def port
-        end
-
-        def property
-        end
-
-        def operation
+        def port(name)
+            @mutex.synchronize do 
+                if @ports.has_key?(name)
+                    @ports[name]
+                else
+                    p = @ports[name] = PortProxy.new(self,name)
+                 #   @event_loop.defer :known_errors => Orocos::NotFound do
+                 #       connect_port(p)
+                 #   end
+                    p
+                end
+            end
         end
 
         def reachable?(&block)
-            orig_reachable? &block
+            @task_context.reachable?(&block)
         rescue Orocos::NotFound
             false
         end
 
         private
-        # add methods which forward the call to the underlying task context
-        forward_to :__task_context,:@event_loop do
-            methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= TaskContextProxy.instance_methods + [:method_missing]
-            def_delegators methods
-            def_delegator :reachable?,:alias => :orig_reachable?
-        end
-
         def register_callbacks(task)
-            task.on_connected do
-                event :on_connected
+            task.on_reachable do
+                event :on_reachable
             end
-            task.on_disconnected do
-                event :on_disconnected
+            task.on_unreachable do
+                event :on_unreachable
             end
-            task.on_error do
-                event :on_error
+            task.on_error do |e|
+                event :on_error, e
             end
-            task.on_state_changed do |state|
-                event :on_state_changed,state
+            task.on_state_change do |state|
+                event :on_state_change,state
+            end
+        end
+
+        # blocking call shoud be called from a different thread
+        def connect_port(port)
+            p = @mutex.synchronize do 
+                    @task_context.port(port.name)
+            end
+            @event_loop.call do
+                port.designated_port = p
             end
         end
 
-        def __task_context
-            task = @task_context
-            if task
-                task
-            else
-                raise Orocos::NotFound,"TaskContext #{@name} is not reachable - still trying by using the following name service #{@name_service}"
+        def disconnect_ports
+            ports = @mutex.synchronize do 
+                @ports.values
             end
+            ports.each(&:disconnect)
         end
-    end
 
-    class PortProxy
-    end
-
-    class ReaderProxy
-    end
-
-    class WriterProxy
-    end
-
-    class PropertyProxy
-    end
-
-    class OperationProxy
     end
 end

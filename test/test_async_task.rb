@@ -21,6 +21,10 @@ end
 describe Orocos::Async::CORBA::TaskContext do
     include Orocos::Spec
 
+    before do 
+        Orocos::Async.clear
+    end
+
     describe "initialize" do 
         before do 
             Orocos::Async.clear
@@ -117,16 +121,16 @@ describe Orocos::Async::CORBA::TaskContext do
             Orocos::Async.step
         end
 
-        it "should call on_connect and on_disconnect if watchdog is on" do
+        it "should call on_reachable and on_unreachable if watchdog is on" do
             connect = nil
             disconnect = nil
             t1 = nil
             Orocos.run('process') do
                 t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'),:period => 0.1,:watchdog => true)
-                t1.on_connected do 
+                t1.on_reachable do 
                     connect = true
                 end
-                t1.on_disconnected do 
+                t1.on_unreachable do 
                     disconnect = true
                 end
             end
@@ -146,7 +150,7 @@ describe Orocos::Async::CORBA::TaskContext do
             error = nil
             Orocos.run('process') do
                 t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'))
-                t1.on_error Exception do |e|
+                t1.on_error do |e|
                     error = e
                 end
             end
@@ -157,11 +161,11 @@ describe Orocos::Async::CORBA::TaskContext do
             assert_equal Orocos::CORBA::ComError, error.class
         end
 
-        it "should call on_state_changed" do
+        it "should call on_state_change" do
             Orocos.run('process') do
                 t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'),:period => 0.1,:wait => true)
                 state = nil
-                t1.on_state_changed do |val|
+                t1.on_state_change do |val|
                     state = val
                 end
                 sleep 0.11
@@ -205,6 +209,40 @@ describe Orocos::Async::CORBA::TaskContext do
                 sleep 0.1
                 Orocos::Async.steps
                 assert_equal val,val2
+            end
+        end
+
+        it "should return its ports" do 
+            Orocos.run('simple_source') do
+                t1 = Orocos::Async::CORBA::TaskContext.new(ior('simple_source_source'))
+                names = t1.port_names
+                assert_equal 7,names.size
+                names.each do |name|
+                    p = t1.port(name)
+                    p.must_be_kind_of Orocos::Async::CORBA::OutputPort
+                    assert p.valid?
+                end
+            end
+        end
+
+        it "should asynchronously return its ports" do 
+            Orocos.run('simple_source') do
+                t1 = Orocos::Async::CORBA::TaskContext.new(ior('simple_source_source'))
+                queue = Queue.new
+                names = t1.port_names
+                names.each do |name|
+                    t1.port name do |port|
+                        queue << port
+                    end
+                end
+                sleep 0.1
+                Orocos::Async.step
+                assert_equal 7, queue.size
+                while !queue.empty?
+                    p = queue.pop
+                    p.must_be_kind_of Orocos::Async::CORBA::OutputPort
+                    assert p.valid?
+                end
             end
         end
 

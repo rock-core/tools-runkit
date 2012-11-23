@@ -8,7 +8,7 @@ module Orocos::Async
         name_service.get(name,options)
     end
 
-    def self.get_proxy(name,options = Hash.new)
+    def self.proxy(name,options = Hash.new)
         name_service.get_proxy(name,options)
     end
 

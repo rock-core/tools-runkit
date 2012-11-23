@@ -1,6 +1,6 @@
 
 module Orocos::Async::CORBA
-    class TaskContext
+    class TaskContext < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
 
         # A TaskContext
@@ -28,6 +28,7 @@ module Orocos::Async::CORBA
         # @overload initialize(task,options)
         #       @option options [#ior,#name] :task a task context.
         def initialize(ior,options=Hash.new)
+            super()
             ior,options = if ior.is_a? Hash
                                [nil,ior]
                            else
@@ -37,9 +38,6 @@ module Orocos::Async::CORBA
             @event_loop = options[:event_loop]
             @raise = options[:raise]
             @mutex = Mutex.new
-            @callbacks = Hash.new do |hash,key|
-                hash[key] = []
-            end
             @watchdog = true
             @period = 1
             @last_state
@@ -55,7 +53,7 @@ module Orocos::Async::CORBA
                                                                      :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound]}) do |states,error|
                 if !states.empty?
                     blocks = @mutex.synchronize do
-                        @callbacks[:on_state_changed].dup
+                        @callbacks[:on_state_change].dup
                     end
                     states.each do |s|
                         next if @last_state == s
@@ -67,20 +65,16 @@ module Orocos::Async::CORBA
                 end
             end
 
-            # disconnect if an Orocos::NotFound or Orocos::CORBA::ComError error occurred
-            @event_loop.on_errors Orocos::CORBA::ComError,Orocos::NotFound do |e|
+            # disconnect if an error occurred
+            on_error do |e|
                 disconnect(e)
             end
-            @event_loop.on_error Exception do |e|
-                event :on_error, e
-            end
-
             connect(ior,options_other)
         end
 
-        def on_connected(&block)
+        def on_reachable(&block)
             call =  @mutex.synchronize do
-                @callbacks[:on_connected] << block
+                @callbacks[:on_reachable] << block
                 if @__task_context
                     true
                 else
@@ -91,17 +85,15 @@ module Orocos::Async::CORBA
             block.call if call
         end
 
-        def on_disconnected(&block)
-            @mutex.synchronize do
-                @callbacks[:on_disconnected] << block
-            end
+        def on_unreachable(&block)
+            @callbacks[:on_unreachable] << block
         end
 
-        def on_state_changed(&block)
+        def on_state_change(&block)
             ArgumentError "activate watchdog first" unless @watchdog
 
             call =  @mutex.synchronize do
-                @callbacks[:on_state_changed] << block
+                @callbacks[:on_state_change] << block
                 if @__task_context
                     true
                 else
@@ -110,27 +102,8 @@ module Orocos::Async::CORBA
             end
             if call
                 current_state do |val|
-                    block.call(val)
+                    block.call(val) if val
                 end
-            end
-        end
-
-        def on_error(error_class = Exception,&block)
-            @event_loop.on_error error_class, &block
-        end
-
-        # Like {#on_error} but multiple error classes
-        # can be set at once.
-        def on_errors(*error_classes,&block)
-            @event_loop.on_errors *error_classes, &block
-        end
-
-        def event(name,*args)
-            blocks = @mutex.synchronize do
-                @callbacks[name].dup
-            end
-            blocks.each do |block|
-                block.call *args
             end
         end
 
@@ -197,12 +170,37 @@ module Orocos::Async::CORBA
                         @ior_error = reason if reason
                         task,@__task_context = @__task_context,nil
                         @watchdog_timer.cancel if @watchdog_timer
-                        [task, @callbacks[:on_disconnected]]
+                        [task, @callbacks[:on_unreachable]]
                     end
                 end
                 blocks.each(&:call) if blocks
                 task
             end
+        end
+
+        def port(name, verify = true, &block)
+           p = proc do |port,error|
+               port = if port.respond_to? :write
+                          Orocos::Async::CORBA::InputPort.new(self,port)
+                      elsif port.respond_to? :reader
+                          Orocos::Async::CORBA::OutputPort.new(self,port)
+                      end
+               if block
+                   if block.arity == 2
+                       block.call port,error
+                   elsif !error
+                       block.call port
+                   end
+               else
+                   port
+               end
+           end
+           if block
+               port = orig_port(name,verify,&p)
+           else
+               port = orig_port(name,verify)
+               p.call port
+           end
         end
 
         def reachable?(&block)
@@ -219,13 +217,15 @@ module Orocos::Async::CORBA
 
         private
         # add methods which forward the call to the underlying task context
-        forward_to :__task_context,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound] do 
+        forward_to :__task_context,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound],:on_error => :__on_error do
             thread_safe do
                 def_delegator :ping,:known_errors => nil  #raise if there is an error in the communication
                 methods = [:has_operation?, :has_port?,:property_names,:attribute_names,:port_names,:rtt_state]
                 def_delegators methods
                 def_delegator :reachable?, :alias => :orig_reachable?
             end
+            def_delegator :port, :alias => :orig_port
+
             methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= TaskContext.instance_methods + [:method_missing]
             def_delegators methods
@@ -249,7 +249,7 @@ module Orocos::Async::CORBA
                         @__task_context = Orocos::TaskContext.new @ior ,:name => @name
                         @name = @__task_context.name
                         @event_loop.once do
-                            event :on_connected
+                            event :on_reachable
                         end
                         @__task_context.state
                         @__task_context
