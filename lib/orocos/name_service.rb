@@ -283,7 +283,7 @@ module Orocos
                 end
             end
             tasks.compact!
-            raise ArgumentError "Found #{tasks.size()} TaskContexts matching #{name}" if tasks.size > 2
+            raise ArgumentError, "Found #{tasks.size()} TaskContexts matching #{name}" if tasks.size > 2
             raise Orocos::NotFound, error_message(name) if tasks.empty?
             tasks.last
         end
