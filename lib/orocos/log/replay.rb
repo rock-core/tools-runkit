@@ -669,6 +669,17 @@ module Orocos
             #Loads a log files and creates TaskContexts which simulates the recorded tasks.
             #You can either specify a single file or a hole directory. If you want to load
             #more than one directory or file simultaneously you can use an array.
+	    #
+	    #Logs that share the same basename, will be joined such that the streams within
+	    #the logs appear continous.
+	    #
+	    #a collection of files/directories can be given as arguments, followed by a 
+	    #typelib registry and/or an options hash. The options can be given as:
+	    #
+	    # :registry - same as providing the registry directly
+	    # :multifile - set to :last if you don't want merging of logs with the same
+	    #              basename
+	    #
             def load(*paths)
                 paths.flatten!
                 raise ArgumentError, "No log file was given" if paths.empty?
@@ -677,6 +688,11 @@ module Orocos
                 if paths.last.kind_of?(Typelib::Registry)
                     logreg = paths.pop
                 end
+		opts = {}
+		if paths.last.kind_of?(Hash)
+		    opts = paths.pop
+		    logreg = opts[:registry] if opts[:registry]
+		end
 
                 paths.each do |path| 
                     #check if path is a directory
@@ -692,9 +708,13 @@ module Orocos
                         end
 
                         by_basename.each_value do |files|
-                            args = files.compact.map do |path|
-                                File.open(path)
-                            end
+			    if opts[:multifile] == :last 
+				files = files[-1,1]
+			    end
+			    args = files.compact.map do |path|
+				File.open(path)
+			    end
+
                             args << logreg
 
                             logfile = Pocolog::Logfiles.new(*args.compact)
@@ -707,7 +727,7 @@ module Orocos
                         raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
                     end
                 end
-                raise ArgumentError, "Nothing was loded from the following log files #{paths.join("; ")}" if @tasks.empty?
+                raise ArgumentError, "Nothing was loaded from the following log files #{paths.join("; ")}" if @tasks.empty?
             end
 
             # Clears all reader buffers.
