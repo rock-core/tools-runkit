@@ -318,6 +318,11 @@ module Orocos
             end
         end
 
+	# remove the service from the list of services
+	def delete service
+	    @name_services.delete service
+	end
+
         # Removes all underlying name services
         def clear
             @name_services.clear
