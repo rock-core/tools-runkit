@@ -42,6 +42,10 @@ module Orocos
             end
             @log_config_file = "properties."
 
+	    #local nameservice, which is automatically registered
+	    #with orocos name resolution
+	    attr_accessor :name_service
+
             #desired replay speed = 1 --> record time
             attr_accessor :speed            
 
@@ -380,9 +384,24 @@ module Orocos
 
             # registers all replayed log tasks on the local name server
             def register_tasks
-                service = Local::NameService.new @tasks
-                Orocos::name_service.add service
+		raise "Log replay already registered with nameserver" if @name_service
+                @name_service = Local::NameService.new @tasks
+                Orocos::name_service.add @name_service
             end
+
+	    # deregister the local name service again
+	    def deregister_tasks
+		if @name_service 
+		    Orocos::name_service.delete @name_service
+		end
+	    end
+
+	    # close the log file, deregister from name service
+	    # and also close all available streams 
+	    def close
+		deregister_tasks
+		# TODO close all streams
+	    end
 
             def stream_index_for_name(name)
                 if @stream
