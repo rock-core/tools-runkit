@@ -467,6 +467,8 @@ module Orocos
                 # It MUST be kept here
                 if !@allow_automatic_setup
                     return false
+                elsif !super
+                    return false
                 elsif !orogen_spec || !orogen_task
                     return false
                 end
