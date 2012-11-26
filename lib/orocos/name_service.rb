@@ -274,18 +274,16 @@ module Orocos
         #(see NameServiceBase#get)
         def get(name,options = Hash.new)
             verify_same_namespace(name)
-            tasks = name_services.collect do |service|
+            tasks = name_services.each do |service|
                 begin
                     if service.same_namespace?(name)
-                        service.get(name,options)
+                        task = service.get(name,options)
+			return task if task
                     end
                 rescue Orocos::NotFound
                 end
             end
-            tasks.compact!
-            raise ArgumentError, "Found #{tasks.size()} TaskContexts matching #{name}" if tasks.size > 2
-            raise Orocos::NotFound, error_message(name) if tasks.empty?
-            tasks.last
+            raise Orocos::NotFound, error_message(name)
         end
 
         #(see NameServiceBase#ior)
