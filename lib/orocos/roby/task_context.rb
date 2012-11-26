@@ -749,7 +749,7 @@ module Orocos
                 # Reset the is_setup flag, as the user might transition to
                 # PRE_OPERATIONAL
                 if @state_reader
-                    @state_reader.disconnect
+                    @state_reader.disconnect_all
                 end
             end
 
