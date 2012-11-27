@@ -55,5 +55,22 @@ describe Orocos::RubyTaskContext do
         out_p.write 10
         assert_equal 10, in_p.read
     end
+
+    it "can create a property" do
+        task = new_ruby_task_context("task")
+        property = task.create_property('prop', 'int')
+        assert_kind_of Orocos::Property, property
+        assert_same property, task.property('prop')
+        assert task.has_property?('prop')
+    end
+
+    it "can read and write properties" do
+        task = new_ruby_task_context("task")
+        property = task.create_property('prop', 'int')
+        property.write(10)
+        assert_equal 10, property.read
+        property.write(20)
+        assert_equal 20, property.read
+    end
 end
 

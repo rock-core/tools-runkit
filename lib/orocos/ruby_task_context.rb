@@ -189,6 +189,7 @@ module Orocos
 
         def initialize(ior, options = Hash.new)
             @local_ports = Hash.new
+            @local_properties = Hash.new
             options, other_options = Kernel.filter_options options, :name => name
             super(ior, other_options.merge(options))
         end
@@ -248,6 +249,19 @@ module Orocos
         # to avoid the name clash warning.
         def dispose
             @local_task.dispose
+        end
+
+        # Creates a new property on this task context
+        #
+        # @param [String] name the property name
+        # @param [String] orocos_type_name the type name as known by RTT. It is
+        #   usually the typelib type name
+        # @return [Property] the property object
+        def create_property(name, orocos_type_name)
+            local_property = @local_task.do_create_property(Property, name, orocos_type_name)
+            @local_properties[local_property.name] = local_property
+            @properties[local_property.name] = local_property
+            local_property
         end
 
         private

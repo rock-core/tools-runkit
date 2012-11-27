@@ -84,6 +84,11 @@ static void delete_rtt_ruby_port(RTT::base::PortInterface* port)
     delete port;
 }
 
+static void delete_rtt_ruby_property(RTT::base::PropertyBase* property)
+{
+    delete property;
+}
+
 /** call-seq:
  *     do_create_port(klass, port_name, orocos_type_name)
  *
@@ -95,13 +100,16 @@ static VALUE local_task_context_create_port(VALUE _task, VALUE _is_output, VALUE
     RTT::types::TypeInfo* ti = get_type_info(type_name);
     if (!ti)
         rb_raise(rb_eArgError, "type %s is not registered on the RTT type system", type_name.c_str());
+    RTT::types::ConnFactoryPtr factory = ti->getPortFactory();
+    if (!factory)
+        rb_raise(rb_eArgError, "it seems that the typekit for %s does not include the necessary factory", type_name.c_str());
 
     RTT::base::PortInterface* port;
     VALUE ruby_port;
     if (RTEST(_is_output))
-        port = ti->outputPort(port_name);
+        port = factory->outputPort(port_name);
     else
-        port = ti->inputPort(port_name);
+        port = factory->inputPort(port_name);
 
     ruby_port = Data_Wrap_Struct(_klass, 0, delete_rtt_ruby_port, port);
     local_task_context(_task).ports()->addPort(*port);
@@ -116,6 +124,31 @@ static VALUE local_task_context_remove_port(VALUE obj, VALUE _port_name)
     std::string port_name = StringValuePtr(_port_name);
     local_task_context(obj).ports()->removePort(port_name);
     return Qnil;
+}
+
+/** call-seq:
+ *     do_create_port(klass, port_name, orocos_type_name)
+ *
+ */
+static VALUE local_task_context_create_property(VALUE _task, VALUE _klass, VALUE _property_name, VALUE _type_name)
+{
+    std::string property_name = StringValuePtr(_property_name);
+    std::string type_name = StringValuePtr(_type_name);
+    RTT::types::TypeInfo* ti = get_type_info(type_name);
+    if (!ti)
+        rb_raise(rb_eArgError, "type %s is not registered on the RTT type system", type_name.c_str());
+
+    RTT::types::ValueFactoryPtr factory = ti->getValueFactory();
+    if (!factory)
+        rb_raise(rb_eArgError, "it seems that the typekit for %s does not include the necessary factory", type_name.c_str());
+
+    RTT::base::PropertyBase* property = factory->buildProperty(property_name, "");
+    VALUE ruby_property = Data_Wrap_Struct(_klass, 0, delete_rtt_ruby_property, property);
+    local_task_context(_task).addProperty(*property);
+
+    VALUE args[4] = { rb_iv_get(_task, "@remote_task"), _property_name, _type_name };
+    rb_obj_call_init(ruby_property, 3, args);
+    return ruby_property;
 }
 
 static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_typelib_value, VALUE copy_old_data)
@@ -216,6 +249,7 @@ void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOut
     rb_define_method(cLocalTaskContext, "ior", RUBY_METHOD_FUNC(local_task_context_ior), 0);
     rb_define_method(cLocalTaskContext, "do_create_port", RUBY_METHOD_FUNC(local_task_context_create_port), 4);
     rb_define_method(cLocalTaskContext, "do_remove_port", RUBY_METHOD_FUNC(local_task_context_remove_port), 1);
+    rb_define_method(cLocalTaskContext, "do_create_property", RUBY_METHOD_FUNC(local_task_context_create_property), 3);
 
     cLocalOutputPort = rb_define_class_under(mOrocos, "LocalOutputPort", cOutputPort);
     rb_define_method(cLocalOutputPort, "do_write", RUBY_METHOD_FUNC(local_output_port_write), 2);
