@@ -290,7 +290,7 @@ module Orocos
         # @option options [Orocos::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
         def initialize(name,options = Hash.new)
-            options = Kernel.validate_options options,:namespace,:process
+            options = Kernel.validate_options options,:namespace,:process,:model
 
             @ports = Hash.new
             @properties = Hash.new
@@ -312,6 +312,9 @@ module Orocos
                 p.task_names.any? { |n| n == name }
                 end
 
+            if options.has_key?(:model)
+                @model = options[:model]
+            end
             if !model
                 @state_symbols = []
                 @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL

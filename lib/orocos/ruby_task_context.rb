@@ -183,6 +183,11 @@ module Orocos
             end
         end
 
+        # Creates a new local task context that fits the given oroGen model
+        def self.from_orogen_model(name, orogen_model)
+            new(name, :model => orogen_model)
+        end
+
         # Creates a new local taks context with the given name
         #
         # @param [String] name the task name
@@ -192,6 +197,11 @@ module Orocos
             remote_task = super(local_task.ior, options)
             local_task.instance_variable_set :@remote_task, remote_task
             remote_task.instance_variable_set :@local_task, local_task
+
+            options, _ = Kernel.filter_options options, :model
+            if options[:model]
+                remote_task.setup_from_orogen_model(options[:model])
+            end
             remote_task
         end
 
@@ -269,6 +279,56 @@ module Orocos
             @local_properties[local_property.name] = local_property
             @properties[local_property.name] = local_property
             local_property
+        end
+
+        # Sets up the interface of this task context so that it matches the
+        # given oroGen model
+        #
+        # @param [Orocos::Spec::TaskContext] orogen_model the oroGen model
+        # @return [void]
+        def setup_from_orogen_model(orogen_model)
+            new_properties, new_outputs, new_inputs = [], [], []
+            remove_outputs, remove_inputs = [], []
+
+            orogen_model.each_property do |p|
+                if has_property?(p.name)
+                    if property(p.name).orocos_type_name != p.orocos_type_name
+                        raise IncompatibleInterface, "cannot adapt the interface of #{self} to match the model in #{orogen_model}: #{self} already has a property called #{p.name}, but with a different type"
+                    end
+                else new_properties << p
+                end
+            end
+            orogen_model.each_input_port do |p|
+                if has_port?(p.name)
+                    if port(p.name).orocos_type_name != p.orocos_type_name
+                        remove_inputs << p
+                        new_inputs << p
+                    end
+                else new_inputs << p
+                end
+            end
+            orogen_model.each_output_port do |p|
+                if has_port?(p.name)
+                    if port(p.name).orocos_type_name != p.orocos_type_name
+                        remove_outputs << p
+                        new_outputs << p
+                    end
+                else new_outputs << p
+                end
+            end
+
+            remove_inputs.each { |p| remove_input_port p }
+            remove_outputs.each { |p| remove_output_port p }
+            new_properties.each do |p|
+                create_property(p.name, p.orocos_type_name)
+            end
+            new_inputs.each do |p|
+                create_input_port(p.name, p.orocos_type_name)
+            end
+            new_outputs.each do |p|
+                create_output_port(p.name, p.orocos_type_name)
+            end
+            nil
         end
 
         private
