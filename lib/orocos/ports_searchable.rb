@@ -29,10 +29,8 @@ module Orocos
                     port_name = Regexp.new(port_name) 
                 end
                 candidates.delete_if { |port| port.full_name !~ port_name }
-                entherd
-
-                candidates
             end
+            candidates
         end
 
         # Searches for an input port object that matches the type and
