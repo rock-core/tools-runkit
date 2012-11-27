@@ -32,6 +32,11 @@ if run_roby
     ARGV.clear
     ARGV << Roby.app.robot_name
     ARGV << Roby.app.robot_type
+    Roby.app.base_setup
+    if !Roby.engine.scheduler
+        require 'roby/schedulers/temporal'
+        Roby.engine.scheduler = Roby::Schedulers::Temporal.new
+    end
     require 'roby/app/scripts/run'
     exit 0
 end
