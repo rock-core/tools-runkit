@@ -246,12 +246,7 @@ module Orocos
         def remove_port(port)
             @local_ports.delete(port.name)
             port.disconnect_all # don't wait for the port to be garbage collected by Ruby
-
-            port_name =
-                if port.respond_to?(:name) then port.name
-                else port.to_str
-                end
-            do_remove_port(port_name)
+            do_remove_port(port.name)
         end
 
         # Deregisters this task context.
