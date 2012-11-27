@@ -169,8 +169,13 @@ module Orocos
     #
     # For now, it has very limited functionality: mainly managing ports
     class RubyTaskContext < TaskContext
+        # Internal handler used to represent the local RTT::TaskContext object
+        #
+        # It is created from Ruby as it handles the RTT::TaskContext pointer
         class LocalTaskContext
+            # [Orocos::TaskContext] the remote task
             attr_reader :remote_task
+            # [String] the task name
             attr_reader :name
 
             def initialize(name)
@@ -178,6 +183,10 @@ module Orocos
             end
         end
 
+        # Creates a new local taks context with the given name
+        #
+        # @param [String] name the task name
+        # @return [LocalTaskContext]
         def self.new(name, options = Hash.new)
             local_task = LocalTaskContext.new(name)
             remote_task = super(local_task.ior, options)
@@ -231,6 +240,9 @@ module Orocos
         end
 
         # Remove the given port from this task's interface
+        #
+        # @param [LocalInputPort,LocalOutputPort] the port to be removed
+        # @return [void]
         def remove_port(port)
             @local_ports.delete(port.name)
             port.disconnect_all # don't wait for the port to be garbage collected by Ruby
@@ -266,6 +278,7 @@ module Orocos
 
         private
 
+        # Helper method for create_input_port and create_output_port
         def create_port(is_output, klass, name, orocos_type_name, options)
             options = Kernel.validate_options options, :permanent => true
             local_port = @local_task.do_create_port(is_output, klass, name, orocos_type_name)
