@@ -476,7 +476,8 @@ module Orocos
 
             policy = Port.prepare_policy(options)
             policy = handle_mq_transport(input_port.full_name, policy) do
-                task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id
+                task.process && input_port.task.process &&
+                    (task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id)
             end
             begin
                 do_connect_to(input_port, policy)
