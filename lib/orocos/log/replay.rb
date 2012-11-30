@@ -551,6 +551,7 @@ module Orocos
 
             #Runs through the log files until the end is reached.
             def run(time_sync = false,speed=1,&block)
+                reset_time_sync
                 @speed = speed
                 while step(time_sync,&block) do
                 end
