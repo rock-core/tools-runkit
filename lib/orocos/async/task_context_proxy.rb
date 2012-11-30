@@ -5,7 +5,7 @@ module Orocos::Async
     # Place holder class for the designated object
     class PlaceHolderObject
         def initialize(name,event_loop,type)
-            @name
+            @name = name
             @event_loop = event_loop
             @type = type
         end
@@ -17,7 +17,7 @@ module Orocos::Async
         end
 
         def method_missing(m,*args,&block)
-            error = raise Orocos::NotFound.new "#{@type} #{@name} is not reachable - still trying"
+            error = raise Orocos::NotFound.new "#{@type} #{@name} is not reachable while accessing #{m}"
             if !block
                 raise error
             else
@@ -44,16 +44,29 @@ module Orocos::Async
         def_delegators :@port,*methods
         
         def initialize(task_proxy,port_name,policy=Hash.new)
+            options,policy = Kernel.filter_options policy, :type_name => nil
             super()
+            @type_name = options[:type_name]
             @policy = policy
             @task_proxy = task_proxy
             @port_name = port_name
             @event_loop = task_proxy.event_loop
-            @port = PlaceHolderObject.new(@name,@event_loop,"Port")
+            @port = PlaceHolderObject.new(@port_name,@event_loop,"Port")
+            def @port.type_name
+                raise ArgumentError,"PortProxy #{@name}: Cannot determine the type name of the port sample because there is no connection at this stage. Use the option :type_name to give a hint."
+            end
         end
 
         def name
             @port_name
+        end
+
+        def type_name
+            if @type_name
+                @type_name
+            else
+                @port.type_name
+            end
         end
 
         def designated_port=(port)
@@ -64,7 +77,7 @@ module Orocos::Async
                 event :on_error,error
             end
 
-            #check which kind port we have
+            #check which port we have
             if port.respond_to? :reader
                 port.on_data @policy do |data|
                     event :on_data, data
@@ -86,6 +99,8 @@ module Orocos::Async
     end
 
     class TaskContextProxy < ObjectBase
+        attr_reader :name_service
+        include Orocos::Namespace
 
         # forward methods to designated object
         extend Forwardable
@@ -100,12 +115,13 @@ module Orocos::Async
                                                        :reconnect => true,
                                                        :retry_period => 1.0,
                                                        :use => nil,
-                                                       :raise => false}
-
+                                                       :raise => false,
+                                                       :wait => nil }
             @name = name
             @name_service = @options[:name_service]
             @event_loop = @options[:event_loop]
             @task_context = @options[:use]
+            register_callbacks(@task_context) if options[:use]
             @task_context ||= PlaceHolderObject.new(@name,@event_loop,"TaskContext")
             @resolve_task = nil
             @task_options[:event_loop] = @event_loop
@@ -122,6 +138,15 @@ module Orocos::Async
             else
                 connect
             end
+            wait if @options[:wait]
+        end
+
+        def name
+            map_to_namespace(@name)
+        end
+
+        def basename
+            @name
         end
 
         def connect()
@@ -166,17 +191,30 @@ module Orocos::Async
             @callbacks[:on_state_change] << block
         end
 
-        def port(name)
+        def port(name,options = Hash.new)
+            options,other_options = Kernel.filter_options options,:wait => @options[:wait]
+            wait if options[:wait]
             @mutex.synchronize do 
                 if @ports.has_key?(name)
                     @ports[name]
                 else
-                    p = @ports[name] = PortProxy.new(self,name)
-                 #   @event_loop.defer :known_errors => Orocos::NotFound do
-                 #       connect_port(p)
-                 #   end
+                    p = @ports[name] = PortProxy.new(self,name,other_options)
+                    if options[:wait]
+                        p.designated_port = @task_context.port(name)
+                    else
+                        @event_loop.defer :known_errors => Orocos::NotFound do
+                            connect_port(p)
+                        end
+                    end
                     p
                 end
+            end
+        end
+
+        # blocks until the task gets reachable
+        def wait
+            @event_loop.wait_for do
+                reachable?
             end
         end
 

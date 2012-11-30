@@ -149,7 +149,11 @@ module Orocos::Async::CORBA
                 @watchdog_timer.start(@period) if @watchdog
                 @event_loop.async(method(:__task_context))
             end
-            reachable? if options[:wait]
+            if options[:wait]
+                @event_loop.wait_for do 
+                    reachable?
+                end
+            end
         end
 
         # Disconnectes self from the remote task context and returns its underlying

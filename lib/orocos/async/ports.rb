@@ -13,7 +13,11 @@ module Orocos::Async::CORBA
             @reader = reader
 
             @period = options[:period]
-            @poll_timer = @event_loop.async_every(@reader.method(:read_new), {:period => @period, :start => false,:sync_key => @reader,:known_errors => Orocos::CORBA::ComError}) do |data,error|
+            @last_sample = @reader.new_sample
+            p = proc do 
+                sample = @reader.read_new(@last_sample)
+            end
+            @poll_timer = @event_loop.async_every(p, {:period => @period, :start => false,:sync_key => @reader,:known_errors => Orocos::CORBA::ComError}) do |data,error|
                 if error
                     @poll_timer.cancel
                     @event_loop.once do 
@@ -27,7 +31,6 @@ module Orocos::Async::CORBA
                     end
                 end
             end
-
             on_error do |e|
                 disconnect
             end

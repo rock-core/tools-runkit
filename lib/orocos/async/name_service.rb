@@ -9,15 +9,26 @@ module Orocos::Async
     end
 
     def self.proxy(name,options = Hash.new)
-        name_service.get_proxy(name,options)
+        name_service.proxy(name,options)
     end
 
     class NameServiceBase
         extend Utilrb::EventLoop::Forwardable
-        def get_proxy(name,options)
+        def proxy(name,options)
+            @task_context_proxies ||= Array.new
             options[:event_loop] ||= @event_loop
             options[:name_service] ||= self
-            Orocos::Async::TaskContextProxy.new(name,options)
+            task = @task_context_proxies.find do |t|
+                        t.name == name &&
+                        t.event_loop == options[:event_loop] &&
+                        t.name_service == options[:name_service]
+            end
+            if task
+                task
+            else
+                @task_context_proxies << Orocos::Async::TaskContextProxy.new(name,options)
+                @task_context_proxies.last
+            end
         end
     end
 
@@ -92,7 +103,7 @@ module Orocos::Async
             end
 
             def get(name,options=Hash.new,&block)
-                async_options,other_options = Kernel.filter_options options, {:raise => nil,:event_loop => @event_loop,:period => nil}
+                async_options,other_options = Kernel.filter_options options, {:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
                 if block
                     p = proc do |task,error|
                         async_options[:use] = task
