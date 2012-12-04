@@ -4,6 +4,8 @@ module Orocos::Async
 
     # Place holder class for the designated object
     class PlaceHolderObject
+        attr_accessor :period
+
         def initialize(name,event_loop,type)
             @name = name
             @event_loop = event_loop
@@ -69,7 +71,36 @@ module Orocos::Async
             end
         end
 
+        def input?
+            if @port.is_a?(Orocos::Async::PlaceHolderObject)
+                true
+            elsif @port.respond_to?(:writer)
+                true
+            else
+                false
+            end
+        end
+
+        def output?
+            if @port.is_a?(Orocos::Async::PlaceHolderObject)
+                true
+            elsif @port.respond_to?(:reader)
+                true
+            else
+                false
+            end
+        end
+
+        def period=(period)
+            raise RuntimeError, "Port #{name} is not an output port" if !output?
+            @policy[:period] = period
+            @port.period = period
+        end
+
         def designated_port=(port)
+            if @type_name && @type_name != port.type_name
+                raise RuntimeError, "the given type name #{@type_name} for port #{port.full_name} differes from the real type name #{port.type_name}"
+            end
             @port.reset_callbacks
             @port = port
 
@@ -84,17 +115,16 @@ module Orocos::Async
                 end
             else
                 if !@callbacks[:on_data].empty?
-                    raise ArgumentError, "Port #{name} is an input port but callbacks for on_data are registered" 
+                    raise RuntimeError, "Port #{name} is an input port but callbacks for on_data are registered" 
                 end
             end
         end
 
         def on_data(policy = Hash.new,&block)
+            raise RuntimeError , "Port #{name} is not an output port" if !output?
             @policy.merge! policy
-            if !@port.is_a?(Orocos::Async::PlaceHolderObject) && !@port.respond_to?(:reader)
-                raise ArgumentError, "Port #{name} is an input port."
-            end
             @callbacks[:on_data] << block
+            self
         end
     end
 
@@ -167,7 +197,11 @@ module Orocos::Async
                             @ports.values
                         end
                         ports.each do |port|
-                            connect_port(port)
+                            begin
+                                connect_port(port)
+                            rescue Orocos::NotFound
+                                Orocos.warn "task #{name} has currently no port called #{port.name} -> on_data will not be called!"
+                            end
                         end
                         register_callbacks(task_context)
                     end
@@ -177,18 +211,22 @@ module Orocos::Async
 
         def on_reachable(&block)
             @callbacks[:on_reachable] << block
+            self
         end
 
         def on_connect(&block)
             @callbacks[:on_connect] << block
+            self
         end
 
         def on_unreachable(&block)
             @callbacks[:on_unreachable] << block
+            self
         end
 
         def on_state_change(&block)
             @callbacks[:on_state_change] << block
+            self
         end
 
         def port(name,options = Hash.new)

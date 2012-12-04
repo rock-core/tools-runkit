@@ -83,10 +83,12 @@ module Orocos::Async::CORBA
             end
             # must called outside of the mutex
             block.call if call
+            self
         end
 
         def on_unreachable(&block)
             @callbacks[:on_unreachable] << block
+            self
         end
 
         def on_state_change(&block)
@@ -105,6 +107,7 @@ module Orocos::Async::CORBA
                     block.call(val) if val
                 end
             end
+            self
         end
 
         def name

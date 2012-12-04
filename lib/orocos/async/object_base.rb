@@ -14,6 +14,7 @@ module Orocos::Async
             @callbacks[name].each do |block|
                 block.call *args
             end
+            self
         end
 
         def reset_callbacks

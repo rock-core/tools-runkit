@@ -41,10 +41,15 @@ module Orocos::Async::CORBA
             @poll_timer.cancel
         end
 
+        def period=(period)
+            @poll_timer.period = period
+        end
+
         def on_data(&block)
             @callbacks[:on_data] << block
             @poll_timer.start(@period)
             block
+            self
         end
 
         private
@@ -155,6 +160,10 @@ module Orocos::Async::CORBA
                 @global_reader = reader # overwrites @global_reader before that it is a ThreadPool::Task
             end
             @callbacks[:on_data] << block
+        end
+
+        def period=(period)
+            @global_reader.period = period if @global_reader
         end
 
         def disconnect
