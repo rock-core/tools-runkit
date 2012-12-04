@@ -1,3 +1,4 @@
+$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
 
 require 'minitest/spec'
 require 'orocos'
@@ -9,6 +10,69 @@ MiniTest::Unit.autorun
 TEST_DIR = File.expand_path(File.dirname(__FILE__))
 DATA_DIR = File.join(TEST_DIR, 'data')
 WORK_DIR = File.join(TEST_DIR, 'working_copy')
+
+describe Orocos::Async::PortProxy do 
+    include Orocos::Spec
+
+    describe "when not connected" do 
+        it "should be an input and output port at the same time because the exact type is unknown" do 
+            t1 = Orocos::Async.proxy("process_Test")
+            p = t1.port("test")
+            assert p.input?
+            assert p.output?
+        end
+
+        it "should raise ArgumentError if some one is accessing the type name of a port which is not yet known" do 
+            t1 = Orocos::Async.proxy("simple_source_source")
+            p = t1.port("cycle")
+            assert_raises ArgumentError do 
+                p.type_name
+            end
+        end
+    end
+
+    describe "when connected" do 
+        it "should raise RuntimeError if an operation is performed which is not available for this port type" do
+            Orocos.run('simple_sink') do
+                t1 = Orocos::Async.proxy("simple_sink_sink")
+                p = t1.port("cycle",:wait => true)
+                assert_raises RuntimeError do
+                    p.period = 1
+                end
+                assert_raises RuntimeError do
+                    p.on_data do
+                    end
+                end
+            end
+        end
+
+        it "should return the type name of the port if known or connected" do 
+            t1 = Orocos::Async.proxy("simple_source_source",:retry_period => 0.08,:period => 0.1)
+            p = t1.port("cycle2",:type_name => "/test")
+            assert_equal "/test",p.type_name
+
+            p2 = t1.port("cycle")
+            Orocos.run('simple_source') do
+                sleep 0.1
+                Orocos::Async.step
+                sleep 0.1
+                Orocos::Async.step
+                sleep 0.1
+                Orocos::Async.step
+                assert_equal "/test",p.type_name
+            end
+        end
+
+        it "should raise RuntimeError if the given type name differes from the real one" do
+            Orocos.run('simple_sink') do
+                t1 = Orocos::Async.proxy("simple_sink_sink")
+                assert_raises RuntimeError do
+                    p = t1.port("cycle",:type_name => "/test",:wait => true)
+                end
+            end
+        end
+    end
+end
 
 describe Orocos::Async::TaskContextProxy do
     include Orocos::Spec
@@ -38,7 +102,6 @@ describe Orocos::Async::TaskContextProxy do
             assert !t1.reachable?
         end
 
-
         it "should not raise NotFound if remote task is unreachable and :raise is set to false" do
             t1 = Orocos::Async::TaskContextProxy.new("bla")
             sleep 0.2
@@ -58,7 +121,7 @@ describe Orocos::Async::TaskContextProxy do
         end
 
         it "should connect to a remote task when reachable" do
-            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1,:period => 0.1)
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.08,:period => 0.1)
 
             disconnects = 0
             connects = 0
@@ -98,8 +161,16 @@ describe Orocos::Async::TaskContextProxy do
             assert_equal 2, disconnects
         end
 
+
+        it "should block until the task is reachable if wait option is given" do 
+            Orocos.run('simple_source') do
+                t1 = Orocos::Async.proxy("simple_source_source",:wait => true)
+                assert t1.reachable?
+            end
+        end
+
         it "should connect its port when reachable" do
-            t1 = Orocos::Async.proxy("simple_source_source",:retry_period => 0.1,:period => 0.1)
+            t1 = Orocos::Async.proxy("simple_source_source",:retry_period => 0.08,:period => 0.1)
             p = t1.port("cycle")
 
             data = []
