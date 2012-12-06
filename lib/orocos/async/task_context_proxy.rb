@@ -1,4 +1,5 @@
 require 'forwardable'
+require 'delegate'
 
 module Orocos::Async
 
@@ -46,9 +47,9 @@ module Orocos::Async
         def_delegators :@port,*methods
         
         def initialize(task_proxy,port_name,policy=Hash.new)
-            options,policy = Kernel.filter_options policy, :type_name => nil
+            options,policy = Kernel.filter_options policy, :type => nil
             super()
-            @type_name = options[:type_name]
+            @type = options[:type]
             @policy = policy
             @task_proxy = task_proxy
             @port_name = port_name
@@ -64,10 +65,14 @@ module Orocos::Async
         end
 
         def type_name
-            if @type_name
-                @type_name
+            type.name
+        end
+
+        def type
+            if @type
+                @type
             else
-                @port.type_name
+                @port.type
             end
         end
 
@@ -91,6 +96,12 @@ module Orocos::Async
             end
         end
 
+        # returns a sub port for the given subfield
+        def sub_port(subfield,type=nil)
+            raise RuntimeError , "Port #{name} is not an output port" if !output?
+            SubPortProxy.new(self,subfield,type)
+        end
+
         def period=(period)
             raise RuntimeError, "Port #{name} is not an output port" if !output?
             @policy[:period] = period
@@ -98,8 +109,8 @@ module Orocos::Async
         end
 
         def designated_port=(port)
-            if @type_name && @type_name != port.type_name
-                raise RuntimeError, "the given type name #{@type_name} for port #{port.full_name} differes from the real type name #{port.type_name}"
+            if @type && @type != port.type
+                raise RuntimeError, "the given type #{@type} for port #{port.full_name} differes from the real type name #{port.type}"
             end
             @port.reset_callbacks
             @port = port
@@ -125,6 +136,79 @@ module Orocos::Async
             @policy.merge! policy
             @callbacks[:on_data] << block
             self
+        end
+    end
+
+    class SubPortProxy < DelegateClass(PortProxy)
+        def initialize(port_proxy,subfield = Array.new,type = nil)
+            raise ArgumentError, "#{type} is not a Typelib::Type" if type && !type.is_a?(Typelib::Type)
+            super(port_proxy)
+            @subfield = Array(subfield)
+            @type = type
+            @ruby_type = nil
+        end
+
+        def on_data(policy = Hash.new,&block)
+            p = proc do |sample|
+                block.call __subfield(sample,@subfield)
+            end
+            super(policy,&p)
+        end
+
+        def type_name
+            type.name
+        end
+
+        def type
+            @type ||= if !@subfield.empty?
+                          type ||= super
+                          @subfield.each do |f|
+                              type = if type.respond_to? :deference
+                                         type.deference
+                                     else
+                                         type[f]
+                                     end
+                          end
+                          type
+                      else
+                          super
+                      end
+        end
+
+        private
+        def ruby_type
+            @ruby_type ||= if Typelib.convertions_to_ruby.has_key?(type_name)
+                               val = Typelib.convertions_to_ruby[type_name]
+                               if val.empty?
+                                   type
+                               else
+                                   val.flatten[1]
+                               end
+                           elsif type.is_a?(Typelib::NumericType)
+                                if type.integer?
+                                    Fixnum
+                                else
+                                    Float
+                                end
+                           else
+                               type
+                           end
+        end
+        
+        def __subfield(sample,field)
+            field.each do |f|
+                sample = sample[f]
+                if !sample
+                    #if the field name is wrong typelib will raise an ArgumentError
+                    Vizkit.warn "Cannot extract subfield for port #{full_name}: Subfield #{f} does not exist (out of index)!"
+                    break
+                end
+            end
+            #check if the type is right
+            if(!sample.is_a?(ruby_type))
+                raise "Type miss match. Expected type #{ruby_type} but got #{sample.class} for subfield #{field.join(".")} of port #{full_name}"
+            end
+            sample
         end
     end
 

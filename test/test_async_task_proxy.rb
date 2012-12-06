@@ -13,6 +13,9 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
 describe Orocos::Async::PortProxy do 
     include Orocos::Spec
+    before do 
+        Orocos::Async.clear
+    end
 
     describe "when not connected" do 
         it "should be an input and output port at the same time because the exact type is unknown" do 
@@ -22,12 +25,21 @@ describe Orocos::Async::PortProxy do
             assert p.output?
         end
 
-        it "should raise ArgumentError if some one is accessing the type name of a port which is not yet known" do 
+        it "should raise Orocos::NotFound if some one is accessing the type name of a port which is not yet known" do 
             t1 = Orocos::Async.proxy("simple_source_source")
             p = t1.port("cycle")
-            assert_raises ArgumentError do 
+            assert_raises Orocos::NotFound do 
                 p.type_name
             end
+        end
+
+        it "should return a sub port for a given subfield" do
+            t1 = Orocos::Async.proxy("simple_source_source")
+            p = t1.port("cycle")
+            sub_port = p.sub_port(:frame)
+            sub_port.must_be_instance_of Orocos::Async::PortProxy
+            sub_port = p.sub_port([:frame,:size])
+            sub_port.must_be_instance_of Orocos::Async::PortProxy
         end
     end
 
@@ -48,8 +60,8 @@ describe Orocos::Async::PortProxy do
 
         it "should return the type name of the port if known or connected" do 
             t1 = Orocos::Async.proxy("simple_source_source",:retry_period => 0.08,:period => 0.1)
-            p = t1.port("cycle2",:type_name => "/test")
-            assert_equal "/test",p.type_name
+            p = t1.port("cycle2",:type => Fixnum)
+            assert_equal "Fixnum",p.type_name
 
             p2 = t1.port("cycle")
             Orocos.run('simple_source') do
@@ -59,7 +71,7 @@ describe Orocos::Async::PortProxy do
                 Orocos::Async.step
                 sleep 0.1
                 Orocos::Async.step
-                assert_equal "/test",p.type_name
+                assert_equal "Fixnum",p.type_name
             end
         end
 
@@ -67,8 +79,86 @@ describe Orocos::Async::PortProxy do
             Orocos.run('simple_sink') do
                 t1 = Orocos::Async.proxy("simple_sink_sink")
                 assert_raises RuntimeError do
-                    p = t1.port("cycle",:type_name => "/test",:wait => true)
+                    p = t1.port("cycle",:type => Float,:wait => true)
                 end
+            end
+        end
+
+    end
+end
+
+describe Orocos::Async::SubPortProxy do 
+    include Orocos::Spec
+    before do 
+        Orocos::Async.clear
+    end
+
+    describe "when not connected" do
+        it "should return the given sub type" do
+            t1 = Orocos::Async.proxy("simple_source_source")
+            p = t1.port("cycle")
+            sub_port = p.sub_port(:frame,Orocos.registry.get("/int32_t"))
+            assert_equal Orocos.registry.get("/int32_t"),sub_port.type
+            assert_equal "/int32_t",sub_port.type_name
+        end
+
+        it "should raise if the type is accessed but not given" do 
+            t1 = Orocos::Async.proxy("simple_source_source")
+            p = t1.port("cycle")
+            sub_port = p.sub_port(:frame)
+            assert_raises Orocos::NotFound do 
+                sub_port.type
+            end
+        end
+    end
+
+    describe "when connected" do
+        it "should return the given sub type" do
+            t1 = Orocos::Async.proxy("simple_source_source")
+            Orocos.run('simple_source') do
+                p = t1.port("cycle_struct",:wait => true)
+                sub_port = p.sub_port(:value)
+                assert_equal Orocos.registry.get("/int32_t"),sub_port.type
+                assert_equal "/int32_t",sub_port.type_name
+            end
+        end
+
+        it "should raise RuntimeError if the given sub type differs from the real one" do
+            t1 = Orocos::Async.proxy("simple_source_source")
+            Orocos.run('simple_source') do
+                p = t1.port("cycle_struct",:wait => true)
+                t1.configure
+                t1.start
+                sub_port = p.sub_port(:value,Orocos.registry.get("/double"))
+                assert_raises RuntimeError do
+                    sub_port.on_data do |sample|
+                    end
+                    Orocos::Async.step
+                    sleep 0.1
+                    Orocos::Async.step
+                    sleep 0.1
+                    Orocos::Async.step
+                end
+            end
+        end
+
+        it "should call the code block with the sub sample" do
+            t1 = Orocos::Async.proxy("simple_source_source")
+            Orocos.run('simple_source') do
+                p = t1.port("cycle_struct",:wait => true)
+                t1.configure
+                t1.start
+                sub_port = p.sub_port(:value)
+                data = nil
+                sub_port.on_data do |sample|
+                    data = sample
+                end
+                Orocos::Async.step
+                sleep 0.1
+                Orocos::Async.step
+                sleep 0.1
+                Orocos::Async.step
+                data.must_be_instance_of Fixnum
             end
         end
     end
