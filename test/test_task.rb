@@ -47,6 +47,13 @@ describe Orocos::TaskContext do
         end
     end
 
+    it "should give access to its own process if it is known" do
+        Orocos.run('simple_source') do |process|
+            source = Orocos::TaskContext.get("simple_source_source")
+            assert_same process, source.process
+        end
+    end
+
     it "should allow enumerating its ports" do
         Orocos.run('simple_source', 'simple_sink') do
             source = Orocos::TaskContext.get("simple_source_source")
