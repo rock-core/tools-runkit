@@ -6,7 +6,7 @@ module Orocos::Async::CORBA
         # @param [Async::OutputPort] port The Asyn::OutputPort
         # @param [Orocos::OutputReader] reader The designated reader
         def initialize(port,reader,options=Hash.new)
-            super()
+            super(port.name)
             options,policy = Kernel.validate_options options, :period => 0.1
             @event_loop = port.event_loop
             @port = port
@@ -64,7 +64,7 @@ module Orocos::Async::CORBA
         extend Utilrb::EventLoop::Forwardable
 
         def initialize(port,writer,options=Hash.new)
-            super()
+            super(port.name)
             @event_loop = port.event_loop
             @port = port
             @writer = writer
@@ -103,11 +103,10 @@ module Orocos::Async::CORBA
 
         protected
         def initialize(async_task,port,options=Hash.new)
-            super()
+            super(port.name)
             raise ArgumentError, "no task is given" unless async_task
             raise ArgumentError, "no port is given" unless port 
             @task = async_task
-            @name = port.name
             @event_loop = task.event_loop
             @mutex = Mutex.new
             @callblocks = Hash.new{ |hash,key| hash[key] = []}
@@ -118,7 +117,7 @@ module Orocos::Async::CORBA
         def __port
             @mutex.synchronize do 
                 if !@__port
-                    error = Orocos::NotFound.new "Port #{@name} is not reachable"
+                    error = Orocos::NotFound.new "Port #{name} is not reachable"
                     [nil,error]
                 else
                     @__port

@@ -102,7 +102,6 @@ describe Orocos::Async::CORBA::TaskContext do
     end
 
     describe "Async access" do 
-
         it "should raise on all synchronous calls to the remote task if not reachable" do
             t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'))
             t1.reachable?.must_equal false # only function that should never raise
@@ -139,12 +138,127 @@ describe Orocos::Async::CORBA::TaskContext do
             sleep 0.11
             Orocos::Async.step # here we find out that the task is not reachable
             sleep 0.11
-            sleep 0.11
             Orocos::Async.step # here we find out that the task is not reachable
             assert connect
             assert disconnect
         end
 
+        it "should call on_port_reachable" do 
+            Orocos.run('simple_source') do
+                t1 = Orocos::Async::CORBA::TaskContext.new(ior('simple_source_source'),:period => 0.1,:watchdog => true)
+                ports = []
+                t1.on_port_reachable do |name|
+                    ports << name
+                end
+                t1.wait(1.0)
+                Orocos::Async.step
+                assert_equal ["cycle", "cycle_struct", "out0", "out1", "out2", "out3", "state"],ports.sort
+                ports.clear
+               
+                #should be called even if the task is already reachable
+                t1.on_port_reachable do |name|
+                    ports << name
+                end
+                assert_equal ["cycle", "cycle_struct", "out0", "out1", "out2", "out3", "state"],ports.sort
+            end
+        end
+
+        it "should call on_port_unreachable" do 
+            t1 = nil
+            ports = []
+            Orocos.run('simple_source') do
+                t1 = Orocos::Async::CORBA::TaskContext.new(ior('simple_source_source'),:period => 0.1,:watchdog => true)
+                t1.on_port_unreachable do |name|
+                    ports << name
+                end
+                t1.wait(1.0)
+                Orocos::Async.step
+            end
+            assert_raises Orocos::NotFound do
+                t1.wait 0.11
+            end
+            Orocos::Async.step
+            assert_equal ["cycle", "cycle_struct", "out0", "out1", "out2", "out3", "state"],ports.sort
+        end
+
+        it "should call on_property_reachable" do 
+            Orocos.run('process') do
+                t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'),:period => 0.1,:watchdog => true)
+                properties = []
+                t1.on_property_reachable do |name|
+                    properties << name
+                end
+                t1.wait(1.0)
+                Orocos::Async.step
+                assert_equal ["prop1", "prop2", "prop3"],properties
+                properties.clear
+
+                #should be called even if the task is already reachable
+                t1.on_property_reachable do |name|
+                    properties << name
+                end
+                assert_equal ["prop1", "prop2", "prop3"],properties
+            end
+        end
+
+        it "should call on_port_unreachable" do 
+            t1 = nil
+            properties = []
+            Orocos.run('process') do
+                t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'),:period => 0.1,:watchdog => true)
+                t1.on_property_unreachable do |name|
+                    properties << name
+                end
+                t1.wait(1.0)
+                Orocos::Async.step
+            end
+            assert_raises Orocos::NotFound do
+                t1.wait 0.11
+            end
+            Orocos::Async.step
+            assert_equal ["prop1", "prop2", "prop3"],properties
+        end
+
+        it "should call on_port_reachable if a port was dynamically added" do 
+            task = Orocos::RubyTaskContext.new("test")
+            t1 = Orocos::Async::CORBA::TaskContext.new(ior('test'),:period => 0.1,:watchdog => true)
+            ports = []
+            t1.on_port_reachable do |name|
+                ports << name
+            end
+            t1.wait(1.0)
+            Orocos::Async.step
+            assert_equal [],ports
+            port = task.create_output_port("frame","string")
+            port = task.create_output_port("frame2","string")
+            Orocos::Async.step
+            sleep 0.11
+            Orocos::Async.step
+            sleep 0.11
+            Orocos::Async.step
+            assert_equal ["frame","frame2"], ports
+        end
+
+        it "should call on_port_unreachable if a port was dynamically removed" do 
+            task = Orocos::RubyTaskContext.new("test")
+            t1 = Orocos::Async::CORBA::TaskContext.new(ior('test'),:period => 0.1,:watchdog => true)
+            port = task.create_output_port("frame","string")
+
+            ports = []
+            t1.on_port_unreachable do |name|
+                ports << name
+            end
+            t1.wait(1.0)
+            Orocos::Async.step
+            task.remove_port(port)
+            Orocos::Async.step
+            sleep 0.11
+            Orocos::Async.step
+            sleep 0.11
+            Orocos::Async.step
+            assert_equal ["frame"], ports
+        end
+        
         it "should call on_error" do
             t1 = nil
             error = nil

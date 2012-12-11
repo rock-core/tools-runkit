@@ -48,20 +48,15 @@ module Orocos::Async
         
         def initialize(task_proxy,port_name,policy=Hash.new)
             options,policy = Kernel.filter_options policy, :type => nil
-            super()
+            super(port_name)
             @type = options[:type]
             @policy = policy
             @task_proxy = task_proxy
-            @port_name = port_name
             @event_loop = task_proxy.event_loop
-            @port = PlaceHolderObject.new(@port_name,@event_loop,"Port")
+            @port = PlaceHolderObject.new(port_name,@event_loop,"Port")
             def @port.type_name
                 raise ArgumentError,"PortProxy #{@name}: Cannot determine the type name of the port sample because there is no connection at this stage. Use the option :type_name to give a hint."
             end
-        end
-
-        def name
-            @port_name
         end
 
         def type_name
@@ -223,7 +218,7 @@ module Orocos::Async
         def_delegators :@task_context,*methods
 
         def initialize(name,options=Hash.new)
-            super()
+            super(name)
             @options,@task_options = Kernel.filter_options options,{:name_service => Orocos::Async.name_service,
                                                        :event_loop => Orocos::Async.event_loop,
                                                        :reconnect => true,
@@ -231,7 +226,6 @@ module Orocos::Async
                                                        :use => nil,
                                                        :raise => false,
                                                        :wait => nil }
-            @name = name
             @name_service = @options[:name_service]
             @event_loop = @options[:event_loop]
             @task_context = @options[:use]
@@ -265,7 +259,6 @@ module Orocos::Async
 
         def connect()
             if !@resolve_task
-                event :on_connect
                 @resolve_task = @name_service.get @name,@task_options do |task_context,error|
                     if error
                         raise error if @options[:raise]
@@ -298,13 +291,28 @@ module Orocos::Async
             self
         end
 
-        def on_connect(&block)
-            @callbacks[:on_connect] << block
+        def on_unreachable(&block)
+            @callbacks[:on_unreachable] << block
             self
         end
 
-        def on_unreachable(&block)
-            @callbacks[:on_unreachable] << block
+        def on_port_reachable(&block)
+            @callbacks[:on_port_reachable] << block
+            self
+        end
+
+        def on_port_unreachable(&block)
+            @callbacks[:on_port_unreachable] << block
+            self
+        end
+
+        def on_property_reachable(&block)
+            @callbacks[:on_property_reachable] << block
+            self
+        end
+
+        def on_property_unreachable(&block)
+            @callbacks[:on_property_unreachable] << block
             self
         end
 
@@ -316,28 +324,29 @@ module Orocos::Async
         def port(name,options = Hash.new)
             options,other_options = Kernel.filter_options options,:wait => @options[:wait]
             wait if options[:wait]
-            @mutex.synchronize do 
-                if @ports.has_key?(name)
-                    @ports[name]
-                else
-                    p = @ports[name] = PortProxy.new(self,name,other_options)
-                    if options[:wait]
-                        p.designated_port = @task_context.port(name)
-                    else
-                        @event_loop.defer :known_errors => Orocos::NotFound do
-                            connect_port(p)
-                        end
-                    end
-                    p
+            p = @mutex.synchronize do
+                @ports[name] ||= PortProxy.new(self,name,other_options)
+            end
+
+            if options[:wait]
+                connect_port(p)
+            else
+                @event_loop.defer :known_errors => Orocos::NotFound do
+                    connect_port(p)
                 end
             end
+            p
         end
 
-        # blocks until the task gets reachable
-        def wait
-            @event_loop.wait_for do
-                reachable?
-            end
+        def ports(options = Hash.new,&block)
+           p = proc do |names|
+               names.map{|name| port(name,options)}
+           end
+           if block
+               port_names(&p)
+           else
+               p.call(port_names)
+           end
         end
 
         def reachable?(&block)
@@ -360,13 +369,23 @@ module Orocos::Async
             task.on_state_change do |state|
                 event :on_state_change,state
             end
+            task.on_port_reachable do |name|
+                event :on_port_reachable,name
+            end
+            task.on_port_unreachable do |name|
+                event :on_port_unreachable,name
+            end
+            task.on_property_reachable do |name|
+                event :on_property_reachable,name
+            end
+            task.on_property_unreachable do |name|
+                event :on_property_unreachable,name
+            end
         end
 
         # blocking call shoud be called from a different thread
         def connect_port(port)
-            p = @mutex.synchronize do 
-                    @task_context.port(port.name)
-            end
+            p = @task_context.port(port.name)
             @event_loop.call do
                 port.designated_port = p
             end

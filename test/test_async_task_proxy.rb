@@ -199,6 +199,13 @@ describe Orocos::Async::TaskContextProxy do
             assert !t1.reachable?
         end
 
+        it "should raise Orocos::NotFound if task is not reachable after n seconds" do 
+            t1 = Orocos::Async::TaskContextProxy.new("bla")
+            assert_raises(Orocos::NotFound) do 
+                t1.wait(0.1)
+            end
+        end
+
         it "shortcut must return TaskContexProxy" do
             t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1,:period => 0.1)
             t1.must_be_instance_of Orocos::Async::TaskContextProxy
@@ -249,6 +256,18 @@ describe Orocos::Async::TaskContextProxy do
             assert !t1.reachable?
             assert_equal 2, connects
             assert_equal 2, disconnects
+        end
+
+        it "should call on_port_reachable if task gets reachable" do 
+            port = []
+            t1 = Orocos::Async.proxy("simple_source_source")
+            t1.on_port_reachable do |port_name| 
+                port << port_name
+            end
+            Orocos.run('simple_source') do
+
+            end
+
         end
 
 

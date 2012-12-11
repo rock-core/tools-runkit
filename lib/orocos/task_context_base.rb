@@ -45,6 +45,10 @@ module Orocos
             @type_name = type.name
         end
 
+        def type_name
+            type.name
+        end
+
         def log_metadata
             Hash['rock_task_model' => task.model.name,
                 'rock_task_name' => task.name,
