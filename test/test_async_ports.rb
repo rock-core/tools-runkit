@@ -50,13 +50,12 @@ describe Orocos::Async::CORBA::OutputPort do
                 t1 = Orocos::Async::CORBA::TaskContext.new(ior('simple_source_source'))
                 port = t1.port("cycle")
                 data = []
-                port.on_data :period => 0.05 do |d|
+                s = port.on_data :period => 0.05 do |d|
                     data << d
                 end
-                
                 t1.configure
                 t1.start
-                1.upto(10) do 
+                1.upto(10) do
                     Orocos::Async.step
                     sleep 0.05
                 end

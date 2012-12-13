@@ -29,6 +29,10 @@ describe Orocos::Async::NameService do
         end
     end
 
+    it "should be reachable" do
+        assert Orocos::Async.name_service.reachable?
+    end
+
     it "should return a TaskContextProxy" do 
         Orocos.run('process') do
             ns = Orocos::Async::NameService.new
@@ -46,12 +50,37 @@ describe Orocos::Async::NameService do
             t2.must_be_instance_of Orocos::Async::CORBA::TaskContext
         end
     end
+
+    it "should report that new task are added and removed" do 
+        ns = Orocos::Async::NameService.new(:period => 0.08)
+        ns << Orocos::Async::CORBA::NameService.new
+        names_added = []
+        names_removed = []
+        ns.on_task_added do |n|
+            names_added << n
+        end
+        ns.on_task_removed do |n|
+            names_removed << n
+        end
+        Orocos.run('process') do
+            sleep 0.1
+            Orocos::Async.steps
+            assert_equal 1,names_added.size
+            assert_equal 0,names_removed.size
+            assert_equal "/process_Test",names_added.first
+        end
+        sleep 0.1
+        Orocos::Async.steps
+        assert_equal 1,names_added.size
+        assert_equal 1,names_removed.size
+        assert_equal "/process_Test",names_removed.first
+    end
 end
 
 describe Orocos::Async::CORBA::NameService do
     include Orocos::Spec
 
-    before do 
+    before do
         Orocos::Async.clear
     end
 

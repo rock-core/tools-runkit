@@ -59,18 +59,14 @@ describe Orocos::Async::PortProxy do
         end
 
         it "should return the type name of the port if known or connected" do 
-            t1 = Orocos::Async.proxy("simple_source_source",:retry_period => 0.08,:period => 0.1)
+            t1 = Orocos::Async.proxy("simple_source_source",:retry_period => 0.2,:period => 0.2)
             p = t1.port("cycle2",:type => Fixnum)
             assert_equal "Fixnum",p.type_name
 
             p2 = t1.port("cycle")
             Orocos.run('simple_source') do
-                sleep 0.1
-                Orocos::Async.step
-                sleep 0.1
-                Orocos::Async.step
-                sleep 0.1
-                Orocos::Async.step
+                sleep 0.2
+                Orocos::Async.steps
                 assert_equal "Fixnum",p.type_name
             end
         end
@@ -133,11 +129,8 @@ describe Orocos::Async::SubPortProxy do
                 assert_raises RuntimeError do
                     sub_port.on_data do |sample|
                     end
-                    Orocos::Async.step
                     sleep 0.1
-                    Orocos::Async.step
-                    sleep 0.1
-                    Orocos::Async.step
+                    Orocos::Async.steps
                 end
             end
         end
@@ -146,20 +139,188 @@ describe Orocos::Async::SubPortProxy do
             t1 = Orocos::Async.proxy("simple_source_source")
             Orocos.run('simple_source') do
                 p = t1.port("cycle_struct",:wait => true)
-                t1.configure
-                t1.start
                 sub_port = p.sub_port(:value)
                 data = nil
                 sub_port.on_data do |sample|
                     data = sample
                 end
-                Orocos::Async.step
+                t1.configure
+                t1.start
                 sleep 0.1
-                Orocos::Async.step
-                sleep 0.1
-                Orocos::Async.step
+                Orocos::Async.steps
                 data.must_be_instance_of Fixnum
             end
+        end
+    end
+end
+
+describe Orocos::Async::AttributeProxy do 
+    include Orocos::Spec
+    before do 
+        Orocos::Async.clear
+    end
+
+    describe "when not connected" do 
+        it "should raise Orocos::NotFound if someone is accessing the type name of the attribute which is not yet known" do 
+            t1 = Orocos::Async.proxy("process_Test")
+            p = t1.attribute("att1")
+            assert_raises Orocos::NotFound do 
+                p.type_name
+            end
+        end
+    end
+
+    describe "when connected" do 
+        it "should return the type name of the attribute if known or connected" do 
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.08,:period => 0.1)
+            p = t1.attribute("att2",:type => Orocos.registry.get("int32_t"))
+            assert_equal "/int32_t",p.type_name
+
+            p2 = t1.attribute("att3")
+            Orocos.run('process') do
+                sleep 0.1
+                Orocos::Async.wait_for 0.1,1 do
+                    p2.reachable?
+                end
+                assert_equal "/std/string",p2.type_name
+            end
+        end
+
+        it "should raise RuntimeError if the given type name differes from the real one" do
+            Orocos.run('process') do
+                t1 = Orocos::Async.proxy("process_Test")
+                assert_raises RuntimeError do
+                    p = t1.attribute("att1",:type => Float,:wait => true)
+                end
+            end
+        end
+
+        it "should call on_change" do
+            Orocos.run('process') do
+                t1 = Orocos::Async.proxy("process_Test")
+                p = t1.attribute("att2",:wait => true)
+                val = nil
+                p.on_change do |data|
+                    val = data
+                end
+                sleep 0.1
+                Orocos::Async.steps
+                assert val
+            end
+        end
+
+        it "should reconnect" do
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1)
+            p = t1.attribute("att2")
+            vals = Array.new
+            p.on_change do |data|
+                vals << data
+            end
+
+            Orocos.run('process') do
+                sleep 0.1
+                Orocos::Async.steps
+                sleep 0.1
+                Orocos::Async.steps
+                assert p.reachable?
+            end
+            assert_equal 1,vals.size
+
+            Orocos::Async.event_loop.wait_for(0.05,1) do
+                !t1.reachable? && !p.reachable?
+            end
+
+            Orocos.run('process') do
+                sleep 0.1
+                Orocos::Async.steps
+                sleep 0.1
+                Orocos::Async.steps
+            end
+            assert_equal 2,vals.size
+        end
+    end
+end
+
+describe Orocos::Async::PropertyProxy do 
+    include Orocos::Spec
+    before do 
+        Orocos::Async.clear
+    end
+
+    describe "when not connected" do 
+        it "should raise Orocos::NotFound if someone is accessing the type name of the property which is not yet known" do 
+            t1 = Orocos::Async.proxy("process_Test")
+            p = t1.property("prop1")
+            assert_raises Orocos::NotFound do 
+                p.type_name
+            end
+        end
+    end
+
+    describe "when connected" do 
+        it "should return the type name of the property if known or connected" do 
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.08,:period => 0.1)
+            p = t1.property("prop2",:type => Orocos.registry.get("int32_t"))
+            assert_equal "/int32_t",p.type_name
+
+            p2 = t1.property("prop3")
+            Orocos.run('process') do
+                Orocos::Async.wait_for 0.1,1 do 
+                    p2.reachable?
+                end
+                assert_equal "/std/string",p2.type_name
+            end
+        end
+
+        it "should raise RuntimeError if the given type name differes from the real one" do
+            Orocos.run('process') do
+                t1 = Orocos::Async.proxy("process_Test")
+                assert_raises RuntimeError do
+                    p = t1.property("prop1",:type => Float,:wait => true)
+                end
+            end
+        end
+
+        it "should call on_change" do
+            Orocos.run('process') do
+                t1 = Orocos::Async.proxy("process_Test")
+                p = t1.property("prop2",:wait => true)
+                val = nil
+                p.on_change do |data|
+                    val = data
+                end
+                sleep 0.1
+                Orocos::Async.steps
+                assert val
+            end
+        end
+
+        it "should reconnect" do
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1,:period => 0.9)
+            p = t1.property("prop2")
+            vals = Array.new
+            p.on_change do |data|
+                vals << data
+            end
+
+            Orocos.run('process') do
+                sleep 0.1
+                Orocos::Async.steps
+                sleep 0.1
+                Orocos::Async.steps
+            end
+            assert_equal 1,vals.size
+            sleep 0.1
+            Orocos::Async.steps
+            sleep 0.1
+            Orocos::Async.steps
+            Orocos.run('process') do
+                sleep 0.1
+                Orocos::Async.steps
+                sleep 0.1
+                Orocos::Async.steps
+            end
+            assert_equal 2,vals.size
         end
     end
 end
@@ -174,9 +335,9 @@ describe Orocos::Async::TaskContextProxy do
         before do 
             begin
                 sleep 0.1
-                Orocos::Async.step
+                Orocos::Async.clear
+                Orocos::Async.steps
             rescue
-            ensure
                 Orocos::Async.clear
             end
         end
@@ -187,6 +348,7 @@ describe Orocos::Async::TaskContextProxy do
             sleep 0.1
             assert_raises(Orocos::NotFound) do
                 Orocos::Async.step
+                sleep 0.1
                 Orocos::Async.step
             end
             assert !t1.reachable?
@@ -199,9 +361,18 @@ describe Orocos::Async::TaskContextProxy do
             assert !t1.reachable?
         end
 
+        it "should raise NotFound if a method is called while task is unreachable" do
+            t1 = Orocos::Async::TaskContextProxy.new("bla")
+            sleep 0.2
+            Orocos::Async.step
+            assert_raises(Orocos::NotFound) do
+                assert !t1.model
+            end
+        end
+
         it "should raise Orocos::NotFound if task is not reachable after n seconds" do 
             t1 = Orocos::Async::TaskContextProxy.new("bla")
-            assert_raises(Orocos::NotFound) do 
+            assert_raises(Orocos::NotFound) do
                 t1.wait(0.1)
             end
         end
@@ -223,12 +394,16 @@ describe Orocos::Async::TaskContextProxy do
             disconnects = 0
             connects = 0
 
-            t1.on_reachable do 
+            t1.on_reachable do
                 connects += 1
             end
-            t1.on_unreachable do 
+            t1.on_unreachable do
                 disconnects += 1
             end
+            assert_equal 0, connects
+            assert_equal 0, disconnects
+            Orocos::Async.steps
+            assert_equal 1, disconnects # on_unreachable will be called because is not yet reachable
 
             Orocos.run('process') do
                 sleep 0.11
@@ -238,11 +413,13 @@ describe Orocos::Async::TaskContextProxy do
                 sleep 0.11
                 Orocos::Async.step # process callback
                 assert t1.reachable?
-                t1.instance_variable_get(:@task_context).must_be_instance_of Orocos::Async::CORBA::TaskContext
+                t1.instance_variable_get(:@delegator_obj).must_be_instance_of Orocos::Async::CORBA::TaskContext
             end
             assert !t1.reachable?
+            sleep 0.1
+            Orocos::Async.steps # queue reconnect
             assert_equal 1, connects
-            assert_equal 1, disconnects
+            assert_equal 3, disconnects
 
             Orocos.run('process') do
                 sleep 0.11
@@ -253,9 +430,11 @@ describe Orocos::Async::TaskContextProxy do
                 Orocos::Async.step # process callback
                 assert t1.reachable?
             end
+            sleep 0.1
+            Orocos::Async.steps # queue reconnect
             assert !t1.reachable?
             assert_equal 2, connects
-            assert_equal 2, disconnects
+            assert_equal 3, disconnects
         end
 
         it "should call on_port_reachable if task gets reachable" do 
@@ -267,13 +446,12 @@ describe Orocos::Async::TaskContextProxy do
             Orocos.run('simple_source') do
 
             end
-
         end
 
 
         it "should block until the task is reachable if wait option is given" do 
             Orocos.run('simple_source') do
-                t1 = Orocos::Async.proxy("simple_source_source",:wait => true)
+                t1 = Orocos::Async.proxy("simple_source_source",:wait => true )
                 assert t1.reachable?
             end
         end
@@ -287,26 +465,24 @@ describe Orocos::Async::TaskContextProxy do
                 data << d
             end
             #test reconnect logic
-            0.upto(2) do 
+            0.upto(2) do
                 Orocos.run('simple_source') do
                     sleep 0.1
-                    Orocos::Async.step
+                    Orocos::Async.steps
                     sleep 0.1
-                    Orocos::Async.step
-                    sleep 0.1
-                    Orocos::Async.step
-                    t1.configure
-                    t1.start
-                    0.upto(10) do 
+                    Orocos::Async.steps
+                    t1.configure{}
+                    t1.start{}
+                    while data.size < 3
                         Orocos::Async.step
-                        sleep 0.05
+                        sleep 0.001
                     end
                 end
-                sleep 0.2
-                Orocos::Async.step
+                sleep 0.1
+                Orocos::Async.steps
                 assert !data.empty?
                 data.each_with_index do |d,i|
-                    assert_equal i+1,d
+                    assert i
                 end
                 data.clear
             end

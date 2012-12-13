@@ -92,6 +92,11 @@ module Orocos
             raise NotImplementedError
         end
 
+        # return [String] the name of the name service
+        def name
+            self.class.name
+        end
+
         # Gets the IOR for the given Orocos Task having the given name.
         #
         # @param [String] name the name of the TaskContext
@@ -210,6 +215,11 @@ module Orocos
         # @return [NameService]
         def initialize(*name_services)
             @name_services = name_services
+        end
+
+        #(see NameServiceBase#name)
+        def name
+            super + ":" + namespace.to_s
         end
 
         #(see Namespace#same_namespace?)
@@ -355,14 +365,21 @@ module Orocos
             # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are known by the name service.
             # @note The namespace is always "Local"
             def initialize(tasks = Hash.new)
-                @registered_tasks = tasks
+                @registered_tasks = Hash.new
+                tasks.each_pair do |name,task|
+                    register(task,name)
+                end
                 namespace = "Local"
+            end
+
+            #(see NameServiceBase#name)
+            def name
+                super + ":" + namespace
             end
 
             #(see NameServiceBase#get)
             def get(name,options=Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
-
                 verify_same_namespace(name)
                 task = @registered_tasks[basename(name)]
                 raise Orocos::NotFound, "task context #{name} cannot be found." unless task
@@ -481,6 +498,17 @@ module Orocos
                 self.namespace = options[:namespace]
             end
 
+            #(see NameServiceBase#name)
+            def name
+                address = ip
+                address = if address.empty?
+                              "default"
+                          else
+                              address
+                          end
+                "CORBA:#{address}"
+            end
+
             # Sets the ip address or host name where the CORBA name service is running
             # 
             # @param [String] host The ip address or host name
@@ -526,6 +554,11 @@ module Orocos
             def get(name,options = Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
                 ns,_ = split_name(name)
+                ns = if !ns || ns.empty?
+                         namespace
+                     else
+                         ns
+                     end
                 options[:namespace] ||= ns
                 Orocos::TaskContext.new(ior(name),options)
             rescue ComError => e
@@ -612,6 +645,11 @@ module Orocos
                 end
             end
 
+            #(see NameServiceBase#name)
+            def name
+                super + ":" + namespace
+            end
+
             #(see NameServiceBase#names)
             def names
                 @avahi_nameserver.get_all_services.uniq
@@ -669,6 +707,11 @@ module Orocos
             def get(name,options = Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
                 ns,_ = Namespace.split_name(name)
+                ns = if !ns || ns.empty?
+                         namespace
+                     else
+                         ns
+                     end
                 options[:namespace] ||= ns
                 Orocos::TaskContext.new(ior(name),options)
             rescue Orocos::CORBA::ComError => e

@@ -2,6 +2,13 @@
 module Orocos::Async::CORBA
     class TaskContext < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        define_events :port_reachable,
+                      :port_unreachable,
+                      :property_reachable,
+                      :property_unreachable,
+                      :attribute_reachable,
+                      :attribute_unreachable,
+                      :state_change
 
         # A TaskContext
         #
@@ -28,14 +35,13 @@ module Orocos::Async::CORBA
         # @overload initialize(task,options)
         #       @option options [#ior,#name] :task a task context.
         def initialize(ior,options=Hash.new)
-            super(ior)
             ior,options = if ior.is_a? Hash
                               [nil,ior]
                           else
                               [ior,options]
                           end
             options,options_other = Kernel.filter_options options,:raise => false,:event_loop => Orocos::Async.event_loop
-            @event_loop = options[:event_loop]
+            super(ior,options[:event_loop])
             @raise = options[:raise]
             @mutex = Mutex.new
             @watchdog = true
@@ -43,105 +49,54 @@ module Orocos::Async::CORBA
             @last_state
             @port_names = Array.new
             @property_names = Array.new
+            @attribute_names = Array.new
 
             watchdog_proc = Proc.new do
                 ping # call a method which raises ComError if the connection died
                 # this is used to disconnect the task by an error handler
-                [states,port_names,property_names]
+                [states,port_names,property_names,attribute_names]
             end
             @watchdog_timer = @event_loop.async_every(watchdog_proc,{:period => @period,
-                                                      :default => [[],[],[]],
+                                                      :default => [[],[],[],[]],
                                                       :start => false,
-                                                      :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound]}) do |data,error|
-
-                process_states(data[0])
-                process_port_names(data[1])
-                process_property_names(data[2])
+                                                      :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]}) do |data,error|
+                                                            process_states(data[0])
+                                                            process_port_names(data[1])
+                                                            process_property_names(data[2])
+                                                            process_attribute_names(data[3])
                                                       end
-
-            # disconnect if an error occurred
-            on_error do |e|
-                disconnect(e)
-            end
-            connect(ior,options_other)
+            reachabel!(ior,options_other)
         end
 
-        def on_reachable(&block)
-            call =  @mutex.synchronize do
-                @callbacks[:on_reachable] << block
-                if @__task_context
-                    true
-                else
-                    false
+        def add_listener(listener)
+            # call new listeners with the current value
+            # to prevent different behaviors depending on
+            # the calling order
+            if listener.event == :state_change
+                state = @mutex.synchronize do
+                    @delegator_obj.current_state if valid_delegator?
+                end
+                event_loop.once{listener.call state} if state
+            elsif listener.event == :port_reachable
+                event_loop.once do 
+                    @port_names.each do |name|
+                        listener.call name
+                    end
+                end
+            elsif listener.event == :property_reachable
+                event_loop.once do
+                    @property_names.each do |name|
+                        listener.call name
+                    end
+                end
+            elsif listener.event == :attribute_reachable
+                event_loop.once do
+                    @attribute_names.each do |name|
+                        listener.call name
+                    end
                 end
             end
-            # must called outside of the mutex
-            block.call if call
-            self
-        end
-
-        def on_unreachable(&block)
-            @callbacks[:on_unreachable] << block
-            self
-        end
-
-        def on_port_reachable(&block)
-            ports =  @mutex.synchronize do
-                @callbacks[:on_port_reachable] << block
-                if @__task_context
-                    @port_names
-                else
-                    []
-                end
-            end
-            ports.each do |name|
-                block.call name
-            end
-            self
-        end
-
-        def on_port_unreachable(&block)
-            @callbacks[:on_port_unreachable] << block
-            self
-        end
-
-        def on_property_reachable(&block)
-            properties =  @mutex.synchronize do
-                @callbacks[:on_property_reachable] << block
-                if @__task_context
-                    @property_names
-                else
-                    []
-                end
-            end
-            properties.each do |name|
-                block.call name
-            end
-            self
-        end
-
-        def on_property_unreachable(&block)
-            @callbacks[:on_property_unreachable] << block
-            self
-        end
-
-        def on_state_change(&block)
-            ArgumentError "activate watchdog first" unless @watchdog
-
-            call =  @mutex.synchronize do
-                @callbacks[:on_state_change] << block
-                if @__task_context
-                    true
-                else
-                    false
-                end
-            end
-            if call
-                current_state do |val|
-                    block.call(val) if val
-                end
-            end
-            self
+            super
         end
 
         def name
@@ -159,7 +114,7 @@ module Orocos::Async::CORBA
         # connects with the remote orocos Task specified by its IOR
         #
         # @param (see TaskContext#initialize)
-        def connect(ior,options=Hash.new)
+        def reachabel!(ior,options=Hash.new)
             @mutex.synchronize do
                 options = Kernel.validate_options options,  :name=> nil,
                     :ior => ior,
@@ -169,22 +124,25 @@ module Orocos::Async::CORBA
                     :use => nil
                 @watchdog = options[:watchdog]
                 @period = options[:period]
-                @__task_context = options[:use]
+                if options[:use]
+                    @delegator_obj = options[:use]
+                else
+                    invalidate_delegator!
+                end
                 ior = options[:ior]
-
-                @ior,@name = if @__task_context
-                                 [@__task_context.ior,@__task_context.name]
+                @ior,@name = if valid_delegator?
+                                 [@delegator_obj.ior,@delegator_obj.name]
                              elsif ior.respond_to?(:ior)
                                  [ior.ior, ior.name]
                              else
                                  [ior, options[:name]]
                              end
 
-                raise ArgumentErrir,"no watchdog period is given" if !@period && @watchdog
+                raise ArgumentError,"no watchdog period is given" if !@period && @watchdog
                 raise ArgumentError,"no IOR or task is given" unless @ior
 
                 @watchdog_timer.start(@period) if @watchdog
-                @event_loop.async(method(:__task_context))
+                @event_loop.async(method(:task_context))
             end
             wait if options[:wait]
         end
@@ -197,29 +155,86 @@ module Orocos::Async::CORBA
         #
         # @prarm [Exception] reason The reason for the disconnect
         # @return [Orocos::TaskContext,nil,Utilrb::EventLoop::Event]
-        def disconnect(reason = nil)
+        def unreachable!(options = Hash.new)
+            Kernel.validate_options(options,:error)
             # ensure that this is always called from the
             # event loop thread
             @event_loop.call do
-                task,blocks  = @mutex.synchronize do
-                    if @__task_context
+                old_task = @mutex.synchronize do
+                    if valid_delegator?
                         @ior = nil
-                        @ior_error = reason if reason
-                        task,@__task_context = @__task_context,nil
+                        @ior_error = options[:error] if options.has_key?(:error)
+                        task = @delegator_obj
+                        invalidate_delegator!
                         @watchdog_timer.cancel if @watchdog_timer
-                        [task, @callbacks[:on_unreachable]]
+                        task
                     end
                 end
-                blocks.each(&:call) if blocks
                 process_port_names()
+                process_attribute_names()
                 process_property_names()
-                task
+                event :unreachable if old_task
+                old_task
+            end
+        end
+
+        def reachable?(&block)
+            if block
+                ping(&block)
+            else
+                ping
+            end
+            true
+        rescue Orocos::NotFound,Orocos::CORBA::ComError,Orocos::CORBAError => e
+            unreachable!(:error => e)
+            false
+        end
+
+        def attribute(name,&block)
+            p = proc do |attribute,error|
+                attribute = Orocos::Async::CORBA::Attribute.new(self,attribute)
+                if block
+                    if block.arity == 2
+                        block.call attribute,error
+                    elsif !error
+                        block.call attribute
+                    end
+                else
+                    attribute
+                end
+            end
+            if block
+                attribute = orig_attribute(name,&p)
+            else
+                attribute = orig_attribute(name)
+                p.call attribute
+            end
+        end
+
+        def property(name,&block)
+            p = proc do |property,error|
+                property = Orocos::Async::CORBA::Property.new(self,property)
+                if block
+                    if block.arity == 2
+                        block.call property,error
+                    elsif !error
+                        block.call property
+                    end
+                else
+                    property
+                end
+            end
+            if block
+                property = orig_property(name,&p)
+            else
+                property = orig_property(name)
+                p.call property
             end
         end
 
         def port(name, verify = true, &block)
             p = proc do |port,error|
-                port = if port.respond_to? :write
+                port = if port.respond_to? :writer
                            Orocos::Async::CORBA::InputPort.new(self,port)
                        elsif port.respond_to? :reader
                            Orocos::Async::CORBA::OutputPort.new(self,port)
@@ -242,21 +257,9 @@ module Orocos::Async::CORBA
             end
         end
 
-        def reachable?(&block)
-            if block
-                ping(&block)
-            else
-                ping
-            end
-            true
-        rescue Orocos::NotFound,Orocos::CORBA::ComError => e
-            disconnect(e)
-            false
-        end
-
         private
         # add methods which forward the call to the underlying task context
-        forward_to :__task_context,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound],:on_error => :__on_error do
+        forward_to :task_context,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError],:on_error => :emit_error do
             thread_safe do
                 def_delegator :ping,:known_errors => nil  #raise if there is an error in the communication
                 methods = [:has_operation?, :has_port?,:property_names,:attribute_names,:port_names,:rtt_state]
@@ -264,12 +267,13 @@ module Orocos::Async::CORBA
                 def_delegator :reachable?, :alias => :orig_reachable?
             end
             def_delegator :port, :alias => :orig_port
+            def_delegator :property, :alias => :orig_property
+            def_delegator :attribute, :alias => :orig_attribute
 
             methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= TaskContext.instance_methods + [:method_missing]
             def_delegators methods
         end
-
 
         # must be called from the event loop thread
         def process_port_names(port_names=[])
@@ -277,11 +281,11 @@ module Orocos::Async::CORBA
             deleted_ports = @port_names - port_names
             deleted_ports.each do |name|
                 @port_names.delete name
-                event :on_port_unreachable, name
+                event :port_unreachable, name
             end
             added_ports.each do |name|
                 @port_names << name
-                event :on_port_reachable, name
+                event :port_reachable, name
             end
         end
 
@@ -291,18 +295,32 @@ module Orocos::Async::CORBA
             deleted_properties = @property_names - property_names
             deleted_properties.each do |name|
                 @property_names.delete name
-                event :on_property_unreachable, name
+                event :property_unreachable, name
             end
             added_properties.each do |name|
                 @property_names << name
-                event :on_property_reachable, name
+                event :property_reachable, name
+            end
+        end
+
+        # must be called from the event loop thread
+        def process_attribute_names(attribute_names=[])
+            added_properties = attribute_names - @attribute_names
+            deleted_properties = @attribute_names - attribute_names
+            deleted_properties.each do |name|
+                @attribute_names.delete name
+                event :attribute_unreachable, name
+            end
+            added_properties.each do |name|
+                @attribute_names << name
+                event :attribute_reachable, name
             end
         end
 
         # must be called from the event loop thread
         def process_states(states=[])
             if !states.empty?
-                blocks = @callbacks[:on_state_change]
+                blocks = listeners :state_change
                 states.each do |s|
                     next if @last_state == s
                     blocks.each do |b|
@@ -315,38 +333,42 @@ module Orocos::Async::CORBA
 
         # Returns the designated object and an error object.
         # This must be thread safe as it is called from the worker threads!
-        # @__task_context must not be directly accessed without synchronize.
-        def __task_context
+        # @delegator_obj must not be directly accessed without synchronize.
+        def task_context
             @mutex.synchronize do
                 begin
-                    if @__task_context
-                        @__task_context
-                    elsif !@ior  # do not try again 
-                        if !@ior_error
-                            raise ArgumentError, "@ior is empty but no error was raised."
-                        else
-                            raise @ior_error
-                        end
-                    else
-                        @__task_context = Orocos::TaskContext.new @ior ,:name => @name
-                        @name = @__task_context.name
-                        port_names = @__task_context.port_names
-                        property_names = @__task_context.property_names
-                        @event_loop.once do
-                            event :on_reachable
-                            process_port_names(port_names)
-                            process_property_names(property_names)
-                        end
-                        @__task_context.state
-                        @__task_context
-                    end
+                    task = if valid_delegator?
+                               @delegator_obj
+                           elsif !@ior  # do not try again 
+                               if !@ior_error
+                                   raise ArgumentError, "@ior is empty but no error was raised."
+                               else
+                                   raise @ior_error
+                               end
+                           else
+                               obj = Orocos::TaskContext.new @ior ,:name => @name
+                               @name = obj.name
+                               port_names = obj.port_names
+                               property_names = obj.property_names
+                               attribute_names = obj.attribute_names
+                               obj.state
+                               @event_loop.once do
+                                   process_port_names(port_names)
+                                   process_property_names(property_names)
+                                   process_attribute_names(attribute_names)
+                               end
+                               @delegator_obj = obj
+                               event :reachable
+                               obj
+                           end
+                    [task,nil]
                 rescue Exception => e
                     @ior = nil          # ior seems to be invalid
                     @ior_error = e
+                    invalidate_delegator!
                     raise e if @raise   # do not be silent if
-                    # the task context is not reachable
+                    [nil,@ior_error]
                 end
-                [@__task_context,@ior_error]
             end
         end
     end

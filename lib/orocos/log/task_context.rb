@@ -192,6 +192,14 @@ module Orocos
                 return true
             end
 
+            def last_sample_pos
+                task.log_replay.last_sample_pos stream
+            end
+
+            def first_sample_pos 
+                task.log_replay.first_sample_pos stream
+            end
+
             def to_orocos_port
                 self
             end
@@ -373,6 +381,10 @@ module Orocos
 
             def doc?
                 false
+            end
+
+            def output?
+                true
             end
         end
         

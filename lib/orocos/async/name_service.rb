@@ -12,9 +12,51 @@ module Orocos::Async
         name_service.proxy(name,options)
     end
 
-    class NameServiceBase
+    class NameServiceBase < ObjectBase
         extend Utilrb::EventLoop::Forwardable
-        def proxy(name,options)
+        define_events :task_added, :task_removed
+
+        def initialize(event_loop,name_service,options = Hash.new)
+            super(name_service.name,event_loop)
+            reachable! name_service
+            @stored_names = Set.new
+            options = Kernel.validate_options options,:period => 1.0,:start => false,:sync_key => nil,:known_errors => nil
+            @watchdog_timer = event_loop.async_every method(:names),options do |names|
+                if number_of_listeners(:task_removed) == 0 && number_of_listeners(:task_added) == 0
+                    @watchdog_timer.cancel
+                    @stored_names.clear
+                else
+                    names.each do |name|
+                        n = @stored_names.add? name
+                        event :task_added,name if n
+                    end
+                    @stored_names.delete_if do |name|
+                        if !names.include?(name)
+                            event :task_removed,name
+                            true
+                        else
+                            false
+                        end
+                    end
+                end
+            end
+        end
+
+        def add_listener(listener)
+            if listener.event == :task_added || listener.event == :task_removed 
+                @watchdog_timer.start unless @watchdog_timer.running?
+                if !@stored_names.empty?
+                    event_loop.once do
+                        @stored_names.each do |name|
+                            listener.call name
+                        end
+                    end
+                end
+            end
+            super
+        end
+
+        def proxy(name,options = Hash.new)
             @task_context_proxies ||= Array.new
             options[:event_loop] ||= @event_loop
             options[:name_service] ||= self
@@ -39,14 +81,14 @@ module Orocos::Async
                       else
                           Hash.new
                       end
-            options = Kernel.validate_options options,{:even_loop => Orocos::Async.event_loop}
-            @event_loop = options[:even_loop]
-            @name_service = Orocos::NameService.new *name_services
+            options,other_options = Kernel.filter_options options,{:event_loop => Orocos::Async.event_loop}
+            name_service = Orocos::NameService.new *name_services
+            super(options[:event_loop],name_service,other_options)
         end
 
         private
         # add methods which forward the call to the underlying name service
-        forward_to :@name_service,:@event_loop, :known_errors => [Orocos::NotFound] do
+        forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::NotFound] do
             methods = Orocos::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= NameService.instance_methods + [:method_missing]
             def_delegators methods
@@ -58,9 +100,9 @@ module Orocos::Async
             extend Utilrb::EventLoop::Forwardable
 
             def initialize(options)
-                options = Kernel.validate_options options,{:even_loop => Async.event_loop,:tasks => Hash.new}
-                @event_loop = options[:even_loop]
-                @name_service = Orocos::Local::NameService.new options[:tasks]
+                options,other_options = Kernel.filter_options options,{:event_loop => Orocos::Async.event_loop,:tasks => Hash.new}
+                name_service = Orocos::Local::NameService.new options[:tasks]
+                super(options[:event_loop],name_service,other_options)
             end
 
             # TODO implement Async::Log::TaskContext
@@ -70,7 +112,7 @@ module Orocos::Async
 
             private
             # add methods which forward the call to the underlying name service
-            forward_to :@name_service,:@event_loop do
+            forward_to :@delegator_obj,:@event_loop do
                 methods = Orocos::CORBA::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
                 methods -= NameService.instance_methods + [:method_missing]
                 def_delegators methods
@@ -81,15 +123,17 @@ module Orocos::Async
 
     module CORBA
         class << self
-            attr_reader :name_service
             def name_service=(service)
                 Orocos::Async.name_service.name_services.each_with_index do |i,val|
-                    if val == @name_service
+                    if val == @delegator_obj
                         Orocos::Async.name_service.name_services[i] = service
                         break
                     end
                 end
-                @name_service = service
+                reachable! service
+            end
+            def name_service
+                @name_service ||= NameService.new(Orocos::CORBA.name_service.ip,Orocos::CORBA.name_service.port)
             end
         end
 
@@ -97,9 +141,18 @@ module Orocos::Async
             extend Utilrb::EventLoop::Forwardable
 
             def initialize(ip="",port="",options = Hash.new)
-                options,other_options = Kernel.filter_options options,{:event_loop => Orocos::Async.event_loop}
-                @event_loop = options[:event_loop]
-                @name_service = Orocos::CORBA::NameService.new ip,port,other_options
+                ip,port,options = if ip.is_a? Hash
+                                      ["","",ip]
+                                  elsif port.is_a? Hash
+                                      [ip,"",port]
+                                  else port.is_a? Hash
+                                      [ip,port,options]
+                                  end
+                options,other_options = Kernel.filter_options(options,:event_loop => Orocos::Async.event_loop)
+                name_service_options,other_options = Kernel.filter_options other_options,:namespace => nil
+                name_service = Orocos::CORBA::NameService.new ip,port,name_service_options
+                other_options[:known_errors] = [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]
+                super(options[:event_loop],name_service,other_options)
             end
 
             def get(name,options=Hash.new,&block)
@@ -124,14 +177,17 @@ module Orocos::Async
 
             private
             # add methods which forward the call to the underlying name service
-            forward_to :@name_service,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound] do
+            forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError], :on_error => :error do
                 methods = Orocos::CORBA::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
                 methods -= NameService.instance_methods + [:method_missing]
                 def_delegators methods
                 def_delegator :get,:alias => :orig_get
             end
+
+            def error(e)
+                emit_error e if !e.is_a? Orocos::NotFound
+            end
         end
-        @name_service ||= NameService.new
     end
 end
 
