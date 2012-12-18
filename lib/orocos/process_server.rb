@@ -537,11 +537,11 @@ module Orocos
         def wait_termination(timeout = nil)
             if @death_queue.empty?
                 reader = select([socket], nil, nil, timeout)
-                return if !reader
+                return Hash.new if !reader
                 while reader
                     data = socket.read(1)
                     if !data
-                        return
+                        return Hash.new
                     elsif data != "D"
                         raise "unexpected message #{data} from process server"
                     end
