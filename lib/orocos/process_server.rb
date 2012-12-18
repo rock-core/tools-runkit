@@ -459,7 +459,9 @@ module Orocos
         def wait_for_answer
             while true
                 reply = socket.read(1)
-                if reply == "D"
+                if !reply
+                    raise Orocos::ComError, "failed to read from process server #{self}"
+                elsif reply == "D"
                     queue_death_announcement
                 else
                     yield(reply)
