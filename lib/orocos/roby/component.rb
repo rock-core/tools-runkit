@@ -689,6 +689,7 @@ module Orocos
 
             # Returns the set of models this model fullfills
             def self.each_fullfilled_model
+                return enum_for(:each_fullfilled_model) if !block_given?
                 ancestors.each do |m|
                     if m <= Component || m <= DataService
                         yield(m)

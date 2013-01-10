@@ -71,6 +71,7 @@ module Orocos
             attribute(:port_mappings) { Hash.new }
 
             def each_fullfilled_model
+                return enum_for(:each_fullfilled_model) if !block_given?
                 ancestors.each do |m|
                     if m.kind_of?(DataServiceModel)
                         yield(m)
