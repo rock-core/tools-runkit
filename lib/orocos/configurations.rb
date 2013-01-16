@@ -539,7 +539,7 @@ module Orocos
         def apply(task, names=Array.new, override = false)
             task_conf = find_task_configuration_object(task)
             if !task_conf
-                if names == ['default']
+                if names == ['default'] || names == []
                     ConfigurationManager.info "required default configuration on #{task.name} of type #{task.model.name}, but #{task.model.name} has no registered configurations"
                     return
                 else
