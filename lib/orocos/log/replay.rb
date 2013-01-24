@@ -180,7 +180,6 @@ module Orocos
                     pp.breakable
                     pp.text "Markers = #{@markers}"
                     pp.breakable
-                    pp.text "TaskContext(s):"
                     @tasks.each_value do |task|
                         pp.breakable
                         task.pretty_print(pp)
@@ -386,7 +385,9 @@ module Orocos
             def register_tasks
 		raise "Log replay already registered with nameserver" if @name_service
                 @name_service = Local::NameService.new @tasks
+                @name_service_async = Orocos::Async::Local::NameService.new :tasks => @tasks if defined?(Orocos::Async)
                 Orocos::name_service.add @name_service
+                Orocos::Async.name_service.add @name_service_async if @name_service_async
             end
 
 	    # deregister the local name service again
@@ -456,6 +457,32 @@ module Orocos
                 end
             end
 
+            #returns ture if the next sample must be replayed to
+            #meet synchronous replay
+            def sync_step?
+                calc_statistics
+                if @out_of_sync_delta > 0.001
+                    false
+                else
+                    true
+                end
+            end
+
+            def calc_statistics
+                index, time, data = @current_sample
+                if getter = (timestamps[data.class.name] || default_timestamp)
+                    time = getter[data]
+                end
+
+                @base_time ||= time
+                @start_time ||= Time.now
+
+                required_delta = (time - @base_time)/@speed
+                actual_delta   = Time.now - @start_time
+                @out_of_sync_delta = @time_sync_proc.call(time,actual_delta,required_delta)
+                @actual_speed = required_delta/actual_delta*@speed
+            end
+
             #Gets the next sample and writes it to the ports which are connected
             #to the OutputPort and updates all its readers.
             #
@@ -474,41 +501,27 @@ module Orocos
                 @current_sample = @stream.step
                 return if !@current_sample
                 index, time, data = @current_sample
-
-                if getter = (timestamps[data.class.name] || default_timestamp)
-                    time = getter[data]
-                end
-                @base_time ||= time
-                @start_time ||= Time.now
-                required_delta = (time - @base_time)/@speed
-                actual_delta   = Time.now - @start_time
+                calc_statistics
 
                 #wait if replay is faster than the desired speed and time_sync is set to true
-                if time_sync
-                    while (wait = @time_sync_proc.call(time,actual_delta,required_delta)) > 0.001
-                        #process qt events every 0.01 sec
-                        if @process_qt_events == true
-                            start_wait = Time.now
-                            while true
-                                $qApp.processEvents()
-                                break if !@start_time                           #break if start_time was reseted throuh processEvents
-                                wait2 =wait -(Time.now - start_wait)
-                                if wait2 > 0.001
-                                    sleep [0.01,wait2].min
-                                else
-                                    break
-                                end
+                if time_sync &&  @out_of_sync_delta > 0.001
+                    if @process_qt_events == true
+                        start_wait = Time.now
+                        while true
+                            $qApp.processEvents()
+                            break if !@start_time                           #break if start_time was reseted throuh processEvents
+                            wait = @out_of_sync_delta -(Time.now - start_wait)
+                            if wait > 0.001
+                                sleep [0.01,wait].min
+                            else
+                                break
                             end
-                        else
-                            sleep(wait)
+                            calc_statistics
                         end
-                        break if !@start_time        # if time was resetted go out 
-                        actual_delta   = Time.now - @start_time
+                    else
+                        sleep(@out_of_sync_delta)
                     end
-                    actual_delta = @start_time ? Time.now - @start_time : required_delta
-                    @out_of_sync_delta = required_delta - actual_delta
                 end
-                @actual_speed = required_delta/actual_delta*@speed
 
                 #write sample to simulated ports or properties
                 @replayed_objects[index].write(data)

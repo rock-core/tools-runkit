@@ -14,9 +14,10 @@ module Orocos::Async::CORBA
             @last_sample = nil
             @period = options[:period]
             reachable! reader
-
+            proxy_event @port,:unreachable
+            
             @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => @period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
-                @poll_timer.period = @period if @poll_timer.period != @period
+                @poll_timer.period = @period if @poll_timer.period <= 0
                 if error
                     @poll_timer.cancel
                     @event_loop.once do
@@ -25,19 +26,24 @@ module Orocos::Async::CORBA
                 else
                     @last_sample = data
                     if number_of_listeners(:data) == 0
+                        # TODO call reader.disable
                         @poll_timer.cancel
                     elsif data
                         event :data,data
                     end
                 end
             end
+            @poll_timer.doc = port.full_name
         end
 
         # TODO keep timer and remote connection in mind
         def unreachable!(options = Hash.new)
             @poll_timer.cancel
             @last_sample = nil
-            @delegator_obj.disconnect if validate_options?
+            begin
+                @delegator_obj.disconnect if valid_delegator?
+            rescue Orocos::CORBAError,Orocos::CORBA::ComError
+            end
             super
         end
 
@@ -58,7 +64,10 @@ module Orocos::Async::CORBA
         end
 
         def add_listener(listener)
-            @poll_timer.start(0) if listener.event == :data
+            if listener.event == :data
+                @period = @poll_timer.period
+                @poll_timer.start(0)
+            end
             super
         end
 
@@ -76,6 +85,9 @@ module Orocos::Async::CORBA
         def initialize(port,writer,options=Hash.new)
             super(port.name,port.event_loop)
             @port = port
+            @task.on_unrechable do
+                unreachable!
+            end
             reachable!(writer)
         end
 
@@ -123,6 +135,9 @@ module Orocos::Async::CORBA
             super(port.name,async_task.event_loop)
             @task = async_task
             @mutex = Mutex.new
+            @task.on_unreachable do
+                unreachable!
+            end
             reachable!(port,options)
         end
 
@@ -177,9 +192,7 @@ module Orocos::Async::CORBA
         def add_listener(listener)
             if listener.event == :data
                 @global_reader ||= reader(@policy) do |reader|
-                    reader.on_data do |data|
-                        event :data,data
-                    end
+                    proxy_event(reader,:data)
                     @global_reader = reader # overwrites @global_reader before that it is a ThreadPool::Task
                 end
             end

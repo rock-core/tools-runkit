@@ -60,11 +60,13 @@ module Orocos::Async::CORBA
                                                       :default => [[],[],[],[]],
                                                       :start => false,
                                                       :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]}) do |data,error|
+                                                            @watchdog_timer.doc = name
                                                             process_states(data[0])
                                                             process_port_names(data[1])
                                                             process_property_names(data[2])
                                                             process_attribute_names(data[3])
                                                       end
+            @watchdog_timer.doc = ior
             reachabel!(ior,options_other)
         end
 
@@ -250,7 +252,7 @@ module Orocos::Async::CORBA
                 end
             end
             if block
-                port = orig_port(name,verify,&p)
+                orig_port(name,verify,&p)
             else
                 port = orig_port(name,verify)
                 p.call port

@@ -285,6 +285,7 @@ module Orocos::Async
                         @event_loop.once(t) do
                             @event_loop.add_task @resolve_task
                         end
+                        :ignore_error
                     else
                         reachable!(task_context)
                         @resolve_task = nil

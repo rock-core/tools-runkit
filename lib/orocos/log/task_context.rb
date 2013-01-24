@@ -413,6 +413,7 @@ module Orocos
                 @task = task
                 @current_value = nil
                 @type_name = stream.typename
+                @notify_blocks =[]
             end
 
             def doc?
@@ -427,6 +428,13 @@ module Orocos
             # Sets a new value for the property/attribute
             def write(value)
                 @current_value = value
+                @notify_blocks.each &:call
+            end
+
+            # registers a code block which will be called 
+            # when the property changes
+            def notify(&block)
+                @notify_blocks << block
             end
 
             def new_sample
@@ -461,98 +469,84 @@ module Orocos
             end
         end
 
-
         #Simulates task based on a log file.
         #Each stream is modeled as one OutputPort which supports the connect_to method
-        class TaskContext
+        class TaskContext < Orocos::TaskContextBase
             include Namespace
-
-            attr_accessor :ports               #all simulated ports
-            attr_accessor :properties          #all simulated properties
             attr_reader :file_path             #path of the dedicated log file
             attr_reader :file_path_config      #path of the dedicated log configuration file
-            attr_reader :state
             attr_reader :log_replay
-	    attr_accessor :model
-
 
             #Creates a new instance of TaskContext.
             #
             #* task_name => name of the task
             #* file_path => path of the log file
             def initialize(log_replay,task_name,file_path,file_path_config)
+                super(task_name)
                 @log_replay = log_replay
-                @ports = Hash.new
-		@invalid_ports = Hash.new # ports that could not be loaded
-                @properties = Hash.new
+                @invalid_ports = Hash.new # ports that could not be loaded
                 @file_path = file_path
-                @name = task_name
-                @state = :replay
                 @file_path_config = nil
                 @file_path_config_reg = file_path_config
+                @rtt_state = :RUNNING
             end
 
-            #to be compatible wiht Orocos::TaskContext
-            #indecates if the task is replayed
-            def running?
-                used?
+            # Returns the array of the names of available properties on this task
+            # context
+            def property_names
+                @properties.values
             end
 
-            def name
-                map_to_namespace(@name)
+            # Returns the array of the names of available attributes on this task
+            # context
+            def attribute_names
+                Array.new
             end
 
-            def basename
-                @name
+            # Returns the array of the names of available operations on this task
+            # context
+            def operation_names
+                Array.new
             end
 
-            #to be compatible wiht Orocos::TaskContext
-            def reachable?
+            # Returns the names of all the ports defined on this task context
+            def port_names
+                @ports.keys
+            end
+
+            # Reads the state
+            def rtt_state
+                @rtt_state
+            end
+
+            def ping
                 true
             end
 
-            def doc?
-                false
+            #Returns the property with the given name.
+            #If no port can be found a exception is raised.
+            def property(name, verify = true)
+                name = name.to_str
+                if @properties[name]
+                    return @properties[name]
+                else
+                    raise NotFound, "no property named '#{name}' on log task '#{self.name}'"
+                end
             end
 
-            def error?
-                false
+            #Returns the port with the given name.
+            #If no port can be found a exception is raised.
+            def port(name, verify = true)
+                name = name.to_str
+                if @ports[name]
+                    return @ports[name]
+                elsif @invalid_ports[name]
+                    raise NotFound, "the port named '#{name}' on log task '#{self.name}' could not be loaded: #{@invalid_ports[name]}"
+                else
+                    raise NotFound, "no port named '#{name}' on log task '#{self.name}'"
+                end
             end
 
-            def stop( arg )
-                true
-            end
-             
-            #to be compatible wiht Orocos::TaskContext
-            def log_all_ports(options = Hash.new)
-
-            end
-
-            #pretty print for TaskContext
-	    def pretty_print(pp)
-                pp.text "#{name}:"
-		pp.nest(2) do
-		    pp.breakable
-		    pp.text "log file: #{file_path}"
-		    pp.breakable
-		    pp.text "port(s):"
-		    pp.nest(2) do
-			@ports.each_value do |port|
-			    pp.breakable
-			    pp.text port.name
-			end
-                    end
-		    pp.breakable
-                    pp.text "property(s):"
-		    pp.nest(2) do
-			@properties.each_value do |port|
-			    pp.breakable
-			    pp.text port.name
-			end
-		    end
-		end
-            end
-    
             #Adds a new property or port to the TaskContext
             #
             #* file_path = path of the log file
@@ -611,92 +605,14 @@ module Orocos
                     @invalid_ports[error.port_name] = error.message
                     raise error
                 end
+
+                #connect state with task state 
+                if log_port.name == "state"
+                    log_port.connect_to do |sample|
+                        @rtt_state = sample
+                    end
+                end
                 log_port
-            end
-
-            #TaskContexts do not have attributes. 
-            #This is implementd to be compatible with TaskContext.
-            def each_attribute
-            end
-
-            # Returns true if this task has a Orocos method with the given name.
-            # In this case it always returns false because a TaskContext does not have
-            # Orocos methods.
-            # This is implementd to be compatible with TaskContext.
-            def has_method?(name)
-                return false;
-            end
-
-
-            # Returns the array of the names of available properties on this task
-            # context
-            def property_names
-                @properties.values
-            end
-
-            # Returns the array of the names of available attributes on this task
-            # context
-            def attribute_names
-                Array.new
-            end
-
-            # Returns true if +name+ is the name of a property on this task context
-            def has_property?(name)
-                properties.has_key?(name.to_str)
-            end
-
-            # Returns true if this task has a command with the given name.
-            # In this case it always returns false because a TaskContext does not have
-            # command.
-            # This is implementd to be compatible with TaskContext.
-            def has_command?(name)
-                return false;
-            end
-
-            # Returns true if this task has a port with the given name.
-            def has_port?(name)
-                name = name.to_s
-                return @ports.has_key?(name) || @invalid_ports.has_key?(name)
-            end
-
-            # Iterates through all simulated properties.
-            def each_property(&block)
-                @properties.each_value do |property|
-                    yield(property) if block_given?
-                end
-            end
-
-            #Returns the property with the given name.
-            #If no port can be found a exception is raised.
-            def property(name, verify = true)
-                name = name.to_str
-                if @properties[name]
-                    return @properties[name]
-                else
-                    raise NotFound, "no property named '#{name}' on log task '#{self.name}'"
-                end
-            end
-
-            # Iterates through all simulated ports.
-            def each_port(&block)
-                @ports.each_value do |port|
-                    yield(port) if block_given?
-                end
-            end
-
-	    alias each_output_port each_port
-
-            #Returns the port with the given name.
-            #If no port can be found a exception is raised.
-            def port(name, verify = true)
-                name = name.to_str
-                if @ports[name]
-                    return @ports[name]
-		elsif @invalid_ports[name]
-		    raise NotFound, "the port named '#{name}' on log task '#{self.name}' could not be loaded: #{@invalid_ports[name]}"
-                else
-                    raise NotFound, "no port named '#{name}' on log task '#{self.name}'"
-                end
             end
 
             #Returns an array of ports where each port has at least one connection
@@ -711,7 +627,7 @@ module Orocos
 
             #Returns true if the task has used ports
             def used?
-              !used_ports.empty?
+                !used_ports.empty?
             end
 
             #Returns an array of unused ports
@@ -723,44 +639,8 @@ module Orocos
                 return ports
             end
 
-            def find_all_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_ports(@ports.values, type_name, port_name)
-            end
-
-            def find_all_output_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_input_ports(@ports.values, type_name, port_name)
-            end
-
-            def find_all_input_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_output_ports(@ports.values, type_name, port_name)
-            end
-
-            def find_port(type_name, port_name=nil)
-                Orocos::TaskContext.find_port(@ports.values, type_name, port_name)
-            end
-
-            def find_output_port(type_name, port_name=nil)
-                Orocos::TaskContext.find_output_port(@ports.values, type_name, port_name)
-            end
-
-            def find_input_port(type_name, port_name=nil)
-               nil
-            end
-
             def connect_to(task=nil,policy = OutputPort::default_policy,&block)
                 Orocos::TaskContext.connect_to(self,task,policy,&block)
-            end
-
-            #Tries to find a OutputPort for a specefic data type.
-            #For port_name Regexp is allowed.
-            #If precise is set to true an error will be raised if more
-            #than one port is matching type_name and port_name.
-            def port_for(type_name, port_name, precise=true)
-                Log.warn "#port_for is deprecated. Use either #find_all_ports or #find_port"
-                if precise
-                    find_port(type_name, port_name)
-                else find_all_ports(type_name, port_name)
-                end
             end
 
             #If set to true all ports are replayed 
@@ -802,12 +682,12 @@ module Orocos
                     return
                 end
                 if has_port?(m) 
-                  _port = port(m)
-                  _port.filter = block if block         #overwirte filer
-                  return _port
+                    _port = port(m)
+                    _port.filter = block if block         #overwirte filer
+                    return _port
                 end
                 if has_property?(m) 
-                   return property(m)
+                    return property(m)
                 end
                 begin
                     super(m.to_sym,*args,&block)

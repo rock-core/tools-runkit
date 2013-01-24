@@ -45,6 +45,10 @@ module Orocos
             @type_name = type.name
         end
 
+        def full_name
+            "#{task.name}.#{name}"
+        end
+
         def type_name
             type.name
         end
@@ -102,8 +106,10 @@ module Orocos
         end
 
         def doc
-            property = task.model.find_property(name)
-            property.doc if property
+            if task.model
+                property = task.model.find_property(name)
+                property.doc if property
+            end
         end
     end
 
@@ -408,7 +414,7 @@ module Orocos
 
         # Returns true if this task context has a port with the given name
         def has_port?(name)
-            ports_names.include?(name.to_str)
+            port_names.include?(name.to_str)
         end
 
         # Returns true if a documentation about the task is available

@@ -31,6 +31,7 @@ module Orocos::Async::CORBA
                     end
                 end
             end
+            @poll_timer.doc = attribute.full_name
         end
 
         def unreachable!(options = Hash.new)

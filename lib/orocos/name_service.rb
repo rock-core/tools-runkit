@@ -314,7 +314,11 @@ module Orocos
         #(see NameServiceBase#names)
         def names
             names = name_services.collect do |service|
-                service.names
+                begin
+                    service.names
+                rescue Orocos::CORBAError,Orocos::CORBA::ComError
+                    []
+                end
             end
             names.flatten.uniq
         end
@@ -369,7 +373,7 @@ module Orocos
                 tasks.each_pair do |name,task|
                     register(task,name)
                 end
-                namespace = "Local"
+                self.namespace = "Local"
             end
 
             #(see NameServiceBase#name)

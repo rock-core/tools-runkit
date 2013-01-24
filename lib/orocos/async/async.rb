@@ -88,6 +88,10 @@ module Orocos::Async
     #
     # @return [Utilrb::EventLoop] The event loop
     def self.event_loop
-        @event_loop ||= Utilrb::EventLoop.new
+        unless @event_loop
+            @event_loop = Utilrb::EventLoop.new
+            @event_loop.thread_pool.resize(5,20)
+        end
+        @event_loop
     end
 end

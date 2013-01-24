@@ -40,6 +40,7 @@ module Orocos::Async
                     end
                 end
             end
+            @watchdog_timer.doc = name
         end
 
         def add_listener(listener)
@@ -105,15 +106,30 @@ module Orocos::Async
                 super(options[:event_loop],name_service,other_options)
             end
 
-            # TODO implement Async::Log::TaskContext
             def get(name,options=Hash.new,&block)
-                raise NotImplementedError
+                async_options,other_options = Kernel.filter_options options, {:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
+                if block
+                    p = proc do |task,error|
+                        async_options[:use] = task
+                        task = Orocos::Async::Log::TaskContext.new(nil,async_options) unless error
+                        if block.arity == 2
+                            block.call task,error
+                        elsif !error
+                            block.call task
+                        end
+                    end
+                    orig_get name,other_options,&p
+                else
+                    task = orig_get name,other_options
+                    async_options[:use] = task
+                    Orocos::Async::Log::TaskContext.new(nil,async_options)
+                end
             end
 
             private
             # add methods which forward the call to the underlying name service
             forward_to :@delegator_obj,:@event_loop do
-                methods = Orocos::CORBA::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+                methods = Orocos::Local::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
                 methods -= NameService.instance_methods + [:method_missing]
                 def_delegators methods
                 def_delegator :get,:alias => :orig_get
