@@ -71,5 +71,27 @@ describe Orocos::Process do
             process.task_names.must_equal %w{process_Test}
         end
     end
+
+    it "can automatically add prefixes to tasks" do
+        process = Orocos::Process.new 'process'
+        begin
+            process.spawn :prefix => 'prefix'
+            assert_equal Hash["process_Test" => "prefixprocess_Test"], process.name_mappings
+            assert Orocos.name_service.get('prefixprocess_Test')
+        ensure
+            process.kill
+        end
+    end
+
+    it "can rename single tasks" do
+        process = Orocos::Process.new 'process'
+        begin
+            process.map_name "process_Test", "prefixprocess_Test"
+            process.spawn
+            assert Orocos.name_service.get('prefixprocess_Test')
+        ensure
+            process.kill
+        end
+    end
 end
 
