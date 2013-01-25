@@ -72,5 +72,14 @@ describe Orocos::RubyTaskContext do
         property.write(20)
         assert_equal 20, property.read
     end
+
+    it "allows to handle the normal state changes" do
+        task = new_ruby_task_context('task')
+        assert_equal :STOPPED, task.rtt_state
+        task.start
+        assert_equal :RUNNING, task.rtt_state
+        task.stop
+        assert_equal :STOPPED, task.rtt_state
+    end
 end
 
