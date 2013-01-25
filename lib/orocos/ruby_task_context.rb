@@ -121,6 +121,11 @@ module Orocos
             # Only overloaded for documentation reasons
             super
         end
+
+        # Disconnects this port from the port it is reading
+        def disconnect
+            port.disconnect_from(self)
+        end
     end
 
     class LocalOutputPort < OutputPort
@@ -148,6 +153,11 @@ module Orocos
     class InputWriter < LocalOutputPort
         # The port this object is reading from
         attr_accessor :port
+
+        # Disconnects this port from the port it is reading
+        def disconnect
+            disconnect_all
+        end
 
         # Write data on the associated input port
         #

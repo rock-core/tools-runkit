@@ -496,7 +496,7 @@ module Orocos
                 task_model = Component
                 tags = []
                 each_fullfilled_model do |m|
-                    if m.kind_of?(Roby::Task)
+                    if m <= Roby::Task
                         task_model = m
                     else
                         tags << m

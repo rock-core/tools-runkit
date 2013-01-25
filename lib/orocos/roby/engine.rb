@@ -865,8 +865,8 @@ module Orocos
                                 set ||= m_candidates
                                 set & m_candidates
                             end
-                            abstract_tasks[task] = candidates || ValueSet.new
                         end
+                        abstract_tasks[task] = candidates || ValueSet.new
                     end
 
                     raise TaskAllocationFailed.new(abstract_tasks),
