@@ -203,18 +203,24 @@ module Orocos
         # @param [String] name the task name
         # @return [LocalTaskContext]
         def self.new(name, options = Hash.new)
+            options, _ = Kernel.filter_options options, :model
+
             local_task = LocalTaskContext.new(name)
+            if options[:model] && options[:model].name
+                local_task.model_name = options[:model].name
+            end
+
             remote_task = super(local_task.ior, options)
             local_task.instance_variable_set :@remote_task, remote_task
             remote_task.instance_variable_set :@local_task, local_task
 
-            options, _ = Kernel.filter_options options, :model
             if options[:model]
                 remote_task.setup_from_orogen_model(options[:model])
             end
             remote_task
         end
 
+        attr_accessor :model
 
         def initialize(ior, options = Hash.new)
             @local_ports = Hash.new
@@ -338,6 +344,7 @@ module Orocos
             new_outputs.each do |p|
                 create_output_port(p.name, p.orocos_type_name)
             end
+            @model = orogen_model
             nil
         end
 
