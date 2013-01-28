@@ -164,11 +164,30 @@ module Orocos::Async
                                   else port.is_a? Hash
                                       [ip,port,options]
                                   end
-                options,other_options = Kernel.filter_options(options,:event_loop => Orocos::Async.event_loop)
+                @options,other_options = Kernel.filter_options(options,:event_loop => Orocos::Async.event_loop,:reconnect => true)
                 name_service_options,other_options = Kernel.filter_options other_options,:namespace => nil
                 name_service = Orocos::CORBA::NameService.new ip,port,name_service_options
                 other_options[:known_errors] = [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]
-                super(options[:event_loop],name_service,other_options)
+                super(@options[:event_loop],name_service,other_options)
+            end
+
+            def unreachable!(options = Hash.new)
+                @watchdog_timer.stop
+                if valid_delegator?  && @options[:reconnect] == true && options.has_key?(:error)
+                    obj = @delegator_obj
+                    obj.reset
+                    timer = @event_loop.async_every obj.method(:names),:period => 1.0,:sync_key => obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError] do |names,error|
+                        if error
+                            obj.reset
+                        else
+                            reachable!(obj)
+                            @watchdog_timer.start
+                            timer.stop
+                        end
+                    end
+                    timer.doc = "#{name} reconnect"
+                end
+                super
             end
 
             def get(name,options=Hash.new,&block)
