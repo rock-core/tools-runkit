@@ -15,7 +15,7 @@ module Orocos::Async::CORBA
             @mutex = Mutex.new
 
             reachable!(attribute) if attribute
-            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
+            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound]}) do |data,error|
                 if error
                     @poll_timer.cancel
                     self.period = @poll_timer.period
@@ -72,7 +72,7 @@ module Orocos::Async::CORBA
         end
 
         private
-        forward_to :attribute,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError],:on_error => :connection_error  do
+        forward_to :attribute,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
             methods = Orocos::AttributeBase.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= AttributeBase.instance_methods
             def_delegators methods

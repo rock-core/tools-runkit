@@ -34,15 +34,7 @@ module Orocos
         def initialize(task, name, orocos_type_name)
             @task, @name = task, name
             @orocos_type_name = orocos_type_name
-            @type =
-                begin
-                    Orocos.typelib_type_for(orocos_type_name)
-                rescue Typelib::NotFound
-                    Orocos.load_typekit_for(orocos_type_name)
-                    Orocos.typelib_type_for(orocos_type_name)
-                end
-
-            @type_name = type.name
+            ensure_type_available(:fallback_to_null_type => true)
         end
 
         def full_name
@@ -60,7 +52,14 @@ module Orocos
                 'rock_orocos_type_name' => orocos_type_name]
         end
 
+        def ensure_type_available(options = Hash.new)
+            if !type || type.null?
+                @type = Orocos.find_type_by_orocos_type_name(@orocos_type_name, options)
+            end
+        end
+
         def raw_read
+            ensure_type_available
             value = type.new
             do_read(@orocos_type_name, value)
             value
@@ -73,6 +72,7 @@ module Orocos
 
         # Sets a new value for the property/attribute
         def write(value, timestamp = Time.now)
+            ensure_type_available
             value = Typelib.from_ruby(value, type)
             do_write(@orocos_type_name, value)
             log_value(value, timestamp)
@@ -94,6 +94,7 @@ module Orocos
         end
 
         def new_sample
+            ensure_type_available
             type.new
         end
 

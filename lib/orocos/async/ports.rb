@@ -241,7 +241,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError],:on_error => :connection_error do
+        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error do
             methods = Orocos::OutputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= OutputPort.instance_methods
             def_delegators methods
@@ -266,7 +266,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError],:on_error => :connection_error  do
+        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
             methods = Orocos::InputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= InputPort.instance_methods
             def_delegators methods

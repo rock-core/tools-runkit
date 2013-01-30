@@ -270,8 +270,7 @@ static VALUE orocos_typelib_type_for(VALUE mod, VALUE type_name)
             dynamic_cast<orogen_transports::TypelibMarshallerBase*>(ti->getProtocol(orogen_transports::TYPELIB_MARSHALLER_ID));
         return rb_str_new2(transport->getMarshallingType());
     }
-    else
-        return type_name;
+    else return Qnil;
 }
 
 static VALUE task_context_port_names(VALUE self)

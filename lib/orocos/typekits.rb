@@ -247,8 +247,8 @@ module Orocos
 
         typekit_name, is_exported = Orocos.available_types[typename]
 
-        if registered_type?(typename)
-            typekit_name
+        if registered_type?(typename) && Orocos.registry.include?(typename) && !Orocos.registry.get(typename).null?
+            return typekit_name
         elsif !typekit_name
             raise TypekitTypeNotFound.new(typename), "no type #{typename} has been registered in oroGen components"
         elsif exported && !is_exported
@@ -267,8 +267,10 @@ module Orocos
     # is true and the type is not exported.
     def self.load_typekit_for(typename, exported = true)
         typekit_name = find_typekit_for(typename, exported)
-        load_typekit(typekit_name)
-        return Orocos.master_project.using_typekit(typekit_name)
+        if typekit_name
+            load_typekit(typekit_name)
+            Orocos.master_project.using_typekit(typekit_name)
+        end
     end
 
     # Returns the type that is used to manipulate +t+ in Typelib
@@ -285,14 +287,58 @@ module Orocos
         end
 
         begin
-            typelib_type = do_typelib_type_for(t)
-            return registry.get(typelib_type)
-        rescue ArgumentError
-            type = Orocos.master_project.find_type(t)
-            if !type.contains_opaques?
-                return type
+            if typelib_type = do_typelib_type_for(t)
+                return registry.get(typelib_type)
             end
-            return Orocos.master_project.intermediate_type_for(type)
+        rescue ArgumentError
+        end
+
+        if registry.include?(t)
+            type = registry.get(t)
+            if type.contains_opaques?
+                return Orocos.master_project.intermediate_type_for(type)
+            elsif type.null?
+                # 't' is an opaque type and there are no typelib marshallers
+                # to convert it to something we can manipulate, raise
+                raise Typelib::NotFound, "#{t} is an opaque type and there are no typelib marshallers registered in RTT to convert it to a typelib-compatible type"
+            end
+        else
+            raise Typelib::NotFound, "#{t} cannot be found in the currently loaded registries"
+        end
+    end
+
+    # Finds the typelib type that maps to the given orocos type name
+    #
+    # @param [String] orocos_type_name
+    # @option options [Boolean] fallback_to_opaque (false) if true, a new opaque
+    #   type with the given orocos type name will be added to the registry and
+    #   returned if the type cannot be found
+    #
+    # @raise [Orocos::TypekitTypeNotFound] if the type cannot be found and no
+    #   typekit registers it
+    # @return [Model<Typelib::Type>] a subclass of Typelib::Type that
+    #   represents the requested type
+    def self.find_type_by_orocos_type_name(orocos_type_name, options = Hash.new)
+        options = Kernel.validate_options options,
+            :fallback_to_null_type => false
+
+        Orocos.typelib_type_for(orocos_type_name)
+    rescue Typelib::NotFound
+        begin
+            Orocos.load_typekit_for(orocos_type_name)
+            Orocos.typelib_type_for(orocos_type_name)
+        rescue Orocos::TypekitTypeNotFound
+            # Create an opaque type as a placeholder for the unknown
+            # type name
+            if options[:fallback_to_null_type]
+                type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
+                if Orocos.registry.include?(type_name)
+                    Orocos.registry.get type_name
+                else
+                    Orocos.registry.create_null(type_name)
+                end
+            else raise
+            end
         end
     end
 end

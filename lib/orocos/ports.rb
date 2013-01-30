@@ -92,14 +92,7 @@ module Orocos
             @name = name
             @orocos_type_name = orocos_type_name
             @model = model
-            @type =
-                begin
-                    Orocos.typelib_type_for(@orocos_type_name)
-                rescue Typelib::NotFound
-                    Orocos.load_typekit_for(@orocos_type_name)
-                    Orocos.typelib_type_for(@orocos_type_name)
-                end
-            @type_name = @type.name
+            ensure_type_available(:fallback_to_null_type => true)
 
             if model
                 @max_sizes = model.max_sizes.dup
@@ -131,8 +124,15 @@ module Orocos
             end
         end
 
+        def ensure_type_available(options = Hash.new)
+            if !type || type.null?
+                @type = Orocos.find_type_by_orocos_type_name(orocos_type_name, options)
+            end
+        end
+
         # Returns a new object of this port's type
         def new_sample
+            ensure_type_available
             @type.new
         end
 
@@ -371,6 +371,7 @@ module Orocos
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
         def writer(policy = Hash.new)
+            ensure_type_available
             writer = Orocos.ruby_task.create_output_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => InputWriter) 
             writer.port = self
             writer.policy = policy
@@ -429,6 +430,7 @@ module Orocos
         # The policy dictates how data should flow between the port and the
         # reader object. See #prepare_policy
         def reader(policy = Hash.new)
+            ensure_type_available
             reader = Orocos.ruby_task.create_input_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => OutputReader)
             reader.port = self
             reader.policy = policy
