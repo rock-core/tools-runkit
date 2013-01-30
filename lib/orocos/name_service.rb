@@ -649,11 +649,6 @@ module Orocos
                 end
             end
 
-            #(see NameServiceBase#name)
-            def name
-                super + ":" + namespace
-            end
-
             #(see NameServiceBase#names)
             def names
                 @avahi_nameserver.get_all_services.uniq
@@ -711,11 +706,6 @@ module Orocos
             def get(name,options = Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
                 ns,_ = Namespace.split_name(name)
-                ns = if !ns || ns.empty?
-                         namespace
-                     else
-                         ns
-                     end
                 options[:namespace] ||= ns
                 Orocos::TaskContext.new(ior(name),options)
             rescue Orocos::CORBA::ComError => e

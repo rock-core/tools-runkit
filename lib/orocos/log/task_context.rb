@@ -17,6 +17,8 @@ module Orocos
             #Handle to the port the reader is reading from
             attr_reader :port
 
+            attr_reader :policy
+
             #filter for log data 
             #the filter is applied during read
             #the buffer is not effected 
@@ -29,7 +31,7 @@ module Orocos
             #
             #see project orocos.rb for more information
             def initialize(port,policy=default_policy)
-                policy = default_policy if !policy
+                @policy = default_policy if !policy
                 @port = port
                 @buffer = Array.new
                 @filter, policy = Kernel.filter_options(policy,[:filter])

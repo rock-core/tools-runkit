@@ -2,6 +2,10 @@
 module Orocos::Async::Log
     class AttributeBase < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        extend Orocos::Async::ObjectBase::Periodic::ClassMethods
+        include Orocos::Async::ObjectBase::Periodic
+        self.default_period = 0.1
+
         define_event :change
         attr_reader :last_sample
 

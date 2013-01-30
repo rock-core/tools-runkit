@@ -414,12 +414,13 @@ describe Orocos::Async::TaskContextProxy do
                 Orocos::Async.step # process callback
                 assert t1.reachable?
                 t1.instance_variable_get(:@delegator_obj).must_be_instance_of Orocos::Async::CORBA::TaskContext
+                assert_equal 1, disconnects 
             end
             assert !t1.reachable?
             sleep 0.1
             Orocos::Async.steps # queue reconnect
             assert_equal 1, connects
-            assert_equal 3, disconnects
+            assert_equal 2, disconnects
 
             Orocos.run('process') do
                 sleep 0.11

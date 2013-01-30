@@ -10,11 +10,10 @@ module Orocos::Async
         methods -= AttributeBaseProxy.instance_methods + [:method_missing,:name]
         def_delegators :@delegator_obj,*methods
 
-        def initialize(task_proxy,attribute_name,policy=Hash.new)
-            options,policy = Kernel.filter_options policy, :type => nil
+        def initialize(task_proxy,attribute_name,options=Hash.new)
+            @type = options.delete(:type) if options.has_key? :type
+            @options = options
             super(attribute_name,task_proxy.event_loop)
-            @type = options[:type]
-            @policy = policy
             @task_proxy = task_proxy
         end
 
@@ -34,22 +33,38 @@ module Orocos::Async
             @type ||= @delegator_obj.type
         end
 
+        # do not emit anything because reachabel will be emitted by the delegator_obj
         def reachable!(attribute,options = Hash.new)
+            @options = attribute.options
             if @type && @type != attribute.type
                 raise RuntimeError, "the given type #{@type} for attribute #{attribute.name} differes from the real type name #{attribute.type}"
             end
+            @type ||= attribute.type
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            super
+            disable_emitting do
+                super
+            end
             proxy_event(@delegator_obj,@delegator_obj.event_names)
         end
 
+        # do not emit anything because reachabel will be emitted by the delegator_obj
         def unreachable!(options=Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            super
+            disable_emitting do
+                super
+            end
+        end
+
+        def period
+            if @options.has_key? :period
+                @options[:period]
+            else
+                nil
+            end
         end
 
         def period=(period)
-            @policy[:period] = period
+            @options[:period] = period
             @delegator_obj.period = period if valid_delegator?
         end
     end
@@ -62,23 +77,25 @@ module Orocos::Async
 
     class PortProxy < ObjectBase
         extend Forwardable
-        attr_reader :policy
         define_events :data
 
         methods = Orocos::Port.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
         methods -= PortProxy.instance_methods + [:method_missing,:name]
         def_delegators :@delegator_obj,*methods
         
-        def initialize(task_proxy,port_name,policy=Hash.new)
-            options,policy = Kernel.filter_options policy, :type => nil
+        def initialize(task_proxy,port_name,options=Hash.new)
             super(port_name,task_proxy.event_loop)
-            @type = options[:type]
-            @policy = policy
             @task_proxy = task_proxy
+            @type = options.delete(:type) if options.has_key? :type
+            @options = options
         end
 
         def type_name
             type.name
+        end
+
+        def full_name
+            "#{@task_proxy.name}.#{name}"
         end
 
         def type
@@ -109,6 +126,7 @@ module Orocos::Async
             super && @delegator_obj.reachable?
         end
 
+        # do not emit anything because reachabel will be emitted by the delegator_obj
         def reachable!(port,options = Hash.new)
             raise ArgumentError, "port must not be kind of PortProxy" if port.is_a? PortProxy
             if @type && @type != port.type
@@ -116,8 +134,11 @@ module Orocos::Async
             end
 
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            super
+            disable_emitting do
+                super
+            end
             proxy_event(@delegator_obj,@delegator_obj.event_names)
+            @type ||= port.type
 
             #check which port we have
             if !port.respond_to?(:reader) && number_of_listeners(:data) != 0
@@ -125,9 +146,12 @@ module Orocos::Async
             end
         end
 
+        # do not emit anything because reachabel will be emitted by the delegator_obj
         def unreachable!(options = Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            super
+            disable_emitting do
+                super
+            end
         end
 
         # returns a sub port for the given subfield
@@ -136,15 +160,35 @@ module Orocos::Async
             SubPortProxy.new(self,subfield,type)
         end
 
+        def period
+            if @options.has_key? :period
+                @options[:period]
+            else
+                nil
+            end
+        end
+
         def period=(period)
             raise RuntimeError, "Port #{name} is not an output port" if !output?
-            @policy[:period] = period
+            @options[:period] = period
             @delegator_obj.period = period if valid_delegator?
         end
 
         def on_data(policy = Hash.new,&block)
             raise RuntimeError , "Port #{name} is not an output port" if !output?
-            @policy.merge! policy
+            @options = if policy.empty?
+                           @options
+                       elsif @on_data_policy.empty? && !delegator_valid?
+                           policy
+                       elsif @on_data_policy == policy
+                           @options
+                       else
+                           Orocos.warn "ProxyPort #{full_name} cannot emit :data with different policies."
+                           Orocos.warn "The current policy is: #{@options}."
+                           Orocos.warn "Ignoring policy: #{policy}."
+                           @options
+                       end
+
             on_event :data,&block
         end
     end
@@ -248,8 +292,7 @@ module Orocos::Async
                                                        :raise => false,
                                                        :wait => nil }
 
-            namespace,name = split_name(name)
-            self.namespace = namespace
+            self.namespace,name = split_name(name)
             super(name,@options[:event_loop])
 
             @name_service = @options[:name_service]
@@ -260,8 +303,8 @@ module Orocos::Async
             @attributes = Hash.new
             @properties = Hash.new
 
-            if options.has_key?(:use)
-                reachable!(options[:use])
+            if @options.has_key?(:use)
+                reachable!(@options[:use])
             else
                 reconnect(@options[:wait])
             end
@@ -278,6 +321,7 @@ module Orocos::Async
         # asychronsosly tries to connect to the remote task
         def reconnect(wait_for_task = false)
             if !@resolve_task
+                # TODO use a Timer here to be visible to the VizkitViewer
                 @resolve_task = @name_service.get @name,@task_options do |task_context,error|
                     if error
                         raise error if @options[:raise]
@@ -303,6 +347,11 @@ module Orocos::Async
                 @properties[name] ||= PropertyProxy.new(self,name,other_options)
             end
 
+            if !other_options.empty? && p.options != other_options
+                Orocos.warn "Property #{p.full_name}: is already initialized with options: #{p.options}"
+                Orocos.warn "ignoring options: #{other_options}"
+            end
+
             if options[:wait]
                 connect_property(p)
                 p.wait
@@ -322,6 +371,11 @@ module Orocos::Async
                 @attributes[name] ||= AttributeProxy.new(self,name,other_options)
             end
 
+            if !other_options.empty? && a.options != other_options
+                Orocos.warn "Attribute #{a.full_name}: is already initialized with options: #{a.options}"
+                Orocos.warn "ignoring options: #{other_options}"
+            end
+
             if options[:wait]
                 connect_attribute(a)
                 a.wait
@@ -338,6 +392,11 @@ module Orocos::Async
             wait if options[:wait]
             p = @mutex.synchronize do
                 @ports[name] ||= PortProxy.new(self,name,other_options)
+            end
+
+            if !other_options.empty? && p.options != other_options
+                Orocos.warn "Port #{p.full_name}: is already initialized with options: #{p.options}"
+                Orocos.warn "ignoring options: #{other_options}"
             end
 
             if options[:wait]
@@ -394,7 +453,9 @@ module Orocos::Async
                     remove_proxy_event(@delegator_obj_old,@delegator_obj_old.event_names)
                     @delegator_obj_old = nil
                 end
-                @delegator_obj = task_context
+                disable_emitting do
+                    super
+                end
                 proxy_event(@delegator_obj,@delegator_obj.event_names)
                 [@ports.values,@attributes.values,@properties.values]
             end
@@ -443,7 +504,10 @@ module Orocos::Async
                                      else
                                          @delegator_obj_old
                                      end
-                invalidate_delegator!
+
+                disable_emitting do
+                    super
+                end
             end
             disconnect_ports
             disconnect_attributes
@@ -453,7 +517,6 @@ module Orocos::Async
                  else
                     @options[:reconnect]
                  end
-            event :unreachable
             reconnect if re
         end
 

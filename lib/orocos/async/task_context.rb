@@ -2,6 +2,11 @@
 module Orocos::Async::CORBA
     class TaskContext < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        extend Orocos::Async::ObjectBase::Periodic::ClassMethods
+        include Orocos::Async::ObjectBase::Periodic
+
+        self.default_period = 1.0
+
         define_events :port_reachable,
                       :port_unreachable,
                       :property_reachable,
@@ -40,13 +45,10 @@ module Orocos::Async::CORBA
                           else
                               [ior,options]
                           end
-            options,options_other = Kernel.filter_options options,:raise => false,:event_loop => Orocos::Async.event_loop
+            options,options_other = Kernel.filter_options options,:event_loop => Orocos::Async.event_loop
             super(ior,options[:event_loop])
-            @raise = options[:raise]
             @mutex = Mutex.new
-            @watchdog = true
-            @period = 1
-            @last_state
+            @last_state = nil
             @port_names = Array.new
             @property_names = Array.new
             @attribute_names = Array.new
@@ -56,11 +58,10 @@ module Orocos::Async::CORBA
                 # this is used to disconnect the task by an error handler
                 [states,port_names,property_names,attribute_names]
             end
-            @watchdog_timer = @event_loop.async_every(watchdog_proc,{:period => @period,
+            @watchdog_timer = @event_loop.async_every(watchdog_proc,{:period => default_period,
                                                       :default => [[],[],[],[]],
                                                       :start => false,
                                                       :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]}) do |data,error|
-                                                            @watchdog_timer.doc = name
                                                             process_states(data[0])
                                                             process_port_names(data[1])
                                                             process_property_names(data[2])
@@ -118,35 +119,32 @@ module Orocos::Async::CORBA
         # @param (see TaskContext#initialize)
         def reachabel!(ior,options=Hash.new)
             @mutex.synchronize do
-                options = Kernel.validate_options options,  :name=> nil,
+                @options = Kernel.validate_options options,  :name=> nil,
                     :ior => ior,
-                    :watchdog => @watchdog,
+                    :watchdog => true,
                     :wait => false,
-                    :period => @period,
-                    :use => nil
-                @watchdog = options[:watchdog]
-                @period = options[:period]
-                if options[:use]
-                    @delegator_obj = options[:use]
+                    :period => default_period,
+                    :use => nil,
+                    :raise => false
+                if @options[:use]
+                    @delegator_obj = @options[:use]
                 else
                     invalidate_delegator!
                 end
-                ior = options[:ior]
+                ior = @options[:ior]
                 @ior,@name = if valid_delegator?
                                  [@delegator_obj.ior,@delegator_obj.name]
                              elsif ior.respond_to?(:ior)
                                  [ior.ior, ior.name]
                              else
-                                 [ior, options[:name]]
+                                 [ior, @options[:name]]
                              end
 
-                raise ArgumentError,"no watchdog period is given" if !@period && @watchdog
                 raise ArgumentError,"no IOR or task is given" unless @ior
-
-                @watchdog_timer.start(@period) if @watchdog
+                @watchdog_timer.start(period,false) if @options[:watchdog]
                 @event_loop.async(method(:task_context))
             end
-            wait if options[:wait]
+            wait if @options[:wait]
         end
 
         # Disconnectes self from the remote task context and returns its underlying
@@ -355,6 +353,7 @@ module Orocos::Async::CORBA
                                attribute_names = obj.attribute_names
                                obj.state
                                @event_loop.once do
+                                   @watchdog_timer.doc = name
                                    process_port_names(port_names)
                                    process_property_names(property_names)
                                    process_attribute_names(attribute_names)
@@ -368,7 +367,7 @@ module Orocos::Async::CORBA
                     @ior = nil          # ior seems to be invalid
                     @ior_error = e
                     invalidate_delegator!
-                    raise e if @raise   # do not be silent if
+                    raise e if @options[:raise]   # do not be silent if
                     [nil,@ior_error]
                 end
             end

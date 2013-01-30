@@ -14,14 +14,18 @@ module Orocos::Async
 
     class NameServiceBase < ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        extend Orocos::Async::ObjectBase::Periodic::ClassMethods
+        include Orocos::Async::ObjectBase::Periodic
+
         define_events :task_added, :task_removed
 
-        def initialize(event_loop,name_service,options = Hash.new)
-            super(name_service.name,event_loop)
+        def initialize(name_service,options = Hash.new)
+            @options ||= Kernel.validate_options options,:period => default_period,:start => false,:sync_key => nil,:known_errors => nil,:event_loop => Orocos::Async.event_loop
+            @stored_names ||= Set.new
+            _,options_async = Kernel.filter_options @options,:event_loop=>nil
+            super(name_service.name,@options[:event_loop])
             reachable! name_service
-            @stored_names = Set.new
-            options = Kernel.validate_options options,:period => 1.0,:start => false,:sync_key => nil,:known_errors => nil
-            @watchdog_timer = event_loop.async_every method(:names),options do |names|
+            @watchdog_timer = @event_loop.async_every method(:names),options_async do |names|
                 if number_of_listeners(:task_removed) == 0 && number_of_listeners(:task_added) == 0
                     @watchdog_timer.cancel
                     @stored_names.clear
@@ -67,6 +71,10 @@ module Orocos::Async
                         t.name_service == options[:name_service]
             end
             if task
+                if task.options != options 
+                    Orocos.warn "TaskContextProxy #{name} is already initialized with the following options: #{task.options}."
+                    Orocos.warn "Ignoring options: #{options}."
+                end
                 task
             else
                 @task_context_proxies << Orocos::Async::TaskContextProxy.new(name,options)
@@ -76,15 +84,16 @@ module Orocos::Async
     end
 
     class NameService < NameServiceBase
+        self.default_period = 1.0
+
         def initialize(*name_services)
             options = if name_services.last.is_a? Hash
                           name_services.pop
                       else
                           Hash.new
                       end
-            options,other_options = Kernel.filter_options options,{:event_loop => Orocos::Async.event_loop}
             name_service = Orocos::NameService.new *name_services
-            super(options[:event_loop],name_service,other_options)
+            super(name_service,options)
         end
 
         private
@@ -99,11 +108,12 @@ module Orocos::Async
     module Local
         class NameService < NameServiceBase
             extend Utilrb::EventLoop::Forwardable
+            self.default_period = 1.0
 
             def initialize(options)
-                options,other_options = Kernel.filter_options options,{:event_loop => Orocos::Async.event_loop,:tasks => Hash.new}
+                options,other_options = Kernel.filter_options options,{:tasks => Hash.new}
                 name_service = Orocos::Local::NameService.new options[:tasks]
-                super(options[:event_loop],name_service,other_options)
+                super(name_service,other_options)
             end
 
             def get(name,options=Hash.new,&block)
@@ -155,6 +165,7 @@ module Orocos::Async
 
         class NameService < NameServiceBase
             extend Utilrb::EventLoop::Forwardable
+            self.default_period = 1.0
 
             def initialize(ip="",port="",options = Hash.new)
                 ip,port,options = if ip.is_a? Hash
@@ -164,11 +175,12 @@ module Orocos::Async
                                   else port.is_a? Hash
                                       [ip,port,options]
                                   end
-                @options,other_options = Kernel.filter_options(options,:event_loop => Orocos::Async.event_loop,:reconnect => true)
+                my_options,other_options = Kernel.filter_options options,:reconnect=> true
                 name_service_options,other_options = Kernel.filter_options other_options,:namespace => nil
                 name_service = Orocos::CORBA::NameService.new ip,port,name_service_options
                 other_options[:known_errors] = [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]
-                super(@options[:event_loop],name_service,other_options)
+                super(name_service,other_options)
+                @options.merge! my_options
             end
 
             def unreachable!(options = Hash.new)

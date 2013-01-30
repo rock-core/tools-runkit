@@ -2,6 +2,11 @@
 module Orocos::Async::Log
     class OutputReader < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        extend Orocos::Async::ObjectBase::Periodic::ClassMethods
+        include Orocos::Async::ObjectBase::Periodic
+
+        self.default_period = 0.1
+
         attr_reader :policy
         define_event :data
 
@@ -9,9 +14,8 @@ module Orocos::Async::Log
         # @param [Orocos::OutputReader] reader The designated reader
         def initialize(port,reader,options=Hash.new)
             super(port.name,port.event_loop)
-            options = Kernel.validate_options options, :period => 0.1
+            @options = Kernel.validate_options options, :period => default_period
             @port = port
-            @period = options[:period]
             reachable! reader
             @port.connect_to do |sample|
                 emit_data sample
@@ -43,9 +47,9 @@ module Orocos::Async::Log
         define_event :data
 
         def initialize(async_task,port,options=Hash.new)
+            @opitons ||= options
+            @readers ||= Array.new
             super(port.name,async_task.event_loop)
-            @policy = options
-            @readers = Array.new
             reachable! port
             port.connect_to do |sample|
                 emit_data sample
@@ -74,7 +78,31 @@ module Orocos::Async::Log
             end
         end
 
+        def period
+            if @options.has_key?(:period)
+                @options[:period]
+            else
+                OutputReader.default_period
+            end
+        end
+
+        def period=(value)
+            @options[:period] = value
+        end
+
         def on_data(policy = Hash.new,&block)
+            @options = if policy.empty?
+                           @options
+                       elsif @options.empty? && !@global_reader
+                           policy
+                       elsif @options == policy
+                           @options
+                       else
+                           Orocos.warn "Log::OutputPort #{full_name} cannot emit :data with different policies."
+                           Orocos.warn "The current policy is: #{@options}."
+                           Orocos.warn "Ignoring policy: #{policy}."
+                           @options
+                       end
             on_event :data,&block
         end
 

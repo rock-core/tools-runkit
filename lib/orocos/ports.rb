@@ -373,6 +373,7 @@ module Orocos
         def writer(policy = Hash.new)
             writer = Orocos.ruby_task.create_output_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => InputWriter) 
             writer.port = self
+            writer.policy = policy
             writer.connect_to(self, policy)
             writer
         end
@@ -430,6 +431,7 @@ module Orocos
         def reader(policy = Hash.new)
             reader = Orocos.ruby_task.create_input_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => OutputReader)
             reader.port = self
+            reader.policy = policy
             connect_to(reader, policy)
             reader
         end

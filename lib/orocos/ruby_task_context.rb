@@ -84,6 +84,9 @@ module Orocos
         # The port this object is reading from
         attr_accessor :port
 
+        # The policy of the connection
+        attr_accessor :policy
+
         # Helper method for #read and #read_new
         #
         # This is overloaded in OutputReader to raise CORBA::ComError if the
@@ -153,6 +156,9 @@ module Orocos
     class InputWriter < LocalOutputPort
         # The port this object is reading from
         attr_accessor :port
+
+        # The policy of the connection
+        attr_accessor :policy
 
         # Disconnects this port from the port it is reading
         def disconnect

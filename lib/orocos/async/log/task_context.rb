@@ -3,6 +3,11 @@ module Orocos::Async
     module Log
         class TaskContext < Orocos::Async::ObjectBase
             extend Utilrb::EventLoop::Forwardable
+            extend Orocos::Async::ObjectBase::Periodic::ClassMethods
+            include Orocos::Async::ObjectBase::Periodic
+
+            self.default_period = 1.0
+
             define_events :port_reachable,
                 :port_unreachable,
                 :property_reachable,
@@ -12,7 +17,7 @@ module Orocos::Async
                 :state_change
 
             def initialize(log_task,options=Hash.new)
-                options = Kernel.validate_options options,:raise => false,:event_loop => Orocos::Async.event_loop
+                @options ||= Kernel.validate_options options,:raise => false,:event_loop => Orocos::Async.event_loop,:period => default_period
                 super(log_task.name,options[:event_loop])
                 if log_task.has_port? "state"
                     log_task.port("state").connect_to do |sample|

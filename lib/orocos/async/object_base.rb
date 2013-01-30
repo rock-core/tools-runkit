@@ -64,6 +64,28 @@ module Orocos::Async
     end
 
     class ObjectBase
+        module Periodic
+            module ClassMethods
+                attr_accessor :default_period
+            end
+
+            def default_period
+                self.class.default_period
+            end
+
+            def period
+                @options[:period]
+            end
+
+            def period=(value)
+                @options[:period]= if value
+                                       value
+                                   else
+                                       default_period
+                                   end
+            end
+        end
+
         class << self
             def event_names
                 @event_names ||= if self != ObjectBase
@@ -105,13 +127,17 @@ module Orocos::Async
 
         attr_reader :event_loop
         attr_reader :name
+        attr_reader :options
+        attr_accessor :emitting
         define_events :error,:reachable,:unreachable
 
         def initialize(name,event_loop)
-            @listeners = Hash.new{ |hash,key| hash[key] = []}
-            @proxy_listeners = Hash.new{|hash,key| hash[key] = Hash.new}
-            @name = name
-            @event_loop = event_loop
+            @listeners ||= Hash.new{ |hash,key| hash[key] = []}
+            @proxy_listeners ||= Hash.new{|hash,key| hash[key] = Hash.new}
+            @name ||= name
+            @event_loop ||= event_loop
+            @options ||= Hash.new
+            @emitting = true
             invalidate_delegator!
             on_error do |e|
                 unreachable!(:error => e)
@@ -120,6 +146,17 @@ module Orocos::Async
 
         def invalidate_delegator!
             @delegator_obj = DelegatorDummy.new @name,@event_loop
+        end
+
+        # sets @emitting to value for the time the given block is called
+        def emitting(value,&block)
+            old,@emitting = @emitting,value
+            block.call
+            @emitting = old
+        end
+
+        def disable_emitting(&block)
+            emitting(false,&block)
         end
 
         #returns true if the event is known
@@ -219,8 +256,10 @@ module Orocos::Async
         end
 
         # calls all listener which are registered for the given event
+        # the next step
         def event(event_name,*args)
             validate_event event_name
+            return unless @emitting
             @event_loop.once do
                 process_event event_name,*args
             end

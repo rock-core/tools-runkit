@@ -2,21 +2,23 @@
 module Orocos::Async::CORBA
     class AttributeBase < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        extend Orocos::Async::ObjectBase::Periodic::ClassMethods
+        include Orocos::Async::ObjectBase::Periodic
+
         define_event :change
         attr_reader :last_sample
 
         def initialize(async_task,attribute,options=Hash.new)
             super(attribute.name,async_task.event_loop)
-            options,policy = Kernel.validate_options options, :period => 1.0
-            @period = options[:period]
+            @options = Kernel.validate_options options, :period => default_period
             @task = async_task
             @mutex = Mutex.new
 
             reachable!(attribute) if attribute
-            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read), {:period => @period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
-                @poll_timer.period = @period if @poll_timer.period != @period
+            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
                 if error
                     @poll_timer.cancel
+                    self.period = @poll_timer.period
                     @event_loop.once do
                         event :error,error
                     end
@@ -57,12 +59,12 @@ module Orocos::Async::CORBA
         end
 
         def period=(period)
-            @period = period
-            @poll_timer.period = period
+            super
+            @poll_timer.period = self.period
         end
 
         def add_listener(listener)
-            @poll_timer.start(0) if listener.event == :change
+            @poll_timer.start(period) if listener.event == :change && !@poll_timer.running?
             if @last_sample
                 event_loop.once{listener.call(@last_sample)}
             end
@@ -94,8 +96,10 @@ module Orocos::Async::CORBA
     end
 
     class Property < AttributeBase
+        self.default_period = 1.0
     end
 
     class Attribute < AttributeBase
+        self.default_period = 1.0
     end
 end

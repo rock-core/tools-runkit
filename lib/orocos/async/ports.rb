@@ -2,24 +2,28 @@
 module Orocos::Async::CORBA
     class OutputReader < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        extend Orocos::Async::ObjectBase::Periodic::ClassMethods
+        include Orocos::Async::ObjectBase::Periodic
+
         define_event :data
         attr_reader :policy
+
+        self.default_period = 0.1
 
         # @param [Async::OutputPort] port The Asyn::OutputPort
         # @param [Orocos::OutputReader] reader The designated reader
         def initialize(port,reader,options=Hash.new)
             super(port.name,port.event_loop)
-            options = Kernel.validate_options options, :period => 0.1
+            @options = Kernel.validate_options options, :period => default_period
             @port = port
             @last_sample = nil
-            @period = options[:period]
             reachable! reader
             proxy_event @port,:unreachable
             
-            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => @period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
-                @poll_timer.period = @period if @poll_timer.period <= 0
+            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
                 if error
                     @poll_timer.cancel
+                    self.period = @poll_timer.period
                     @event_loop.once do
                         event :error,error
                     end
@@ -53,20 +57,20 @@ module Orocos::Async::CORBA
 
         def reachable!(reader,options = Hash.new)
             super
+            @policy = reader.policy
             if number_of_listeners(:data) != 0
-                @poll_timer.start 0
+                @poll_timer.start period unless @poll_timer.running?
             end
         end
 
         def period=(period)
-            @period = period
-            @poll_timer.period = period
+            super
+            @poll_timer.period = self.period
         end
 
         def add_listener(listener)
             if listener.event == :data
-                @period = @poll_timer.period
-                @poll_timer.start(0)
+                @poll_timer.start(period) unless @poll_timer.running?
             end
             super
         end
@@ -85,9 +89,6 @@ module Orocos::Async::CORBA
         def initialize(port,writer,options=Hash.new)
             super(port.name,port.event_loop)
             @port = port
-            @task.on_unrechable do
-                unreachable!
-            end
             reachable!(writer)
         end
 
@@ -132,13 +133,14 @@ module Orocos::Async::CORBA
         def initialize(async_task,port,options=Hash.new)
             raise ArgumentError, "no task is given" unless async_task
             raise ArgumentError, "no port is given" unless port
+            @option ||= options
+            @task ||= async_task
+            @mutex ||= Mutex.new
             super(port.name,async_task.event_loop)
-            @task = async_task
-            @mutex = Mutex.new
             @task.on_unreachable do
                 unreachable!
             end
-            reachable!(port,options)
+            reachable!(port)
         end
 
         def connection_error(error)
@@ -161,8 +163,8 @@ module Orocos::Async::CORBA
         define_event :data
 
         def initialize(async_task,port,options=Hash.new)
+            raise ArgumentError,"No options are supported right now" unless options.empty?
             super
-            @policy = options
             @readers = Array.new
         end
 
@@ -183,24 +185,44 @@ module Orocos::Async::CORBA
             end
         end
 
-        # TODO if called multiple times check policy
         def on_data(policy = Hash.new,&block)
-            @policy = policy
+            @options = if policy.empty?
+                           @options
+                       elsif @options.empty? && !@global_reader
+                           policy
+                       elsif @options == policy
+                           @options
+                       else
+                           Orocos.warn "OutputPort #{full_name} cannot emit :data with different policies."
+                           Orocos.warn "The current policy is: #{@options}."
+                           Orocos.warn "Ignoring policy: #{policy}."
+                           @options
+                       end
             on_event :data,&block
+        end
+
+        def period
+            if @options.has_key?(:period)
+                @options[:period]
+            else
+                OutputReader.default_period
+            end
+        end
+
+        def period=(value)
+            @options[:period] = value
+            @global_reader.period = value if @global_reader.respond_to?(:period=)
         end
 
         def add_listener(listener)
             if listener.event == :data
-                @global_reader ||= reader(@policy) do |reader|
+                @global_reader ||= reader(@options) do |reader|
                     proxy_event(reader,:data)
                     @global_reader = reader # overwrites @global_reader before that it is a ThreadPool::Task
+                    @global_reader.period = @options[:period] if @options.has_key? :period
                 end
             end
             super
-        end
-
-        def period=(period)
-            @global_reader.period = period if @global_reader
         end
 
         def unreachable!(options = Hash.new)
@@ -211,7 +233,7 @@ module Orocos::Async::CORBA
         def reachable!(port,options = Hash.new)
             super
             if @global_reader
-                orig_reader(@policy) do |reader,error|
+                orig_reader(@global_reader.policy) do |reader,error|
                     unless error
                         @global_reader.reachable!(reader)
                     end
