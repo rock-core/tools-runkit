@@ -53,13 +53,15 @@ module Orocos
         def full_name; "#{task.name}.#{name}" end
         # The port's type name as used by the RTT
         attr_reader :orocos_type_name
-        # The port's type name as used in Ruby
-        attr_reader :type_name
         # The port's type as a Typelib::Type object
         attr_reader :type
         # The port's model as either a Orocos::Generation::InputPort or
         # Orocos::Generation::OutputPort
         attr_reader :model
+
+        # @deprecated
+        # Returns the name of the typelib type. Use #type.name instead.
+        def type_name; type.name end
 
         def log_metadata
             metadata = Hash['rock_task_model' => task.model.name,
@@ -110,10 +112,10 @@ module Orocos
         end
 
         def pretty_print(pp) # :nodoc:
-            if type_name != orocos_type_name
-                pp.text " #{name} (#{type_name}/#{orocos_type_name})"
+            if type.name != orocos_type_name
+                pp.text " #{name} (#{type.name}/#{orocos_type_name})"
             else
-                pp.text " #{name} (#{type_name})"
+                pp.text " #{name} (#{type.name})"
             end
         end
 
@@ -341,7 +343,7 @@ module Orocos
                 else
                     policy[:transport] = 0
                     if Orocos::MQueue.warn?
-                        Orocos.warn "the MQ transport could be selected, but the marshalling size of samples from the output port #{full_name}, of type #{type_name}, is unknown"
+                        Orocos.warn "the MQ transport could be selected, but the marshalling size of samples from the output port #{full_name}, of type #{type.name}, is unknown"
                     end
                 end
             end
@@ -352,7 +354,7 @@ module Orocos
                        end
 
                 valid = Orocos::MQueue.valid_sizes?(size, policy[:data_size]) do
-                    "#{full_name} => #{input_name} of type #{type_name}: "
+                    "#{full_name} => #{input_name} of type #{type.name}: "
                 end
 
                 if !valid
@@ -474,8 +476,8 @@ module Orocos
 
             if !input_port.kind_of?(InputPort)
                 raise ArgumentError, "an output port can only connect to an input port (got #{input_port})"
-            elsif input_port.type_name != type_name
-                raise ArgumentError, "trying to connect an output port of type #{type_name} to an input port of type #{input_port.type_name}"
+            elsif input_port.type.name != type.name
+                raise ArgumentError, "trying to connect an output port of type #{type.name} to an input port of type #{input_port.type.name}"
             end
 
             policy = Port.prepare_policy(options)

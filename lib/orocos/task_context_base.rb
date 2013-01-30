@@ -41,6 +41,8 @@ module Orocos
             "#{task.name}.#{name}"
         end
 
+        # @deprecated
+        # Returns the name of the typelib type. Use #type.name instead.
         def type_name
             type.name
         end
