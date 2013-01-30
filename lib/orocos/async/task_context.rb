@@ -128,6 +128,8 @@ module Orocos::Async::CORBA
                     :raise => false
                 if @options[:use]
                     @delegator_obj = @options[:use]
+                    @ior = @delegator_obj.ior
+                    @watchdog_timer.doc = @delegator_obj.name
                 else
                     invalidate_delegator!
                 end
@@ -353,7 +355,7 @@ module Orocos::Async::CORBA
                                attribute_names = obj.attribute_names
                                obj.state
                                @event_loop.once do
-                                   @watchdog_timer.doc = name
+                                   @watchdog_timer.doc = @name
                                    process_port_names(port_names)
                                    process_property_names(property_names)
                                    process_attribute_names(attribute_names)
