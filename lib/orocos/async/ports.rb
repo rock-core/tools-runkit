@@ -226,7 +226,9 @@ module Orocos::Async::CORBA
         end
 
         def unreachable!(options = Hash.new)
-            @global_reader.unreachable! if @global_reader
+            if @global_reader.respond_to?(:unreachable!)
+                @global_reader.unreachable! 
+            end
             super
         end
 
