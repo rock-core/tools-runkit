@@ -273,6 +273,47 @@ module Orocos::Async::CORBA
             end
         end
 
+        def reachable!(port,options = Hash.new)
+            super
+            #TODO we have to call reachable on all wwriter
+            if @global_writer
+                orig_writer(@global_writer.policy) do |writer,error|
+                    unless error
+                        @global_writer.reachable!(writer)
+                    end
+                end
+            end
+        end
+
+        def write(sample,&block)
+            if block
+                if @global_writer.respond_to? :write
+                    @global_writer.write(sample) do |result,error|
+                        if error
+                            block.call result,error if block.arrity == 2
+                        else
+                            block.call
+                        end
+                    end
+                elsif @global_writer
+                    #TODO call task next step
+                    raise "not implemented"
+                else
+                    @global_writer ||= writer(@options) do |writer,error|
+                        if error
+                            block.call result,error if block.arrity == 2
+                        else
+                            @global_writer = writer # overwrites @global_writer before that it is a ThreadPool::Task
+                            @global_writer.period = @options[:period] if @options.has_key? :period
+                            write(sample,&block)
+                        end
+                    end
+                end
+            else
+                raise "not implemented"
+            end
+        end
+
         forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
             methods = Orocos::InputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= InputPort.instance_methods
