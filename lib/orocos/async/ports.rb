@@ -124,7 +124,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        def reachabel?
+        def reachable?
             super && @task.reachable?
         end
 

@@ -68,7 +68,7 @@ module Orocos::Async::CORBA
                                                             process_attribute_names(data[3])
                                                       end
             @watchdog_timer.doc = ior
-            reachabel!(ior,options_other)
+            reachable!(ior,options_other)
         end
 
         def add_listener(listener)
@@ -117,7 +117,7 @@ module Orocos::Async::CORBA
         # connects with the remote orocos Task specified by its IOR
         #
         # @param (see TaskContext#initialize)
-        def reachabel!(ior,options=Hash.new)
+        def reachable!(ior,options=Hash.new)
             @mutex.synchronize do
                 @options = Kernel.validate_options options,  :name=> nil,
                     :ior => ior,

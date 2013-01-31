@@ -33,7 +33,7 @@ module Orocos::Async
             @type ||= @delegator_obj.type
         end
 
-        # do not emit anything because reachabel will be emitted by the delegator_obj
+        # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(attribute,options = Hash.new)
             @options = attribute.options
             if @type && @type != attribute.type
@@ -47,7 +47,7 @@ module Orocos::Async
             proxy_event(@delegator_obj,@delegator_obj.event_names)
         end
 
-        # do not emit anything because reachabel will be emitted by the delegator_obj
+        # do not emit anything because reachable will be emitted by the delegator_obj
         def unreachable!(options=Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             disable_emitting do
@@ -126,7 +126,7 @@ module Orocos::Async
             super && @delegator_obj.reachable?
         end
 
-        # do not emit anything because reachabel will be emitted by the delegator_obj
+        # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(port,options = Hash.new)
             raise ArgumentError, "port must not be kind of PortProxy" if port.is_a? PortProxy
             if @type && @type != port.type
@@ -146,7 +146,7 @@ module Orocos::Async
             end
         end
 
-        # do not emit anything because reachabel will be emitted by the delegator_obj
+        # do not emit anything because reachable will be emitted by the delegator_obj
         def unreachable!(options = Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             disable_emitting do
@@ -444,7 +444,7 @@ module Orocos::Async
         end
 
         # must be thread safe 
-        # do not emit anything because reachabel will be emitted by the delegator_obj
+        # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(task_context,options = Hash.new)
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
             ports,attributes,properties = @mutex.synchronize do
