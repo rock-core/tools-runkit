@@ -296,7 +296,8 @@ module Orocos
         # @param [String] orocos_type_name the type name as known by RTT. It is
         #   usually the typelib type name
         # @return [Property] the property object
-        def create_property(name, orocos_type_name)
+        def create_property(name, type)
+            orocos_type_name = find_orocos_type_name_by_type(type)
             local_property = @local_task.do_create_property(Property, name, orocos_type_name)
             @local_properties[local_property.name] = local_property
             @properties[local_property.name] = local_property
@@ -354,10 +355,22 @@ module Orocos
             nil
         end
 
+        def find_orocos_type_name_by_type(type)
+            if type.respond_to?(:name)
+                type = type.name
+            end
+            type = Orocos.master_project.find_type(type)
+            type = Orocos.master_project.find_opaque_for_intermediate(type) || type
+            type = Orocos.master_project.find_interface_type(type)
+            Typelib::Registry.rtt_typename(type)
+        end
+
         private
 
         # Helper method for create_input_port and create_output_port
-        def create_port(is_output, klass, name, orocos_type_name, options)
+        def create_port(is_output, klass, name, type, options)
+            orocos_type_name = find_orocos_type_name_by_type(type)
+
             options = Kernel.validate_options options, :permanent => true
             local_port = @local_task.do_create_port(is_output, klass, name, orocos_type_name)
             if options[:permanent]

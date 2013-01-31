@@ -3,9 +3,11 @@ name 'echo'
 import_types_from "echo.h"
 
 typekit do
+    type_export_policy :used
     opaque_type '/OpaquePoint', 'echo/Point',
             :includes => [File.expand_path('opaques.h', File.dirname(component.deffile))]
 end
+import_types_from File.expand_path('opaques.h', File.dirname(deffile))
 
 task_context 'Echo' do
     extended_state_support
@@ -31,6 +33,7 @@ task_context 'Echo' do
 
     port_driven :input
 end
+typekit.export_types '/OpaqueContainingType'
 
 task_context 'EchoSubmodel' do
     subclasses 'Echo'

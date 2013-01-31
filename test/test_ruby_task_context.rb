@@ -93,5 +93,39 @@ describe Orocos::RubyTaskContext do
         task.stop
         assert_equal :STOPPED, task.rtt_state
     end
+
+    describe "#find_orocos_type_name_by_type" do
+        attr_reader :ruby_task
+        before do
+            Orocos.load_typekit 'echo'
+            @ruby_task = new_ruby_task_context('task')
+        end
+        it "can be given an opaque type directly" do
+            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type('/OpaquePoint')
+            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/OpaquePoint'))
+        end
+        it "can be given an opaque-containing type directly" do
+            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type('/OpaqueContainingType')
+            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/OpaqueContainingType'))
+        end
+        it "converts a non-exported intermediate type to the corresponding opaque" do
+            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type('/echo/Point')
+            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/echo/Point'))
+        end
+        it "converts a non-exported m-type to the corresponding opaque-containing type" do
+            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type('/OpaqueContainingType_m')
+            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/OpaqueContainingType_m'))
+        end
+        it "successfully converts a basic type to the corresponding orocos type name" do
+            typename = Orocos.registry.get('int').name
+            refute_equal 'int', typename
+            assert_equal 'int', ruby_task.find_orocos_type_name_by_type(typename)
+            assert_equal 'int', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('int'))
+        end
+        it "raises if given a non-exported type" do
+            assert_raises(Orocos::Generation::ConfigError) { ruby_task.find_orocos_type_name_by_type('/NonExportedType') }
+            assert_raises(Orocos::Generation::ConfigError) { ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/NonExportedType')) }
+        end
+    end
 end
 

@@ -13,5 +13,15 @@ public:
     int y() const { return _y; }
 };
 
+struct OpaqueContainingType
+{
+    OpaquePoint field;
+};
+
+struct NonExportedType
+{
+    OpaquePoint field;
+};
+
 #endif
 
