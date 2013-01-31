@@ -44,6 +44,7 @@ module Orocos
         # @deprecated
         # Returns the name of the typelib type. Use #type.name instead.
         def type_name
+            ensure_type_available
             type.name
         end
 
