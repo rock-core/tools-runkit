@@ -133,7 +133,7 @@ module Orocos::Async::CORBA
         def initialize(async_task,port,options=Hash.new)
             raise ArgumentError, "no task is given" unless async_task
             raise ArgumentError, "no port is given" unless port
-            @option ||= options
+            @options ||= options
             @task ||= async_task
             @mutex ||= Mutex.new
             super(port.name,async_task.event_loop)
@@ -163,7 +163,6 @@ module Orocos::Async::CORBA
         define_event :data
 
         def initialize(async_task,port,options=Hash.new)
-            raise ArgumentError,"No options are supported right now" unless options.empty?
             super
             @readers = Array.new
         end
@@ -174,6 +173,7 @@ module Orocos::Async::CORBA
             if block
                 orig_reader(policy) do |reader,error|
                     reader = OutputReader.new(self,reader,options) unless error
+                    proxy_event(reader,:error)
                     if block.arity == 2
                         block.call(reader,error)
                     elsif !error
@@ -181,7 +181,9 @@ module Orocos::Async::CORBA
                     end
                 end
             else
-                OutputReader.new(self,orig_reader(policy),options)
+                reader = OutputReader.new(self,orig_reader(policy),options)
+                proxy_event(reader,:error)
+                reader
             end
         end
 
@@ -257,6 +259,7 @@ module Orocos::Async::CORBA
             if block
                 orig_writer(options) do |writer,error|
                     writer = InputWriter.new(self,writer) unless error
+                    proxy_event(writer,:error)
                     if block.arity == 2
                         block.call(writer,error)
                     elsif !error
@@ -264,7 +267,9 @@ module Orocos::Async::CORBA
                     end
                 end
             else
-                InputWriter.new(self,orig_writer(options))
+                writer = InputWriter.new(self,orig_writer(options))
+                proxy_event(writer,:error)
+                writer
             end
         end
 

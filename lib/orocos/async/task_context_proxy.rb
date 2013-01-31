@@ -81,6 +81,7 @@ module Orocos::Async
 
         methods = Orocos::Port.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
         methods -= PortProxy.instance_methods + [:method_missing,:name]
+        methods << :write
         def_delegators :@delegator_obj,*methods
         
         def initialize(task_proxy,port_name,options=Hash.new)
@@ -178,7 +179,7 @@ module Orocos::Async
             raise RuntimeError , "Port #{name} is not an output port" if !output?
             @options = if policy.empty?
                            @options
-                       elsif @on_data_policy.empty? && !delegator_valid?
+                       elsif @options.empty? && !valid_delegator?
                            policy
                        elsif @on_data_policy == policy
                            @options
@@ -188,7 +189,6 @@ module Orocos::Async
                            Orocos.warn "Ignoring policy: #{policy}."
                            @options
                        end
-
             on_event :data,&block
         end
     end
@@ -526,7 +526,7 @@ module Orocos::Async
         def connect_port(port)
             p = @mutex.synchronize do
                 return unless valid_delegator?
-                @delegator_obj.port(port.name)
+                @delegator_obj.port(port.name,true,port.options)
             end
             @event_loop.call do
                 port.reachable!(p)

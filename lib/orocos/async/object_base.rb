@@ -37,7 +37,8 @@ module Orocos::Async
     class DelegatorDummy
         attr_reader :event_loop
         attr_reader :name
-        def initialize(name,event_loop)
+        def initialize(parent,name,event_loop)
+            @parent = parent
             @name = name
             @event_loop = event_loop
         end
@@ -49,16 +50,9 @@ module Orocos::Async
             if !block
                 raise error
             else
-                task = Utilrb::ThreadPool::Task.new do
+                @event_loop.defer :on_error => @parent.method(:emit_error),:callback => block,:known_errors => [Orocos::NotFound] do
                     raise error
                 end
-                task.execute
-                if block.arity == 2
-                    block.call nil,error
-                end
-                @event_loop.handle_error(error)
-                # fake a task which raises an error
-                task
             end
         end
     end
@@ -119,9 +113,11 @@ module Orocos::Async
             end
 
             def validate_event(name)
+                name = name.to_sym
                 if !valid_event?(name)
                     raise "event #{name} is not emitted by #{self}. The following events are emitted #{event_names.join(", ")}"
                 end
+                name
             end
         end
 
@@ -145,7 +141,7 @@ module Orocos::Async
         end
 
         def invalidate_delegator!
-            @delegator_obj = DelegatorDummy.new @name,@event_loop
+            @delegator_obj = DelegatorDummy.new self,@name,@event_loop
         end
 
         # sets @emitting to value for the time the given block is called
@@ -173,13 +169,13 @@ module Orocos::Async
         end
 
         def on_event(event,&block)
-            validate_event event
+            event = validate_event event
             EventListener.new(self,event,&block).start
         end
 
         # returns the number of listener for the given event
         def number_of_listeners(event)
-            validate_event event
+            event = validate_event event
             @listeners[event].size
         end
 
@@ -190,7 +186,7 @@ module Orocos::Async
 
         #returns the listeners for the given event
         def listeners(event)
-            validate_event event
+            event = validate_event event
             @listeners[event]
         end
 
@@ -223,7 +219,7 @@ module Orocos::Async
         end
 
         def add_listener(listener)
-            validate_event listener.event
+            event = validate_event listener.event
 
             if listener.event == :reachable
                 if valid_delegator?
@@ -258,7 +254,7 @@ module Orocos::Async
         # calls all listener which are registered for the given event
         # the next step
         def event(event_name,*args)
-            validate_event event_name
+            event = validate_event event_name
             return unless @emitting
             @event_loop.once do
                 process_event event_name,*args
@@ -310,7 +306,7 @@ module Orocos::Async
         private
         # calls all listener which are registered for the given event
         def process_event(event_name,*args)
-            validate_event event_name
+            event = validate_event event_name
             @listeners[event_name].each do |listener|
                 listener.call *args
             end

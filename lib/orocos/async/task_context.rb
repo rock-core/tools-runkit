@@ -234,12 +234,12 @@ module Orocos::Async::CORBA
             end
         end
 
-        def port(name, verify = true, &block)
+        def port(name, verify = true,options=Hash.new, &block)
             p = proc do |port,error|
                 port = if port.respond_to? :writer
-                           Orocos::Async::CORBA::InputPort.new(self,port)
+                           Orocos::Async::CORBA::InputPort.new(self,port,options)
                        elsif port.respond_to? :reader
-                           Orocos::Async::CORBA::OutputPort.new(self,port)
+                           Orocos::Async::CORBA::OutputPort.new(self,port,options)
                        end
                 if block
                     if block.arity == 2
