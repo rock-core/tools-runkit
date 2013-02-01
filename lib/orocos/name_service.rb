@@ -504,11 +504,14 @@ module Orocos
 
             #(see NameServiceBase#name)
             def name
-                address = ip
-                address = if address.empty?
-                              "default"
+                address = if ip.empty?
+                              if namespace.empty?
+                                  "default"
+                              else
+                                  namespace
+                              end
                           else
-                              address
+                             ip
                           end
                 "CORBA:#{address}"
             end

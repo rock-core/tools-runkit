@@ -10,6 +10,10 @@ module Orocos::Async
             @event = event
         end
 
+        def pretty_print(pp) # :nodoc:
+            pp.text "EventListener #{@event}"
+        end
+
         # stop listing to the event
         def stop
             @obj.remove_listener(self)
