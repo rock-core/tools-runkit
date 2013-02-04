@@ -18,7 +18,7 @@ module Orocos::Async
 
             def initialize(log_task,options=Hash.new)
                 @options ||= Kernel.validate_options options,:raise => false,:event_loop => Orocos::Async.event_loop,:period => default_period
-                super(log_task.name,options[:event_loop])
+                super(log_task.name,@options[:event_loop])
                 if log_task.has_port? "state"
                     log_task.port("state").connect_to do |sample|
                         emit_state_change log_task.state
@@ -76,7 +76,7 @@ module Orocos::Async
                 end
             end
 
-            def port(name, verify = true, &block)
+            def port(name, verify = true,options=Hash.new,&block)
                 if block
                     orig_port(name,verify) do |port|
                         block.call OutputPort.new(self,port)
