@@ -255,7 +255,7 @@ module Orocos::Async::CORBA
                 orig_port(name,verify,&p)
             else
                 port = orig_port(name,verify)
-                p.call port
+                p.call port,nil
             end
         end
 

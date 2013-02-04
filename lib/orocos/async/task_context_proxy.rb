@@ -8,6 +8,7 @@ module Orocos::Async
 
         methods = Orocos::AttributeBase.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
         methods -= AttributeBaseProxy.instance_methods + [:method_missing,:name]
+        methods << :type
         def_delegators :@delegator_obj,*methods
 
         def initialize(task_proxy,attribute_name,options=Hash.new)
@@ -42,7 +43,7 @@ module Orocos::Async
             @type ||= attribute.type
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             disable_emitting do
-                super
+                super(attribute,options)
             end
             proxy_event(@delegator_obj,@delegator_obj.event_names)
         end
@@ -51,7 +52,7 @@ module Orocos::Async
         def unreachable!(options=Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             disable_emitting do
-                super
+                super(options)
             end
         end
 
@@ -82,6 +83,7 @@ module Orocos::Async
         methods = Orocos::Port.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
         methods -= PortProxy.instance_methods + [:method_missing,:name]
         methods << :write
+        methods << :type
         def_delegators :@delegator_obj,*methods
         
         def initialize(task_proxy,port_name,options=Hash.new)
@@ -136,7 +138,7 @@ module Orocos::Async
 
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             disable_emitting do
-                super
+                super(port,options)
             end
             proxy_event(@delegator_obj,@delegator_obj.event_names)
             @type ||= port.type
@@ -151,7 +153,7 @@ module Orocos::Async
         def unreachable!(options = Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             disable_emitting do
-                super
+                super(options)
             end
         end
 
@@ -454,7 +456,7 @@ module Orocos::Async
                     @delegator_obj_old = nil
                 end
                 disable_emitting do
-                    super
+                    super(task_context,options)
                 end
                 proxy_event(@delegator_obj,@delegator_obj.event_names)
                 [@ports.values,@attributes.values,@properties.values]
@@ -506,7 +508,7 @@ module Orocos::Async
                                      end
 
                 disable_emitting do
-                    super
+                    super(options)
                 end
             end
             disconnect_ports
