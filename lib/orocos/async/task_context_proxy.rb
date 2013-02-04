@@ -526,7 +526,9 @@ module Orocos::Async
         def connect_port(port)
             p = @mutex.synchronize do
                 return unless valid_delegator?
-                @delegator_obj.port(port.name,true,port.options)
+                @delegator_obj.disable_emitting do
+                    @delegator_obj.port(port.name,true,port.options)
+                end
             end
             @event_loop.call do
                 port.reachable!(p)
@@ -544,7 +546,9 @@ module Orocos::Async
         def connect_attribute(attribute)
             a = @mutex.synchronize do
                 return unless valid_delegator?
-                @delegator_obj.attribute(attribute.name)
+                @delegator_obj.disable_emitting do
+                    @delegator_obj.attribute(attribute.name)
+                end
             end
             @event_loop.call do
                 attribute.reachable!(a)
@@ -562,7 +566,9 @@ module Orocos::Async
         def connect_property(property)
             p = @mutex.synchronize do
                 return unless valid_delegator?
-                @delegator_obj.property(property.name)
+                @delegator_obj.disable_emitting do
+                    @delegator_obj.property(property.name)
+                end
             end
             @event_loop.call do
                 property.reachable!(p)

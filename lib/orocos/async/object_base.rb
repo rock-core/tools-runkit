@@ -152,6 +152,7 @@ module Orocos::Async
         def emitting(value,&block)
             old,@emitting = @emitting,value
             block.call
+        ensure
             @emitting = old
         end
 
