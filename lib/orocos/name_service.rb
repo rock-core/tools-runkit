@@ -598,7 +598,9 @@ module Orocos
 
             #(see NameServiceBase#validate)
             def validate
-                do_validate
+                CORBA.refine_exceptions("corba naming service #{ip}") do
+                    do_validate
+                end
             end
 
             # Removes dangling references from the name service
