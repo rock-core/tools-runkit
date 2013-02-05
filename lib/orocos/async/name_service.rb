@@ -100,7 +100,7 @@ module Orocos::Async
         # add methods which forward the call to the underlying name service
         forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::NotFound] do
             methods = Orocos::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= NameService.instance_methods + [:method_missing]
+            methods -= Orocos::Async::NameService.instance_methods + [:method_missing]
             def_delegators methods
         end
     end
@@ -140,7 +140,7 @@ module Orocos::Async
             # add methods which forward the call to the underlying name service
             forward_to :@delegator_obj,:@event_loop do
                 methods = Orocos::Local::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-                methods -= NameService.instance_methods + [:method_missing]
+                methods -= Orocos::Async::Local::NameService.instance_methods + [:method_missing]
                 def_delegators methods
                 def_delegator :get,:alias => :orig_get
             end
@@ -226,7 +226,7 @@ module Orocos::Async
             # add methods which forward the call to the underlying name service
             forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError], :on_error => :error do
                 methods = Orocos::CORBA::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-                methods -= NameService.instance_methods + [:method_missing]
+                methods -= Orocos::Async::CORBA::NameService.instance_methods + [:method_missing]
                 def_delegators methods
                 def_delegator :get,:alias => :orig_get
             end

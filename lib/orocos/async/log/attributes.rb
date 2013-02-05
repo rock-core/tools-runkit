@@ -29,7 +29,7 @@ module Orocos::Async::Log
         private
         forward_to :@delegator_obj,:@event_loop,:on_error => :emit_error  do
             methods = Orocos::Log::Property.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= AttributeBase.instance_methods
+            methods -= Orocos::Async::Log::AttributeBase.instance_methods
             def_delegators methods
         end
     end

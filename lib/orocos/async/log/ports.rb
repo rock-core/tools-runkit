@@ -37,7 +37,7 @@ module Orocos::Async::Log
         private
         forward_to :@delegator_obj,:@event_loop,:on_error => :emit_error  do
             methods = Orocos::Log::OutputReader.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= OutputReader.instance_methods
+            methods -= Orocos::Async::Log::OutputReader.instance_methods
             def_delegators methods
         end
     end
@@ -109,7 +109,7 @@ module Orocos::Async::Log
         private
         forward_to :@delegator_obj,:@event_loop,:on_error => :emit_error do
             methods = Orocos::Log::OutputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= OutputPort.instance_methods
+            methods -= Orocos::Async::Log::OutputPort.instance_methods
             def_delegators methods
             def_delegator :reader, :alias => :orig_reader
             def_delegator :read, :alias => :orig_read

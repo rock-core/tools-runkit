@@ -74,7 +74,7 @@ module Orocos::Async::CORBA
         private
         forward_to :attribute,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
             methods = Orocos::AttributeBase.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= AttributeBase.instance_methods
+            methods -= Orocos::Async::CORBA::AttributeBase.instance_methods
             def_delegators methods
         end
 
