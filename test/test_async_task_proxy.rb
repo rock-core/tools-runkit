@@ -296,7 +296,7 @@ describe Orocos::Async::PropertyProxy do
         end
 
         it "should reconnect" do
-            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1,:period => 0.9)
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.09,:period => 0.09)
             p = t1.property("prop2")
             vals = Array.new
             p.on_change do |data|
@@ -304,7 +304,7 @@ describe Orocos::Async::PropertyProxy do
             end
 
             Orocos.run('process') do
-                sleep 0.1
+                sleep 0.11
                 Orocos::Async.steps
                 sleep 0.1
                 Orocos::Async.steps
@@ -315,7 +315,7 @@ describe Orocos::Async::PropertyProxy do
             sleep 0.1
             Orocos::Async.steps
             Orocos.run('process') do
-                sleep 0.1
+                sleep 0.11
                 Orocos::Async.steps
                 sleep 0.1
                 Orocos::Async.steps
@@ -389,7 +389,7 @@ describe Orocos::Async::TaskContextProxy do
         end
 
         it "should connect to a remote task when reachable" do
-            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.08,:period => 0.1)
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1,:period => 0.1)
 
             disconnects = 0
             connects = 0
