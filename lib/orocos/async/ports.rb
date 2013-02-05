@@ -78,7 +78,7 @@ module Orocos::Async::CORBA
         private
         forward_to :@delegator_obj,:@event_loop,:known_errors => [Orocos::CORBA::ComError,Orocos::CORBAError],:on_error => :emit_error  do
             methods = Orocos::OutputReader.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= OutputReader.instance_methods
+            methods -= Orocos::Async::CORBA::OutputReader.instance_methods
             methods << :type
             def_delegators methods
         end
@@ -101,7 +101,7 @@ module Orocos::Async::CORBA
         private
         forward_to :@delegator_obj,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError],:on_error => :emit_error  do
             methods = Orocos::InputWriter.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-            methods -= InputWriter.instance_methods
+            methods -= Orocos::Async::CORBA::InputWriter.instance_methods
             methods << :type
             def_delegators methods
         end
