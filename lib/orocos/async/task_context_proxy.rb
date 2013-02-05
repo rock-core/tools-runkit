@@ -298,13 +298,28 @@ module Orocos::Async
             super(name,@options[:event_loop])
 
             @name_service = @options[:name_service]
-            @resolve_task = nil
             @task_options[:event_loop] = @event_loop
             @mutex = Mutex.new
             @ports = Hash.new
             @attributes = Hash.new
             @properties = Hash.new
-
+            @resolve_task = nil
+            @resolve_timer = @event_loop.every(options[:retry_period],false) do
+                if !@resolve_task
+                    @resolve_task = @name_service.get @name,@task_options do |task_context,error|
+                        if error
+                            raise error if @options[:raise]
+                            @resolve_task = nil
+                            :ignore_error
+                        else
+                            reachable!(task_context)
+                            @resolve_timer.stop
+                            @resolve_task = nil
+                        end
+                    end
+                end
+            end
+            @resolve_timer.doc = "#{name} reconnect"
             if @options.has_key?(:use)
                 reachable!(@options[:use])
             else
@@ -322,22 +337,7 @@ module Orocos::Async
 
         # asychronsosly tries to connect to the remote task
         def reconnect(wait_for_task = false)
-            if !@resolve_task
-                # TODO use a Timer here to be visible to the VizkitViewer
-                @resolve_task = @name_service.get @name,@task_options do |task_context,error|
-                    if error
-                        raise error if @options[:raise]
-                        t = [0,@options[:retry_period] - (Time.now - @resolve_task.started_at)].max
-                        @event_loop.once(t) do
-                            @event_loop.add_task @resolve_task
-                        end
-                        :ignore_error
-                    else
-                        reachable!(task_context)
-                        @resolve_task = nil
-                    end
-                end
-            end
+            @resolve_timer.start options[:retry_period]
             wait if wait_for_task == true
         end
 
