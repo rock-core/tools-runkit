@@ -62,7 +62,8 @@ module Orocos
         attr_reader :model
 
         def log_metadata
-            metadata = Hash['rock_task_model' => task.model.name,
+            task_model_name = task.model ? task.model.name : "no_model"
+            metadata = Hash['rock_task_model' => task_model_name,
                 'rock_task_name' => task.name,
                 'rock_task_object_name' => name,
                 'rock_stream_type' => 'port',
