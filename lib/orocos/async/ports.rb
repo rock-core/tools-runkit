@@ -263,8 +263,10 @@ module Orocos::Async::CORBA
         def writer(options = Hash.new,&block)
             if block
                 orig_writer(options) do |writer,error|
-                    writer = InputWriter.new(self,writer) unless error
-                    proxy_event(writer,:error)
+                    unless error
+                        writer = InputWriter.new(self,writer)
+                        proxy_event(writer,:error)
+                    end
                     if block.arity == 2
                         block.call(writer,error)
                     elsif !error
