@@ -174,8 +174,10 @@ module Orocos::Async::CORBA
             policy[:pull] = true unless policy.has_key?(:pull)
             if block
                 orig_reader(policy) do |reader,error|
-                    reader = OutputReader.new(self,reader,options) unless error
-                    proxy_event(reader,:error)
+                    unless error
+                        reader = OutputReader.new(self,reader,options)
+                        proxy_event(reader,:error)
+                    end
                     if block.arity == 2
                         block.call(reader,error)
                     elsif !error
