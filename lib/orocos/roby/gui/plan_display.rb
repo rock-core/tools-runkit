@@ -145,7 +145,7 @@ module Ui
             # Generate the menu for hidden models
             excluded_models_menu = Qt::Menu.new(excluded_models_btn)
             @excluded_models_act = Hash.new
-            Roby.app.orocos_system_model.each_model.sort_by(&:name).each do |model|
+            Roby.app.orocos_system_model.each_model.find_all(&:name).sort_by(&:name).each do |model|
                 next if model <= Orocos::RobyPlugin::Deployment
 
                 act = Qt::Action.new(model.short_name, excluded_models_menu)
