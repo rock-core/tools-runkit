@@ -169,9 +169,6 @@ module Orocos
                 super
             end
             @state_queue
-
-        rescue Orocos::ComError
-            @state_queue = []
         end
 
         # Returns the PID of the thread this task runs on
