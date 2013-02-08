@@ -46,7 +46,9 @@ module Orocos::Async::CORBA
             @last_sample = nil
             begin
                 @delegator_obj.disconnect if valid_delegator?
-            rescue Orocos::CORBAError,Orocos::CORBA::ComError
+            rescue Orocos::CORBAError,Orocos::CORBA::ComError => e
+                Orocos.error "Port is unreachable: #{e}"
+                nil
             end
             super
         end
