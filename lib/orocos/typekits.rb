@@ -308,6 +308,18 @@ module Orocos
         end
     end
 
+    def self.create_or_get_opaque(type_name)
+        if Orocos.registry.include?(type_name)
+            type = Orocos.registry.get type_name
+            if !type.null?
+                return create_or_get_opaque("/orocos#{type_name}")
+            end
+            type
+        else
+            Orocos.registry.create_null(type_name)
+        end
+    end
+
     # Finds the typelib type that maps to the given orocos type name
     #
     # @param [String] orocos_type_name
@@ -320,27 +332,23 @@ module Orocos
     # @return [Model<Typelib::Type>] a subclass of Typelib::Type that
     #   represents the requested type
     def self.find_type_by_orocos_type_name(orocos_type_name, options = Hash.new)
-        options = Kernel.validate_options options,
-            :fallback_to_null_type => false
+     begin
+         options = Kernel.validate_options options,
+             :fallback_to_null_type => false
 
-        Orocos.typelib_type_for(orocos_type_name)
-    rescue Typelib::NotFound
-        begin
-            Orocos.load_typekit_for(orocos_type_name)
-            Orocos.typelib_type_for(orocos_type_name)
-        rescue Orocos::TypekitTypeNotFound
-            # Create an opaque type as a placeholder for the unknown
-            # type name
-            if options[:fallback_to_null_type]
-                type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
-                if Orocos.registry.include?(type_name)
-                    Orocos.registry.get type_name
-                else
-                    Orocos.registry.create_null(type_name)
-                end
-            else raise
-            end
-        end
+         if !Orocos.registered_type?(orocos_type_name)
+             Orocos.load_typekit_for(orocos_type_name)
+         end
+         Orocos.typelib_type_for(orocos_type_name)
+     rescue Orocos::TypekitTypeNotFound, Typelib::NotFound
+         # Create an opaque type as a placeholder for the unknown
+         # type name
+         if options[:fallback_to_null_type]
+             type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
+             create_or_get_opaque(type_name)
+         else raise
+         end
+     end
     end
 end
 
