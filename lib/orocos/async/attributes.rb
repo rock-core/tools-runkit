@@ -50,7 +50,7 @@ module Orocos::Async::CORBA
                 @last_sample = nil
             end
             if number_of_listeners(:change) != 0
-                @poll_timer.start 0
+                @poll_timer.start period unless @poll_timer.running?
             end
         end
 
@@ -69,6 +69,22 @@ module Orocos::Async::CORBA
                 event_loop.once{listener.call(@last_sample)}
             end
             super
+        end
+
+        def on_change(policy = Hash.new,&block)
+            @options = if policy.empty?
+                           @options
+                       elsif @options.empty? && number_of_listeners(:change) == 0
+                           policy
+                       elsif @options == policy
+                           @options
+                       else
+                           Orocos.warn "Property #{full_name} cannot emit :change with different policies."
+                           Orocos.warn "The current policy is: #{@options}."
+                           Orocos.warn "Ignoring policy: #{policy}."
+                           @options
+                       end
+            on_event :change,&block
         end
 
         private

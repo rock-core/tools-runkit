@@ -68,6 +68,23 @@ module Orocos::Async
             @options[:period] = period
             @delegator_obj.period = period if valid_delegator?
         end
+
+        def on_change(policy = Hash.new,&block)
+            @options = if policy.empty?
+                           @options
+                       elsif @options.empty? && !valid_delegator?
+                           policy
+                       elsif @options == policy
+                           @options
+                       else
+                           Orocos.warn "ProxyProperty #{full_name} cannot emit :change with different policies."
+                           Orocos.warn "The current policy is: #{@options}."
+                           Orocos.warn "Ignoring policy: #{policy}."
+                           @options
+                       end
+            on_event :change,&block
+        end
+
     end
 
     class PropertyProxy < AttributeBaseProxy
@@ -183,7 +200,7 @@ module Orocos::Async
                            @options
                        elsif @options.empty? && !valid_delegator?
                            policy
-                       elsif @on_data_policy == policy
+                       elsif @options == policy
                            @options
                        else
                            Orocos.warn "ProxyPort #{full_name} cannot emit :data with different policies."
