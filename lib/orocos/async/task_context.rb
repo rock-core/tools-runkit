@@ -209,7 +209,7 @@ module Orocos::Async::CORBA
                 attribute = orig_attribute(name,&p)
             else
                 attribute = orig_attribute(name)
-                p.call attribute
+                p.call attribute,nil
             end
         end
 
