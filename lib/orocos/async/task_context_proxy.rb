@@ -467,6 +467,7 @@ module Orocos::Async
         # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(task_context,options = Hash.new)
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
+            raise ArgumentError, "task_context must be an async instance" if !task_context.respond_to?(:event_names)
             ports,attributes,properties = @mutex.synchronize do
                 remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
                 if @delegator_obj_old
