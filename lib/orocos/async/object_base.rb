@@ -151,7 +151,7 @@ module Orocos::Async
         # sets @emitting to value for the time the given block is called
         def emitting(value,&block)
             old,@emitting = @emitting,value
-            block.call
+            instance_eval(&block)
         ensure
             @emitting = old
         end

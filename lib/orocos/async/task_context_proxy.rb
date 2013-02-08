@@ -549,7 +549,7 @@ module Orocos::Async
             p = @mutex.synchronize do
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
-                    @delegator_obj.port(port.name,true,port.options)
+                    port(port.name,true,port.options)
                 end
             end
             @event_loop.call do
@@ -569,7 +569,7 @@ module Orocos::Async
             a = @mutex.synchronize do
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
-                    @delegator_obj.attribute(attribute.name)
+                    attribute(attribute.name)
                 end
             end
             @event_loop.call do
@@ -589,7 +589,7 @@ module Orocos::Async
             p = @mutex.synchronize do
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
-                    @delegator_obj.property(property.name)
+                    property(property.name)
                 end
             end
             @event_loop.call do

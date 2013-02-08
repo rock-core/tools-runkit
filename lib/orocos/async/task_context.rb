@@ -230,7 +230,7 @@ module Orocos::Async::CORBA
                 property = orig_property(name,&p)
             else
                 property = orig_property(name)
-                p.call property
+                p.call property,nil
             end
         end
 
