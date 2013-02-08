@@ -423,7 +423,7 @@ module Orocos::Async
                 connect_port(p)
                 p.wait
             else
-                @event_loop.defer :known_errors => Orocos::NotFound do
+                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
                     connect_port(p)
                 end
             end
