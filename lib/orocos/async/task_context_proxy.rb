@@ -299,6 +299,7 @@ module Orocos::Async
         # forward methods to designated object
         extend Forwardable
         methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+        methods << :type
         methods -= TaskContextProxy.instance_methods + [:method_missing,:reachable?,:port]
         def_delegators :@delegator_obj,*methods
 
