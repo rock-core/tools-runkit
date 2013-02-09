@@ -496,7 +496,7 @@ module Orocos
             # Returns the array of the names of available properties on this task
             # context
             def property_names
-                @properties.values
+                @properties.values.map(&:name)
             end
 
             # Returns the array of the names of available attributes on this task
