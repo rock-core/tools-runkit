@@ -412,25 +412,21 @@ module Orocos
     # Loads an oroGen file or all oroGen files contained in a directory, and
     # registers them in the available_task_models set.
     def self.load_independent_orogen_project(file)
-        old_value = Orocos.master_project.define_dummy_types?
-        begin
-            Orocos.master_project.define_dummy_types = true
+        tasklib = Orocos.master_project.
+            using_task_library(file, :define_dummy_types => true, :validate => false)
 
-            tasklib = Orocos.master_project.
-                using_task_library(file, :define_dummy_types => true, :validate => false)
+        if !tasklib.self_tasks.empty?
+            Orocos.available_task_libraries[tasklib.name] = file
+        end
+        tasklib.self_tasks.each do |task|
+            Orocos.available_task_models[task.name] = file
+        end
 
-            if !tasklib.self_tasks.empty?
-                Orocos.available_task_libraries[tasklib.name] = file
-            end
-            tasklib.self_tasks.each do |task|
-                Orocos.available_task_models[task.name] = file
-            end
-
-            tasklib.deployers.each do |dep|
-                Orocos.master_project.loaded_deployments[dep.name] = dep
-            end
-        ensure
-            Orocos.master_project.define_dummy_types = old_value
+        tasklib.deployers.each do |dep|
+            Orocos.master_project.loaded_deployments[dep.name] = dep
+        end
+        if tasklib.typekit
+            Orocos.load_registry(tasklib.typekit.registry, tasklib.name)
         end
     end
 
