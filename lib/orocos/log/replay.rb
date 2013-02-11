@@ -161,7 +161,7 @@ module Orocos
             #returns false if no ports are or will be replayed
             def replay? 
                 #check if stream was initialized
-                if @stream 
+                if @stream
                     return true
                 else
                     each_port do |port|
@@ -347,8 +347,7 @@ module Orocos
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
                 if @used_streams.size == 0
-                    Log.warn "No log data are replayed. All selected streams are empty."
-                    return
+                    raise "No log data are replayed. All selected streams are empty."
                 end
 
                 Log.info "Replayed Ports:"
