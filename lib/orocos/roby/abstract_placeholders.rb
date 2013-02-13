@@ -61,10 +61,10 @@ module Orocos
                 model.include ComponentModelProxy
                 model.proxied_data_services = models.dup
 		model.proxied_data_services.delete(task_model)
-		model.fullfilled_model = [task_model, model.proxied_data_services, Hash.new]
+		model.fullfilled_model = [task_model, *model.proxied_data_services]
             else
                 model = DataServiceProxy.new_submodel(name, models)
-		model.fullfilled_model = [Roby::Task, models, Hash.new]
+		model.fullfilled_model = models.to_a
             end
 
             orogen_spec = RobyPlugin.create_orogen_interface

@@ -545,7 +545,9 @@ module Orocos
                 all_files.each do |path|
                     app.load_system_model(path)
                 end
+            end
 
+            def self.require_planners(app)
                 # Define planning methods on the main planner for the available
                 # deployment files
                 app.find_files_in_dirs('config', 'deployments', 'ROBOT', :all => true, :order => :specific_last, :pattern => /\.rb$/).each do |path|
