@@ -193,9 +193,9 @@ module Orocos
                 plugin_name = transport_library_name(name, transport_name, Orocos.orocos_target)
                 begin
                     plugins[plugin_name] = [Utilrb::PkgConfig.new(plugin_name), required]
-                rescue Utilrb::PkgConfig::NotFound
+                rescue Utilrb::PkgConfig::NotFound => e
                     if required
-                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport"
+                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport: could not find pkg-config package #{e.name} in #{ENV['PKG_CONFIG_PATH']}"
                     end
                 end
             end
