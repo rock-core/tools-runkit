@@ -503,18 +503,19 @@ module Orocos
         # Exception raised during instanciation if a name is found that cannot
         # be resolved
         class NameResolutionError < InstanciationError
-            # Selection information about what +missing_name+ was being used for
-            attr_accessor :selection
             # The missing name
             attr_reader :missing_name
+            # The set of known names
+            attr_reader :known_names
 
-            def initialize(missing_name)
+            def initialize(missing_name, known_names)
                 super()
                 @missing_name = missing_name
+                @known_names = known_names.to_a
             end
 
             def pretty_print(pp)
-                pp.text "#{missing_name} is neither a device nor an instance definition"
+                pp.text "#{missing_name} is neither a device nor an instance definition. Known names are: #{known_names.sort.join(', ')}"
                 if !instanciation_chain.empty?
                     pp.breakable
                     super

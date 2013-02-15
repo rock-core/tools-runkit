@@ -30,8 +30,7 @@ remaining = parser.parse(ARGV)
 
 if run_roby
     ARGV.clear
-    ARGV << Roby.app.robot_name
-    ARGV << Roby.app.robot_type
+    ARGV << "--robot=#{Roby.app.robot_name}:#{Roby.app.robot_type}"
     Roby.app.base_setup
     if !Roby.engine.scheduler
         require 'roby/schedulers/temporal'
