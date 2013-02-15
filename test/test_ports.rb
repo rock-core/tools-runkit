@@ -38,9 +38,11 @@ describe Orocos::Port do
 end
 
 describe Orocos::OutputPort do
-    TEST_DIR = File.expand_path(File.dirname(__FILE__))
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    if !defined? TEST_DIR
+        TEST_DIR = File.expand_path(File.dirname(__FILE__))
+        DATA_DIR = File.join(TEST_DIR, 'data')
+        WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    end
 
     ComError = Orocos::CORBA::ComError
 
@@ -226,9 +228,11 @@ describe Orocos::OutputPort do
 end
 
 describe Orocos::InputPort do
-    TEST_DIR = File.expand_path(File.dirname(__FILE__))
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    if !defined? TEST_DIR
+        TEST_DIR = File.expand_path(File.dirname(__FILE__))
+        DATA_DIR = File.join(TEST_DIR, 'data')
+        WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    end
 
     include Orocos::Spec
 
@@ -321,9 +325,11 @@ describe Orocos::InputPort do
 end
 
 describe Orocos::OutputReader do
-    TEST_DIR = File.expand_path(File.dirname(__FILE__))
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    if !defined? TEST_DIR
+        TEST_DIR = File.expand_path(File.dirname(__FILE__))
+        DATA_DIR = File.join(TEST_DIR, 'data')
+        WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    end
 
     include Orocos::Spec
 
@@ -504,9 +510,11 @@ describe Orocos::OutputReader do
 end
 
 describe Orocos::InputWriter do
-    TEST_DIR = File.expand_path(File.dirname(__FILE__))
-    DATA_DIR = File.join(TEST_DIR, 'data')
-    WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    if !defined? TEST_DIR
+        TEST_DIR = File.expand_path(File.dirname(__FILE__))
+        DATA_DIR = File.join(TEST_DIR, 'data')
+        WORK_DIR = File.join(TEST_DIR, 'working_copy')
+    end
 
     CORBA = Orocos::CORBA
     include Orocos::Spec
