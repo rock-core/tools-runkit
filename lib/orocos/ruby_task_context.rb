@@ -208,8 +208,14 @@ module Orocos
         #
         # @param [String] name the task name
         # @return [LocalTaskContext]
-        def self.new(name, options = Hash.new)
+        def self.new(name, options = Hash.new, &block)
             options, _ = Kernel.filter_options options, :model
+
+            if block && !options[:model]
+                model = Orocos::Spec::TaskContext.new(Orocos.master_project, name)
+                model.instance_eval(&block)
+                options[:model] = model
+            end
 
             local_task = LocalTaskContext.new(name)
             if options[:model] && options[:model].name
