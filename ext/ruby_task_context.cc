@@ -42,13 +42,27 @@ public:
     }
 };
 
+struct RLocalTaskContext
+{
+    LocalTaskContext* tc;
+    RLocalTaskContext(LocalTaskContext* tc)
+        : tc(tc) {}
+};
+
 LocalTaskContext& local_task_context(VALUE obj)
 {
-    return get_wrapped<LocalTaskContext>(obj);
+    LocalTaskContext* tc = get_wrapped<RLocalTaskContext>(obj).tc;
+    if (!tc)
+        rb_raise(rb_eArgError, "accessing a disposed task context");
+    return *tc;
 }
 
-static void delete_local_task_context(LocalTaskContext* task)
+static void delete_local_task_context(RLocalTaskContext* rtask)
 {
+    if (!rtask->tc)
+        return;
+
+    LocalTaskContext* task = rtask->tc;
     RTT::corba::TaskContextServer::CleanupServer(task);
 
     // Ruby GC does not give any guarantee about the ordering of garbage
@@ -72,14 +86,20 @@ static VALUE local_task_context_new(VALUE klass, VALUE _name)
 
     RTT::corba::TaskContextServer::Create(ruby_task);
 
-    VALUE rlocal_task = Data_Wrap_Struct(cLocalTaskContext, 0, delete_local_task_context, ruby_task);
+    VALUE rlocal_task = Data_Wrap_Struct(cLocalTaskContext, 0, delete_local_task_context, new RLocalTaskContext(ruby_task));
     rb_obj_call_init(rlocal_task, 1, &_name);
     return rlocal_task;
 }
 
 static VALUE local_task_context_dispose(VALUE obj)
 {
-    RTT::corba::TaskContextServer::CleanupServer(&get_wrapped<LocalTaskContext>(obj));
+    RLocalTaskContext& task = get_wrapped<RLocalTaskContext>(obj);
+    if (!task.tc)
+        return Qnil;
+
+    RTT::corba::TaskContextServer::CleanupServer(task.tc);
+    delete_local_task_context(&task);
+    task.tc = 0;
     return Qnil;
 }
 
