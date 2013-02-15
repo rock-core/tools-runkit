@@ -422,6 +422,19 @@ module Orocos::Async
         def port(name,options = Hash.new)
             options,other_options = Kernel.filter_options options,:wait => @options[:wait]
             wait if options[:wait]
+
+            fields = name.split(".")
+            name = if fields.empty?
+                       name
+                   else
+                       fields.shift
+                   end
+            type_name = if !fields.empty?
+                            other_options.delete(:type_name)
+                        else
+                            nil
+                        end
+
             p = @mutex.synchronize do
                 @ports[name] ||= PortProxy.new(self,name,other_options)
             end
@@ -439,7 +452,12 @@ module Orocos::Async
                     connect_port(p)
                 end
             end
-            p
+
+            if fields.empty?
+                p
+            else
+                p.sub_port(fields,type_name)
+            end
         end
 
         def ports(options = Hash.new,&block)
