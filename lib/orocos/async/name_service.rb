@@ -71,9 +71,12 @@ module Orocos::Async
                         t.name_service == options[:name_service]
             end
             if task
-                if task.options != options 
-                    Orocos.warn "TaskContextProxy #{name} is already initialized with the following options: #{task.options}."
-                    Orocos.warn "Ignoring options: #{options}."
+                options.each_pair do |key,value|
+                    if task.options[key] != value
+                        Orocos.warn "TaskContextProxy #{name} is already initialized with the following options: #{task.options}."
+                        Orocos.warn "Ignoring options: #{options}."
+                        break
+                    end
                 end
                 task
             else
