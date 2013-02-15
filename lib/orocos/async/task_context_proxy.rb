@@ -122,6 +122,10 @@ module Orocos::Async
             @type ||= @delegator_obj.type
         end
 
+        def task
+            @task_proxy
+        end
+
         def input?
             if !valid_delegator?
                 true
