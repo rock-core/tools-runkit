@@ -236,6 +236,14 @@ module Orocos::Async
             type.name
         end
 
+        def full_name
+            super + "." + @subfield.join(".")
+        end
+
+        def name
+            super + "." + @subfield.join(".")
+        end
+
         def type
             @type ||= if !@subfield.empty?
                           type ||= super
