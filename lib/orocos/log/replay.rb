@@ -164,8 +164,8 @@ module Orocos
                 if @stream
                     return true
                 else
-                    each_port do |port|
-                        return true if port.used?
+                    each_task do |task|
+                        return true if task.used?
                     end
                 end
                 return false
@@ -340,6 +340,7 @@ module Orocos
                         task.properties.values.each do |property|
                             @replayed_properties << property
                             @used_streams << property.stream
+                            property.set_replay
                         end
                     end
                 end
@@ -577,7 +578,7 @@ module Orocos
             end
 
             #Returns an array of all simulated ports 
-            def ports 
+            def ports
                 result = Array.new
                 each_port do |port|
                     result << port

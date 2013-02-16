@@ -404,6 +404,7 @@ module Orocos
             #dedicated stream for simulating the port
             attr_reader :stream         
             attr_reader :type_name         
+            attr_reader :replay
 
             def initialize(task, stream)
                 raise "Cannot create Property out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
@@ -416,6 +417,19 @@ module Orocos
                 @current_value = nil
                 @type_name = stream.typename
                 @notify_blocks =[]
+            end
+
+            #If set to true the port is replayed.
+            def tracked=(value)
+                raise "can not track property #{stream.name} after the replay has started" if !used? && replay
+                @tracked = value
+            end
+
+            #Is called from align.
+            #If replay is set to true, the log file streams are aligned and no more
+            #streams can be added.
+            def set_replay
+                @replay = true
             end
 
             def doc?
@@ -468,6 +482,10 @@ module Orocos
             #returns the metadata associated with the underlying stream
             def metadata
                 stream.metadata
+            end
+
+            def used?
+                tracked
             end
         end
 
@@ -530,7 +548,9 @@ module Orocos
             def property(name, verify = true)
                 name = name.to_str
                 if @properties[name]
-                    return @properties[name]
+                    p = @properties[name]
+                    p.tracked = true
+                    p
                 else
                     raise NotFound, "no property named '#{name}' on log task '#{self.name}'"
                 end
@@ -620,16 +640,18 @@ module Orocos
             #Returns an array of ports where each port has at least one connection
             #or tracked set to true.
             def used_ports
-                ports = Array.new
-                @ports.each_value do |port|
-                    ports << port if port.used?
-                end
-                return ports
+                @ports.values.find_all &:used?
             end
 
-            #Returns true if the task has used ports
+            #Returns an array of ports where each port has at least one connection
+            #or tracked set to true.
+            def used_properties
+                @properties.values.find_all &:used?
+            end
+
+            #Returns true if the task shall be replayed
             def used?
-                !used_ports.empty?
+                !used_ports.empty? || !used_properties.empty?
             end
 
             #Returns an array of unused ports
@@ -664,6 +686,21 @@ module Orocos
                     end
                     port.tracked = value
                     Log.info "set" + port.stream.name + value.to_s
+                end
+
+                @properties.each_value do |property|
+                    if(options.has_key? :propertys)
+                        next unless property.name =~ options[:properties]
+                    end
+                    if(options.has_key? :types)
+                        next unless property.type_name =~ options[:types]
+                    end
+                    if(options.has_key? :limit)
+                        next unless property.number_of_samples <= options[:limit]
+                    end
+                    property.tracked = value
+                    @tracked = value
+                    Log.info "set" + property.stream.name + value.to_s
                 end
             end
 
