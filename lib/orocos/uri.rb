@@ -37,7 +37,11 @@ module URI
             strings.shift
             @klass = strings.shift
             if @klass == "port"
-                @task_name = strings.shift
+                @task_name = if strings.size > 1
+                                 strings.shift 
+                             else
+                                 ""
+                             end
                 strings = strings.join("/").split(".")
                 @task_name += "/#{strings.shift}"
                 @port_name = strings.join(".")
