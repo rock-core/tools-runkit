@@ -34,6 +34,11 @@ module Orocos::Async
             @type ||= @delegator_obj.type
         end
 
+        # returns true if the proxy stored the type
+        def type?
+            !!@type
+        end
+
         # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(attribute,options = Hash.new)
             @options = attribute.options
@@ -120,6 +125,11 @@ module Orocos::Async
 
         def type
             @type ||= @delegator_obj.type
+        end
+
+        # returns true if the proxy stored the type
+        def type?
+            !!@type
         end
 
         def task
@@ -380,6 +390,9 @@ module Orocos::Async
                 @properties[name] ||= PropertyProxy.new(self,name,other_options)
             end
 
+            if other_options.has_key?(:type) && p.type? && other_options[:type] == p.type
+                other_options.delete(:type)
+            end
             if !other_options.empty? && p.options != other_options
                 Orocos.warn "Property #{p.full_name}: is already initialized with options: #{p.options}"
                 Orocos.warn "ignoring options: #{other_options}"
@@ -404,6 +417,9 @@ module Orocos::Async
                 @attributes[name] ||= AttributeProxy.new(self,name,other_options)
             end
 
+            if other_options.has_key?(:type) && a.type? && other_options[:type] == a.type
+                other_options.delete(:type)
+            end
             if !other_options.empty? && a.options != other_options
                 Orocos.warn "Attribute #{a.full_name}: is already initialized with options: #{a.options}"
                 Orocos.warn "ignoring options: #{other_options}"
@@ -440,6 +456,9 @@ module Orocos::Async
                 @ports[name] ||= PortProxy.new(self,name,other_options)
             end
 
+            if other_options.has_key?(:type) && p.type? && other_options[:type] == p.type
+                other_options.delete(:type)
+            end
             if !other_options.empty? && p.options != other_options
                 Orocos.warn "Port #{p.full_name}: is already initialized with options: #{p.options}"
                 Orocos.warn "ignoring options: #{other_options}"
