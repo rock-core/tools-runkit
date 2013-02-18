@@ -430,11 +430,11 @@ module Orocos::Async
                    else
                        fields.shift
                    end
-            type_name = if !fields.empty?
-                            other_options.delete(:type_name)
-                        else
-                            nil
-                        end
+            type = if !fields.empty?
+                       other_options.delete(:type)
+                   else
+                       nil
+                   end
 
             p = @mutex.synchronize do
                 @ports[name] ||= PortProxy.new(self,name,other_options)
@@ -457,7 +457,7 @@ module Orocos::Async
             if fields.empty?
                 p
             else
-                p.sub_port(fields,type_name)
+                p.sub_port(fields,type)
             end
         end
 

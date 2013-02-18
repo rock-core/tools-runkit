@@ -37,8 +37,9 @@ module URI
             strings.shift
             @klass = strings.shift
             if @klass == "port"
-                strings = strings.join("/").split(".")
                 @task_name = strings.shift
+                strings = strings.join("/").split(".")
+                @task_name += "/#{strings.shift}"
                 @port_name = strings.join(".")
             else
                 raise ArgumentError, "no class is encoded in:#{path}" unless klass
@@ -60,7 +61,12 @@ module URI
 
         def port_proxy
             raise ArgumentError,"URI does not point to a Port" unless port_proxy?
-            task_proxy.port(port_name,:type_name => @hash[:type_name])
+            type = if @hash.has_key? :type_name
+                       name = @hash[:type_name]
+                       ::Orocos.load_typekit_for name
+                       ::Orocos.registry.get name
+                   end
+            task_proxy.port(port_name,:type => type)
         end
     end
 end
