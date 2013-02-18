@@ -67,8 +67,13 @@ module URI
             raise ArgumentError,"URI does not point to a Port" unless port_proxy?
             type = if @hash.has_key? :type_name
                        name = @hash[:type_name]
-                       ::Orocos.load_typekit_for name
-                       ::Orocos.registry.get name
+                       begin
+                           ::Orocos.load_typekit_for name
+                           ::Orocos.registry.get name
+                       rescue Exception => e
+                           Vizkit.warn e
+                           nil
+                       end
                    end
             task_proxy.port(port_name,:type => type)
         end
