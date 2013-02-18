@@ -26,6 +26,10 @@ module Orocos::Async::Log
             super
         end
 
+        def type?
+            true
+        end
+
         private
         forward_to :@delegator_obj,:@event_loop,:on_error => :emit_error  do
             methods = Orocos::Log::Property.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}

@@ -134,8 +134,7 @@ module Orocos::Async
                     orig_get name,other_options,&p
                 else
                     task = orig_get name,other_options
-                    async_options[:use] = task
-                    Orocos::Async::Log::TaskContext.new(nil,async_options)
+                    Orocos::Async::Log::TaskContext.new(task,async_options)
                 end
             end
 

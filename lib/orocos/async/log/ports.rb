@@ -56,6 +56,10 @@ module Orocos::Async::Log
             end
         end
 
+        def type?
+            true
+        end
+
         def add_listener(listener)
             if listener.event == :data
                 sample = @delegator_obj.read
