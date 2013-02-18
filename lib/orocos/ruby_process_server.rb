@@ -137,6 +137,7 @@ module Orocos
                 tasks[deployed_task.name] = RubyTaskContext.
                     from_orogen_model(get_mapped_name(deployed_task.name), deployed_task.task_model)
             end
+            @alive = true
         end
 
         def wait_running(blocking = false)
