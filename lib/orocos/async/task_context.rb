@@ -45,6 +45,11 @@ module Orocos::Async::CORBA
                           else
                               [ior,options]
                           end
+            ior ||= if options.has_key? :ior
+                        options[:ior]
+                    elsif options.has_key? :use
+                        options[:use].ior
+                    end
             options,options_other = Kernel.filter_options options,:event_loop => Orocos::Async.event_loop
             super(ior,options[:event_loop])
             @mutex = Mutex.new
