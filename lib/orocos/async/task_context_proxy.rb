@@ -42,10 +42,10 @@ module Orocos::Async
         # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(attribute,options = Hash.new)
             @options = attribute.options
-            if @type && @type != attribute.type
+            if @type && @type != attrubute.type && @type.name != attribute.orocos_type_name
                 raise RuntimeError, "the given type #{@type} for attribute #{attribute.name} differes from the real type name #{attribute.type}"
             end
-            @type ||= attribute.type
+            @type = attribute.type
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             disable_emitting do
                 super(attribute,options)
@@ -163,7 +163,7 @@ module Orocos::Async
         # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(port,options = Hash.new)
             raise ArgumentError, "port must not be kind of PortProxy" if port.is_a? PortProxy
-            if @type && @type != port.type
+            if @type && @type != port.type && @type.name != port.orocos_type_name
                 raise RuntimeError, "the given type #{@type} for port #{port.full_name} differes from the real type name #{port.type}"
             end
 
@@ -172,7 +172,7 @@ module Orocos::Async
                 super(port,options)
             end
             proxy_event(@delegator_obj,@delegator_obj.event_names)
-            @type ||= port.type
+            @type = port.type
 
             #check which port we have
             if !port.respond_to?(:reader) && number_of_listeners(:data) != 0
