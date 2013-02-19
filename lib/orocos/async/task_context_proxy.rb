@@ -42,7 +42,7 @@ module Orocos::Async
         # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(attribute,options = Hash.new)
             @options = attribute.options
-            if @type && @type != attrubute.type && @type.name != attribute.orocos_type_name
+            if @type && @type != attribute.type && @type.name != attribute.orocos_type_name
                 raise RuntimeError, "the given type #{@type} for attribute #{attribute.name} differes from the real type name #{attribute.type}"
             end
             @type = attribute.type
