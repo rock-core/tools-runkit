@@ -221,11 +221,6 @@ module Orocos
             @name_services = name_services
         end
 
-        #(see NameServiceBase#name)
-        def name
-            super + ":" + namespace.to_s
-        end
-
         #(see Namespace#same_namespace?)
         def same_namespace?(name)
             name_services.any? do |service|
@@ -486,7 +481,6 @@ module Orocos
             #     If no port is given the default port 2809 is used respectively
             #     the one specified by global environment variable ORBInitRef.
             #   @param [Hash] options The options.
-            #   @option options [String] :namespace Arbitrary name which is used as namespace for this instance.
             # @overload initialize(ip,options)
             #   @param [String] ip
             #   @param [Hash] options 
@@ -501,8 +495,8 @@ module Orocos
                                       [ip,port,options]
                                   end
 
+                # no support for options at the moment
                 options = Kernel.validate_options options
-                self.namespace = ip
             end
 
             #(see NameServiceBase#name)
@@ -510,11 +504,14 @@ module Orocos
                 "CORBA:#{namespace}"
             end
 
+            def namespace
+                ip
+            end
+
             # Sets the ip address or host name where the CORBA name service is running
             # 
             # @param [String] host The ip address or host name
             def ip=(host)
-                self.namespace = host
                 reset(host)
             end
 
