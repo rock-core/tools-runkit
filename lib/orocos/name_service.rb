@@ -501,8 +501,8 @@ module Orocos
                                       [ip,port,options]
                                   end
 
-                options = Kernel.validate_options options,:namespace => ip
-                self.namespace = options[:namespace]
+                options = Kernel.validate_options options
+                self.namespace = ip
             end
 
             #(see NameServiceBase#name)
@@ -523,6 +523,7 @@ module Orocos
             # 
             # @param [String] host The ip address or host name
             def ip=(host)
+                self.namespace = host
                 reset(host)
             end
 
