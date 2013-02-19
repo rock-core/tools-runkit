@@ -59,6 +59,10 @@ module Orocos
         name_service.cleanup
     end
 
+    #(see NameService#get)
+    def self.get(*args)
+        Orocos.name_service.get(*args)
+    end
 
     # Base class for all Orocos name services. An orocos name service is used
     # to find local and remote Orocos Tasks based on their name and namespace.
@@ -283,7 +287,6 @@ module Orocos
 
         #(see NameServiceBase#get)
         def get(name,options = Hash.new)
-            verify_same_namespace(name)
             tasks = name_services.each do |service|
                 begin
                     if service.same_namespace?(name)
