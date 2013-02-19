@@ -2308,13 +2308,15 @@ module Orocos
                         if child_task.has_argument?(:conf)
                             dependent_arguments[:conf] = child_task.arguments[:conf]
                         end
-                        if dependent_models.size == 1
-                            dependent_models = dependent_models.first
-                        end
 
-                        dependency_options = find_child(child_name).dependency_options
-                        dependency_options = { :success => [], :failure => [:stop], :model => [dependent_models, dependent_arguments], :roles => role }.
-                            merge(dependency_options)
+                        dependency_options = Roby::TaskStructure::DependencyGraphClass.validate_options(
+			    find_child(child_name).dependency_options)
+                        default_options = Roby::TaskStructure::DependencyGraphClass.validate_options(
+                            { :model => [dependent_models, dependent_arguments], :roles => role })
+			dependency_options = Roby::TaskStructure::DependencyGraphClass.merge_dependency_options(
+			    default_options, dependency_options)
+			dependency_options = Hash[:success => [], :failure => [:stop]].
+			    merge(dependency_options)
 
                         Engine.info do
                             Engine.info "adding dependency #{self_task}"
