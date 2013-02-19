@@ -178,7 +178,7 @@ module Orocos::Async
                                       [ip,port,options]
                                   end
                 my_options,other_options = Kernel.filter_options options,:reconnect=> true
-                name_service_options,other_options = Kernel.filter_options other_options,:namespace => nil
+                name_service_options,other_options = Kernel.filter_options other_options
                 name_service = Orocos::CORBA::NameService.new ip,port,name_service_options
                 other_options[:known_errors] = [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]
                 super(name_service,other_options)
@@ -202,6 +202,10 @@ module Orocos::Async
                     timer.doc = "#{name} reconnect"
                 end
                 super
+            end
+
+            def name
+                @delegator_obj.name
             end
 
             def get(name,options=Hash.new,&block)

@@ -507,16 +507,7 @@ module Orocos
 
             #(see NameServiceBase#name)
             def name
-                address = if ip.empty?
-                              if namespace.empty?
-                                  "default"
-                              else
-                                  namespace
-                              end
-                          else
-                             ip
-                          end
-                "CORBA:#{address}"
+                "CORBA:#{namespace}"
             end
 
             # Sets the ip address or host name where the CORBA name service is running
