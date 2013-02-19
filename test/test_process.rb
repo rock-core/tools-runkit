@@ -40,7 +40,7 @@ describe Orocos::Process do
 
     it "can start a process with a prefix" do
         Orocos.run('process' => 'prefix') do |process|
-            assert(Orocos::TaskContext.get('prefix_process_Test'))
+            assert(Orocos::TaskContext.get('prefixprocess_Test'))
         end
     end
 

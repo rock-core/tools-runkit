@@ -194,8 +194,9 @@ describe Orocos::TaskContext do
     it "should raise CORBA::ComError when state-related operations are called on a dead process" do
         Orocos.run('simple_source') do |p|
             source = Orocos::TaskContext.get("simple_source_source")
+            assert source.state
             p.kill
-            assert_equal(nil, source.state)
+            assert_raises(Orocos::CORBA::ComError) { source.state}
             assert_raises(Orocos::CORBA::ComError) { source.start }
         end
     end

@@ -132,7 +132,7 @@ module Orocos::Async
         define_events :error,:reachable,:unreachable
 
         def initialize(name,event_loop)
-            raise ArgumentError, "no name was given" if !name || name.empty?
+            raise ArgumentError, "no name was given" if !name
             @listeners ||= Hash.new{ |hash,key| hash[key] = []}
             @proxy_listeners ||= Hash.new{|hash,key| hash[key] = Hash.new}
             @name ||= name

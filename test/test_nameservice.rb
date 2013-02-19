@@ -196,12 +196,13 @@ describe Orocos::CORBA::NameService do
             end
         end
         it "must be able to scope with name spaces" do
-            service = Orocos::CORBA::NameService.new :namespace => "foo"
+            service = Orocos::CORBA::NameService.new
+            service.ip = "127.0.0.1"
             Orocos.run('simple_source') do
-                task = service.get("foo#{Orocos::Namespace::DELIMATOR}simple_source_source")
+                task = service.get("127.0.0.1#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert(task)
-                assert_equal("foo",task.namespace)
-                assert_equal("foo/simple_source_source",task.name)
+                assert_equal("127.0.0.1",task.namespace)
+                assert_equal("127.0.0.1/simple_source_source",task.name)
 
                 task = Orocos::CORBA::name_service.get("#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert task
