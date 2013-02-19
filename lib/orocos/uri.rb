@@ -9,6 +9,7 @@ module URI
             def to_query(hash)
                 str = ""
                 hash.each_pair do |key,value|
+                    value = DEFAULT_PARSER.escape(value)
                     str += "#{key}=#{value}&"
                 end
                 str[0,str.size-1]
@@ -22,7 +23,7 @@ module URI
                 a.each do |val|
                     val =~ /(.*)=(.*)/
                     raise InvalidURIError,uri if !$1 || !$2
-                    hash[$1.to_sym] = $2
+                    hash[$1.to_sym] = DEFAULT_PARSER.unescape $2
                 end
                 hash
             end
