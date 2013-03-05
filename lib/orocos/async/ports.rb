@@ -7,6 +7,7 @@ module Orocos::Async::CORBA
 
         define_event :data
         attr_reader :policy
+        attr_reader :last_sample
 
         self.default_period = 0.1
 
@@ -171,6 +172,10 @@ module Orocos::Async::CORBA
             @readers = Array.new
         end
 
+        def last_sample
+            @global_reader.last_sample if @global_reader
+        end
+
         def reader(options = Hash.new,&block)
             options, policy = Kernel.filter_options options, :period => nil
             policy[:pull] = true unless policy.has_key?(:pull)
@@ -228,6 +233,14 @@ module Orocos::Async::CORBA
                     proxy_event(reader,:data)
                     @global_reader = reader # overwrites @global_reader before that it is a ThreadPool::Task
                     @global_reader.period = @options[:period] if @options.has_key? :period
+                end
+                if @global_reader.respond_to? :last_sample
+                    sample = @global_reader.last_sample
+                    if sample
+                        event_loop.once do
+                            listener.call sample
+                        end
+                    end
                 end
             end
             super

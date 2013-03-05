@@ -5,6 +5,7 @@ module Orocos::Async
     class AttributeBaseProxy < ObjectBase
         extend Forwardable
         define_events :change
+        attr_reader :last_sample
 
         methods = Orocos::AttributeBase.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
         methods -= AttributeBaseProxy.instance_methods + [:method_missing,:name]
@@ -16,18 +17,11 @@ module Orocos::Async
             @options = options
             super(attribute_name,task_proxy.event_loop)
             @task_proxy = task_proxy
+            @last_sample = nil
         end
 
         def type_name
             type.name
-        end
-
-        def last_sample
-            if valid_delegator?
-                @delegator_obj.last_sample
-            else
-                nil
-            end
         end
 
         def type
@@ -74,6 +68,18 @@ module Orocos::Async
             @delegator_obj.period = period if valid_delegator?
         end
 
+        def add_listener(listener)
+            if listener.event == :change
+                sample = last_sample
+                if sample
+                    event_loop.once do
+                        listener.call sample
+                    end
+                end
+            end
+            super
+        end
+
         def on_change(policy = Hash.new,&block)
             @options = if policy.empty?
                            @options
@@ -88,6 +94,12 @@ module Orocos::Async
                            @options
                        end
             on_event :change,&block
+        end
+
+        private
+        def process_event(event_name,*args)
+            @last_sample = args.first if event_name == :change
+            super
         end
 
     end
@@ -113,6 +125,7 @@ module Orocos::Async
             @task_proxy = task_proxy
             @type = options.delete(:type) if options.has_key? :type
             @options = options
+            @last_sample = nil
         end
 
         def type_name
@@ -208,6 +221,22 @@ module Orocos::Async
             @delegator_obj.period = period if valid_delegator?
         end
 
+        def last_sample
+            @last_sample
+        end
+
+        def add_listener(listener)
+            if listener.event == :data
+                sample = last_sample
+                if sample
+                    event_loop.once do
+                        listener.call sample
+                    end
+                end
+            end
+            super
+        end
+
         def on_data(policy = Hash.new,&block)
             raise RuntimeError , "Port #{name} is not an output port" if !output?
             @options = if policy.empty?
@@ -224,15 +253,20 @@ module Orocos::Async
                        end
             on_event :data,&block
         end
+        
+        private
+        def process_event(event_name,*args)
+            @last_sample = args.first if event_name == :data
+            super
+        end
     end
 
     class SubPortProxy < DelegateClass(PortProxy)
         def initialize(port_proxy,subfield = Array.new,type = nil)
-            raise ArgumentError, "#{type} is not a Typelib::Type" if type && !type.is_a?(Typelib::Type)
+            raise ArgumentError, "#{type} is not a Typelib::Type class" if type && !(type <= Typelib::Type)
             super(port_proxy)
             @subfield = Array(subfield)
             @type = type
-            @ruby_type = nil
         end
 
         def on_data(policy = Hash.new,&block)
@@ -254,6 +288,24 @@ module Orocos::Async
             super + "." + @subfield.join(".")
         end
 
+        def find_orocos_type_name_by_type(type)
+            type = Orocos.master_project.find_opaque_for_intermediate(type) || type
+            type = Orocos.master_project.find_interface_type(type)
+            Typelib::Registry.rtt_typename(type)
+        end
+
+        def orocos_type_name
+            type.name
+        end
+
+        def new_sample
+            type.new
+        end
+
+        def last_sample
+            subfield(__getobj__.last_sample,@subfield)
+        end
+
         def type
             @type ||= if !@subfield.empty?
                           type ||= super
@@ -271,28 +323,10 @@ module Orocos::Async
         end
 
         private
-        def ruby_type
-            @ruby_type ||= if Typelib.convertions_to_ruby.has_key?(type_name)
-                               val = Typelib.convertions_to_ruby[type_name]
-                               if val.empty?
-                                   type
-                               else
-                                   val.flatten[1]
-                               end
-                           elsif type.is_a?(Typelib::NumericType)
-                                if type.integer?
-                                    Fixnum
-                                else
-                                    Float
-                                end
-                           else
-                               type
-                           end
-        end
-        
         def subfield(sample,field)
+            return unless sample
             field.each do |f|
-                sample = sample[f]
+                sample = sample.raw_get(f)
                 if !sample
                     #if the field name is wrong typelib will raise an ArgumentError
                     Vizkit.warn "Cannot extract subfield for port #{full_name}: Subfield #{f} does not exist (out of index)!"
@@ -300,10 +334,10 @@ module Orocos::Async
                 end
             end
             #check if the type is right
-            if(!sample.is_a?(ruby_type))
-                raise "Type miss match. Expected type #{ruby_type} but got #{sample.class} for subfield #{field.join(".")} of port #{full_name}"
+            if(sample.class != type)
+                raise "Type miss match. Expected type #{type} but got #{sample.class} for subfield #{field.join(".")} of port #{full_name}"
             end
-            sample
+            sample.to_ruby
         end
     end
 

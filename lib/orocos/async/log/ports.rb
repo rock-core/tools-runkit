@@ -8,6 +8,7 @@ module Orocos::Async::Log
         self.default_period = 0.1
 
         attr_reader :policy
+        attr_reader :port
         define_event :data
 
         # @param [Async::OutputPort] port The Asyn::OutputPort
@@ -45,10 +46,12 @@ module Orocos::Async::Log
     class OutputPort < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
         define_event :data
+        attr_reader :task
 
         def initialize(async_task,port,options=Hash.new)
-            @opitons ||= options
+            @options ||= options
             @readers ||= Array.new
+            @task = async_task
             super(port.name,async_task.event_loop)
             reachable! port
             port.connect_to do |sample|
@@ -58,6 +61,10 @@ module Orocos::Async::Log
 
         def type?
             true
+        end
+
+        def last_sample
+            @delegator_obj.read
         end
 
         def add_listener(listener)
