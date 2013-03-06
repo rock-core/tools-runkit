@@ -50,7 +50,7 @@ module Orocos::Async
         def add_listener(listener)
             if listener.event == :task_added || listener.event == :task_removed 
                 @watchdog_timer.start unless @watchdog_timer.running?
-                if !@stored_names.empty?
+                if listener.use_last_value? && !@stored_names.empty?
                     event_loop.once do
                         @stored_names.each do |name|
                             listener.call name

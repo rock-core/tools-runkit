@@ -69,6 +69,8 @@ module Orocos::Async
         end
 
         def add_listener(listener)
+            return super unless listener.use_last_value?
+
             if listener.event == :change
                 sample = last_sample
                 if sample
@@ -226,6 +228,8 @@ module Orocos::Async
         end
 
         def add_listener(listener)
+            return super unless listener.use_last_value?
+
             if listener.event == :data
                 sample = last_sample
                 if sample
@@ -326,6 +330,11 @@ module Orocos::Async
         def subfield(sample,field)
             return unless sample
             field.each do |f|
+                f = if f.is_a? Symbol
+                        f.to_s
+                    else
+                        f
+                    end
                 sample = sample.raw_get(f)
                 if !sample
                     #if the field name is wrong typelib will raise an ArgumentError

@@ -19,8 +19,10 @@ module Orocos::Async::Log
             end
         end
 
-        def add_listener(listener)
-            if @last_sample
+       def add_listener(listener)
+            return super unless listener.use_last_value?
+
+            if listener.event == :change && @last_sample
                 event_loop.once{listener.call(@last_sample)}
             end
             super

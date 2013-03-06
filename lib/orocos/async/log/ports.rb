@@ -24,6 +24,8 @@ module Orocos::Async::Log
         end
 
         def add_listener(listener)
+            return super unless listener.use_last_value?
+
             if listener.event == :data
                 sample = @delegator_obj.read
                 if sample
@@ -68,6 +70,8 @@ module Orocos::Async::Log
         end
 
         def add_listener(listener)
+            return super unless listener.use_last_value?
+
             if listener.event == :data
                 sample = @delegator_obj.read
                 if sample

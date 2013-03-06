@@ -74,6 +74,7 @@ module Orocos::Async::CORBA
         def add_listener(listener)
             if listener.event == :data
                 @poll_timer.start(period) unless @poll_timer.running?
+                listener.call @last_sample if @last_sample && listener.use_last_value?
             end
             super
         end
@@ -234,7 +235,7 @@ module Orocos::Async::CORBA
                     @global_reader = reader # overwrites @global_reader before that it is a ThreadPool::Task
                     @global_reader.period = @options[:period] if @options.has_key? :period
                 end
-                if @global_reader.respond_to? :last_sample
+                if listener.use_last_value? && @global_reader.respond_to?(:last_sample)
                     sample = @global_reader.last_sample
                     if sample
                         event_loop.once do

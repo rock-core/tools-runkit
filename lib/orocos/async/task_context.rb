@@ -77,6 +77,8 @@ module Orocos::Async::CORBA
         end
 
         def add_listener(listener)
+            return super unless listener.use_last_value?
+
             # call new listeners with the current value
             # to prevent different behaviors depending on
             # the calling order

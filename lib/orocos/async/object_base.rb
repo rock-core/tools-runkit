@@ -2,12 +2,18 @@ module Orocos::Async
 
     class EventListener
         attr_reader :event
-        attr_accessor :read_last
 
-        def initialize(obj,event,&block)
+        def initialize(obj,event,use_last_value=true,&block)
             @block = block
             @obj = obj
             @event = event
+            @use_last_value = use_last_value
+        end
+
+        # returns true if the listener shall be called
+        # with the last available value when started
+        def use_last_value?
+            !!@use_last_value
         end
 
         def pretty_print(pp) # :nodoc:
@@ -102,8 +108,8 @@ module Orocos::Async
                 names.each do |n|
                     raise "Cannot add event #{n}. It is already added" if event_names.include? n
                     event_names << n
-                    str =  %Q{ def on_#{n}(&block)
-                                on_event #{n.inspect},&block
+                    str =  %Q{ def on_#{n}(use_last_value = true,&block)
+                                on_event #{n.inspect},use_last_value,&block
                             end
                             def emit_#{n}(*args)
                                 event #{n.inspect},*args
@@ -174,9 +180,9 @@ module Orocos::Async
             self.class.event_names
         end
 
-        def on_event(event,&block)
+        def on_event(event,use_last_value=true,&block)
             event = validate_event event
-            EventListener.new(self,event,&block).start
+            EventListener.new(self,event,use_last_value,&block).start
         end
 
         # returns the number of listener for the given event
@@ -227,13 +233,15 @@ module Orocos::Async
         def add_listener(listener)
             event = validate_event listener.event
 
-            if listener.event == :reachable
-                if valid_delegator?
-                    event_loop.once{listener.call}
-                end
-            elsif listener.event == :unreachable
-                if !valid_delegator?
-                    event_loop.once{listener.call}
+            if listener.use_last_value?
+                if listener.event == :reachable
+                    if valid_delegator?
+                        event_loop.once{listener.call}
+                    end
+                elsif listener.event == :unreachable
+                    if !valid_delegator?
+                        event_loop.once{listener.call}
+                    end
                 end
             end
 

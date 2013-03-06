@@ -60,6 +60,26 @@ describe Orocos::Async::ObjectBase do
                 Orocos::Async.step
                 assert_equal 123,called
             end
+
+            it "should call the listener with the last value" do
+                obj = TestObject.new("name")
+                called = false
+                obj.on_unreachable do
+                    called = true
+                end
+                Orocos::Async.step
+                assert_equal true,called
+            end
+
+            it "should not call the listener with the last value" do
+                obj = TestObject.new("name")
+                called = false
+                obj.on_unreachable(false) do
+                    called = true
+                end
+                Orocos::Async.step
+                assert_equal false,called
+            end
         end
 
         describe "method on_event" do 

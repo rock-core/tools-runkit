@@ -64,11 +64,11 @@ module Orocos::Async::CORBA
         end
 
         def add_listener(listener)
-            @poll_timer.start(period) if listener.event == :change && !@poll_timer.running?
-            if @last_sample
-                event_loop.once{listener.call(@last_sample)}
-            end
             super
+            if listener.event == :change
+                @poll_timer.start(period) unless @poll_timer.running?
+                event_loop.once{listener.call(@last_sample)} if @last_sample && listener.use_last_value?
+            end
         end
 
         def on_change(policy = Hash.new,&block)
