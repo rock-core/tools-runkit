@@ -111,6 +111,12 @@ module Orocos::Async
                     str =  %Q{ def on_#{n}(use_last_value = true,&block)
                                 on_event #{n.inspect},use_last_value,&block
                             end
+                            def once_on_#{n}(use_last_value = true,&block)
+                                l = on_event #{n.inspect},use_last_value do |*args|
+                                       block.call(*args)
+                                       l.stop
+                                    end
+                            end
                             def emit_#{n}(*args)
                                 event #{n.inspect},*args
                             end }
