@@ -47,12 +47,9 @@ module Orocos::Async
             proxy_event(@delegator_obj,@delegator_obj.event_names)
         end
 
-        # do not emit anything because reachable will be emitted by the delegator_obj
         def unreachable!(options=Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            disable_emitting do
-                super(options)
-            end
+            super(options)
         end
 
         def period
@@ -195,12 +192,9 @@ module Orocos::Async
             end
         end
 
-        # do not emit anything because reachable will be emitted by the delegator_obj
         def unreachable!(options = Hash.new)
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            disable_emitting do
-                super(options)
-            end
+            super(options)
         end
 
         # returns a sub port for the given subfield

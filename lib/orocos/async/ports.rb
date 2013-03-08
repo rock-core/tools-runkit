@@ -45,13 +45,22 @@ module Orocos::Async::CORBA
         def unreachable!(options = Hash.new)
             @poll_timer.cancel
             @last_sample = nil
-            begin
-                @delegator_obj.disconnect if valid_delegator?
-            rescue Orocos::CORBAError,Orocos::CORBA::ComError => e
-                Orocos.error "Port is unreachable: #{e}"
-                nil
+
+            # ensure that this is always called from the
+            # event loop thread
+            @event_loop.call do
+                old = begin
+                          @delegator_obj.disconnect if valid_delegator?
+                      rescue Orocos::CORBAError,Orocos::CORBA::ComError => e
+                      ensure
+                          if valid_delegator?
+                              event :unreachable
+                              @delegator_obj
+                          end
+                      end
+                super
+                old
             end
-            super
         end
 
         def reachable?
