@@ -1,7 +1,7 @@
 module Orocos::Async
 
     def self.name_service
-        @name_service ||= Orocos::Async::NameService.new(CORBA.name_service)
+        @name_service ||= Orocos::Async::NameService.new()
     end
 
     def self.get(name,options =Hash.new)

@@ -33,7 +33,7 @@ module Orocos
     #
     # @return [Orocos::NameService] The name service
     def self.name_service
-        @name_service ||= NameService.new(Orocos::CORBA.name_service)
+        @name_service ||= NameService.new()
     end
 
     # @deprecated
