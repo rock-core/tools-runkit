@@ -248,12 +248,14 @@ module Orocos
         #
         # @param [NameServiceBase] name_service The name service.
         def add_front(name_service)
+            return if @name_services.include? name_service
             @name_services.insert(0,name_service)
         end
 
         # (see #<<)
-        def add(nameservice)
-            @name_services << nameservice
+        def add(name_service)
+            return if @name_services.include? name_service
+            @name_services << name_service
         end
 
         # Finds an underlying name service of the given class
