@@ -123,8 +123,7 @@ module Orocos::Async
                 async_options,other_options = Kernel.filter_options options, {:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
                 if block
                     p = proc do |task,error|
-                        async_options[:use] = task
-                        task = Orocos::Async::Log::TaskContext.new(nil,async_options) unless error
+                        task = Orocos::Async::Log::TaskContext.new(task,async_options) unless error
                         if block.arity == 2
                             block.call task,error
                         elsif !error
