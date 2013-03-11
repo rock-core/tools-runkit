@@ -13,7 +13,8 @@ avahi_options = { :searchdomains => [ "_orocosrbtest._tcp" ] }
 
 describe Orocos::Local::NameService do
     before do 
-        @service = Orocos::Local::NameService.new "dummy" => :dummy
+        @task = Orocos::TaskContextBase.new("Local/dummy")
+        @service = Orocos::Local::NameService.new [@task]
     end
 
     after do
@@ -28,7 +29,7 @@ describe Orocos::Local::NameService do
 
     describe "when asked for task" do
         it "must return the task" do 
-            assert_equal(:dummy,@service.get("dummy"))
+            assert_equal(@task,@service.get("dummy"))
         end
     end
 
@@ -60,12 +61,13 @@ describe Orocos::Local::NameService do
 
     describe "when new tasks is bound" do
         it "it must return them the next time when asked for task names" do 
-            @service.register :dummy2,"dummy2"
+            task = Orocos::TaskContextBase.new("Local/dummy2")
+            @service.register task
             assert(@service.names.include?("Local/dummy2"))
-            assert_equal(:dummy2,@service.get(@service.map_to_namespace("dummy2")))
-            assert_equal(:dummy2,@service.get("dummy2"))
+            assert_equal(task,@service.get(@service.map_to_namespace("dummy2")))
+            assert_equal(task,@service.get("dummy2"))
             @service.deregister "dummy2"
-            assert(!@service.names.include?("/dummy2"))
+            assert(!@service.names.include?("dummy2"))
         end
     end
 end
