@@ -144,6 +144,14 @@ module Orocos::Async
             !!@type
         end
 
+        def to_async(options=Hash.new)
+            task.to_async(options).port(port.name)
+        end
+
+        def to_proxy(options=Hash.new)
+            self
+        end
+
         def task
             @task_proxy
         end
@@ -265,6 +273,14 @@ module Orocos::Async
             super(port_proxy)
             @subfield = Array(subfield)
             @type = type
+        end
+
+        def to_async(options=Hash.new)
+            task.to_async(options).port(port.name,:subfield => @subfield)
+        end
+
+        def to_proxy(options=Hash.new)
+            self
         end
 
         def on_data(policy = Hash.new,&block)
@@ -411,6 +427,14 @@ module Orocos::Async
 
         def basename
             @name
+        end
+
+        def to_async(options=Hash.new)
+            Orocos::Async.get(name,options)
+        end
+
+        def to_proxy(options=Hash.new)
+            self
         end
 
         # asychronsosly tries to connect to the remote task

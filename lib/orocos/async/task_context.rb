@@ -76,6 +76,14 @@ module Orocos::Async::CORBA
             reachable!(ior,options_other)
         end
 
+        def to_async(options=Hash.new)
+            self
+        end
+
+        def to_proxy(options=Hash.new)
+            Orocos::Async.proxy(name,options)
+        end
+
         def add_listener(listener)
             return super unless listener.use_last_value?
 

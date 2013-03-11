@@ -1,4 +1,3 @@
-
 module Orocos::Async::CORBA
     class OutputReader < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
@@ -141,6 +140,14 @@ module Orocos::Async::CORBA
 
         def reachable?
             super && @task.reachable?
+        end
+
+        def to_async(options=Hash.new)
+            self
+        end
+
+        def to_proxy(options=Hash.new)
+            task.to_proxy(options).port(name)
         end
 
         protected
