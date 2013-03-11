@@ -368,10 +368,11 @@ module Orocos
             #
             # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are known by the name service.
             # @note The namespace is always "Local"
-            def initialize(tasks = Hash.new)
-                @registered_tasks = Hash.new
-                tasks.each_pair do |name,task|
-                    register(task,name)
+            def initialize(tasks =[])
+                raise ArgumentError, "wrong argument - Array was expected" unless tasks.is_a? Array
+                @registered_tasks = []
+                tasks.each do |task|
+                    register(task)
                 end
                 self.namespace = "Local"
             end
@@ -384,8 +385,11 @@ module Orocos
             #(see NameServiceBase#get)
             def get(name,options=Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
-                verify_same_namespace(name)
-                task = @registered_tasks[basename(name)]
+                task = @registered_tasks.find do |task|
+                    if task.name == name || task.basename == name
+                        true
+                    end
+                end
                 raise Orocos::NotFound, "task context #{name} cannot be found." unless task
                 task
             end
@@ -394,27 +398,27 @@ module Orocos
             #
             # @param [Orocos::TaskContext] task The task.
             # @param [String] name The name which is used to register the task.
-            def register(task,name=task.name)
-                verify_same_namespace(name)
-                @registered_tasks[basename(name)] = task
+            def register(task)
+                @registered_tasks << task unless @registered_tasks.include? task
+            end
+
+            # Local is a collection of name spaces
+            def same_namespace?(name_space)
+                true
             end
 
             # Deregisters the given name or task from the name service.
             #
             # @param [String,TaskContext] name The name or task
             def deregister(name)
-                name = if name.respond_to? :name
-                           name.name
-                       else
-                           name
-                       end
-                verify_same_namespace(name)
-                @registered_tasks.delete basename(name)
+                task = get(name)
+                @registered_tasks.delete task
+            rescue Orocos::NotFound
             end
 
             # (see NameServiceBase#names)
             def names
-                map_to_namespace(@registered_tasks.keys)
+                registered_tasks.map &:name
             end
         end
     end

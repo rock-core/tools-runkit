@@ -114,7 +114,7 @@ module Orocos::Async
             self.default_period = 1.0
 
             def initialize(options)
-                options,other_options = Kernel.filter_options options,{:tasks => Hash.new}
+                options,other_options = Kernel.filter_options options,{:tasks => Array.new}
                 name_service = Orocos::Local::NameService.new options[:tasks]
                 super(name_service,other_options)
             end
@@ -149,6 +149,7 @@ module Orocos::Async
     end
 
     module CORBA
+
         class << self
             def name_service=(service)
                 Orocos::Async.name_service.name_services.each_with_index do |i,val|
@@ -161,6 +162,14 @@ module Orocos::Async
             end
             def name_service
                 @name_service ||= NameService.new(Orocos::CORBA.name_service.ip,Orocos::CORBA.name_service.port)
+            end
+
+            def get(name,options =Hash.new)
+                name_service.get(name,options)
+            end
+
+            def proxy(name,options = Hash.new)
+                name_service.proxy(name,options)
             end
         end
 

@@ -386,10 +386,10 @@ module Orocos
             # registers all replayed log tasks on the local name server
             def register_tasks
                 @name_service ||= Local::NameService.new
-                @name_service_async ||= Orocos::Async::Local::NameService.new :tasks => @tasks if defined?(Orocos::Async)
+                @name_service_async ||= Orocos::Async::Local::NameService.new :tasks => @tasks.values if defined?(Orocos::Async)
                 @tasks.each_pair do |name,task|
-                    @name_service.register task,task.basename
-                    @name_service_async.register task,task.basename if @name_service_async
+                    @name_service.register task
+                    @name_service_async.register task if @name_service_async
                 end
                 Orocos::name_service.add @name_service
                 Orocos::Async.name_service.add @name_service_async if @name_service_async

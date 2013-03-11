@@ -511,6 +511,10 @@ module Orocos
                 @rtt_state = :RUNNING
             end
 
+            def rename(name)
+                @name = name
+            end
+
             # Returns the array of the names of available properties on this task
             # context
             def property_names

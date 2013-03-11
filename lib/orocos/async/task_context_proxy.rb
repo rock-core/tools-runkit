@@ -399,7 +399,7 @@ module Orocos::Async
             @resolve_task = nil
             @resolve_timer = @event_loop.every(options[:retry_period],false) do
                 if !@resolve_task
-                    @resolve_task = @name_service.get @name,@task_options do |task_context,error|
+                    @resolve_task = @name_service.get self.name,@task_options do |task_context,error|
                         if error
                             raise error if @options[:raise]
                             @resolve_task = nil
@@ -580,6 +580,12 @@ module Orocos::Async
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
             raise ArgumentError, "task_context must be an async instance" if !task_context.respond_to?(:event_names)
             ports,attributes,properties = @mutex.synchronize do
+                @last_task_class ||= task_context.class
+                if @last_task_class != task_context.class
+                    Vizkit.warn "Class missmatch: TaskContextProxy #{name} was recently connected to #{@last_task_class} and is now connected to #{task_context.class}."
+                    @last_task_class = task_context.class
+                end
+
                 remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
                 if @delegator_obj_old
                     remove_proxy_event(@delegator_obj_old,@delegator_obj_old.event_names)
