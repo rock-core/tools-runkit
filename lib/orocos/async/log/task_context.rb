@@ -39,19 +39,19 @@ module Orocos::Async
                 elsif listener.event == :port_reachable
                     event_loop.once do 
                         port_names.each do |name|
-                            listener.call name
+                            listener.call name if @delegator_obj.port(name).used?
                         end
                     end
                 elsif listener.event == :property_reachable
                     event_loop.once do
                         property_names.each do |name|
-                            listener.call name
+                            listener.call name if @delegator_obj.property(name).used?
                         end
                     end
                 elsif listener.event == :attribute_reachable
                     event_loop.once do
                         attribute_names.each do |name|
-                            listener.call name
+                            listener.call name if @delegator_obj.attribute(name).used?
                         end
                     end
                 end
