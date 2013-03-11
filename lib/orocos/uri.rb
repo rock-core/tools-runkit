@@ -81,4 +81,5 @@ module URI
     end
 end
 
-URI.scheme_list["OROCOS"] ||= URI::Orocos
+# not defined in ruby1.8
+URI.scheme_list["OROCOS"] ||= URI::Orocos if defined? URI.scheme_list

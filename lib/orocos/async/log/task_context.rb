@@ -97,6 +97,7 @@ module Orocos::Async
 
                 methods = Orocos::Log::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
                 methods -= Orocos::Async::Log::TaskContext.instance_methods + [:method_missing]
+                methods << :type
                 def_delegators methods
             end
         end
