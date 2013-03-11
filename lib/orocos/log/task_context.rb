@@ -561,7 +561,7 @@ module Orocos
             def port(name, verify = true)
                 name = name.to_str
                 if @ports[name]
-                    return @ports[name]
+                    @ports[name]
                 elsif @invalid_ports[name]
                     raise NotFound, "the port named '#{name}' on log task '#{self.name}' could not be loaded: #{@invalid_ports[name]}"
                 else
@@ -628,11 +628,12 @@ module Orocos
                     raise error
                 end
 
-                #connect state with task state 
+                #connect state with task state
                 if log_port.name == "state"
                     log_port.connect_to do |sample|
                         @rtt_state = sample
                     end
+                    log_port.tracked = false
                 end
                 log_port
             end

@@ -46,6 +46,10 @@ module Orocos
 	    #with orocos name resolution
 	    attr_accessor :name_service
 
+	    #local async nameservice, which is automatically registered
+            #if async is available
+	    attr_accessor :name_service_async
+
             #desired replay speed = 1 --> record time
             attr_accessor :speed            
 
@@ -323,6 +327,17 @@ module Orocos
                     track(true)
                 end
 
+                #get all properties which shall be replayed
+                each_task do |task|
+                    if task.used?
+                        task.port("state").tracked=true if task.has_port?("state")
+                        task.properties.values.each do |property|
+                            @replayed_properties << property
+                            @used_streams << property.stream
+                            property.set_replay
+                        end
+                    end
+                end
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
@@ -334,16 +349,6 @@ module Orocos
                     port.set_replay
                 end
 
-                #get all properties which shall be replayed
-                each_task do |task|
-                    if task.used?
-                        task.properties.values.each do |property|
-                            @replayed_properties << property
-                            @used_streams << property.stream
-                            property.set_replay
-                        end
-                    end
-                end
                 @replayed_objects = @replayed_ports + @replayed_properties
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
@@ -353,9 +358,6 @@ module Orocos
 
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
-
-                #register task on the local name server
-                register_tasks
 
                 #join streams 
                 @stream = Pocolog::StreamAligner.new(time_source, *@used_streams)
@@ -383,9 +385,12 @@ module Orocos
 
             # registers all replayed log tasks on the local name server
             def register_tasks
-		raise "Log replay already registered with nameserver" if @name_service
-                @name_service = Local::NameService.new @tasks
-                @name_service_async = Orocos::Async::Local::NameService.new :tasks => @tasks if defined?(Orocos::Async)
+                @name_service ||= Local::NameService.new
+                @name_service_async ||= Orocos::Async::Local::NameService.new :tasks => @tasks if defined?(Orocos::Async)
+                @tasks.each_pair do |name,task|
+                    @name_service.register task,task.basename
+                    @name_service_async.register task,task.basename if @name_service_async
+                end
                 Orocos::name_service.add @name_service
                 Orocos::Async.name_service.add @name_service_async if @name_service_async
             end
@@ -761,6 +766,9 @@ module Orocos
                     end
                 end
                 raise ArgumentError, "Nothing was loaded from the following log files #{paths.join("; ")}" if @tasks.empty?
+
+                #register task on the local name server
+                register_tasks
             end
 
             # Clears all reader buffers.
