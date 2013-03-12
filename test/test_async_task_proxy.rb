@@ -81,6 +81,22 @@ describe Orocos::Async::PortProxy do
         end
 
     end
+
+    describe 'on_reachable' do 
+        it 'must be called once when the port is reachable' do 
+            p = Orocos::Async.proxy("simple_sink_sink").port("cycle")
+            counter = 0
+            p.on_reachable do
+                counter += 1
+            end
+            Orocos.run('simple_sink') do
+                p.wait
+                Orocos::Async.steps
+            end
+            assert_equal 1,counter
+        end
+    end
+
 end
 
 describe Orocos::Async::SubPortProxy do 
@@ -120,7 +136,7 @@ describe Orocos::Async::SubPortProxy do
         end
 
         it "should raise RuntimeError if the given sub type differs from the real one" do
-            t1 = Orocos::Async.proxy("simple_source_source")
+            t1 = Orocos::Async.proxy("simple_source_source",:period => 0.009)
             Orocos.run('simple_source') do
                 p = t1.port("cycle_struct",:wait => true)
                 t1.configure
@@ -136,7 +152,7 @@ describe Orocos::Async::SubPortProxy do
         end
 
         it "should call the code block with the sub sample" do
-            t1 = Orocos::Async.proxy("simple_source_source")
+            t1 = Orocos::Async.proxy("simple_source_source",:period => 0.009)
             Orocos.run('simple_source') do
                 p = t1.port("cycle_struct",:wait => true)
                 sub_port = p.sub_port(:value)
@@ -154,6 +170,49 @@ describe Orocos::Async::SubPortProxy do
     end
 end
 
+describe Orocos::Async::PropertyProxy do 
+    include Orocos::Spec
+    before do 
+        Orocos::Async.clear
+    end
+
+    describe "on_reachable" do 
+        it "must be called once when a prop gets reachable" do 
+            prop = Orocos::Async.proxy("process_Test",:period => 0.09).property("prop1")
+            counter = 0
+            prop.on_reachable do 
+                counter +=1
+            end
+            Orocos.run('process') do
+                sleep 0.1
+                Orocos::Async.steps
+            end
+            sleep 0.1
+            Orocos::Async.steps
+            assert_equal 1,counter
+        end
+    end
+
+    describe "on_unreachable" do 
+        it "must be called once when a prop is or gets unreachable" do 
+            prop = Orocos::Async.proxy("process_Test",:period => 0.09).property("prop1")
+            counter = 0
+            prop.on_unreachable do
+                counter +=1
+            end
+            Orocos::Async.steps
+            assert_equal 1,counter
+
+            Orocos.run('process') do
+                prop.wait
+            end
+            sleep 0.1
+            Orocos::Async.steps
+            assert_equal 2,counter
+        end
+    end
+end
+
 describe Orocos::Async::AttributeProxy do 
     include Orocos::Spec
     before do 
@@ -167,6 +226,20 @@ describe Orocos::Async::AttributeProxy do
             assert_raises Orocos::NotFound do 
                 p.type_name
             end
+        end
+        it "should call unreachable" do 
+            t1 = Orocos::Async.proxy("process_Test")
+            counter = 0
+            counter2 = 0
+            t1.on_unreachable do 
+                counter += 1
+            end
+            t1.on_reachable do 
+                counter2 += 1
+            end
+            Orocos::Async.steps
+            assert_equal 1,counter
+            assert_equal 0,counter2
         end
     end
 
@@ -210,7 +283,7 @@ describe Orocos::Async::AttributeProxy do
         end
 
         it "should reconnect" do
-            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1)
+            t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.09)
             p = t1.attribute("att2")
             vals = Array.new
             p.on_change do |data|

@@ -24,7 +24,9 @@ module Orocos::Async
             @stored_names ||= Set.new
             _,options_async = Kernel.filter_options @options,:event_loop=>nil
             super(name_service.name,@options[:event_loop])
-            reachable! name_service
+            disable_emitting do
+                reachable! name_service
+            end
             @watchdog_timer = @event_loop.async_every method(:names),options_async do |names|
                 if number_of_listeners(:task_removed) == 0 && number_of_listeners(:task_added) == 0
                     @watchdog_timer.cancel

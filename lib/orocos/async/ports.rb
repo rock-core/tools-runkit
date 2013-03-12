@@ -17,7 +17,13 @@ module Orocos::Async::CORBA
             @options = Kernel.validate_options options, :period => default_period
             @port = port
             @last_sample = nil
-            reachable! reader
+
+            # otherwise event reachable will be queued and all 
+            # listeners will be called twice (one for registering and one because
+            # of the queued event)
+            disable_emitting do
+                reachable! reader
+            end
             proxy_event @port,:unreachable
             
             @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
@@ -102,7 +108,9 @@ module Orocos::Async::CORBA
         def initialize(port,writer,options=Hash.new)
             super(port.name,port.event_loop)
             @port = port
-            reachable!(writer)
+            disable_emitting do
+                reachable!(writer)
+            end
         end
 
         def unreachable!(options = Hash.new)
@@ -162,7 +170,9 @@ module Orocos::Async::CORBA
             @task.on_unreachable do
                 unreachable!
             end
-            reachable!(port)
+            disable_emitting do
+                reachable!(port)
+            end
         end
 
         def connection_error(error)
