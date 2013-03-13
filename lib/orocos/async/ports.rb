@@ -302,6 +302,11 @@ module Orocos::Async::CORBA
     end
 
     class InputPort < Port
+        def initialize(*args)
+            super
+            @write_blocks = []
+        end
+
         def writer(options = Hash.new,&block)
             if block
                 orig_writer(options) do |writer,error|
@@ -344,17 +349,24 @@ module Orocos::Async::CORBA
                             block.call
                         end
                     end
+                # writer is requested waiting for writer obj
                 elsif @global_writer
-                    #TODO call task next step
-                    raise "not implemented"
+                    # strore code block until writer is obtained
+                    @write_blocks << [block,sample]
+                    @global_writer
+                # create new global writer
                 else
+                    @write_blocks << [block,sample]
                     @global_writer ||= writer(@options) do |writer,error|
                         if error
                             block.call result,error if block.arrity == 2
                         else
                             @global_writer = writer # overwrites @global_writer before that it is a ThreadPool::Task
                             @global_writer.period = @options[:period] if @options.has_key? :period
-                            write(sample,&block)
+                            @write_blocks.each do |b,s|
+                                write(s,&b)
+                            end
+                            @write_blocks = []
                         end
                     end
                 end
