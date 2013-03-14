@@ -133,6 +133,8 @@ module Orocos
             #returns the system time when the port was updated with new data
             attr_reader :last_update
 
+            attr_reader :current_data
+
             #filter for log data
             #the filter is applied before all connections and readers are updated 
             #if you want to apply a filter only for one connection or one reader do not set 
