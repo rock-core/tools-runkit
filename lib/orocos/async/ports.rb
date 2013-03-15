@@ -119,7 +119,7 @@ module Orocos::Async::CORBA
         end
 
         private
-        forward_to :@delegator_obj,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError],:on_error => :emit_error  do
+        forward_to :@delegator_obj,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Typelib::NotFound],:on_error => :emit_error  do
             methods = Orocos::InputWriter.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::InputWriter.instance_methods
             methods << :type
@@ -291,7 +291,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error do
+        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound,Typelib::NotFound],:on_error => :connection_error do
             methods = Orocos::OutputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::OutputPort.instance_methods
             methods << :type

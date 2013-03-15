@@ -450,7 +450,7 @@ module Orocos
             end
             properties[name] = p
 
-        rescue Orocos::ComError => e
+        rescue Orocos::ComError,Orocos::CORBA::ComError => e
             Orocos.error "Property #{name} with communication error: #{e}"
             raise
         end
