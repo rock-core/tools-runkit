@@ -478,7 +478,7 @@ module Orocos
 
         # add default name services
         self.name_service << Orocos::CORBA.name_service
-        Orocos::Async.name_service << Orocos::Async::CORBA.name_service if defined? Orocos::Async
+        Orocos::Async.name_service << Orocos::Async::CORBA.name_service if defined?(Orocos::Async)
         @ruby_task = RubyTaskContext.new(name)
     end
 

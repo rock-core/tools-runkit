@@ -405,7 +405,7 @@ module Orocos::Async
                             @resolve_task = nil
                             :ignore_error
                         else
-                            @event_loop.async_with_options(method(:reachable!),{:sync_key => task_context,:known_errors => Orocos::ComError},task_context) do |val,error|
+                            @event_loop.async_with_options(method(:reachable!),{:sync_key => :task_context,:known_errors => Orocos::ComError},task_context) do |val,error|
                                 @resolve_timer.stop unless error
                                 @resolve_task = nil
                             end

@@ -26,7 +26,7 @@ module Orocos::Async::CORBA
             end
             proxy_event @port,:unreachable
             
-            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
+            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => period, :start => false,:sync_key => :@delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
                 if error
                     @poll_timer.cancel
                     self.period = @poll_timer.period
@@ -56,7 +56,7 @@ module Orocos::Async::CORBA
             @event_loop.call do
                 old = begin
                           @delegator_obj.disconnect if valid_delegator?
-                      rescue Orocos::CORBAError,Orocos::CORBA::ComError => e
+                      rescue Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::NotFound => e
                       ensure
                           if valid_delegator?
                               event :unreachable
@@ -291,7 +291,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound,Typelib::NotFound],:on_error => :connection_error do
+        forward_to :port,:@event_loop,:known_errors => [Orocos::NotFound,Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound,Typelib::NotFound],:on_error => :connection_error do
             methods = Orocos::OutputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::OutputPort.instance_methods
             methods << :type
@@ -375,7 +375,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        forward_to :port,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
+        forward_to :port,:@event_loop,:known_errors => [Orocos::NotFound,Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
             methods = Orocos::InputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::InputPort.instance_methods
             methods << :type
