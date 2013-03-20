@@ -604,7 +604,7 @@ module Orocos::Async
                 rescue Orocos::NotFound
                     Orocos.warn "task #{name} has currently no port called #{port.name} -> on_data will not be called!"
                 rescue Orocos::CORBA::ComError => e
-                    Orocos.warn "task #{name} with error on port: #{port.name} #{port.type} -- #{e}"
+                    Orocos.warn "task #{name} with error on port: #{port.name} -- #{e}"
                 end
             end
             attributes.each do |attribute|
@@ -613,7 +613,7 @@ module Orocos::Async
                 rescue Orocos::NotFound
                     Orocos.warn "task #{name} has currently no attribute called #{attribute.name} -> on_change will not be called!"
                 rescue Orocos::CORBA::ComError => e
-                    Orocos.warn "task #{name} with error on port: #{attribute.name} #{attribute.type} -- #{e}"
+                    Orocos.warn "task #{name} with error on port: #{attribute.name} -- #{e}"
                 end
             end
             properties.each do |property|
@@ -622,7 +622,7 @@ module Orocos::Async
                 rescue Orocos::NotFound
                     Orocos.warn "task #{name} has currently no property called #{property.name} -> on_change will not be called!"
                 rescue Orocos::CORBA::ComError => e
-                    Orocos.warn "task #{name} with error on port: #{property.name} #{property.type} -- #{e}"
+                    Orocos.warn "task #{name} with error on port: #{property.name} -- #{e}"
                 end
             end
         end
