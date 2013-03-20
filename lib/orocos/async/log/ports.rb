@@ -17,7 +17,10 @@ module Orocos::Async::Log
             super(port.name,port.event_loop)
             @options = Kernel.validate_options options, :period => default_period
             @port = port
-            reachable! reader
+            # do not queue reachable event no listeners are registered so far
+            disable_emitting do 
+                reachable! reader
+            end
             @port.connect_to do |sample|
                 emit_data sample
             end
@@ -56,7 +59,11 @@ module Orocos::Async::Log
             @readers ||= Array.new
             @task = async_task
             super(port.name,async_task.event_loop)
-            reachable! port
+
+            # do not queue reachable event no listeners are registered so far
+            disable_emitting do 
+                reachable! port
+            end
             port.connect_to do |sample,_|
                 emit_data sample
             end

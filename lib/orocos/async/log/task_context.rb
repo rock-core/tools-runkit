@@ -24,7 +24,10 @@ module Orocos::Async
                         emit_state_change log_task.state
                     end
                 end
-                reachable!(log_task)
+                # do not queue reachable event no listeners are registered so far
+                disable_emitting do 
+                    reachable!(log_task)
+                end
             end
 
             def add_listener(listener)

@@ -12,7 +12,10 @@ module Orocos::Async::Log
         def initialize(async_task,attribute,options=Hash.new)
             super(attribute.name,async_task.event_loop)
             @task = async_task
-            reachable!(attribute)
+            # do not queue reachable event no listeners are registered so far
+            disable_emitting do 
+                reachable!(attribute)
+            end
             attribute.notify do
                 @last_sample = attribute.read
                 emit_change @last_sample
