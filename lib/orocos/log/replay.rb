@@ -349,7 +349,7 @@ module Orocos
                     port.set_replay
                 end
 
-                @replayed_objects = @replayed_ports + @replayed_properties
+                @replayed_objects = @replayed_properties + @replayed_ports
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
                 if @used_streams.size == 0
