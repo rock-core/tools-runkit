@@ -334,6 +334,7 @@ module Orocos
                         task.properties.values.each do |property|
                             @replayed_properties << property
                             @used_streams << property.stream
+                            property.tracked = true
                             property.set_replay
                         end
                     end
