@@ -464,7 +464,7 @@ module Orocos::Async
                 connect_property(p)
                 p.wait
             else
-                @event_loop.defer :known_errors => Orocos::NotFound do
+                @event_loop.defer :known_errors => [Orocos::NotFound,Orocos::CORBA::ComError,Orocos::ComError] do
                     connect_property(p)
                 end
             end
@@ -491,7 +491,7 @@ module Orocos::Async
                 connect_attribute(a)
                 a.wait
             else
-                @event_loop.defer :known_errors => Orocos::NotFound do
+                @event_loop.defer :known_errors => [Orocos::NotFound,Orocos::CORBA::ComError,Orocos::ComError] do
                     connect_attribute(a)
                 end
             end
@@ -669,6 +669,7 @@ module Orocos::Async
             p = @mutex.synchronize do
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
+                    #called in the context of @delegator_obj
                     port(port.name,true,port.options)
                 end
             end
@@ -689,6 +690,7 @@ module Orocos::Async
             a = @mutex.synchronize do
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
+                    #called in the context of @delegator_obj
                     attribute(attribute.name)
                 end
             end
@@ -709,6 +711,7 @@ module Orocos::Async
             p = @mutex.synchronize do
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
+                    #called in the context of @delegator_obj
                     property(property.name)
                 end
             end
