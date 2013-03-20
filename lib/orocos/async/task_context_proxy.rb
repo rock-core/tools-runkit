@@ -273,6 +273,7 @@ module Orocos::Async
             super(port_proxy)
             @subfield = Array(subfield)
             @type = type
+            @sub_type = nil
         end
 
         def to_async(options=Hash.new)
@@ -321,7 +322,7 @@ module Orocos::Async
         end
 
         def type
-            @type ||= if !@subfield.empty?
+            @sub_type ||= if !@subfield.empty?
                           type ||= super
                           @subfield.each do |f|
                               type = if type.respond_to? :deference
