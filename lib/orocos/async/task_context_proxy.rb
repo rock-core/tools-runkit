@@ -537,7 +537,7 @@ module Orocos::Async
             if fields.empty?
                 p
             else
-                p.sub_port(fields,type)
+                p.sub_port(fields)
             end
         end
 

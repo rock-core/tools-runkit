@@ -44,6 +44,8 @@ module Orocos::Async::CORBA
                 end
             end
             @poll_timer.doc = port.full_name
+        rescue Orocos::NotFound => e
+            emit_error e
         end
 
         # TODO keep timer and remote connection in mind

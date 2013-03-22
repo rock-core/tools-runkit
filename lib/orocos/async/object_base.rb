@@ -289,7 +289,7 @@ module Orocos::Async
             @event_loop.wait_for do
                 if timeout && timeout <= Time.now-time
                     Utilrb::EventLoop.cleanup_backtrace do
-                        raise Orocos::NotFound,"#{self.class}: #{name} is not reachable after #{timeout} seconds"
+                        raise Orocos::NotFound,"#{self.class}: #{respond_to?(:full_name) ? full_name : name} is not reachable after #{timeout} seconds"
                     end
                 end
                 reachable?

@@ -27,25 +27,21 @@ module Orocos::Async
             disable_emitting do
                 reachable! name_service
             end
-            @watchdog_timer = @event_loop.async_every method(:names),options_async do |names,error|
-                if error
-                    emit_error error
+            @watchdog_timer = @event_loop.async_every method(:names),options_async do |names|
+                if number_of_listeners(:task_removed) == 0 && number_of_listeners(:task_added) == 0
+                    @watchdog_timer.cancel
+                    @stored_names.clear
                 else
-                    if number_of_listeners(:task_removed) == 0 && number_of_listeners(:task_added) == 0
-                        @watchdog_timer.cancel
-                        @stored_names.clear
-                    else
-                        names.each do |name|
-                            n = @stored_names.add? name
-                            event :task_added,name if n
-                        end
-                        @stored_names.delete_if do |name|
-                            if !names.include?(name)
-                                event :task_removed,name
-                                true
-                            else
-                                false
-                            end
+                    names.each do |name|
+                        n = @stored_names.add? name
+                        event :task_added,name if n
+                    end
+                    @stored_names.delete_if do |name|
+                        if !names.include?(name)
+                            event :task_removed,name
+                            true
+                        else
+                            false
                         end
                     end
                 end
@@ -214,6 +210,8 @@ module Orocos::Async
                         end
                     end
                     timer.doc = "NameService #{name} reconnect"
+                else
+                    raise "This should never happen. There must be always a valid delegator obj"
                 end
                 super
             end

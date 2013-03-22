@@ -36,21 +36,22 @@ module Orocos::Async::CORBA
                 end
             end
             @poll_timer.doc = attribute.full_name
+            @task.on_unreachable do
+                unreachable!
+            end
+        rescue Orocos::NotFound => e
+            emit_error e
         end
 
         def unreachable!(options = Hash.new)
-            @mutex.synchronize do
-                super
-                @last_sample = nil
-            end
+            super
+            @last_sample = nil
             @poll_timer.cancel
         end
 
         def reachable!(attribute,options = Hash.new)
-            @mutex.synchronize do
-                super
-                @last_sample = nil
-            end
+            super
+            @last_sample = nil
             if number_of_listeners(:change) != 0
                 @poll_timer.start period unless @poll_timer.running?
             end

@@ -287,8 +287,8 @@ module Orocos
             tasks = name_services.each do |service|
                 begin
                     if service.same_namespace?(name)
-                        task = service.get(name,options)
-			return task if task
+                        task_context = service.get(name,options)
+			return task_context if task_context
                     end
                 rescue Orocos::NotFound
                 end
