@@ -387,28 +387,28 @@ module Orocos::Async
                                                        :raise => false,
                                                        :wait => nil }
 
+            @name_service = @options[:name_service]
             self.namespace,name = split_name(name)
+            self.namespace ||= @name_service.namespace
             super(name,@options[:event_loop])
 
-            @name_service = @options[:name_service]
             @task_options[:event_loop] = @event_loop
             @mutex = Mutex.new
             @ports = Hash.new
             @attributes = Hash.new
             @properties = Hash.new
-            @resolve_task = nil
-            @resolve_timer = @event_loop.every(options[:retry_period],false) do
-                if !@resolve_task
-                    @resolve_task = @name_service.get self.name,@task_options do |task_context,error|
+            @resolve_timer = @event_loop.async_every(@name_service.method(:get),
+                                                     {:period => @options[:retry_period],:start => false},
+                                                     self.name) do |task_context,error|
+                if error
+                    raise error if @options[:raise]
+                    :ignore_error
+                else
+                    @resolve_timer.stop
+                    @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::ComError},task_context) do |val,error|
                         if error
-                            raise error if @options[:raise]
-                            @resolve_task = nil
+                            @resolve_timer.start
                             :ignore_error
-                        else
-                            @event_loop.async_with_options(method(:reachable!),{:sync_key => task_context,:known_errors => Orocos::ComError},task_context) do |val,error|
-                                @resolve_timer.stop unless error
-                                @resolve_task = nil
-                            end
                         end
                     end
                 end
