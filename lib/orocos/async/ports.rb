@@ -26,7 +26,7 @@ module Orocos::Async::CORBA
             end
             proxy_event @port,:unreachable
             
-            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => period, :start => false,:sync_key => :@delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
+            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read_new), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError]}) do |data,error|
                 if error
                     @poll_timer.cancel
                     self.period = @poll_timer.period

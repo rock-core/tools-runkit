@@ -198,6 +198,8 @@ module Orocos::Async
             if !port.respond_to?(:reader) && number_of_listeners(:data) != 0
                 raise RuntimeError, "Port #{name} is an input port but callbacks for on_data are registered" 
             end
+        rescue Orocos::NotFound
+            unreachable!
         end
 
         def unreachable!(options = Hash.new)
@@ -206,9 +208,9 @@ module Orocos::Async
         end
 
         # returns a sub port for the given subfield
-        def sub_port(subfield,type=nil)
+        def sub_port(subfield)
             raise RuntimeError , "Port #{name} is not an output port" if !output?
-            SubPortProxy.new(self,subfield,type)
+            SubPortProxy.new(self,subfield)
         end
 
         def period
@@ -268,12 +270,9 @@ module Orocos::Async
     end
 
     class SubPortProxy < DelegateClass(PortProxy)
-        def initialize(port_proxy,subfield = Array.new,type = nil)
-            raise ArgumentError, "#{type} is not a Typelib::Type class" if type && !(type <= Typelib::Type)
+        def initialize(port_proxy,subfield = Array.new)
             super(port_proxy)
             @subfield = Array(subfield)
-            @type = type
-            @sub_type = nil
         end
 
         def to_async(options=Hash.new)
@@ -406,7 +405,7 @@ module Orocos::Async
                             @resolve_task = nil
                             :ignore_error
                         else
-                            @event_loop.async_with_options(method(:reachable!),{:sync_key => :task_context,:known_errors => Orocos::ComError},task_context) do |val,error|
+                            @event_loop.async_with_options(method(:reachable!),{:sync_key => task_context,:known_errors => Orocos::ComError},task_context) do |val,error|
                                 @resolve_timer.stop unless error
                                 @resolve_task = nil
                             end
@@ -579,7 +578,7 @@ module Orocos::Async
         # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(task_context,options = Hash.new)
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
-            raise ArgumentError, "task_context must be an async instance" if !task_context.respond_to?(:event_names)
+            raise ArgumentError, "task_context must be an async instance but is #{task_context.class}" if !task_context.respond_to?(:event_names)
             ports,attributes,properties = @mutex.synchronize do
                 @last_task_class ||= task_context.class
                 if @last_task_class != task_context.class

@@ -15,9 +15,9 @@ module Orocos::Async::CORBA
             @mutex = Mutex.new
 
             disable_emitting do
-                reachable!(attribute) if attribute
+                reachable!(attribute)
             end
-            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read), {:period => period, :start => false,:sync_key => :@delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound]}) do |data,error|
+            @poll_timer = @event_loop.async_every(@delegator_obj.method(:read), {:period => period, :start => false,:sync_key => @delegator_obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound]}) do |data,error|
                 if error
                     @poll_timer.cancel
                     self.period = @poll_timer.period

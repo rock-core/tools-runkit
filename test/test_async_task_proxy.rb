@@ -106,18 +106,10 @@ describe Orocos::Async::SubPortProxy do
     end
 
     describe "when not connected" do
-        it "should return the given sub type" do
-            t1 = Orocos::Async.proxy("simple_source_source")
-            p = t1.port("cycle")
-            sub_port = p.sub_port(:frame,Orocos.registry.get("/int32_t"))
-            assert_equal Orocos.registry.get("/int32_t"),sub_port.type
-            assert_equal "/int32_t",sub_port.type_name
-        end
-
         it "should raise if the type is accessed but not given" do 
             t1 = Orocos::Async.proxy("simple_source_source")
             p = t1.port("cycle")
-            sub_port = p.sub_port(:frame)
+            sub_port = p.sub_port(:value)
             assert_raises Orocos::NotFound do 
                 sub_port.type
             end
@@ -138,15 +130,10 @@ describe Orocos::Async::SubPortProxy do
         it "should raise RuntimeError if the given sub type differs from the real one" do
             t1 = Orocos::Async.proxy("simple_source_source",:period => 0.009)
             Orocos.run('simple_source') do
-                p = t1.port("cycle_struct",:wait => true)
-                t1.configure
-                t1.start
-                sub_port = p.sub_port(:value,Orocos.registry.get("/double"))
+                p = t1.port("cycle_struct",:type => Orocos.registry.get("std/string"))
+                sub_port = p.sub_port(:value)
                 assert_raises RuntimeError do
-                    sub_port.on_data do |sample|
-                    end
-                    sleep 0.1
-                    Orocos::Async.steps
+                    sub_port.wait
                 end
             end
         end

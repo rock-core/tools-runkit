@@ -66,7 +66,7 @@ module Orocos::Async::CORBA
             @watchdog_timer = @event_loop.async_every(watchdog_proc,{:period => default_period,
                                                       :default => [[],[],[],[]],
                                                       :start => false,
-                                                      :sync_key => :task_context,
+                                                      :sync_key => nil, #is blocked by the methods call ping, states, etc
                                                       :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]}) do |data,error|
                                                             process_states(data[0])
                                                             process_port_names(data[1])

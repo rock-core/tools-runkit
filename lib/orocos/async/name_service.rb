@@ -20,28 +20,32 @@ module Orocos::Async
         define_events :task_added, :task_removed
 
         def initialize(name_service,options = Hash.new)
-            @options ||= Kernel.validate_options options,:period => default_period,:start => false,:sync_key => nil,:known_errors => nil,:event_loop => Orocos::Async.event_loop
+            @options ||= Kernel.validate_options options,:period => default_period,:start => false,:sync_key => nil,:known_errors => Orocos::NotFound,:event_loop => Orocos::Async.event_loop
             @stored_names ||= Set.new
             _,options_async = Kernel.filter_options @options,:event_loop=>nil
             super(name_service.name,@options[:event_loop])
             disable_emitting do
                 reachable! name_service
             end
-            @watchdog_timer = @event_loop.async_every method(:names),options_async do |names|
-                if number_of_listeners(:task_removed) == 0 && number_of_listeners(:task_added) == 0
-                    @watchdog_timer.cancel
-                    @stored_names.clear
+            @watchdog_timer = @event_loop.async_every method(:names),options_async do |names,error|
+                if error
+                    emit_error error
                 else
-                    names.each do |name|
-                        n = @stored_names.add? name
-                        event :task_added,name if n
-                    end
-                    @stored_names.delete_if do |name|
-                        if !names.include?(name)
-                            event :task_removed,name
-                            true
-                        else
-                            false
+                    if number_of_listeners(:task_removed) == 0 && number_of_listeners(:task_added) == 0
+                        @watchdog_timer.cancel
+                        @stored_names.clear
+                    else
+                        names.each do |name|
+                            n = @stored_names.add? name
+                            event :task_added,name if n
+                        end
+                        @stored_names.delete_if do |name|
+                            if !names.include?(name)
+                                event :task_removed,name
+                                true
+                            else
+                                false
+                            end
                         end
                     end
                 end
@@ -122,7 +126,7 @@ module Orocos::Async
             end
 
             def get(name,options=Hash.new,&block)
-                async_options,other_options = Kernel.filter_options options, {:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
+                async_options,other_options = Kernel.filter_options options, {:sync_key => nil,:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
                 if block
                     p = proc do |task,error|
                         task = Orocos::Async::Log::TaskContext.new(task,async_options) unless error
@@ -200,7 +204,7 @@ module Orocos::Async
                 if valid_delegator?  && @options[:reconnect] == true && options.has_key?(:error)
                     obj = @delegator_obj
                     obj.reset
-                    timer = @event_loop.async_every obj.method(:names),:period => 1.0,:sync_key => obj,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError] do |names,error|
+                    timer = @event_loop.async_every method(:names),:period => 1.0,:sync_key => nil,:known_errors => [Orocos::NotFound,Orocos::CORBAError,Orocos::CORBA::ComError] do |names,error|
                         if error
                             obj.reset
                         else
@@ -209,7 +213,7 @@ module Orocos::Async
                             timer.stop
                         end
                     end
-                    timer.doc = "#{name} reconnect"
+                    timer.doc = "NameService #{name} reconnect"
                 end
                 super
             end
@@ -219,15 +223,17 @@ module Orocos::Async
             end
 
             def get(name,options=Hash.new,&block)
-                async_options,other_options = Kernel.filter_options options, {:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
+                async_options,other_options = Kernel.filter_options options, {:sync_key => nil,:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
                 if block
                     p = proc do |task,error|
                         async_options[:use] = task
-                        task = Orocos::Async::CORBA::TaskContext.new(nil,async_options) unless error
+                        atask = if !error
+                                    Orocos::Async::CORBA::TaskContext.new(nil,async_options)
+                                end
                         if block.arity == 2
-                            block.call task,error
+                            block.call atask,error
                         elsif !error
-                            block.call task
+                            block.call atask
                         end
                     end
                     orig_get name,other_options,&p
@@ -243,8 +249,10 @@ module Orocos::Async
             forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError], :on_error => :error do
                 methods = Orocos::CORBA::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
                 methods -= Orocos::Async::CORBA::NameService.instance_methods + [:method_missing]
-                def_delegators methods
-                def_delegator :get,:alias => :orig_get
+                thread_safe do 
+                    def_delegators methods
+                    def_delegator :get,:alias => :orig_get
+                end
             end
 
             def error(e)
