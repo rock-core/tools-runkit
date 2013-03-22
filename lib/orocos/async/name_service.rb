@@ -204,7 +204,7 @@ module Orocos::Async
                 if valid_delegator?  && @options[:reconnect] == true && options.has_key?(:error)
                     obj = @delegator_obj
                     obj.reset
-                    timer = @event_loop.async_every method(:names),:period => 1.0,:sync_key => nil,:known_errors => [Orocos::NotFound,Orocos::CORBAError,Orocos::CORBA::ComError] do |names,error|
+                    timer = @event_loop.async_every obj.method(:names),:period => 1.0,:sync_key => nil,:known_errors => [Orocos::NotFound,Orocos::CORBAError,Orocos::CORBA::ComError] do |names,error|
                         if error
                             obj.reset
                         else
