@@ -403,8 +403,9 @@ module Orocos
                 else
                     parts << "# no documentation available for this property"
                 end
-
-                property_hash = { property_name => current_config[property_name] }
+                value = current_config[property_name]
+                value = value.to_s.dup.force_encoding("UTF-8") if(value.is_a?(String))
+                property_hash = { property_name.dup.to_s.force_encoding("UTF-8") => value }
                 yaml = YAML.dump(property_hash)
                 parts << yaml.split("\n")[1..-1].join("\n")
             end
