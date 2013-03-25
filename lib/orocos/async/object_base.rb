@@ -294,6 +294,7 @@ module Orocos::Async
                 end
                 reachable?
             end
+            self
         end
 
         # TODO CODE BLOCK 

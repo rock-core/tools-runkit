@@ -91,6 +91,15 @@ module Orocos::Async
                 end
             end
 
+            def to_async(options=Hash.new)
+                self
+            end
+
+            def to_proxy(options=Hash.new)
+                options[:use] ||= self
+                Orocos::Async.proxy(name,options).wait
+            end
+
             private
             # add methods which forward the call to the underlying task context
             forward_to :@delegator_obj,:@event_loop,:on_error => :emit_error do

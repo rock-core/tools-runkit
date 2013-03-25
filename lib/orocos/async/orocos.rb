@@ -3,22 +3,22 @@ module Orocos
         class OutputPort
             def to_async(options = Hash.new)
                 self.tracked = true
-                task.to_async(options).port(name,:type => type)
+                task.to_async(options).port(name,:type => type).wait
             end
 
             def to_proxy(options = Hash.new)
                 self.tracked = true
-                task.to_proxy(options).port(name,:type => type)
+                task.to_proxy(options).port(name,:type => type).wait
             end
         end
 
         class TaskContext
             def to_async(options = Hash.new)
-                log_replay.name_service_async.get(basename)
+                log_replay.name_service_async.get(basename).wait
             end
 
             def to_proxy(options = Hash.new)
-                log_replay.name_service_async.proxy(name,:use => to_async)
+                log_replay.name_service_async.proxy(name,:use => to_async).wait
             end
         end
     end

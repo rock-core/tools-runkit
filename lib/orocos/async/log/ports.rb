@@ -73,6 +73,14 @@ module Orocos::Async::Log
             true
         end
 
+        def to_async(options=Hash.new)
+            self
+        end
+
+        def to_proxy(options=Hash.new)
+            task.to_proxy(options).port(name).wait
+        end
+
         def last_sample
             @delegator_obj.read
         end
