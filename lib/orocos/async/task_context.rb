@@ -159,7 +159,7 @@ module Orocos::Async::CORBA
                              end
 
                 raise ArgumentError,"no IOR or task is given" unless @ior
-                @watchdog_timer.start(period,false) if @options[:watchdog]
+                @watchdog_timer.start(@options[:period],false) if @options[:watchdog]
                 @event_loop.async(method(:task_context))
             end
             wait if @options[:wait]

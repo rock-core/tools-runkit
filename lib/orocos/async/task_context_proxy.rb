@@ -45,6 +45,8 @@ module Orocos::Async
                 super(attribute,options)
             end
             proxy_event(@delegator_obj,@delegator_obj.event_names)
+        rescue Orocos::NotFound
+            unreachable!
         end
 
         def unreachable!(options=Hash.new)
@@ -272,7 +274,13 @@ module Orocos::Async
     class SubPortProxy < DelegateClass(PortProxy)
         def initialize(port_proxy,subfield = Array.new)
             super(port_proxy)
-            @subfield = Array(subfield)
+            @subfield = Array(subfield).map do |field|
+                if field.respond_to?(:to_i) && field.to_i.to_s == field
+                    field.to_i
+                else
+                    field
+                end
+            end
         end
 
         def to_async(options=Hash.new)
@@ -318,6 +326,11 @@ module Orocos::Async
 
         def last_sample
             subfield(__getobj__.last_sample,@subfield)
+        end
+
+        def sub_port(subfield)
+            raise RuntimeError , "Port #{name} is not an output port" if !output?
+            SubPortProxy.new(__getobj__,@subfield+subfield)
         end
 
         def type
@@ -399,7 +412,7 @@ module Orocos::Async
             @properties = Hash.new
             @resolve_timer = @event_loop.async_every(@name_service.method(:get),
                                                      {:period => @options[:retry_period],:start => false},
-                                                     self.name) do |task_context,error|
+                                                     self.name,@task_options) do |task_context,error|
                 if error
                     raise error if @options[:raise]
                     :ignore_error
