@@ -18,7 +18,7 @@ module Orocos
             end
 
             def to_proxy(options = Hash.new)
-                log_replay.name_service_async.proxy(basename)
+                log_replay.name_service_async.proxy(name,:use => to_async)
             end
         end
     end
