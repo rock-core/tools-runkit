@@ -275,6 +275,54 @@ module Orocos::Async::CORBA
             end
         end
 
+        # call-seq:
+        #  task.each_property { |a| ... } => task
+        # 
+        # Enumerates the properties that are available on
+        # this task, as instances of Orocos::Attribute
+        def each_property(&block)
+            if !block_given?
+                return enum_for(:each_property)
+            end
+            names = property_names
+            puts names
+            names.each do |name|
+                yield(property(name))
+            end
+        end
+
+        # call-seq:
+        #  task.each_attribute { |a| ... } => task
+        # 
+        # Enumerates the attributes that are available on
+        # this task, as instances of Orocos::Attribute
+        def each_attribute(&block)
+            if !block_given?
+                return enum_for(:each_attribute)
+            end
+
+            names = attribute_names
+            names.each do |name|
+                yield(attribute(name))
+            end
+        end
+
+        # call-seq:
+        #  task.each_port { |p| ... } => task
+        # 
+        # Enumerates the ports that are available on this task, as instances of
+        # either Orocos::InputPort or Orocos::OutputPort
+        def each_port(&block)
+            if !block_given?
+                return enum_for(:each_port)
+            end
+
+            port_names.each do |name|
+                yield(port(name))
+            end
+            self
+        end
+
         private
         # add methods which forward the call to the underlying task context
         forward_to :task_context,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError],:on_error => :emit_error do
