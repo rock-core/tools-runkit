@@ -61,6 +61,36 @@ module Orocos::Async
                 super
             end
 
+            def ruby_task_context?
+                !!@ruby_task_context
+            end
+
+            # writes all ports and properties to a
+            # RubyTaskContext
+            def to_ruby_task_context
+                @ruby_task_context ||= if @ruby_task_context
+                                           @ruby_task_context
+                                       else
+                                           task = Orocos::RubyTaskContext.new(basename)
+                                           each_port do |port|
+                                               p = task.create_output_port(port.name,port.type.name)
+                                               port.on_data do |data|
+                                                   p.write data
+                                               end
+                                           end
+                                           each_property do |prop|
+                                               p = task.create_property(prop.name,prop.type.name)
+                                               p.write p.new_sample.zero!
+                                               prop.on_change do |data|
+                                                   p.write data
+                                               end
+                                           end
+                                           task.start
+                                           task
+                                       end
+            end
+
+
             def attribute(name,&block)
                 if block
                     orig_attribute(name) do |attr|
