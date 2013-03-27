@@ -355,6 +355,21 @@ module Orocos
         end
 
         # call-seq:
+        #  task.each_operation { |a| ... } => task
+        # 
+        # Enumerates the operation that are available on
+        # this task, as instances of Orocos::Operation
+        def each_operation(&block)
+            if !block_given?
+                return enum_for(:each_operation)
+            end
+            names = operation_names
+            names.each do |name|
+                yield(operation(name))
+            end
+        end
+
+        # call-seq:
         #  task.each_property { |a| ... } => task
         # 
         # Enumerates the properties that are available on

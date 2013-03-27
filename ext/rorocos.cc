@@ -226,6 +226,21 @@ static VALUE task_context_attribute_names(VALUE self)
     return result;
 }
 
+static VALUE task_context_operation_names(VALUE self)
+{
+    RTaskContext& context = get_wrapped<RTaskContext>(self);
+
+    VALUE result = rb_ary_new();
+    RTT::corba::COperationInterface::COperationList_var names =
+        corba_blocking_fct_call_with_result(bind(&_objref_COperationInterface::getOperations,(_objref_COperationInterface*)context.main_service));
+    for (unsigned int i = 0; i != names->length(); ++i)
+    {
+        CORBA::String_var name = names[i];
+        rb_ary_push(result, rb_str_new2(name));
+    }
+    return result;
+}
+
 // call-seq:
 //   task.do_port(name) => port
 //
@@ -617,6 +632,7 @@ extern "C" void Init_rorocos_ext()
     rb_define_method(cTaskContext, "do_attribute_type_name", RUBY_METHOD_FUNC(task_context_attribute_type_name), 1);
     rb_define_method(cTaskContext, "do_attribute_names", RUBY_METHOD_FUNC(task_context_attribute_names), 0);
     rb_define_method(cTaskContext, "do_property_names", RUBY_METHOD_FUNC(task_context_property_names), 0);
+    rb_define_method(cTaskContext, "do_operation_names", RUBY_METHOD_FUNC(task_context_operation_names), 0);
     rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 2);
     rb_define_method(cTaskContext, "do_port_names", RUBY_METHOD_FUNC(task_context_port_names), 0);
 

@@ -352,6 +352,14 @@ module Orocos
             end
         end
 
+        # Returns the array of the names of available operations on this task
+        # context
+        def operation_names
+            CORBA.refine_exceptions(self) do
+                do_operation_names
+            end
+        end
+
         # Returns the array of the names of available properties on this task
         # context
         def property_names
