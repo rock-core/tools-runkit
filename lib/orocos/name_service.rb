@@ -50,7 +50,7 @@ module Orocos
     # 
     # @yield [TaskContext] code block which is called for each TaskContext
     def self.each_task(&block)
-        Orocos.name_service.each_task(block)
+        Orocos.name_service.each_task(&block)
     end
 
     # Removes dangling references from all name services added to the global 
