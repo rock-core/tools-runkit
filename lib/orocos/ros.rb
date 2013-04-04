@@ -16,6 +16,7 @@ module Orocos
         Port.transport_names[TRANSPORT_ROS] = 'ROS'
     end
 end
+require 'orocos/async'
 require 'xmlrpc/client'
 require 'orocos/ros/rpc'
 require 'orocos/ros/types'

@@ -94,4 +94,12 @@ module Orocos::Async
         end
         @event_loop
     end
+
+    # Returns the thread loop used by {Orocos::Async}. It is the same than the
+    # one used by {Orocos::Async.event_loop}
+    #
+    # @return [Utilrb::ThreadPool] The event loop
+    def self.thread_pool
+        event_loop.thread_pool
+    end
 end

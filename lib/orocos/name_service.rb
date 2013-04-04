@@ -118,6 +118,11 @@ module Orocos
             raise NotImplementedError
         end
 
+        # True if +name+ is a valid name inside this service's namespace
+        def same_namespace?(name)
+            true
+        end
+
         # Checks if the name service is reachable if not it
         # raises a ComError.
         #
@@ -362,6 +367,7 @@ module Orocos
         # @author Alexander Duda
         class NameService < NameServiceBase
             include Namespace
+
             attr_reader :registered_tasks
 
             # A new NameService instance 
@@ -620,6 +626,9 @@ module Orocos
 
         end
         @name_service ||= NameService.new
+    end
+
+    class CORBANameService < NameServiceBase
     end
 
     module Avahi

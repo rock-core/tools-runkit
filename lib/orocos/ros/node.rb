@@ -12,6 +12,8 @@ module Orocos
         #   port connection / disconnection methods can only be used while the
         #   node is not running
         class Node
+            # [NameService] access to the state of the ROS graph
+            attr_reader :name_service
             # [ROSSlave] access to the node XMLRPC API
             attr_reader :server
             # [String] the node name
@@ -21,7 +23,8 @@ module Orocos
             # may contain stale entries
             attr_reader :topics
 
-            def initialize(server, name)
+            def initialize(name_service, server, name)
+                @name_service = name_service
                 @server = server
                 @name = name
                 @input_topics = Hash.new
@@ -33,7 +36,7 @@ module Orocos
             end
 
             def reachable?
-                server.pid
+                name_service.ros_graph.has_node?(name)
                 true
             rescue ComError
                 false
@@ -100,7 +103,9 @@ module Orocos
             # Enumerates each "output topics" of this node
             def each_output_port
                 return enum_for(:each_output_port) if !block_given?
-                server.publications.each do |topic_name, topic_type|
+                
+                name_service.ros_graph.output_topics_for(name).each do |topic_name, topic_type|
+                    topic_type = name_service.ros_graph.topic_message_type(topic_name)
                     if ROS.compatible_message_type?(topic_type)
                         topic = (@output_topics[topic_name] ||= OutputTopic.new(self, topic_name, topic_type))
                         yield(topic)
@@ -111,7 +116,8 @@ module Orocos
             # Enumerates each "input topics" of this node
             def each_input_port
                 return enum_for(:each_input_port) if !block_given?
-                server.subscriptions.each do |topic_name, topic_type|
+                name_service.ros_graph.input_topics_for(name).each do |topic_name|
+                    topic_type = name_service.ros_graph.topic_message_type(topic_name)
                     if ROS.compatible_message_type?(topic_type)
                         topic = (@input_topics[topic_name] ||= InputTopic.new(self, topic_name, topic_type))
                         yield(topic)

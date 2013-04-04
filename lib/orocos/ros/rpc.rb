@@ -63,6 +63,10 @@ module Orocos
                 call('getSystemState', caller_id)
             end
 
+            def topics
+                call('getTopicTypes', caller_id)
+            end
+
             def lookup_node(name)
                 call('lookupNode', caller_id, name)
             end
