@@ -35,10 +35,15 @@ module Orocos
 
     class TaskContext
         def to_async(options = Hash.new)
-            Orocos::Async.get(name,options)
+            options[:name] ||= name
+            options[:ior] ||= ior
+            Orocos::Async::CORBA::TaskContext.new(options)
         end
 
         def to_proxy(options = Hash.new)
+            options[:use] ||= to_async
+            # use name service to check if there is already 
+            # a proxy for the task
             Orocos::Async.proxy(name,options)
         end
     end

@@ -363,7 +363,7 @@ describe Orocos::Async::CORBA::TaskContext do
             end
         end
 
-        it "not should run in parallel because the methods are not thread safe" do
+        it "should not run in parallel because the methods are not thread safe" do
             Orocos.run('process') do
                 t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'))
                 q = Queue.new
@@ -378,6 +378,15 @@ describe Orocos::Async::CORBA::TaskContext do
                 sleep 0.12
                 assert_equal 10,q.size
                 assert Time.now-time >= 1.0
+            end
+        end
+
+        it "should be generated from a task context" do
+            Orocos.run('process') do
+                t1 = Orocos.get "process_Test"
+                t1 = t1.to_async
+                t1.wait
+                assert t1.reachable?
             end
         end
     end

@@ -131,3 +131,61 @@ describe Orocos::Async::CORBA::NameService do
     end
 end
 
+describe Orocos::Async::Local::NameService do
+    include Orocos::Spec
+
+    before do
+        Orocos::Async.clear
+    end
+
+    it "should raise NotFound if remote task is not reachable" do
+        ns = Orocos::Async::Local::NameService.new
+        assert_raises Orocos::NotFound do 
+            ns.get "bla"
+        end
+    end
+
+    it "should not raise NotFound if remote task is not reachable and a block is given" do
+        ns = Orocos::Async::Local::NameService.new
+
+        not_called = true
+        ns.get "bla" do |task|
+            not_called = false
+        end
+
+        error = nil
+        ns.get "bla" do |task,err|
+            error = err
+        end
+
+        sleep 0.1
+        Orocos::Async.step
+        assert not_called
+        error.must_be_instance_of Orocos::NotFound
+    end
+
+    it "should return a TaskContextProxy" do 
+        Orocos.run('process') do
+            ns = Orocos::Async::Local::NameService.new
+            t = Orocos.get "process_Test"
+            t.register t
+            t = ns.get "process_Test"
+            t.must_be_instance_of Orocos::Async::CORBA::TaskContext
+            t.wait
+            assert t.reachable?
+        end
+    end
+
+    it "should return a TaskContextProxy" do 
+        Orocos.run('process') do
+            ns = Orocos::Async::Local::NameService.new
+            t = Orocos.get "process_Test"
+            t.register t
+            t = ns.proxy "process_Test"
+            t.must_be_instance_of Orocos::Async::TaskContextProxy
+            t.wait
+            assert t.reachable?
+        end
+    end
+end
+
