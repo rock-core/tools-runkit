@@ -14,7 +14,7 @@ module Orocos
 
         class TaskContext
             def to_async(options = Hash.new)
-                log_replay.name_service_async.get(basename).wait
+                Orocos::Async::Log::TaskContext.new(self,options)
             end
 
             def to_proxy(options = Hash.new)
