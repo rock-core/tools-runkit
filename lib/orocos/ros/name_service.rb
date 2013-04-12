@@ -87,6 +87,11 @@ module Orocos
             attr_reader :ros_graph
             attr_reader :poll_period
 
+            # The Utilrb::ThreadPool object that handles the asynchronous update
+            # of the ROS node graph
+            # @return [Utilrb::ThreadPool]
+            attr_reader :thread_pool
+
             def initialize(uri = ENV['ROS_MASTER_URI'], caller_id = ROS.caller_id)
                 @uri = uri
                 @caller_id = caller_id
@@ -98,11 +103,12 @@ module Orocos
                 super()
 
                 @ros_master = ROSMaster.new(uri, caller_id)
+                @thread_pool = Utilrb::ThreadPool.new(0, 2)
                 poll_system_state
             end
 
             def poll_system_state
-                Orocos::Async.thread_pool.process_with_options(
+                thread_pool.process_with_options(
                     Hash[:sync_key => @ros_master,
                          :callback => method(:done_system_state)]) do
 

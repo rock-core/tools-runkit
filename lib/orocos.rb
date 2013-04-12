@@ -40,7 +40,6 @@ require 'orocos/operations'
 require 'orocos/process'
 require 'orocos/corba'
 require 'orocos/mqueue'
-require 'orocos/ros'
 require 'orocos/ruby_task_context'
 
 require 'orocos/scripts'
@@ -49,3 +48,4 @@ require 'utilrb/hash/recursive_merge'
 require 'orocos/configurations'
 
 require 'orocos/extensions'
+require 'orocos/ros'
