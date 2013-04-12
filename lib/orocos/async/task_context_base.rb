@@ -81,7 +81,7 @@ module Orocos::Async
 
         def name
             @mutex.synchronize do
-                @name.dup
+                @name.dup if @name
             end
         end
 
