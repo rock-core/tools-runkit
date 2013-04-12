@@ -97,6 +97,7 @@ module Orocos::Async
                       else
                           Hash.new
                       end
+            name_services = name_services.map { |ns| ns.to_async }
             name_service = Orocos::NameService.new *name_services
             super(name_service,options)
         end
@@ -115,7 +116,7 @@ module Orocos::Async
             extend Utilrb::EventLoop::Forwardable
             self.default_period = 1.0
 
-            def initialize(options)
+            def initialize(options = Hash.new)
                 options,other_options = Kernel.filter_options options,{:tasks => Array.new}
                 name_service = Orocos::Local::NameService.new options[:tasks]
                 super(name_service,other_options)
@@ -127,7 +128,7 @@ module Orocos::Async
                     p = proc do |task,error|
                         task = task.to_async(async_options) unless error
                         if block.arity == 2
-                            block.call task.to_async,error
+                            block.call task,error
                         elsif !error
                             block.call task
                         end
@@ -150,8 +151,95 @@ module Orocos::Async
         end
     end
 
-    module CORBA
+    # Base class for name services that are accessed remotely (e.g. over the
+    # network)
+    class RemoteNameService < NameServiceBase
+        extend Utilrb::EventLoop::Forwardable
+        self.default_period = 1.0
 
+        def initialize(name_service,options = Hash.new)
+            options = Kernel.validate_options options,
+                :reconnect => true,
+                :known_errors => Array.new
+            
+            @reconnect = options.delete(:reconnect)
+            options[:known_errors].concat([Orocos::ComError,Orocos::NotFound])
+            super(name_service,options)
+        end
+
+        # True if this name service should automatically reconnect
+        # @return [Boolean]
+        def reconnect?; @reconnect end
+
+        def unreachable!(options = Hash.new)
+            @watchdog_timer.stop
+            if !valid_delegator?
+                raise "This should never happen. There must be always a valid delegator obj"
+            end
+
+            if reconnect? && options.has_key?(:error)
+                obj = @delegator_obj
+                obj.reset
+                timer = @event_loop.async_every obj.method(:names),:period => 1.0,:sync_key => nil,:known_errors => [Orocos::NotFound,Orocos::ComError] do |names,error|
+                    if error
+                        obj.reset
+                    else
+                        reachable!(obj)
+                        @watchdog_timer.start
+                        timer.stop
+                    end
+                end
+                timer.doc = "NameService #{name} reconnect"
+            else
+            end
+            super
+        end
+
+        def name
+            @delegator_obj.name
+        end
+
+        def get(name,options=Hash.new,&block)
+            async_options,other_options = Kernel.filter_options options, 
+                :sync_key => nil,:raise => nil,:event_loop => @event_loop,
+                :period => nil,:wait => nil
+
+            if block
+                p = proc do |task,error|
+                    async_options[:use] = task
+                    atask = if !error
+                                task.to_async(async_options)
+                            end
+                    if block.arity == 2
+                        block.call atask,error
+                    elsif !error
+                        block.call atask
+                    end
+                end 
+                orig_get name,other_options,&p
+            else
+                task = orig_get name,other_options
+                task.to_async(Hash[:use => task].merge(async_options))
+            end
+        end
+
+        private
+        # add methods which forward the call to the underlying name service
+        forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::ComError,Orocos::NotFound], :on_error => :error do
+            methods = Orocos::NameServiceBase.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+            methods -= Orocos::Async::RemoteNameService.instance_methods + [:method_missing]
+            thread_safe do 
+                def_delegators methods
+                def_delegator :get,:alias => :orig_get
+            end
+        end
+
+        def error(e)
+            emit_error e if !e.is_a? Orocos::NotFound
+        end
+    end
+
+    module CORBA
         class << self
             def name_service=(service)
                 Orocos::Async.name_service.name_services.each_with_index do |i,val|
@@ -175,7 +263,7 @@ module Orocos::Async
             end
         end
 
-        class NameService < NameServiceBase
+        class NameService < RemoteNameService
             extend Utilrb::EventLoop::Forwardable
             self.default_period = 1.0
 
@@ -187,74 +275,10 @@ module Orocos::Async
                                   else port.is_a? Hash
                                       [ip,port,options]
                                   end
-                my_options,other_options = Kernel.filter_options options,:reconnect=> true
-                name_service_options,other_options = Kernel.filter_options other_options
+                options,name_service_options = Kernel.filter_options options,:reconnect=> true
+
                 name_service = Orocos::CORBA::NameService.new ip,port,name_service_options
-                other_options[:known_errors] = [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError]
-                super(name_service,other_options)
-                @options.merge! my_options
-            end
-
-            def unreachable!(options = Hash.new)
-                @watchdog_timer.stop
-                if valid_delegator?  && @options[:reconnect] == true && options.has_key?(:error)
-                    obj = @delegator_obj
-                    obj.reset
-                    timer = @event_loop.async_every obj.method(:names),:period => 1.0,:sync_key => nil,:known_errors => [Orocos::NotFound,Orocos::CORBAError,Orocos::CORBA::ComError] do |names,error|
-                        if error
-                            obj.reset
-                        else
-                            reachable!(obj)
-                            @watchdog_timer.start
-                            timer.stop
-                        end
-                    end
-                    timer.doc = "NameService #{name} reconnect"
-                else
-                    raise "This should never happen. There must be always a valid delegator obj"
-                end
-                super
-            end
-
-            def name
-                @delegator_obj.name
-            end
-
-            def get(name,options=Hash.new,&block)
-                async_options,other_options = Kernel.filter_options options, {:sync_key => nil,:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
-                if block
-                    p = proc do |task,error|
-                        async_options[:use] = task
-                        atask = if !error
-                                    Orocos::Async::CORBA::TaskContext.new(nil,async_options)
-                                end
-                        if block.arity == 2
-                            block.call atask,error
-                        elsif !error
-                            block.call atask
-                        end
-                    end
-                    orig_get name,other_options,&p
-                else
-                    task = orig_get name,other_options
-                    async_options[:use] = task
-                    Orocos::Async::CORBA::TaskContext.new(nil,async_options)
-                end
-            end
-
-            private
-            # add methods which forward the call to the underlying name service
-            forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::CORBA::ComError,Orocos::NotFound,Orocos::CORBAError], :on_error => :error do
-                methods = Orocos::CORBA::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-                methods -= Orocos::Async::CORBA::NameService.instance_methods + [:method_missing]
-                thread_safe do 
-                    def_delegators methods
-                    def_delegator :get,:alias => :orig_get
-                end
-            end
-
-            def error(e)
-                emit_error e if !e.is_a? Orocos::NotFound
+                super(name_service,options)
             end
         end
     end

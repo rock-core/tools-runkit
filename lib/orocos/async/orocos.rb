@@ -23,9 +23,51 @@ module Orocos
         end
     end
 
+    class Attribute
+        def to_async(options = Hash.new)
+            if use = options.delete(:use)
+                Orocos::Async::CORBA::Attribute.new(use,self)
+            else to_async(:use => task.to_async(options))
+            end
+        end
+
+        def to_proxy(options = Hash.new)
+            task.to_proxy(options).attribute(name,:type => type)
+        end
+    end
+
+    class Property
+        def to_async(options = Hash.new)
+            if use = options.delete(:use)
+                Orocos::Async::CORBA::Property.new(use,self)
+            else to_async(:use => task.to_async(options))
+            end
+        end
+
+        def to_proxy(options = Hash.new)
+            task.to_proxy(options).property(name,:type => type)
+        end
+    end
+
+    class InputPort
+        def to_async(options = Hash.new)
+            if use = options.delete(:use)
+                Orocos::Async::CORBA::InputPort.new(use,self)
+            else to_async(:use => task.to_async(options))
+            end
+        end
+
+        def to_proxy(options = Hash.new)
+            task.to_proxy(options).port(name,:type => type)
+        end
+    end
+
     class OutputPort
         def to_async(options = Hash.new)
-            task.to_async(options).port(name,:type => type)
+            if use = options.delete(:use)
+                Orocos::Async::CORBA::OutputPort.new(use,self)
+            else to_async(:use => task.to_async(options))
+            end
         end
 
         def to_proxy(options = Hash.new)

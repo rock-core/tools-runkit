@@ -388,6 +388,11 @@ module Orocos
                 super + ":" + namespace
             end
 
+            # Returns an Async object that maps to this name service
+            def to_async(options = Hash.new)
+                Orocos::Async::Local::NameService.new(:tasks => registered_tasks)
+            end
+
             #(see NameServiceBase#get)
             def get(name,options=Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
@@ -535,6 +540,13 @@ module Orocos
             # @return [String] The port where the client tries to reach the CORBA name service
             def port
                 do_port
+            end
+
+            # The async-access object for this name service
+            # @param (see Orocos::Async::CORBA::NameService#initialize)
+            # @return [Orocos::Async::CORBA::NameService]
+            def to_async(options = Hash.new)
+                Orocos::Async::CORBA::NameService.new(ip,port,options)
             end
 
             # Resets the CORBA name service client.

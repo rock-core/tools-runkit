@@ -1,15 +1,12 @@
-
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
+$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", '..', "lib")
 require 'minitest/spec'
 require 'orocos'
 require 'orocos/test'
 require 'orocos/async'
 
-MiniTest::Unit.autorun
-TEST_DIR = File.expand_path(File.dirname(__FILE__))
+TEST_DIR = File.expand_path('..', File.dirname(__FILE__))
 DATA_DIR = File.join(TEST_DIR, 'data')
 WORK_DIR = File.join(TEST_DIR, 'working_copy')
-
 
 describe Orocos::Async::NameService do
     include Orocos::Spec
@@ -168,7 +165,7 @@ describe Orocos::Async::Local::NameService do
         Orocos.run('process') do
             ns = Orocos::Async::Local::NameService.new
             t = Orocos.get "process_Test"
-            t.register t
+            ns.register t
             t = ns.get "process_Test"
             t.must_be_instance_of Orocos::Async::CORBA::TaskContext
             t.wait
@@ -180,7 +177,7 @@ describe Orocos::Async::Local::NameService do
         Orocos.run('process') do
             ns = Orocos::Async::Local::NameService.new
             t = Orocos.get "process_Test"
-            t.register t
+            ns.register t
             t = ns.proxy "process_Test"
             t.must_be_instance_of Orocos::Async::TaskContextProxy
             t.wait
