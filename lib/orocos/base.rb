@@ -473,7 +473,10 @@ module Orocos
         @initialized = true
 
         if Orocos::ROS.enabled?
-            Orocos::ROS.initialize(name)
+            # ROS does not support being teared down and reinitialized.
+            if !Orocos::ROS.initialized?
+                Orocos::ROS.initialize(name)
+            end
         end
 
         # add default name services
