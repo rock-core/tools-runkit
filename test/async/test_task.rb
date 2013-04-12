@@ -75,7 +75,7 @@ describe Orocos::Async::CORBA::TaskContext do
                 t1 = Orocos.name_service.get "process_Test"
                 t2 = Orocos::Async::CORBA::TaskContext.new(t1)
                 assert t2.reachable?
-                t2 = Orocos::Async::CORBA::TaskContext.new(:ior => t1)
+                t2 = Orocos::Async::CORBA::TaskContext.new(:use => t1)
                 assert t2.reachable?
                 Orocos::Async.steps
             end
