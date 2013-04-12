@@ -263,6 +263,18 @@ module Orocos
             @name_services << name_service
         end
 
+        # Remove a name service from the set of resolvants
+        #
+        # @param [NameServiceBase] the name service object
+        # @return [true,false] true if the name service was registered, false
+        #   otherwise
+        def remove(name_service)
+            if @name_services.include? name_service
+                @name_services.delete name_service
+                true
+            end
+        end
+
         # Finds an underlying name service of the given class
         #
         # @param [class] klass the class

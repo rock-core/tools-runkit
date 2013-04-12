@@ -91,6 +91,8 @@ module Orocos::Async
     class NameService < NameServiceBase
         self.default_period = 1.0
 
+        define_events :name_service_added, :name_service_removed
+
         def initialize(*name_services)
             options = if name_services.last.is_a? Hash
                           name_services.pop
@@ -102,11 +104,60 @@ module Orocos::Async
             super(name_service,options)
         end
 
+        # Overloaded to emit the name_service_added event for already registered
+        # name services
+        def add_listener(listener)
+            if listener.event == :name_service_added
+                event_loop.once do
+                    name_services.each do |ns|
+                        event :name_service_added, ns
+                    end
+                end
+            end
+            super
+        end
+
+        # (see Orocos::NameServiceBase#add)
+        #
+        # Emits the name_service_added event
+        def add(name_service)
+            name_service = name_service.to_async
+            orig_add(name_service)
+            event :name_service_added,name_service
+        end
+
+        # (see Orocos::NameServiceBase#add_front)
+        #
+        # Emits the name_service_added event
+        def add_front(name_service)
+            name_service = name_service.to_async
+            orig_add_front(name_service)
+            event :name_service_added,name_service
+        end
+
+        # (see Orocos::NameServiceBase#remove)
+        #
+        # Emits the name_service_removed event
+        def remove(name_service)
+            removed = false
+            name_services.delete_if do |ns|
+                if name_service == ns || ns.delegator_obj == ns
+                    true
+                end
+            end
+            if removed
+                event :name_service_removed,name_service
+                true
+            end
+        end
+
         private
         # add methods which forward the call to the underlying name service
         forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::NotFound] do
             methods = Orocos::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::NameService.instance_methods + [:method_missing]
+            def_delegator :add,:alias => :orig_add
+            def_delegator :add_front,:alias => :orig_add_front
             def_delegators methods
         end
     end
