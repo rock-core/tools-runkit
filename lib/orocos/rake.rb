@@ -10,6 +10,15 @@ module Orocos
                 puts "use of MQueue disabled. Set USE_MQUEUE=1 to enable"
                 false
             end
+        USE_ROS =
+            if ENV['USE_ROS'] == '1'
+                puts "ROS enabled through the USE_ROS environment variable"
+                puts "set USE_ROS=0 to disable"
+                true
+            else
+                puts "use of ROS disabled. Set USE_ROS=1 to enable"
+                false
+            end
 
         # Generates, builds and installs the orogen component defined by the
         # orogen description file +src+. The compiled package is installed in
@@ -33,6 +42,9 @@ module Orocos
                     transports = %w{corba typelib}
                     if USE_MQUEUE
                         transports << 'mqueue'
+                    end
+                    if USE_ROS
+                        transports << 'ros'
                     end
                 end
 
