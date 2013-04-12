@@ -4,6 +4,14 @@ require 'orogen'
 require 'flexmock/test_unit'
 require 'orocos/rake'
 
+if ENV['TEST_ENABLE_PRY'] != '0'
+    begin
+        require 'pry'
+    rescue Exception
+        Orocos.warn "debugging is disabled because the 'pry' gem cannot be loaded"
+    end
+end
+
 module Orocos
     OROCOS_TEST_MODES = (ENV['OROCOS_TEST_MODES'] || "").split(',')
     TEST_MODEL_LESS = OROCOS_TEST_MODES.include?('no_model')
