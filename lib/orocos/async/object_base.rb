@@ -70,7 +70,16 @@ module Orocos::Async
     class ObjectBase
         module Periodic
             module ClassMethods
-                attr_accessor :default_period
+                attr_writer :default_period
+
+                # Returns the default period for all instances of this class. It
+                # inherits the value from parent classes
+                def default_period
+                    if @default_period then @default_period
+                    elsif superclass.respond_to?(:default_period)
+                        superclass.default_period
+                    end
+                end
             end
 
             def default_period
