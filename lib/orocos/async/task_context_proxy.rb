@@ -597,7 +597,6 @@ module Orocos::Async
                 return enum_for(:each_property)
             end
             names = property_names
-            puts names
             names.each do |name|
                 yield(property(name))
             end
