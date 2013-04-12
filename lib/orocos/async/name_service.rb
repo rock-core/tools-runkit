@@ -193,7 +193,7 @@ module Orocos::Async
 
             private
             # add methods which forward the call to the underlying name service
-            forward_to :@delegator_obj,:@event_loop do
+            forward_to :@delegator_obj,:@event_loop,:known_errors=>[Orocos::NotFound] do
                 methods = Orocos::Local::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
                 methods -= Orocos::Async::Local::NameService.instance_methods + [:method_missing]
                 def_delegators methods
