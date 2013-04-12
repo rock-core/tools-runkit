@@ -36,7 +36,7 @@ module Orocos
             end
 
             def reachable?
-                name_service.ros_graph.has_node?(name)
+                name_service.has_node?(name)
                 true
             rescue ComError
                 false
@@ -76,22 +76,34 @@ module Orocos
                 p
             end
             
-            def find_output_port(name)
+            # Finds the name of a topic this node is publishing
+            #
+            # @return [ROS::Topic,nil] the topic if found, nil otherwise
+            def find_output_port(name, wait_if_unavailable = true)
                 each_output_port do |p|
                     if p.name == name
                         return p
                     end
                 end
-                nil
+                if wait_if_unavailable
+                    name_service.wait_for_update
+                    find_output_port(name, false)
+                end
             end
             
-            def find_input_port(name)
+            # Finds the name of a topic this node is subscribed to
+            #
+            # @return [ROS::Topic,nil] the topic if found, nil otherwise
+            def find_input_port(name, wait_if_unavailable = true)
                 each_input_port do |p|
                     if p.name == name
                         return p
                     end
                 end
-                nil
+                if wait_if_unavailable
+                    name_service.wait_for_update
+                    find_input_port(name, false)
+                end
             end
 
             def each_port
@@ -104,8 +116,8 @@ module Orocos
             def each_output_port
                 return enum_for(:each_output_port) if !block_given?
                 
-                name_service.ros_graph.output_topics_for(name).each do |topic_name, topic_type|
-                    topic_type = name_service.ros_graph.topic_message_type(topic_name)
+                name_service.output_topics_for(name).each do |topic_name, topic_type|
+                    topic_type = name_service.topic_message_type(topic_name)
                     if ROS.compatible_message_type?(topic_type)
                         topic = (@output_topics[topic_name] ||= OutputTopic.new(self, topic_name, topic_type))
                         yield(topic)
@@ -116,8 +128,8 @@ module Orocos
             # Enumerates each "input topics" of this node
             def each_input_port
                 return enum_for(:each_input_port) if !block_given?
-                name_service.ros_graph.input_topics_for(name).each do |topic_name|
-                    topic_type = name_service.ros_graph.topic_message_type(topic_name)
+                name_service.input_topics_for(name).each do |topic_name|
+                    topic_type = name_service.topic_message_type(topic_name)
                     if ROS.compatible_message_type?(topic_type)
                         topic = (@input_topics[topic_name] ||= InputTopic.new(self, topic_name, topic_type))
                         yield(topic)

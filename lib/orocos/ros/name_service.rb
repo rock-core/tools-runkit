@@ -89,6 +89,10 @@ module Orocos
             attr_reader :uri
             attr_reader :caller_id
 
+            # The time of the last update to ros_graph. This is the time at
+            # which the XMLRPC request has been made
+            # @return [Time]
+            attr_reader :update_time
             attr_reader :ros_graph
             attr_reader :poll_period
 
@@ -104,6 +108,7 @@ module Orocos
                 @mutex = Mutex.new
                 @ros_master_sync = Mutex.new
                 @updated_graph_signal = ConditionVariable.new
+                @update_time = Time.at(0)
                 @poll_period = 0.1
                 super()
 
@@ -118,35 +123,46 @@ module Orocos
                          :callback => method(:done_system_state)]) do
 
                     @ros_master_sync.synchronize do
+                        new_update_time = Time.now
                         state  = @ros_master.system_state
                         topics = @ros_master.topics
-                        NodeGraph.from_system_state(state, topics)
+                        [new_update_time, NodeGraph.from_system_state(state, topics)]
                     end
                 end
             end
 
-            def done_system_state(graph, exception)
+            def update_system_state(update_time, graph, exception)
                 @mutex.synchronize do
-                    @ros_graph = graph
-                    @ros_master_exception = exception
+                    if !exception
+                        @update_time = update_time
+                        @ros_graph = graph
+                    end
+                    @ros_master_exception ||= exception
                     @updated_graph_signal.broadcast
-                    sleep(poll_period)
-                    poll_system_state
+                    pp graph.node_graph
                 end
             end
 
-            def access_ros_graph
-                @mutex.synchronize do
-                    if @ros_master_exception
-                        raise @ros_master_exception
-                    end
-                    yield
-                end
+            def done_system_state(result, exception)
+                time, graph = *result
+                update_system_state(time, graph, exception)
+                sleep(poll_period)
+                poll_system_state
             end
 
             def get(name, options = Hash.new)
-                access_ros_graph do
-                    if !ros_graph.has_node?(name)
+                options = Kernel.validate_options options, :retry => true
+                has_node = access_ros_graph do
+                    ros_graph.has_node?(name)
+                end
+
+                if !has_node
+                    if options[:retry]
+                        # Wait for a single update of the graph and try
+                        # again
+                        wait_for_update
+                        get(name, :retry => false)
+                    else
                         raise Orocos::NotFound, "no such ROS node #{name}"
                     end
                 end
@@ -164,17 +180,113 @@ module Orocos
             end
 
             def names
-                @mutex.synchronize { ros_graph.nodes.dup }
+                wait_for_update do
+                    ros_graph.nodes.dup
+                end
             end
 
-            def validate
-                @mutex.synchronize do
-                    if @ros_master_exception
-                        raise @ros_master_exception
-                    end
-                    @updated_graph_signal.wait(@mutex)
+            def retry_after_update_if_nil
+                result = yield
+                if !result
+                    wait_for_update
+                    puts "RETRYING"
+                    yield
+                else result
                 end
-                access_ros_graph { }
+            end
+
+            # Returns the Topic object that matches the given topic name. If
+            # that topic has more than one publisher (yuk), it picks the first
+            # one.
+            #
+            # @return [Topic]
+            def find_topic_by_name(topic_name)
+                retry_after_update_if_nil do
+                    node_name, direction =
+                        access_ros_graph do
+                            ros_graph.node_graph.find do |node_name, (inputs, outputs)|
+                                puts "#{node_name} => #{inputs.to_a}, #{outputs.to_a}"
+                                if inputs.include?(topic_name)
+                                    break([node_name, :input_port])
+                                elsif outputs.include?(topic_name)
+                                    break([node_name, :output_port])
+                                end
+                            end
+                        end
+
+                    if node_name
+                        puts "node: #{node_name}, direction: #{direction}, topic: #{topic_name}"
+                        return get(node_name).send(direction, topic_name)
+                    end
+                    nil
+                end
+            end
+
+            # Processes the latest ROS master exception caught
+            #
+            # It raises the exception and reinitializes the
+            # @ros_master_exception attribute so that the next error can be
+            # caught as well
+            #
+            # It must be called with @mutex locked
+            def process_ros_master_exception
+                exception, @ros_master_exception = @ros_master_exception, nil
+                if exception
+                    raise exception
+                end
+            end
+
+            # Wait for the ROS graph to be updated at least once
+            #
+            # @arg [Time,nil] if given, the new graph should be newer than
+            #   this time. Otherwise, we simply wait for any update
+            # @yield in a context where it is safe to access the ROS graph
+            #   object. The block is optional
+            # @return the value returned by the given block, if a block was
+            #   given
+            # @raise any error that has occured during ROS graph update
+            def wait_for_update(barrier = Time.now)
+                result = @mutex.synchronize do
+                    barrier = update_time
+                    while update_time <= barrier
+                        process_ros_master_exception
+                        @updated_graph_signal.wait(@mutex)
+                    end
+
+                    if block_given?
+                        yield
+                    end
+                    process_ros_master_exception
+                end
+                result
+            end
+
+            # Gives thread-safe access to the ROS graph
+            #
+            # @raise any error that has occured during ROS graph update
+            # @return [void]
+            def access_ros_graph
+                @mutex.synchronize do
+                    process_ros_master_exception
+                    yield if block_given?
+                end
+            end
+
+            # Validates that this name service can be used
+            #
+            # @raise any error that has occured during ROS graph update
+            def validate
+                wait_for_update
+            end
+
+            # Provide thread-safe access to the ROS graph API
+            def method_missing(m, *args, &block)
+                access_ros_graph do
+                    if ros_graph.respond_to?(m)
+                        return ros_graph.send(m, *args, &block)
+                    end
+                super
+                end
             end
         end
     end
