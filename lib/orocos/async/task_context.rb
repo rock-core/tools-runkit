@@ -26,6 +26,9 @@ module Orocos::Async::CORBA
         # @overload initialize(task,options)
         #       @option options [#ior,#name] :task a task context.
         def initialize(ior,options=Hash.new)
+            if ior.respond_to?(:ior)
+                ior = ior.ior
+            end
             ior,options = if ior.is_a? Hash
                               [nil,ior]
                           else
@@ -37,8 +40,7 @@ module Orocos::Async::CORBA
                         options[:use].ior
                     end
             super(ior,options)
-            @ior = ior
-
+            @ior = ior.to_str
         end
 
         def add_listener(listener)
@@ -57,7 +59,7 @@ module Orocos::Async::CORBA
 
         def ior
             @mutex.synchronize do
-                @ior.dup
+                @ior.dup if @ior
             end
         end
 
