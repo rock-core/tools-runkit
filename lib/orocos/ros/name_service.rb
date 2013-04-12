@@ -37,6 +37,11 @@ module Orocos
                         node_graph[node_name][0] << topic_name
                     end
                 end
+                state[2].each do |service_name, providers|
+                    providers.each do |node_name|
+                        node_graph[node_name] ||= [Set.new, Set.new]
+                    end
+                end
             end
 
             # Returns the set of topic names that are published by the given
