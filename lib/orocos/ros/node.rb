@@ -81,7 +81,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_output_port(name, wait_if_unavailable = true)
                 each_output_port do |p|
-                    if p.name == name
+                    if p.name == name || p.topic_name == name
                         return p
                     end
                 end
@@ -96,7 +96,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_input_port(name, wait_if_unavailable = true)
                 each_input_port do |p|
-                    if p.name == name
+                    if p.name == name || p.topic_name == name
                         return p
                     end
                 end
