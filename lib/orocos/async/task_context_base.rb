@@ -14,6 +14,12 @@ module Orocos::Async
                       :attribute_unreachable,
                       :state_change
 
+        # @!attribute raise_on_access_error?
+        #   If set to true, #task_context will raise whenever the access to the
+        #   remote task context failed. Otherwise, the exception will  be
+        #   returned by the method
+        attr_predicate :raise_on_access_error?, true
+
         def initialize(name,options=Hash.new)
             event_loop,reachable_options = Kernel.filter_options options,:event_loop => Orocos::Async.event_loop
             super(name,event_loop[:event_loop])
@@ -40,7 +46,7 @@ module Orocos::Async
                                                             process_attribute_names(data[3])
                                                       end
             @watchdog_timer.doc = name
-            reachable!(name,reachable_options)
+            reachable!(reachable_options)
         end
 
         def to_async(options=Hash.new)
@@ -83,6 +89,57 @@ module Orocos::Async
             @mutex.synchronize do
                 @name.dup if @name
             end
+        end
+
+        # Initiates the binding of the underlying sychronous access object to
+        # this async object.
+        #
+        # It can either be directly given an object, or be asked to
+        # (asynchronously) query it.
+        #
+        # @option options [Boolean] watchdog (true) if true, start a watchdog
+        #   timer that monitors the availability of the task context
+        # @option options [Float] period (default_period) the period for the
+        #   watchdog (if enabled)
+        # @option options [Boolean] wait (false) if true, reachable! will return
+        #   only when the task has successfully been found
+        # @option options [Object] use (nil) if set, this is the object we will
+        #   use as underlying sychronous object. Otherwise, #task_context is
+        #   going to be used to find it.
+        # @option options [Boolean] raise (false) if set, the #task_context
+        #   method will raise if the task context cannot be accessed on first
+        #   try. Otherwise, it will try to access it forever until it finds it.
+        def reachable!(options = Hash.new)
+            @mutex.synchronize do
+                options, configure_options = Kernel.filter_options options,
+                    :watchdog => true,
+                    :period => default_period,
+                    :wait => false,
+                    :use => nil,
+                    :raise => false
+
+                self.raise_on_access_error = options[:raise]
+
+                if options[:use]
+                    @delegator_obj = options[:use]
+                    @watchdog_timer.doc = @delegator_obj.name
+                else
+                    invalidate_delegator!
+                end
+
+                configure_delegation(configure_options)
+
+                @watchdog_timer.start(options[:period],false) if options[:watchdog]
+                @event_loop.async(method(:task_context))
+            end
+            wait if options[:wait]
+        end
+
+        # Called by #reachable! to do subclass-specific configuration
+        #
+        # @param [Hash] configure_options all options passed to #reachable! that
+        #   are not understood by #reachable!
+        def configure_delegation(configure_options = Hash.new)
         end
 
         # Disconnectes self from the remote task context and returns its underlying
@@ -342,7 +399,7 @@ module Orocos::Async
                 rescue Exception => e
                     @access_error = e
                     invalidate_delegator!
-                    raise e if @options[:raise]   # do not be silent if
+                    raise e if raise_on_access_error?   # do not be silent if
                     [nil,@access_error]
                 end
             end

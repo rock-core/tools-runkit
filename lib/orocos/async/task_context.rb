@@ -39,7 +39,7 @@ module Orocos::Async::CORBA
                     elsif options.has_key? :use
                         options[:use].ior
                     end
-            super(ior,options)
+            super(ior,options.merge(:ior => ior))
             @ior = ior.to_str
         end
 
@@ -63,52 +63,41 @@ module Orocos::Async::CORBA
             end
         end
 
-        # connects with the remote orocos Task specified by its IOR
+        # (see TaskContextBase#configure_delegation)
         #
-        # @param (see TaskContext#initialize)
-        def reachable!(ior,options=Hash.new)
-            @mutex.synchronize do
-                @options = Kernel.validate_options options,  :name=> nil,
-                    :ior => ior,
-                    :watchdog => true,
-                    :wait => false,
-                    :period => default_period,
-                    :use => nil,
-                    :raise => false
-                if @options[:use]
-                    @delegator_obj = @options[:use]
-                    @ior = @delegator_obj.ior
-                    @watchdog_timer.doc = @delegator_obj.name
-                else
-                    invalidate_delegator!
-                end
-                ior = @options[:ior]
-                @ior,@name = if valid_delegator?
-                                 [@delegator_obj.ior,@delegator_obj.name]
-                             elsif ior.respond_to?(:ior)
-                                 [ior.ior, ior.name]
-                             else
-                                 [ior, @options[:name]]
-                             end
+        # @option options [String] name the task name
+        # @option options [String] ior the task IOR
+        def configure_delegation(options = Hash.new)
+            options = Kernel.validate_options options,
+                :name=> nil,
+                :ior => nil
 
-                raise ArgumentError,"no IOR or task is given" unless @ior
-                @watchdog_timer.start(@options[:period],false) if @options[:watchdog]
-                @event_loop.async(method(:task_context))
+            ior = options[:ior]
+            @ior,@name = if valid_delegator?
+                             [@delegator_obj.ior,@delegator_obj.name]
+                         elsif ior.respond_to?(:ior)
+                             [ior.ior, ior.name]
+                         else
+                             [ior, @name]
+                         end
+
+            if !@ior
+                raise ArgumentError, "no IOR or task has been given"
             end
-            wait if @options[:wait]
         end
 
         private
+
+        # Called by #task_context to create the underlying task context object
+        def access_remote_task_context
+            Orocos::TaskContext.new @ior ,:name => @name
+        end
+
         # add methods which forward the call to the underlying task context
         forward_to :task_context,:@event_loop, :known_errors => [Orocos::ComError,Orocos::NotFound],:on_error => :emit_error do
             methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::TaskContext.instance_methods + [:method_missing]
             def_delegators methods
-        end
-
-        # Called by #task_context to create the underlying task context object
-        def access_remote_task_context
-            Orocos::TaskContext.new @ior ,:name => @name
         end
     end
 end
