@@ -414,8 +414,13 @@ module Orocos::Async
                                                      {:period => @options[:retry_period],:start => false},
                                                      self.name,@task_options) do |task_context,error|
                 if error
-                    raise error if @options[:raise]
-                    :ignore_error
+                    case error
+                    when Orocos::NotFound, Orocos::ComError
+                        raise error if @options[:raise]
+                        :ignore_error
+                    else
+                        raise error
+                    end
                 else
                     @resolve_timer.stop
                     @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::ComError},task_context) do |val,error|
