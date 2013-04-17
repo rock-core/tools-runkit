@@ -63,7 +63,7 @@ module Orocos
             def input_port(name)
                 p = find_input_port(name)
                 if !p
-                    raise Orocos::NotFound, "cannot find topic #{name} as a publication of node #{name}"
+                    raise Orocos::NotFound, "cannot find topic #{name} as a subscription of node #{self.name}"
                 end
                 p
             end
@@ -71,7 +71,7 @@ module Orocos
             def output_port(name)
                 p = find_output_port(name)
                 if !p
-                    raise Orocos::NotFound, "cannot find topic #{name} as a publication of node #{name}"
+                    raise Orocos::NotFound, "cannot find topic #{name} as a publication of node #{self.name}"
                 end
                 p
             end
