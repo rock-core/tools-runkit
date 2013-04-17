@@ -152,6 +152,16 @@ module Orocos::Async
         attr_accessor :emitting
         define_events :error,:reachable,:unreachable
 
+        # Queue of listener that are going to be added by callbacks registered
+        # in the event loop. This is filled and processed by #add_listener and
+        # #remove_listener
+        #
+        # Some entries might be nil if #remove_listener has been called before
+        # the event loop processed the addition callbacks.
+        #
+        # @return [Array<EventLoop,nil>]
+        attr_reader :pending_adds
+
         def initialize(name,event_loop)
             raise ArgumentError, "no name was given" if !name
             @listeners ||= Hash.new{ |hash,key| hash[key] = []}
@@ -160,6 +170,7 @@ module Orocos::Async
             @event_loop ||= event_loop
             @options ||= Hash.new
             @emitting = true
+            @pending_adds = Array.new
             invalidate_delegator!
             on_error do |e|
                 unreachable!(:error => e)
@@ -248,14 +259,28 @@ module Orocos::Async
         def add_listener(listener)
             event = validate_event listener.event
 
+            pending_adds << listener
+            event_loop.once do
+                expected = pending_adds.shift
+                if expected
+                    if expected != listener
+                        raise RuntimeError, "internal error in #{self}#add_listener: pending addition and expected addition mismatch"
+                    end
+                    really_add_listener(listener)
+                end
+            end
+            listener
+        end
+
+        def really_add_listener(listener)
             if listener.use_last_value?
                 if listener.event == :reachable
                     if valid_delegator?
-                        event_loop.once{listener.call}
+                        listener.call
                     end
                 elsif listener.event == :unreachable
                     if !valid_delegator?
-                        event_loop.once{listener.call}
+                        listener.call
                     end
                 end
             end
@@ -263,14 +288,18 @@ module Orocos::Async
             @listeners[listener.event] << listener
             if number_of_listeners(listener.event) == 1
                 @proxy_listeners.each do |key,value|
-                    l = value[listener.event]
-                    l.start if l
+                    if l = value[listener.event]
+                        key.really_add_listener(l)
+                    end
                 end
             end
             listener
         end
 
         def remove_listener(listener)
+            if idx = pending_adds.index(listener)
+                pending_adds[idx] = nil
+            end
             @listeners[listener.event].delete listener
             if number_of_listeners(listener.event) == 0
                 @proxy_listeners.each do |key,value|

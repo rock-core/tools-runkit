@@ -101,8 +101,10 @@ describe Orocos::Async::ObjectBase do
                 obj = TestObject.new("name")
                 assert_equal 0, obj.number_of_listeners(:reachable)
                 obj.on_event(:reachable) {}
+                Orocos::Async.event_loop.step
                 assert_equal 1, obj.number_of_listeners(:reachable)
                 obj.on_event(:reachable) {}
+                Orocos::Async.event_loop.step
                 assert_equal 2, obj.number_of_listeners(:reachable)
             end
         end
@@ -141,6 +143,7 @@ describe Orocos::Async::ObjectBase do
                 obj = TestObject.new("name")
                 l = obj.on_error do 
                 end
+                Orocos::Async.event_loop.step
                 assert obj.listener? l
             end
         end
@@ -150,9 +153,40 @@ describe Orocos::Async::ObjectBase do
                 obj = TestObject.new("name")
                 l = obj.on_error do 
                 end
+                Orocos::Async.step
                 assert obj.listener? l
                 obj.remove_listener l
                 assert !obj.listener?(l)
+            end
+        end
+
+        describe "method add_listener" do
+            it "should ensure that the new listener does not get previously queued events" do
+                obj = TestObject.new("name")
+                obj.emit_test
+                recorder = flexmock
+                recorder.should_receive(:call).never
+                obj.on_test { recorder.call }
+                Orocos::Async.event_loop.step
+            end
+            it "should ensure that the new listener does not get queued events if it has been removed" do
+                obj = TestObject.new("name")
+                recorder = flexmock
+                recorder.should_receive(:call).never
+                l = obj.on_test { recorder.call }
+                obj.emit_test
+                obj.remove_listener(l)
+                Orocos::Async.event_loop.step
+            end
+            it "should ensure that a new listener that has been removed and then re-added does not get events queued before the re-addition" do
+                obj = TestObject.new("name")
+                recorder = flexmock
+                recorder.should_receive(:call).never
+                l = obj.on_test { recorder.call }
+                obj.emit_test
+                obj.remove_listener(l)
+                obj.add_listener(l)
+                Orocos::Async.event_loop.step
             end
         end
 
@@ -170,8 +204,9 @@ describe Orocos::Async::ObjectBase do
                 l = obj2.on_reachable do |val|
                     called = val
                 end
-                assert_equal 1, obj.number_of_listeners(:reachable)
+                Orocos::Async.event_loop.step
                 assert_equal 1, obj2.number_of_listeners(:reachable)
+                assert_equal 1, obj.number_of_listeners(:reachable)
 
                 obj.event :reachable,222
                 Orocos::Async.step
@@ -179,8 +214,9 @@ describe Orocos::Async::ObjectBase do
 
                 #this should also remove the listener from obj 
                 l.stop
-                assert_equal 0, obj.number_of_listeners(:reachable)
+                Orocos::Async.event_loop.step
                 assert_equal 0, obj2.number_of_listeners(:reachable)
+                assert_equal 0, obj.number_of_listeners(:reachable)
             end
         end
     end
