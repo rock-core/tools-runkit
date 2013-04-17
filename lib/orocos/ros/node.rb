@@ -47,6 +47,12 @@ module Orocos
 
             def each_property; end
 
+            def port_names
+                each_port.map(&:name)
+            end
+
+            def property_names; [] end
+            def attribute_names; [] end
 
             def has_port?(name)
                 !!(find_output_port(name) || find_input_port(name))
@@ -158,6 +164,21 @@ module Orocos
                         end
                     end
                     pp.breakable
+                end
+            end
+
+            # @return [Orocos::Async::ROS::Node] an object that gives
+            #   asynchronous access to this particular ROS node
+            def to_async(options = Hash.new)
+                Async::ROS::Node.new(name_service, server, name, options)
+            end
+
+            # Tests if this node is still available
+            #
+            # @raise [Orocos::ComError] if the node is not available anymore
+            def ping
+                if !name_service.has_node?(name)
+                    raise Orocos::ComError, "ROS node #{name} is not available on the ROS graph anymore"
                 end
             end
         end

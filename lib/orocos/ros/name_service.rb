@@ -117,6 +117,10 @@ module Orocos
                 poll_system_state
             end
 
+            def to_async(options = Hash.new)
+                Async::ROS::NameService.new(uri, caller_id, options)
+            end
+
             def poll_system_state
                 thread_pool.process_with_options(
                     Hash[:sync_key => @ros_master,
