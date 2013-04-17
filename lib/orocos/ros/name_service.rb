@@ -139,7 +139,6 @@ module Orocos
                     end
                     @ros_master_exception ||= exception
                     @updated_graph_signal.broadcast
-                    pp graph.node_graph
                 end
             end
 
