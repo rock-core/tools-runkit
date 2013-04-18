@@ -196,7 +196,7 @@ module Orocos
             end
 
             # Returns the set of new states
-            def states; [] end
+            def states; [:RUNNING] end
 
             def peek_state; :RUNNING end
             def state; :RUNNING end
