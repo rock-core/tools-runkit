@@ -74,9 +74,23 @@ module Orocos
                 reader = Orocos.ruby_task.create_input_port(
                     Topic.transient_local_port_name(topic_name),
                     orocos_type_name,
-                    :permanent => false)
-                reader.create_stream(Orocos::TRANSPORT_ROS, topic_name)
+                    :permanent => false,
+                    :class => OutputReader)
+                reader.port = self
+                reader.policy = policy
+                reader.create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
                 reader
+            end
+
+            def to_async(options = Hash.new)
+                if use = options.delete(:use)
+                    Orocos::Async::CORBA::OutputPort.new(use,self)
+                else to_async(:use => task.to_async(options))
+                end
+            end
+
+            def to_proxy(options = Hash.new)
+                task.to_proxy(options).port(name,:type => type)
             end
         end
 
@@ -87,9 +101,23 @@ module Orocos
                 writer = Orocos.ruby_task.create_output_port(
                     Topic.transient_local_port_name(topic_name),
                     orocos_type_name,
-                    :permanent => false)
-                writer.create_stream(Orocos::TRANSPORT_ROS, topic_name)
+                    :permanent => false,
+                    :class => InputWriter)
+                writer.port = self
+                writer.policy = policy
+                writer.create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
                 writer
+            end
+
+            def to_async(options = Hash.new)
+                if use = options.delete(:use)
+                    Orocos::Async::CORBA::InputPort.new(use,self)
+                else to_async(:use => task.to_async(options))
+                end
+            end
+
+            def to_proxy(options = Hash.new)
+                task.to_proxy(options).port(name,:type => type)
             end
         end
     end

@@ -71,3 +71,54 @@ describe Orocos::Async::ROS::NameService do
     end
 end
 
+describe Orocos::ROS::OutputTopic do
+    include Orocos::Spec
+
+    attr_reader :name_service
+    attr_reader :local_port
+
+    before do
+        @name_service = Orocos::ROS::NameService.new
+
+        Orocos.load_typekit 'base'
+        task = new_ruby_task_context 'ros_test'
+        port = task.create_output_port('out', '/base/Time')
+        port.create_stream(Orocos::TRANSPORT_ROS, "/ros_test_out")
+        @local_port = port
+    end
+    describe "access through the async API" do
+        attr_reader :async_name_service, :node, :port
+        before do
+            node = name_service.get Orocos::ROS.caller_id
+            port = node.output_port '/ros_test_out'
+            @sync_reader = port.reader
+            @node = node.to_async
+            @port = port.to_async
+        end
+
+        it "should emit reachable" do
+        end
+
+        it "should emit the data event when new data is received" do
+            recorder = flexmock
+            expected_sample = port.new_sample
+            expected_sample.microseconds = 1000
+            recorder.should_receive(:received).once.with(expected_sample)
+            port.on_data do |sample|
+                recorder.received sample
+            end
+            sleep 0.1
+            Orocos::Async.event_loop.step
+            local_port.write expected_sample
+            # The first read_new is always nil. This is weird and is definitely
+            # TODO
+            sleep 0.1
+            Orocos::Async.event_loop.step
+            sleep 0.1
+            Orocos::Async.event_loop.step
+            Orocos::Async.event_loop.step
+            Orocos::Async.event_loop.step
+        end
+    end
+end
+
