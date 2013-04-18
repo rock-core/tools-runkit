@@ -260,22 +260,31 @@ module Orocos::Async::CORBA
             @global_reader.period = value if @global_reader.respond_to?(:period=)
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
+            super
             if listener.event == :data
-                reader(@options) do |reader|
+                if @global_reader
+                    if listener.use_last_value?
+                        if sample = @global_reader.last_sample
+                            listener.call sample
+                        end
+                    end
+                end
+            end
+        end
+
+        def add_listener(listener)
+            super
+            if listener.event == :data
+                reader(@options) do |reader, error|
                     if @global_reader
                         # We created multiple readers because of concurrency.
                         # Just ignore this one
                         reader.disconnect
-                    else
+                    elsif number_of_listeners(:data) > 0 # The listener might already have been removed !
                         @global_reader = reader
                         proxy_event(reader,:data)
                         @global_reader.period = @options[:period] if @options.has_key? :period
-                    end
-                    if listener.use_last_value?
-                        if sample = @global_reader.read
-                            listener.call sample
-                        end
                     end
                 end
             end
