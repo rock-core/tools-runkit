@@ -26,9 +26,7 @@ module Orocos::Async::CORBA
                         event :error,error
                     end
                 else
-                    if number_of_listeners(:change) == 0
-                        @poll_timer.cancel
-                    elsif data
+                    if data
                         if @last_sample != data
                             @last_sample = data
                             event :change,data
@@ -53,9 +51,6 @@ module Orocos::Async::CORBA
         def reachable!(attribute,options = Hash.new)
             super
             @last_sample = nil
-            if number_of_listeners(:change) != 0
-                @poll_timer.start period unless @poll_timer.running?
-            end
         end
 
         def reachable?
@@ -67,26 +62,38 @@ module Orocos::Async::CORBA
             @poll_timer.period = self.period
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             super
             if listener.event == :change
-                @poll_timer.start(period) unless @poll_timer.running?
-                event_loop.once{listener.call(@last_sample)} if @last_sample && listener.use_last_value?
+                if !@poll_timer.running?
+                    @poll_timer.start(period) 
+                end
+                listener.call(@last_sample) if @last_sample && listener.use_last_value?
+            end
+        end
+
+        def remove_listener(listener)
+            super
+            if number_of_listeners(:change) == 0
+                if @poll_timer.running?
+                    @poll_timer.stop
+                end
+                @policy = nil
             end
         end
 
         def on_change(policy = Hash.new,&block)
-            @options = if policy.empty?
-                           @options
-                       elsif @options.empty? && number_of_listeners(:change) == 0
+            @policy = if policy.empty?
+                           options
+                       elsif !@policy
                            policy
-                       elsif @options == policy
-                           @options
+                       elsif @policy == policy
+                           @policy
                        else
                            Orocos.warn "Property #{full_name} cannot emit :change with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
+                           Orocos.warn "The current policy is: #{@policy}."
                            Orocos.warn "Ignoring policy: #{policy}."
-                           @options
+                           @policy
                        end
             on_event :change,&block
         end

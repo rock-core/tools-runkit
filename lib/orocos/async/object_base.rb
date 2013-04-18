@@ -237,7 +237,9 @@ module Orocos::Async
             return if obj == self
             events = events.flatten
             events.each do |e|
-                @proxy_listeners[obj][e].stop if @proxy_listeners[obj].has_key? e
+                if existing = @proxy_listeners[obj].delete(e)
+                    existing.stop
+                end
                 l = @proxy_listeners[obj][e] = EventListener.new(obj,e) do |*val|
                     process_event e,*val
                 end
@@ -249,9 +251,8 @@ module Orocos::Async
             return if obj == self
             events = events.flatten
             events.each do |e|
-                if @proxy_listeners[obj].has_key?(e)
-                    @proxy_listeners[obj][e].stop
-                    @proxy_listeners[obj].delete e
+                if listener = @proxy_listeners[obj].delete(e)
+                    listener.stop
                 end
             end
         end
@@ -262,6 +263,8 @@ module Orocos::Async
             pending_adds << listener
             event_loop.once do
                 expected = pending_adds.shift
+                # 'expected' is nil if the listener has been removed before this
+                # block got processed
                 if expected
                     if expected != listener
                         raise RuntimeError, "internal error in #{self}#add_listener: pending addition and expected addition mismatch"
@@ -301,10 +304,12 @@ module Orocos::Async
                 pending_adds[idx] = nil
             end
             @listeners[listener.event].delete listener
+
+            # Check whether the only listeners left are proxy listeners. If they
+            # are, remove them
             if number_of_listeners(listener.event) == 0
-                @proxy_listeners.each do |key,value|
-                    l = value[listener.event]
-                    l.stop if l
+                @proxy_listeners.each do |obj, listeners|
+                    obj.remove_listener(listeners[listener.event])
                 end
             end
         end

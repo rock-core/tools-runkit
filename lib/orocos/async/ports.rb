@@ -34,14 +34,9 @@ module Orocos::Async::CORBA
                     @event_loop.once do
                         event :error,error
                     end
-                else
+                elsif data
                     @last_sample = data
-                    if number_of_listeners(:data) == 0
-                        # TODO call reader.disable
-                        @poll_timer.cancel
-                    elsif data
-                        event :data,data
-                    end
+                    event :data, data
                 end
             end
             @poll_timer.doc = port.full_name
@@ -88,12 +83,20 @@ module Orocos::Async::CORBA
             @poll_timer.period = self.period
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             if listener.event == :data
                 @poll_timer.start(period) unless @poll_timer.running?
                 listener.call @last_sample if @last_sample && listener.use_last_value?
             end
             super
+        end
+
+        def remove_listener(listener)
+            super
+            if number_of_listeners(:data) == 0
+                # TODO call reader.disable
+                @poll_timer.cancel
+            end
         end
 
         private
