@@ -259,15 +259,18 @@ module Orocos::Async::CORBA
 
         def add_listener(listener)
             if listener.event == :data
-                @global_reader ||= reader(@options) do |reader|
-                    proxy_event(reader,:data)
-                    @global_reader = reader # overwrites @global_reader before that it is a ThreadPool::Task
-                    @global_reader.period = @options[:period] if @options.has_key? :period
-                end
-                if listener.use_last_value? && @global_reader.respond_to?(:last_sample)
-                    sample = @global_reader.last_sample
-                    if sample
-                        event_loop.once do
+                reader(@options) do |reader|
+                    if @global_reader
+                        # We created multiple readers because of concurrency.
+                        # Just ignore this one
+                        reader.disconnect
+                    else
+                        @global_reader = reader
+                        proxy_event(reader,:data)
+                        @global_reader.period = @options[:period] if @options.has_key? :period
+                    end
+                    if listener.use_last_value?
+                        if sample = @global_reader.read
                             listener.call sample
                         end
                     end
