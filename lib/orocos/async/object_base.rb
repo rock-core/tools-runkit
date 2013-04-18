@@ -309,7 +309,9 @@ module Orocos::Async
             # are, remove them
             if number_of_listeners(listener.event) == 0
                 @proxy_listeners.each do |obj, listeners|
-                    obj.remove_listener(listeners[listener.event])
+                    if l = listeners[listener.event]
+                        obj.remove_listener(l)
+                    end
                 end
             end
         end
