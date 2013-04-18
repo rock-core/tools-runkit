@@ -192,7 +192,6 @@ module Orocos
                 result = yield
                 if !result
                     wait_for_update
-                    puts "RETRYING"
                     yield
                 else result
                 end
@@ -208,7 +207,6 @@ module Orocos
                     node_name, direction =
                         access_ros_graph do
                             ros_graph.node_graph.find do |node_name, (inputs, outputs)|
-                                puts "#{node_name} => #{inputs.to_a}, #{outputs.to_a}"
                                 if inputs.include?(topic_name)
                                     break([node_name, :input_port])
                                 elsif outputs.include?(topic_name)
@@ -218,7 +216,6 @@ module Orocos
                         end
 
                     if node_name
-                        puts "node: #{node_name}, direction: #{direction}, topic: #{topic_name}"
                         return get(node_name).send(direction, topic_name)
                     end
                     nil
