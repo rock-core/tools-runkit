@@ -249,7 +249,8 @@ module Orocos
             #   given
             # @raise any error that has occured during ROS graph update
             def wait_for_update(barrier = Time.now)
-                result = @mutex.synchronize do
+                result = nil
+                @mutex.synchronize do
                     barrier = update_time
                     while update_time <= barrier
                         process_ros_master_exception
@@ -257,7 +258,7 @@ module Orocos
                     end
 
                     if block_given?
-                        yield
+                        result = yield
                     end
                     process_ros_master_exception
                 end
