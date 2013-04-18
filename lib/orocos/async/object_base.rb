@@ -290,9 +290,9 @@ module Orocos::Async
 
             @listeners[listener.event] << listener
             if number_of_listeners(listener.event) == 1
-                @proxy_listeners.each do |key,value|
-                    if l = value[listener.event]
-                        key.really_add_listener(l)
+                @proxy_listeners.each do |obj,listeners|
+                    if l = listeners[listener.event]
+                        obj.add_listener(l)
                     end
                 end
             end
