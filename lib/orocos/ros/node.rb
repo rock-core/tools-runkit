@@ -22,6 +22,10 @@ module Orocos
             # associated with this node. It should never be used directly, as it
             # may contain stale entries
             attr_reader :topics
+            # The underlying process object that represents this node
+            # It is non-nil only if this node has been started by orocos.rb
+            # @return [nil]
+            attr_reader :process
 
             def initialize(name_service, server, name)
                 @name_service = name_service
@@ -58,24 +62,24 @@ module Orocos
                 !!(find_output_port(name) || find_input_port(name))
             end
 
-            def port(name)
-                p = (find_output_port(name) || find_input_port(name))
+            def port(name, verify = true)
+                p = (find_output_port(name, verify) || find_input_port(name, verify))
                 if !p
                     raise Orocos::NotFound, "cannot find topic #{name} attached to node #{name}"
                 end
                 p
             end
 
-            def input_port(name)
-                p = find_input_port(name)
+            def input_port(name, verify = true)
+                p = find_input_port(name, verify)
                 if !p
                     raise Orocos::NotFound, "cannot find topic #{name} as a subscription of node #{self.name}"
                 end
                 p
             end
 
-            def output_port(name)
-                p = find_output_port(name)
+            def output_port(name, verify = true)
+                p = find_output_port(name, verify)
                 if !p
                     raise Orocos::NotFound, "cannot find topic #{name} as a publication of node #{self.name}"
                 end
@@ -85,42 +89,46 @@ module Orocos
             # Finds the name of a topic this node is publishing
             #
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
-            def find_output_port(name, wait_if_unavailable = true)
-                each_output_port do |p|
+            def find_output_port(name, verify = true, wait_if_unavailable = true)
+                each_output_port(verify) do |p|
                     if p.name == name || p.topic_name == name
                         return p
                     end
                 end
-                if wait_if_unavailable
+                if verify && wait_if_unavailable
                     name_service.wait_for_update
-                    find_output_port(name, false)
+                    find_output_port(name, true, false)
                 end
             end
             
             # Finds the name of a topic this node is subscribed to
             #
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
-            def find_input_port(name, wait_if_unavailable = true)
-                each_input_port do |p|
+            def find_input_port(name, verify = true, wait_if_unavailable = true)
+                each_input_port(verify) do |p|
                     if p.name == name || p.topic_name == name
                         return p
                     end
                 end
-                if wait_if_unavailable
+                if verify && wait_if_unavailable
                     name_service.wait_for_update
-                    find_input_port(name, false)
+                    find_input_port(name, true, false)
                 end
             end
 
-            def each_port
-                return enum_for(:each_port) if !block_given?
-                each_output_port { |p| yield(p) }
-                each_input_port { |p| yield(p) }
+            def each_port(verify = true)
+                return enum_for(:each_port, verify) if !block_given?
+                each_output_port(verify) { |p| yield(p) }
+                each_input_port(verify) { |p| yield(p) }
             end
 
             # Enumerates each "output topics" of this node
-            def each_output_port
-                return enum_for(:each_output_port) if !block_given?
+            def each_output_port(verify = true)
+                return enum_for(:each_output_port, verify) if !block_given?
+
+                if !verify
+                    return @output_topics.values.each(&proc)
+                end
                 
                 name_service.output_topics_for(name).each do |topic_name, topic_type|
                     topic_type = name_service.topic_message_type(topic_name)
@@ -132,8 +140,13 @@ module Orocos
             end
 
             # Enumerates each "input topics" of this node
-            def each_input_port
-                return enum_for(:each_input_port) if !block_given?
+            def each_input_port(verify = true)
+                return enum_for(:each_input_port, verify) if !block_given?
+
+                if !verify
+                    return @input_topics.values.each(&proc)
+                end
+
                 name_service.input_topics_for(name).each do |topic_name|
                     topic_type = name_service.topic_message_type(topic_name)
                     if ROS.compatible_message_type?(topic_type)
@@ -181,6 +194,13 @@ module Orocos
                     raise Orocos::ComError, "ROS node #{name} is not available on the ROS graph anymore"
                 end
             end
+
+            # Returns the set of new states
+            def states; [] end
+
+            def peek_state; :RUNNING end
+            def state; :RUNNING end
+            def state_changed?; false end
         end
     end
 end

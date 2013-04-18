@@ -154,7 +154,7 @@ module Orocos
             end
 
             def get(name, options = Hash.new)
-                options = Kernel.validate_options options, :retry => true
+                options = Kernel.validate_options options, :retry => true, :process => nil
                 has_node = access_ros_graph do
                     ros_graph.has_node?(name)
                 end

@@ -27,6 +27,8 @@ module Orocos
                 "#{task.name}/#{name}"
             end
 
+            def new_sample; type.new end
+
             @@local_transient_port_id = 0
             def self.transient_local_port_name(topic_name)
                 "rostopics#{topic_name.gsub('/', '.')}.#{@@local_transient_port_id += 1}"
