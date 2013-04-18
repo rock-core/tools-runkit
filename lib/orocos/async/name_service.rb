@@ -108,9 +108,10 @@ module Orocos::Async
         # name services
         def add_listener(listener)
             if listener.event == :name_service_added
+                services = name_services.dup
                 event_loop.once do
-                    name_services.each do |ns|
-                        event :name_service_added, ns
+                    services.each do |ns|
+                        listener.call ns
                     end
                 end
             end
