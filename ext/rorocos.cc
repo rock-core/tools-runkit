@@ -468,7 +468,7 @@ static VALUE do_port_remove_stream(VALUE rport, VALUE stream_name)
     tie(task, tuples::ignore, name) = getPortReference(rport);
 
     corba_blocking_fct_call(bind(&_objref_CDataFlowInterface::removeStream,(_objref_CDataFlowInterface*)task->ports,
-                            StringValuePtr(name),StringValuePtr(name)));
+                            StringValuePtr(name),StringValuePtr(stream_name)));
     return Qnil;
 }
 
