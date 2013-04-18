@@ -65,6 +65,10 @@ module Orocos
             def pretty_print(pp) # :nodoc:
                 pp.text " #{name} (#{type_name}), ros: #{topic_name}(#{ros_message_type})"
             end
+
+            def disconnect_from(port)
+                port.remove_stream(topic_name)
+            end
         end
 
         class OutputTopic < Topic
