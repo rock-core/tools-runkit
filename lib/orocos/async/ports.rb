@@ -293,7 +293,7 @@ module Orocos::Async::CORBA
         def remove_listener(listener)
             super
             if number_of_listeners(:data) == 0 && @global_reader
-                @global_reader.disconnect
+                @global_reader.disconnect{} # called it asynchron
                 @global_reader = nil
             end
         end
