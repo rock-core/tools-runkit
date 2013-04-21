@@ -226,6 +226,7 @@ module Orocos::Async::CORBA
 
         def reader(options = Hash.new,&block)
             options, policy = Kernel.filter_options options, :period => nil
+            policy[:init] = true unless policy.has_key?(:init)
             policy[:pull] = true unless policy.has_key?(:pull)
             if block
                 orig_reader(policy) do |reader,error|
