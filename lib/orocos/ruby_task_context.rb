@@ -18,6 +18,12 @@ module Orocos
         #   struct.an_array.each do |element|
         #   end
         def read(sample = nil)
+            if value = read_raw(sample)
+                Typelib.to_ruby(sample)
+            end
+        end
+
+        def read_raw(sample = nil)
             if value = read_helper(sample, true)
                 return Typelib.to_ruby(value[0])
             end
@@ -56,6 +62,12 @@ module Orocos
         #   
         # Raises CORBA::ComError if the communication is broken.
         def read_new(sample = nil)
+            if value = read_raw_new(sample)
+                Typelib.to_ruby(value)
+            end
+        end
+
+        def read_raw_new(sample = nil)
             if value = read_helper(sample, false)
                 return Typelib.to_ruby(value[0]) if value[1] == NEW_DATA
             end
@@ -74,6 +86,7 @@ module Orocos
                 value[0] if value[1] == NEW_DATA
             end
         end
+
 
         # Clears the channel, i.e. "forget" that this port ever got written to
         def clear
