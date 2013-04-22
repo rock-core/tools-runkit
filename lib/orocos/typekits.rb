@@ -142,20 +142,25 @@ module Orocos
 	end
 
 	if Orocos.export_types?
-	    Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
-		if type_name =~ /orogen_typekits/ # just ignore those
-		elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
-		elsif base_type.contains_opaques? # register the intermediate instead
-		    Orocos.master_project.intermediate_type_for(base_type)
-		elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
-		else exported_type
-		end
-	    end
+            Orocos.info "exporting registry to Ruby"
+            export_registry_to_ruby
 	end
 
 	if name
 	    @loaded_typekit_registries << name
 	end
+    end
+
+    def self.export_registry_to_ruby
+        Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
+            if type_name =~ /orogen_typekits/ # just ignore those
+            elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
+            elsif base_type.contains_opaques? # register the intermediate instead
+                Orocos.master_project.intermediate_type_for(base_type)
+            elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
+            else exported_type
+            end
+        end
     end
 
     # Loads all typekits that are available on this system
