@@ -24,11 +24,11 @@ module Orocos
             end
 
             do_initialize(name)
-        end
 
-        at_exit do
-            if Orocos::ROS.initialized?
-                Orocos::ROS.shutdown
+            at_exit do
+                if Orocos::ROS.initialized?
+                    Orocos::ROS.shutdown
+                end
             end
         end
 
