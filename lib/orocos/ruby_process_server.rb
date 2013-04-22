@@ -66,17 +66,17 @@ module Orocos
             orogen_models[name] = model
         end
 
-        def start(deployment_name, name_mappings, options)
+        def start(name, deployment_name, name_mappings, options)
             model = load_orogen_deployment(deployment_name)
 
             prefix_mappings, options =
                 Orocos::ProcessBase.resolve_prefix_option(options, model)
             name_mappings = prefix_mappings.merge(name_mappings)
 
-            ruby_deployment = RubyDeployment.new(deployment_name, self, model)
+            ruby_deployment = RubyDeployment.new(self, name, model)
             ruby_deployment.name_mappings = name_mappings
             ruby_deployment.spawn
-            deployments[deployment_name] = ruby_deployment
+            deployments[name] = ruby_deployment
         end
 
         # Requests that the process server moves the log directory at +log_dir+
@@ -126,7 +126,7 @@ module Orocos
         def on_localhost?; true end
         def pid; Process.pid end
 
-        def initialize(name, ruby_process_server, model)
+        def initialize(ruby_process_server, name, model)
             @ruby_process_server = ruby_process_server
             @tasks = Hash.new
             super(name, model)

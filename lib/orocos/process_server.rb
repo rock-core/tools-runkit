@@ -268,14 +268,14 @@ module Orocos
                 end
 
             elsif cmd_code == COMMAND_START
-                name, name_mappings, options = Marshal.load(socket)
+                name, deployment_name, name_mappings, options = Marshal.load(socket)
                 options ||= Hash.new
                 Orocos.debug "#{socket} requested startup of #{name} with #{options}"
                 begin
-                    p = Orocos::Process.new(name)
+                    p = Orocos::Process.new(name, deployment_name)
                     p.name_mappings = name_mappings
                     p.spawn(self.options.merge(options))
-                    Orocos.debug "#{name} is started (#{p.pid})"
+                    Orocos.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
                     processes[name] = p
                     socket.write("P")
                     Marshal.dump(p.pid, socket)
@@ -489,7 +489,7 @@ module Orocos
         # remote side.
         #
         # Raises Failed if the server reports a startup failure
-        def start(deployment_name, name_mappings = Hash.new, options = Hash.new)
+        def start(process_name, deployment_name, name_mappings = Hash.new, options = Hash.new)
             deployment_model = load_orogen_deployment(deployment_name)
 
             prefix_mappings, options =
@@ -497,15 +497,15 @@ module Orocos
             name_mappings = prefix_mappings.merge(name_mappings)
 
             socket.write(ProcessServer::COMMAND_START)
-            Marshal.dump([deployment_name, name_mappings, options], socket)
+            Marshal.dump([process_name, deployment_name, name_mappings, options], socket)
             wait_for_answer do |pid_s|
                 if pid_s == "N"
                     raise Failed, "failed to start #{deployment_name}"
                 elsif pid_s == "P"
                     pid = Marshal.load(socket)
-                    process = RemoteProcess.new(deployment_name, self, pid)
+                    process = RemoteProcess.new(process_name, deployment_name, self, pid)
                     process.name_mappings = name_mappings
-                    processes[deployment_name] = process
+                    processes[process_name] = process
                     return process
                 else
                     raise InternalError, "unexpected reply #{pid_s} to the start command"
@@ -599,11 +599,11 @@ module Orocos
         # The process ID of this process on the machine of the process server
         attr_reader :pid
 
-        def initialize(name, process_client, pid)
+        def initialize(name, deployment_name, process_client, pid)
             @process_client = process_client
             @pid = pid
             @alive = true
-            model = process_client.load_orogen_deployment(name)
+            model = process_client.load_orogen_deployment(deployment_name)
             super(name, model)
         end
 

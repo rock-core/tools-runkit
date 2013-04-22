@@ -170,6 +170,22 @@ module Orocos
         result
     end
 
+    def self.deployment_model_from_name(name)
+        pkg = Orocos.available_deployments[name]
+        if !pkg
+            raise NotFound, "deployment #{name} does not exist or its pkg-config orogen-#{name} is not found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
+        end
+        orogen_project = Orocos.master_project.using_project(pkg.project_name)
+        model = orogen_project.deployers.find do |d|
+            d.name == name
+        end
+        if !model
+            raise NotFound, "oroGen project #{pkg.project_name} was expected to contain a deployment called #{name} but does not seem to"
+        end
+        model
+    end
+
+
     # Returns the deployment model for the given deployment name
     #
     # @return [Orocos::Spec::Deployment] the deployment model
