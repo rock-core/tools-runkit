@@ -122,6 +122,7 @@ module Orocos
         end
 
         begin
+            Orocos.info "loading typekit #{name} on master project"
             typekit = Orocos.master_project.using_typekit(name)
         rescue RuntimeError => e
             raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
@@ -131,6 +132,7 @@ module Orocos
     end
 
     def self.load_registry(registry, name = nil)
+        Orocos.info "loading registry #{registry} from typekit #{name}"
 	if registry.respond_to?(:to_str)
 	    if File.file?(registry)
 	        Orocos.registry.import(registry)
