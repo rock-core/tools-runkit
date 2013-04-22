@@ -226,24 +226,12 @@ module Orocos
         # Creates a new Process instance which will be able to
         # start and supervise the execution of the given Orocos
         # component
-        def initialize(name)
+        def initialize(name, model_name = name)
             @tasks = []
-            @pkg = Orocos.available_deployments[name]
-            if !pkg
-                raise NotFound, "deployment #{name} does not exist or its pkg-config orogen-#{name} is not found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
-            end
-
-            # Load the orogen's description
-            orogen_project = Orocos.master_project.using_project(pkg.project_name)
-            model = orogen_project.deployers.find do |d|
-                d.name == name
-            end
-	    if !model
-	    	Orocos.warn "cannot locate deployment #{name} in #{orogen_project.name}"
-	    end
+            @model = Orocos.deployment_model_from_name(model_name)
+            @pkg = Orocos.available_deployments[model_name]
             super(name, model)
         end
-
 
         # Waits until the process dies
         #
@@ -327,13 +315,13 @@ module Orocos
 	# 
         #   Orocos.run 'xsens_imu::Task' => ['imu1', 'imu2']
         #   
-        def self.parse_run_options(*names)
+        def self.partition_run_options(*names)
             options = names.last.kind_of?(Hash) ? names.pop : Hash.new
             options, mapped_names = filter_options options,
                 :wait => nil, :output => nil, :working_directory => Orocos.default_working_directory,
                 :gdb => false, :gdb_options => [],
                 :valgrind => false, :valgrind_options => [],
-                :cmdline_args => nil,
+                :cmdline_args => Hash.new,
                 :oro_logfile => nil
 
             deployments, models = Hash.new, Hash.new
@@ -344,10 +332,18 @@ module Orocos
                         raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
                     end
                     models[name.to_s] = new_name
-                else
+                elsif Orocos.available_deployments[name.to_s]
                     deployments[name.to_s] = (new_name if new_name)
+                else
+                    raise ArgumentError, "#{name} is neither a task model nor a deployment name"
                 end
             end
+            return deployments, models, options
+        end
+
+        def self.parse_run_options(*names)
+            deployments, models, options = partition_run_options(*names)
+            options, process_options = Kernel.filter_options options, :wait => nil
 
             if options[:wait].nil?
                 options[:wait] =
@@ -357,10 +353,30 @@ module Orocos
                     end
             end
 
-            if options[:cmdline_args].nil?
-                options[:cmdline_args] = Hash.new
+            valgrind = parse_cmdline_wrapper_option(
+                'valgrind', process_options[:valgrind], process_options[:valgrind_options],
+                deployments.keys + models.values)
+            gdb = parse_cmdline_wrapper_option(
+                'gdbserver', process_options[:gdb], process_options[:gdb_options],
+                deployments.keys + models.values)
+
+            name_mappings = resolve_name_mappings(deployments, models)
+            processes = name_mappings.map do |deployment_name, mappings, name|
+                output = if process_options[:output]
+                             process_options[:output].gsub '%m', name
+                         end
+
+                spawn_options = Hash[
+                    :working_directory => process_options[:working_directory],
+                    :output => output,
+                    :valgrind => valgrind[name],
+                    :gdb => gdb[name],
+                    :cmdline_args => process_options[:cmdline_args],
+                    :wait => false,
+                    :oro_logfile => process_options[:oro_logfile]]
+                [deployment_name, mappings, name, spawn_options]
             end
-            return deployments, models, options
+            return processes, options
         end
 
         def self.parse_cmdline_wrapper_option(cmd, deployments, options, all_deployments)
@@ -387,6 +403,34 @@ module Orocos
             end
         end
         
+        def self.resolve_name_mappings(deployments, models)
+            processes = []
+            processes += deployments.map do |process_name, prefix|
+                mapped_name   = process_name
+                name_mappings = Hash.new
+                if prefix
+                    name_mappings, _ = ProcessBase.resolve_prefix_option(
+                        Hash[:prefix => prefix],
+                        Orocos.deployment_model_from_name(process_name))
+                    mapped_name = "#{prefix}#{process_name}"
+                end
+
+                [process_name, name_mappings, mapped_name]
+            end
+            models.each do |model_name, desired_names|
+                desired_names = [desired_names] unless desired_names.kind_of? Array 
+                desired_names.each do |desired_name|
+                    process_name = Orocos::Generation.default_deployment_name(model_name)
+                    name_mappings = Hash[
+                        process_name => desired_name,
+                        "#{process_name}_Logger" => "#{desired_name}_Logger"]
+
+                    processes << [process_name, name_mappings, desired_name]
+                end
+            end
+            processes
+        end
+        
         # Deprecated
         #
         # Use Orocos.run directly instead
@@ -400,54 +444,16 @@ module Orocos
             end
 
             begin
-                deployments, models, options = parse_run_options(*names)
-		    
-                if valgrind = options[:valgrind]
-                    valgrind = parse_cmdline_wrapper_option('valgrind', options[:valgrind], options[:valgrind_options], deployments.keys + models.values)
-                else
-                    valgrind = Hash.new
-                end
+                process_specs, options = parse_run_options(*names)
 
-                if gdb = options[:gdb]
-                    gdb = parse_cmdline_wrapper_option('gdbserver', options[:gdb], options[:gdb_options], deployments.keys + models.values)
-                else
-                    gdb = Hash.new
-                end
-
-                # First thing, do create all the named processes
-                processes = []
-                processes += deployments.map do |process_name, prefix|
-                    process = Process.new(process_name)
-                    if prefix
-                        process.name_mappings, _ =
-                            ProcessBase.resolve_prefix_option(Hash[:prefix => prefix], process.model)
-                        process_name = "#{prefix}#{process_name}"
-                    end
-
-                    [process_name, process]
-                end
-		models.each do |model_name, desired_names|
-		    desired_names = [desired_names] unless desired_names.kind_of? Array 
-		    desired_names.each do |desired_name|
-			process = Process.new(Orocos::Generation.default_deployment_name(model_name))
-			process.map_name(Orocos::Generation.default_deployment_name(model_name), desired_name)
-			process.map_name("#{Orocos::Generation.default_deployment_name(model_name)}_Logger", "#{desired_name}_Logger")
-			processes << [desired_name, process]
-		    end
-                end
                 # Then spawn them, but without waiting for them
-                processes.each do |name, p|
-                    output = if options[:output]
-                                 options[:output].gsub '%m', name
-                             end
-
-                    p.spawn(:working_directory => options[:working_directory],
-                            :output => output,
-                            :valgrind => valgrind[name],
-                            :gdb => gdb[name],
-                            :cmdline_args => options[:cmdline_args],
-                            :wait => false,
-                            :oro_logfile => options[:oro_logfile])
+                processes = process_specs.map do |deployment_name, name_mappings, name, spawn_options|
+                    p = Process.new(name, deployment_name)
+                    name_mappings.each do |old, new|
+                        p.map_name old, new
+                    end
+                    p.spawn(spawn_options)
+                    p
                 end
 
                 # Finally, if the user required it, wait for the processes to run
@@ -455,14 +461,14 @@ module Orocos
                     timeout = if options[:wait].kind_of?(Numeric)
                                   options[:wait]
                               end
-                    processes.each { |_, p| p.wait_running(timeout) }
+                    processes.each { |p| p.wait_running(timeout) }
                 end
 
             rescue Exception => original_error
                 # Kill the processes that are already running
                 if processes
 		    begin
-			kill(processes.map { |name, p| p if p.running? }.compact)
+			kill(processes.map { |p| p if p.running? }.compact)
 		    rescue Exception => e
 			Orocos.warn "failed to kill the started processes, you will have to kill them yourself"
 			Orocos.warn e.message
@@ -475,7 +481,6 @@ module Orocos
                 raise
             end
 
-            processes = processes.map { |_, p| p }
             if block_given?
                 Orocos.guard(*processes) do
                     yield(*processes)
@@ -549,7 +554,6 @@ module Orocos
             end
 
             cmdline_args = options[:cmdline_args].dup
-
             cmdline_args[:rename] ||= []
             name_mappings.each do |old, new|
                 cmdline_args[:rename].push "#{old}:#{new}"

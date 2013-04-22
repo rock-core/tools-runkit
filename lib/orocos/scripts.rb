@@ -179,7 +179,7 @@ module Orocos
         end
 
         def self.run(*options, &block)
-            deployments, models, options = Orocos::Process.parse_run_options(*options)
+            deployments, models, options = Orocos::Process.partition_run_options(*options)
 
             if attach?
                 deployments.delete_if do |depl, _|

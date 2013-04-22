@@ -12,6 +12,30 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 describe Orocos::Process do
     include Orocos::Spec
 
+    describe ".partition_run_options" do
+        it "partitions deployment names from task model names using Orocos.available_task_models" do
+            deployments, models, options =
+                Orocos::Process.partition_run_options 'process' => 'name2', 'process::Test' => 'name'
+            assert_equal Hash['process' => 'name2'], deployments
+            assert_equal Hash['process::Test' => 'name'], models
+        end
+        it "sets to nil the prefix for deployments that should not have one" do
+            deployments, models, options =
+                Orocos::Process.partition_run_options 'process', 'process::Test' => 'name'
+            assert_equal Hash['process' => nil], deployments
+        end
+        it "raises if an unexisting name is given" do
+            assert_raises(ArgumentError) do
+                Orocos::Process.partition_run_options 'does_not_exist'
+            end
+        end
+        it "raises if a task model is given without a name" do
+            assert_raises(ArgumentError) do
+                Orocos::Process.partition_run_options 'process::Test'
+            end
+        end
+    end
+
     it "raises NotFound when the deployment name does not exist" do
         assert_raises(Orocos::NotFound) { Orocos::Process.new("does_not_exist") }
     end
