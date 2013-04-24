@@ -273,6 +273,10 @@ module Orocos
     # Raises ArgumentError if this type is registered nowhere, or if +exported+
     # is true and the type is not exported.
     def self.load_typekit_for(typename, exported = true)
+        if typename.respond_to?(:name) && Typelib::Registry.base_rtt_type?(typename)
+            return
+        end
+
         typekit_name = find_typekit_for(typename, exported)
         if typekit_name
             load_typekit(typekit_name)
