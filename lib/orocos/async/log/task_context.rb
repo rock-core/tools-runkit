@@ -73,13 +73,13 @@ module Orocos::Async
                                        else
                                            task = Orocos::RubyTaskContext.new(basename)
                                            each_port do |port|
-                                               p = task.create_output_port(port.name,port.type.name)
+                                               p = task.create_output_port(port.name,port.type)
                                                port.on_data do |data|
                                                    p.write data
                                                end
                                            end
                                            each_property do |prop|
-                                               p = task.create_property(prop.name,prop.type.name)
+                                               p = task.create_property(prop.name,prop.type)
                                                p.write p.new_sample.zero!
                                                prop.on_change do |data|
                                                    p.write data
