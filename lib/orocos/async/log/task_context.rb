@@ -68,26 +68,26 @@ module Orocos::Async
             # writes all ports and properties to a
             # RubyTaskContext
             def to_ruby_task_context
-                @ruby_task_context ||= if @ruby_task_context
-                                           @ruby_task_context
-                                       else
-                                           task = Orocos::RubyTaskContext.new(basename)
-                                           each_port do |port|
-                                               p = task.create_output_port(port.name,port.type)
-                                               port.on_data do |data|
-                                                   p.write data
-                                               end
-                                           end
-                                           each_property do |prop|
-                                               p = task.create_property(prop.name,prop.type)
-                                               p.write p.new_sample.zero!
-                                               prop.on_change do |data|
-                                                   p.write data
-                                               end
-                                           end
-                                           task.start
-                                           task
-                                       end
+                if @ruby_task_context
+                    return @ruby_task_context
+                end
+
+                task = Orocos::RubyTaskContext.new(basename)
+                each_port do |port|
+                    p = task.create_output_port(port.name,port.type)
+                    port.on_data do |data|
+                        p.write data
+                    end
+                end
+                each_property do |prop|
+                    p = task.create_property(prop.name,prop.type)
+                    p.write p.new_sample.zero!
+                    prop.on_change do |data|
+                        p.write data
+                    end
+                end
+                task.start
+                task
             end
 
 
