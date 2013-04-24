@@ -376,8 +376,11 @@ module Orocos
 
         # Helper method for create_input_port and create_output_port
         def create_port(is_output, klass, name, type, options)
+            # Load the typekit, but no need to check on it being exported since
+            # #find_orocos_type_name_by_type will do it for us
+            Orocos.load_typekit_for(type, false)
             orocos_type_name = find_orocos_type_name_by_type(type)
-            Orocos.load_typekit_for orocos_type_name
+            Orocos.load_typekit_for(orocos_type_name, true)
 
             options = Kernel.validate_options options, :permanent => true
             local_port = @local_task.do_create_port(is_output, klass, name, orocos_type_name)
