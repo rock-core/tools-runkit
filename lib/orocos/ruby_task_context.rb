@@ -68,7 +68,9 @@ module Orocos
                 value = type.new
             end
 
-            result = do_read(orocos_type_name, value, copy_old_data)
+            result = Typelib.handle_invalidation(value) do
+                do_read(orocos_type_name, value, copy_old_data)
+            end
             if result == 1 || (result == 0 && copy_old_data)
                 if sample
                     sample.invalidate_changes_from_converted_types
