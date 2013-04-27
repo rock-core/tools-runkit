@@ -66,6 +66,10 @@ module Orocos
                 pp.text " #{name} (#{type_name}), ros: #{topic_name}(#{ros_message_type})"
             end
 
+            def connect_to(port, policy = Hash.new)
+                port.subscribe_to_ros(topic_name, policy)
+            end
+
             def disconnect_from(port)
                 port.remove_stream(topic_name)
             end
@@ -82,7 +86,7 @@ module Orocos
                     :class => OutputReader)
                 reader.port = self
                 reader.policy = policy
-                reader.create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
+                reader.subscribe_to_ros(topic_name, policy)
                 reader
             end
 
@@ -109,7 +113,7 @@ module Orocos
                     :class => InputWriter)
                 writer.port = self
                 writer.policy = policy
-                writer.create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
+                writer.publish_on_ros(topic_name, policy)
                 writer
             end
 
@@ -123,6 +127,44 @@ module Orocos
             def to_proxy(options = Hash.new)
                 task.to_proxy(options).port(name,:type => type)
             end
+        end
+
+        # Resolves an existing topic by name
+        #
+        # @raise [NotFound] if the topic does not exist
+        def self.topic(name)
+            Orocos.name_service.each do |ns|
+                if ns.respond_to?(:find_topic_by_name)
+                    if topic = ns.find_topic_by_name(name)
+                        return topic
+                    end
+                end
+            end
+            raise NotFound, "topic #{name} does not seem to exist"
+        end
+    end
+
+    class OutputPort
+        # Publishes this port on a ROS topic
+        def publish_on_ros(topic_name, policy = Hash.new)
+            create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
+        end
+
+        # Unpublishes this port from a ROS topic
+        def unpublish_from_ros(topic_name)
+            remove_stream(topic_name)
+        end
+    end
+
+    class InputPort
+        # Subscribes this port on a ROS topic
+        def subscribe_to_ros(topic_name, policy = Hash.new)
+            create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
+        end
+
+        # Subscribes this port from a ROS topic
+        def unsubscribe_from_ros(topic_name)
+            remove_stream(topic_name)
         end
     end
 end

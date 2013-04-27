@@ -233,6 +233,13 @@ module Orocos
             end
         end
 
+        # Enumerates the name services registered on this global name service
+        #
+        # @yield [TaskContext]
+        def each(&block)
+            @name_services.each(&block)
+        end
+
         # @return [Array] The array with all underlying name services
         # @raise Orocos::NotFound if no name service was added
         def name_services
