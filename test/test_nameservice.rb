@@ -305,7 +305,7 @@ describe Orocos::CORBA::NameService do
                 Orocos.run('simple_source') do
                     assert Orocos.name_service.names.include?("/simple_source_source")
                     task = Orocos.name_service.get(::Orocos::Namespace::DELIMATOR+"simple_source_source")
-                    ior = Orocos.name_service.ior(::Orocos::Namespace::DELIMATOR+"simple_source_source")
+                    ior = Orocos::CORBA.name_service.ior(::Orocos::Namespace::DELIMATOR+"simple_source_source")
                     assert_equal ior, task.ior
                 end
             end
