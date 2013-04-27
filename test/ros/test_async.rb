@@ -33,8 +33,7 @@ describe Orocos::Async::ROS::NameService do
             ns.get("bla") { |task| recorder.callback_without_error(task) }
             ns.get("bla") { |task,err| recorder.callback_with_error(task, err) }
 
-            sleep 0.1
-            Orocos::Async.step
+            Orocos::Async.steps
         end
 
         def create_test_node
@@ -55,8 +54,7 @@ describe Orocos::Async::ROS::NameService do
             expected = create_test_node
             t = nil
             ns.get(Orocos::ROS.caller_id) { |task| t = task }
-            sleep 0.1
-            Orocos::Async.step
+            Orocos::Async.steps
             assert_is_ros_node_proxy Orocos::ROS.caller_id, t
         end
 
@@ -107,17 +105,12 @@ describe Orocos::ROS::OutputTopic do
             port.on_data do |sample|
                 recorder.received sample
             end
-            sleep 0.1
-            Orocos::Async.event_loop.step
+            Orocos::Async.steps
             local_port.write expected_sample
             # The first read_new is always nil. This is weird and is definitely
             # TODO
-            sleep 0.1
-            Orocos::Async.event_loop.step
-            sleep 0.1
-            Orocos::Async.event_loop.step
-            Orocos::Async.event_loop.step
-            Orocos::Async.event_loop.step
+            sleep 0.2
+            Orocos::Async.steps
         end
     end
 end
