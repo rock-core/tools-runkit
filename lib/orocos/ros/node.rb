@@ -38,6 +38,12 @@ module Orocos
                 @model = model
             end
 
+            def ==(other)
+                other.class == self.class &&
+                    other.name_service == self.name_service &&
+                    other.name == self.name
+            end
+
             # True if this task's model is a subclass of the provided class name
             #
             # This is available only if the deployment in which this task context

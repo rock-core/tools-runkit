@@ -4,30 +4,16 @@ module Orocos
         # ports, a Node will announce all the topics it is subscribed / it
         # publishes as its own ports
         class Topic
-            # The node this topic is associated with
-            attr_reader :task
-            # The "port name", which is not necessarily the topic name
-            attr_reader :name
+            include PortBase
+
             # The topic name
             attr_reader :topic_name
-            # The topic type, as a typelib type
-            attr_reader :type
-            # The topic type name
-            attr_reader :type_name
-            # The topic's type as an orocos type name
-            attr_reader :orocos_type_name
             # The ROS message type name
             attr_reader :ros_message_type
             # Documentation string
             attr_reader :doc
 
             def doc?; false end
-
-            def full_name
-                "#{task.name}/#{name}"
-            end
-
-            def new_sample; type.new end
 
             @@local_transient_port_id = 0
             def self.transient_local_port_name(topic_name)
@@ -37,57 +23,57 @@ module Orocos
             def initialize(task, topic_name, ros_message_type, model = nil,
                            name = topic_name.gsub(/^~?\//, ''),
                            orocos_type_name = nil)
-                @task = task
-                @name = name
-                @ros_message_type = ros_message_type
-                @model = model
-                @topic_name = topic_name
-                @orocos_type_name = orocos_type_name
 
-                if !@orocos_type_name
+                if !orocos_type_name
                     candidates = ROS.find_all_types_for(ros_message_type)
                     if candidates.empty?
                         raise ArgumentError, "ROS message type #{ros_message_type} has no corresponding type on the oroGen side"
                     end
-                    @orocos_type_name ||= candidates.first
+                    orocos_type_name = candidates.first
                 end
 
-                @type =
-                    begin
-                        Orocos.typelib_type_for(@orocos_type_name)
-                    rescue Typelib::NotFound
-                        Orocos.load_typekit_for(@orocos_type_name)
-                        Orocos.typelib_type_for(@orocos_type_name)
-                    end
-                @type_name = @type.name
+                @ros_message_type = ros_message_type
+                @topic_name = topic_name
+
+                super(task, name, orocos_type_name, model)
             end
 
             def pretty_print(pp) # :nodoc:
                 pp.text " #{name} (#{type_name}), ros: #{topic_name}(#{ros_message_type})"
             end
 
-            def connect_to(port, policy = Hash.new)
-                port.subscribe_to_ros(topic_name, policy)
-            end
-
-            def disconnect_from(port)
-                port.remove_stream(topic_name)
+            def ==(other)
+                other.class == self.class &&
+                    other.topic_name == self.topic_name &&
+                    other.task == self.task
             end
         end
 
         class OutputTopic < Topic
-            def reader(policy = Hash.new)
-                # Create ourselves a transient port on Orocos.ruby_task and
-                # connect it to the topic
-                reader = Orocos.ruby_task.create_input_port(
-                    Topic.transient_local_port_name(topic_name),
-                    orocos_type_name,
-                    :permanent => false,
-                    :class => OutputReader)
-                reader.port = self
-                reader.policy = policy
-                reader.subscribe_to_ros(topic_name, policy)
-                reader
+            include OutputPortBase
+
+            # Used by OutputPortReadAccess to determine which output reader class
+            # should be used
+            def self.reader_class; OutputReader end
+
+            # Subscribes an input to this topic
+            #
+            # @param [#to_orocos_port] sink the sink port
+            def connect_to(sink, policy = Hash.new)
+                if !sink.respond_to?(:to_orocos_port)
+                    return super
+                end
+                sink.to_orocos_port.subscribe_to_ros(topic_name, policy)
+            end
+
+            # Unsubscribes an input to this topic
+            #
+            # @param [#to_orocos_port] sink the sink port
+            def disconnect_from(sink)
+                if !sink.respond_to?(:to_orocos_port)
+                    return super
+                end
+                sink.to_orocos_port.unsubscribe_from_ros(topic_name)
             end
 
             def to_async(options = Hash.new)
@@ -103,18 +89,12 @@ module Orocos
         end
 
         class InputTopic < Topic
-            def writer(policy = Hash.new)
-                # Create ourselves a transient port on Orocos.ruby_task and
-                # connect it to the topic
-                writer = Orocos.ruby_task.create_output_port(
-                    Topic.transient_local_port_name(topic_name),
-                    orocos_type_name,
-                    :permanent => false,
-                    :class => InputWriter)
-                writer.port = self
-                writer.policy = policy
-                writer.publish_on_ros(topic_name, policy)
-                writer
+            include InputPortBase
+
+            # Used by InputPortWriteAccess to determine which class should be used
+            # to create the writer
+            def self.writer_class
+                InputWriter
             end
 
             def to_async(options = Hash.new)
@@ -126,6 +106,46 @@ module Orocos
 
             def to_proxy(options = Hash.new)
                 task.to_proxy(options).port(name,:type => type)
+            end
+
+            # This method is part of the connection protocol
+            #
+            # Whenever an output is connected to an input, if the receiver
+            # object cannot resolve the connection, it calls
+            # #resolve_connection_from on its target
+            #
+            # @param [#publish_on_ros] port the port that should be
+            #   published on ROS
+            # @raise [ArgumentError] if the given object cannot be published on
+            #   this ROS topic
+            def resolve_connection_from(port, options = Hash.new)
+                # Note that we are sure that +port+ is an output. We now 'just'
+                # have to check what kind of output, and act accordingly
+                if port.respond_to?(:publish_on_ros)
+                    port.publish_on_ros(topic_name, options)
+                else
+                    raise ArgumentError, "I don't know how to connect #{port} to #{self}"
+                end
+            end
+
+            # This method is part of the connection protocol
+            #
+            # Whenever an output is connected to an input, if the receiver
+            # object cannot resolve the connection, it calls
+            # #resolve_disconnection_from on its target
+            #
+            # @param [#unpublish_from_ros] port the port that should be
+            #   published on ROS
+            # @raise [ArgumentError] if the given object cannot be unpublished from
+            #   this ROS topic
+            def resolve_disconnection_from(port, options = Hash.new)
+                # Note that we are sure that +port+ is an output. We now 'just'
+                # have to check what kind of output, and act accordingly
+                if port.respond_to?(:unpublish_from_ros)
+                    port.unpublish_from_ros(topic_name)
+                else
+                    raise ArgumentError, "I don't know how to disconnect #{port} from #{self}"
+                end
             end
         end
 
@@ -141,30 +161,6 @@ module Orocos
                 end
             end
             raise NotFound, "topic #{name} does not seem to exist"
-        end
-    end
-
-    class OutputPort
-        # Publishes this port on a ROS topic
-        def publish_on_ros(topic_name, policy = Hash.new)
-            create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
-        end
-
-        # Unpublishes this port from a ROS topic
-        def unpublish_from_ros(topic_name)
-            remove_stream(topic_name)
-        end
-    end
-
-    class InputPort
-        # Subscribes this port on a ROS topic
-        def subscribe_to_ros(topic_name, policy = Hash.new)
-            create_stream(Orocos::TRANSPORT_ROS, topic_name, policy)
-        end
-
-        # Subscribes this port from a ROS topic
-        def unsubscribe_from_ros(topic_name)
-            remove_stream(topic_name)
         end
     end
 end

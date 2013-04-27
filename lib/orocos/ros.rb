@@ -23,6 +23,7 @@ require 'orocos/ros/types'
 require 'orocos/ros/name_service'
 require 'orocos/ros/node'
 require 'orocos/ros/topic'
+require 'orocos/ros/ports'
 
 # If ROS_MASTER_URI is set, auto-add the name service to the default
 # list. One can remove it manually afterwards.

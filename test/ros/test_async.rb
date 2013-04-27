@@ -81,7 +81,7 @@ describe Orocos::ROS::OutputTopic do
         Orocos.load_typekit 'base'
         task = new_ruby_task_context 'ros_test'
         port = task.create_output_port('out', '/base/Time')
-        port.create_stream(Orocos::TRANSPORT_ROS, "/ros_test_out")
+        port.publish_on_ros("/ros_test_out")
         @local_port = port
     end
     describe "access through the async API" do
