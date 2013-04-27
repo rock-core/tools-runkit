@@ -3,12 +3,6 @@ require 'utilrb/module/attr_predicate'
 
 module Orocos
     class << self
-	##
-	# :method:logger_guess_timestamp_field?
-	# :call-seq:
-	#   Orocos.logger_guess_timestamp_field? => true or false
-	#   Orocos.logger_guess_timestamp_field = new_value
-	#
 	# Setup of the logger will try to determine the timestamp field in a
 	# datatype. For this it uses the first field in the type, which is of type
 	# base/Time. If set to false (default), Time::now is used for the log time
@@ -22,6 +16,8 @@ module Orocos
     #
     # See OutputPort and InputPort
     class Port
+        include PortBase
+
 	class << self
 	    # The only way to create a Port object (and its derivatives) is
 	    # TaskContext#port
@@ -45,72 +41,9 @@ module Orocos
             transport_names[id] || "unknown transport with ID #{id}"
         end
 
-        # The task this port is part of
-        attr_reader :task
-        # The port name
-        attr_reader :name
-        # The port full name. It is task_name.port_name
-        def full_name; "#{task.name}.#{name}" end
-        # The port's type name as used by the RTT
-        attr_reader :orocos_type_name
-        # The port's type as a Typelib::Type object
-        attr_reader :type
-        # The port's model as either a Orocos::Generation::InputPort or
-        # Orocos::Generation::OutputPort
-        attr_reader :model
-
         # @deprecated
         # Returns the name of the typelib type. Use #type.name instead.
         def type_name; type.name end
-
-        def log_metadata
-            task_model_name = task.model ? task.model.name : ""
-            metadata = Hash['rock_task_model' => task_model_name,
-                'rock_task_name' => task.name,
-                'rock_task_object_name' => name,
-                'rock_stream_type' => 'port',
-                'rock_orocos_type_name' => orocos_type_name]
-
-	    if Orocos.logger_guess_timestamp_field?
-		# see if we can find a time field in the type, which
-		# would qualify as being used as the default time stamp
-		if @type.respond_to? :each_field
-		    @type.each_field do |name, type|
-			if type.name == "/base/Time"
-			    metadata['rock_timestamp_field'] = name
-			    break
-			end
-		    end
-		else
-		    # TODO what about if the type is a base::Time itself
-		end
-	    end
-
-	    metadata
-        end
-
-
-        def initialize(task, name, orocos_type_name, model)
-            @task = task
-            @name = name
-            @orocos_type_name = orocos_type_name
-            @model = model
-            ensure_type_available(:fallback_to_null_type => true)
-
-            if model
-                @max_sizes = model.max_sizes.dup
-            else
-                @max_sizes = Hash.new
-            end
-            @max_sizes.merge!(Orocos.max_sizes_for(type))
-        end
-
-        # True if +self+ and +other+ represent the same port
-        def ==(other)
-            other.class == self.class &&
-                other.task == self.task &&
-                other.name == self.name
-        end
 
         def pretty_print(pp) # :nodoc:
             if type.name != orocos_type_name
@@ -125,18 +58,6 @@ module Orocos
             refine_exceptions do
                 do_disconnect_all
             end
-        end
-
-        def ensure_type_available(options = Hash.new)
-            if !type || type.null?
-                @type = Orocos.find_type_by_orocos_type_name(orocos_type_name, options)
-            end
-        end
-
-        # Returns a new object of this port's type
-        def new_sample
-            ensure_type_available
-            @type.new
         end
 
         DEFAULT_CONNECTION_POLICY = {
@@ -223,56 +144,6 @@ module Orocos
         #Returns the Orocos port 
         def to_orocos_port
             self
-        end
-
-        ##
-        # :method: max_sizes
-        #
-        # :call-seq:
-        #   max_sizes('name.to[].field' => value, 'name.other' => value) => self
-        #   max_sizes => current size specification
-        #
-        # Sets the maximum allowed size for the variable-size containers in
-        # +type+. If the type is a compound, the mapping is given as
-        # path.to.field => size. If it is a container, the size of the
-        # container itself is given as first argument, and the sizes for the
-        # contained values as a second map argument.
-        #
-        # For instance, with the types
-        #
-        #   struct A
-        #   {
-        #       std::vector<int> values;
-        #   };
-        #   struct B
-        #   {
-        #       std::vector<A> field;
-        #   };
-        #
-        # Then sizes on a port of type B would be given with
-        #
-        #   port.max_sizes('field' => 10, 'field[].values' => 20)
-        #
-        # while the sizes on a port of type std::vector<A> would be given
-        # with
-        #
-        #   port.max_sizes(10, 'values' => 20)
-        #
-        dsl_attribute :max_sizes do |*values|
-            # Validate that all values are integers and all names map to
-            # known types
-            value = Orocos::Spec::OutputPort.validate_max_sizes_spec(type, values)
-            max_sizes.merge(value)
-        end
-
-        # Returns the maximum marshalled size of a sample from this port, as
-        # marshalled by typelib
-        #
-        # If the type contains variable-size containers, the result is dependent
-        # on the values given to #max_sizes. If not enough is known, this method
-        # will return nil.
-        def max_marshalling_size
-            Orocos::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
         end
 
         # Publishes or subscribes this port on a stream
@@ -371,43 +242,17 @@ module Orocos
     #
     # They are obtained from TaskContext#port or TaskContext#each_port
     class InputPort
-        # Returns a InputWriter object that allows you to write data to the
-        # remote input port.
-        def writer(policy = Hash.new)
-            ensure_type_available
-            writer = Orocos.ruby_task.create_output_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => InputWriter) 
-            writer.port = self
-            writer.policy = policy
-            writer.connect_to(self, policy)
-            writer
-        end
+        include InputPortBase
 
-        # Writes one sample with a default policy.
-        #
-        # While convenient, this is quite ressource consuming, as each time one
-        # will need to create a new connection between the ruby interpreter and
-        # the remote component.
-        #
-        # Use #writer if you need to write on the same port repeatedly.
-        def write(sample)
-            writer.write(sample)
+        # Used by InputPortWriteAccess to determine which class should be used
+        # to create the writer
+        def self.writer_class
+            InputWriter
         end
 
         def pretty_print(pp) # :nodoc:
             pp.text "in "
             super
-        end
-
-        # Connect this input port to an output port. +options+ defines the
-        # connection policy for the connection.
-        #
-        # See OutputPort#connect_to for a in-depth explanation on +options+.
-        def connect_to(output_port, options = Hash.new)
-            unless output_port.kind_of?(OutputPort)
-                raise ArgumentError, "an input port can only connect to an output port (got #{output_port})"
-            end
-            output_port.connect_to self, options
-            self
         end
     end
 
@@ -415,31 +260,16 @@ module Orocos
     #
     # They are obtained from TaskContext#port or TaskContext#each_port
     class OutputPort
-        # Require this port to disconnect from the provided input port
-        def disconnect_from(input)
-            input = input.to_orocos_port
-            refine_exceptions(input) do
-                do_disconnect_from(input)
-            end
-        end
+        include OutputPortBase
 
         def pretty_print(pp) # :nodoc:
             pp.text "out "
             super
         end
 
-        # Returns an OutputReader object that is connected to that port
-        #
-        # The policy dictates how data should flow between the port and the
-        # reader object. See #prepare_policy
-        def reader(policy = Hash.new)
-            ensure_type_available
-            reader = Orocos.ruby_task.create_input_port(Port.transient_local_port_name(full_name), orocos_type_name, :permanent => false, :class => OutputReader)
-            reader.port = self
-            reader.policy = policy
-            connect_to(reader, policy)
-            reader
-        end
+        # Used by OutputPortReadAccess to determine which output reader class
+        # should be used
+        def self.reader_class; OutputReader end
 
         # Connect this output port to an input port. +options+ defines the
         # connection policy for the connection. If a task is given instead of
@@ -465,16 +295,11 @@ module Orocos
         # Note that new samples will be lost if they are received when the
         # buffer is full.
         def connect_to(input_port, options = Hash.new)
-            input_port = if input_port.respond_to? :find_port
-                              #assuming input_port is a TaskContext
-                              if !(port = input_port.find_input_port(type,nil))
-                                  raise NotFound, "port #{name} does not match any input port of the TaskContext #{input_port.name}."
-                              end
-                              port.to_orocos_port
-                          else
-                              input_port.to_orocos_port
-                          end
+            if !input_port.respond_to?(:to_orocos_port)
+                return super
+            end
 
+            input_port = input_port.to_orocos_port
             if !input_port.kind_of?(InputPort)
                 raise ArgumentError, "an output port can only connect to an input port (got #{input_port})"
             elsif input_port.type.name != type.name
@@ -487,7 +312,9 @@ module Orocos
                     (task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id)
             end
             begin
-                do_connect_to(input_port, policy)
+                refine_exceptions(input_port) do
+                    do_connect_to(input_port, policy)
+                end
             rescue Orocos::ConnectionFailed => e
                 if policy[:transport] == TRANSPORT_MQ && Orocos::MQueue.auto_fallback_to_corba?
                     policy[:transport] = TRANSPORT_CORBA
@@ -500,6 +327,18 @@ module Orocos
             self
         rescue Orocos::ConnectionFailed => e
             raise e, "failed to connect #{full_name} => #{input_port.full_name} with policy #{policy.inspect}"
+        end
+
+        # Require this port to disconnect from the provided input port
+        def disconnect_from(input)
+            if !input.respond_to?(:to_orocos_port)
+                return super
+            end
+
+            input = input.to_orocos_port
+            refine_exceptions(input) do
+                do_disconnect_from(input)
+            end
         end
     end
 end

@@ -564,5 +564,39 @@ module Orocos
                 model
             end
         end
+
+        def connect_to(sink, policy = Hash.new)
+            port = find_output_port(sink.type, nil)
+            if !port
+                raise ArgumentError, "port #{sink.name} does not match any output port of #{name}"
+            end
+            port.connect_to(sink, policy)
+        end
+
+        def disconnect_from(sink, policy = Hash.new)
+            each_output_port do |out_port|
+                if out_port.type == sink.type
+                    out_port.disconnect_from(sink)
+                end
+            end
+            nil
+        end
+
+        def resolve_connection_from(source, policy = Hash.new)
+            port = find_input_port(source.type,nil)
+            if !port
+                raise ArgumentError, "port #{source.name} does not match any input port of #{name}."
+            end
+            source.connect_to(port, policy)
+        end
+
+        def resolve_disconnection_from(source)
+            each_input_port do |in_port|
+                if in_port.type == source.type
+                    source.disconnect_from(in_port)
+                end
+            end
+            nil
+        end
     end
 end
