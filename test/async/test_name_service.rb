@@ -161,27 +161,31 @@ describe Orocos::Async::Local::NameService do
         error.must_be_instance_of Orocos::NotFound
     end
 
-    it "should return a TaskContextProxy" do 
-        Orocos.run('process') do
-            ns = Orocos::Async::Local::NameService.new
-            t = Orocos.get "process_Test"
-            ns.register t
-            t = ns.get "process_Test"
-            t.must_be_instance_of Orocos::Async::CORBA::TaskContext
-            t.wait
-            assert t.reachable?
+    describe "#get" do
+        it "should return a TaskContextProxy" do 
+            Orocos.run('process') do
+                ns = Orocos::Async::Local::NameService.new
+                t = Orocos.get "process_Test"
+                ns.register t
+                t = ns.get "process_Test"
+                t.must_be_instance_of Orocos::Async::CORBA::TaskContext
+                t.wait
+                assert t.reachable?
+            end
         end
     end
 
-    it "should return a TaskContextProxy" do 
-        Orocos.run('process') do
-            ns = Orocos::Async::Local::NameService.new
-            t = Orocos.get "process_Test"
-            ns.register t
-            t = ns.proxy "process_Test"
-            t.must_be_instance_of Orocos::Async::TaskContextProxy
-            t.wait
-            assert t.reachable?
+    describe "#proxy" do
+        it "should return a TaskContextProxy" do 
+            Orocos.run('process') do
+                ns = Orocos::Async::Local::NameService.new
+                t = Orocos.get "process_Test"
+                ns.register t
+                t = ns.proxy "process_Test"
+                t.must_be_instance_of Orocos::Async::TaskContextProxy
+                t.wait
+                assert t.reachable?
+            end
         end
     end
 end

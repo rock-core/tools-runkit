@@ -51,7 +51,7 @@ module Orocos
         # @return [Boolean]
         def same_namespace?(name)
             ns,_ = split_name(name)
-            if(!ns || (ns.empty? && !namespace) || ns == namespace)
+            if(!ns || !namespace || ns == namespace)
                true
             else
                false

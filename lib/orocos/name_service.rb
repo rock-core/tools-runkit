@@ -395,16 +395,15 @@ module Orocos
             # @note The namespace is always "Local"
             def initialize(tasks =[])
                 raise ArgumentError, "wrong argument - Array was expected" unless tasks.is_a? Array
-                @registered_tasks = []
+                @registered_tasks = Array.new
                 tasks.each do |task|
                     register(task)
                 end
-                self.namespace = "Local"
             end
 
             #(see NameServiceBase#name)
             def name
-                super + ":" + namespace
+                super + ":Local"
             end
 
             # Returns an Async object that maps to this name service
