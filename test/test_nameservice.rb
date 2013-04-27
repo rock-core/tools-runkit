@@ -215,6 +215,7 @@ describe Orocos::CORBA::NameService do
         it "must be able to deregister and reregister it to the name service" do
             Orocos.run('simple_source') do
                 task = Orocos::CORBA.name_service.get("simple_source_source")
+                assert(Orocos::CORBA::name_service.names.include?("/simple_source_source"))
                 Orocos::CORBA::name_service.deregister("/simple_source_source")
                 assert(!Orocos::CORBA::name_service.names.include?("/simple_source_source"))
                 Orocos::CORBA::name_service.register(task)
