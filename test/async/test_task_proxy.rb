@@ -246,17 +246,21 @@ describe Orocos::Async::AttributeProxy do
             end
         end
 
-        it "should call on_change" do
+        it "should call on_change when the value is changed" do
             Orocos.run('process') do
+                t  = Orocos.name_service.get 'process_Test'
                 t1 = Orocos::Async.proxy("process_Test")
-                p = t1.attribute("att2",:wait => true)
-                val = nil
-                p.on_change do |data|
-                    val = data
-                end
-                sleep 0.1
+                p = t1.attribute("att2",:wait => true,:period=>0)
+
+                # 84 is the magical hardcoded initialization value in the
+                # process::Task constructor
+                listener = flexmock
+                listener.should_receive(:data).with(84).once
+                listener.should_receive(:data).with(10).once
+                p.on_change { |data| listener.data(data) }
                 Orocos::Async.steps
-                assert val
+                t.attribute('att2').write(10)
+                Orocos::Async.steps
             end
         end
 
@@ -326,17 +330,21 @@ describe Orocos::Async::PropertyProxy do
             end
         end
 
-        it "should call on_change" do
+        it "should call on_change when the value is changed" do
             Orocos.run('process') do
+                t  = Orocos.name_service.get 'process_Test'
                 t1 = Orocos::Async.proxy("process_Test")
-                p = t1.property("prop2",:wait => true)
-                val = nil
-                p.on_change do |data|
-                    val = data
-                end
-                sleep 0.1
+                p = t1.property("prop2",:wait => true,:period=>0)
+
+                # 84 is the magical hardcoded initialization value in the
+                # process::Task constructor
+                listener = flexmock
+                listener.should_receive(:data).with(84).once.ordered
+                listener.should_receive(:data).with(10).once.ordered
+                p.on_change { |data| listener.data(data) }
                 Orocos::Async.steps
-                assert val
+                t.property('prop2').write(10)
+                Orocos::Async.steps
             end
         end
 
