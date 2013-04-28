@@ -86,7 +86,7 @@ module Orocos::Async
 
     def self.clear
         event_loop.clear
-        Orocos::Async.name_service.task_context_proxies.clear
+        name_service.clear
     end
 
     # Returns the event loop used by {Orocos::Async}

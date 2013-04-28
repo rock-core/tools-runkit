@@ -107,6 +107,11 @@ module Orocos::Async
             super(name_service,options)
         end
 
+        def clear
+            task_context_proxies.clear
+            orig_clear
+        end
+
         # Overloaded to emit the name_service_added event for already registered
         # name services
         def add_listener(listener)
@@ -162,6 +167,7 @@ module Orocos::Async
             methods -= Orocos::Async::NameService.instance_methods + [:method_missing]
             def_delegator :add,:alias => :orig_add
             def_delegator :add_front,:alias => :orig_add_front
+            def_delegator :clear,:alias => :orig_clear
             def_delegators methods
         end
     end

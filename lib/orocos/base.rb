@@ -394,6 +394,11 @@ module Orocos
             registry.clear_exports(type_export_namespace)
         end
         @registry = nil
+
+        name_service.clear
+        if defined? Orocos::Async
+            Orocos::Async.clear
+        end
     end
 
     def self.reset

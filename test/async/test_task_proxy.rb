@@ -10,9 +10,6 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
 describe Orocos::Async::PortProxy do 
     include Orocos::Spec
-    before do 
-        Orocos::Async.clear
-    end
 
     describe "when not connected" do 
         it "should be an input and output port at the same time because the exact type is unknown" do 
@@ -97,9 +94,6 @@ end
 
 describe Orocos::Async::SubPortProxy do 
     include Orocos::Spec
-    before do 
-        Orocos::Async.clear
-    end
 
     describe "when not connected" do
         it "should raise if the type is accessed but not given" do 
@@ -154,9 +148,6 @@ end
 
 describe Orocos::Async::PropertyProxy do 
     include Orocos::Spec
-    before do 
-        Orocos::Async.clear
-    end
 
     describe "on_reachable" do 
         it "must be called once when a prop gets reachable" do 
@@ -194,9 +185,6 @@ end
 
 describe Orocos::Async::AttributeProxy do 
     include Orocos::Spec
-    before do 
-        Orocos::Async.clear
-    end
 
     describe "when not connected" do 
         it "should raise Orocos::NotFound if someone is accessing the type name of the attribute which is not yet known" do 
@@ -292,9 +280,6 @@ end
 
 describe Orocos::Async::PropertyProxy do 
     include Orocos::Spec
-    before do 
-        Orocos::Async.clear
-    end
 
     describe "when not connected" do 
         it "should raise Orocos::NotFound if someone is accessing the type name of the property which is not yet known" do 
@@ -370,20 +355,8 @@ end
 
 describe Orocos::Async::TaskContextProxy do
     include Orocos::Spec
-    before do 
-        Orocos::Async.clear
-    end
 
     describe "initialize" do 
-        before do 
-            begin
-                Orocos::Async.clear
-                Orocos::Async.steps
-            rescue
-                Orocos::Async.clear
-            end
-        end
-
         it "should raise Orocos::NotFound if remote task is unreachable and :raise is set to true" do
             t1 = Orocos::Async::TaskContextProxy.new("bla",:raise => true)
             assert_raises(Orocos::NotFound) do

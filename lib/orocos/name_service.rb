@@ -374,7 +374,11 @@ module Orocos
         #
         # @param [String] name The name of the task
         def error_message(name)
-            "The remote task context #{name} could not be resolved using following name services (in priority order): #{name_services.join(', ')}"
+            if name_services.empty?
+                "the remote task context #{name} could not be resolved, because no name services are registered"
+            else
+                "the remote task context #{name} could not be resolved using following name services (in priority order): #{name_services.join(', ')}"
+            end
         end
 
     end
