@@ -28,6 +28,10 @@ module Orocos
         # @param [String,Array] names the names which shall be mapped
         # @return [String,Array] the mapped names
         def map_to_namespace(names)
+            if !namespace
+                return names
+            end
+
             ary = Array(names)
             ary.map! do |n|
                 _,name = split_name(n)
