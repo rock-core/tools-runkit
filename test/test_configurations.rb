@@ -275,10 +275,10 @@ describe Orocos::TaskConfigurations do
             end
             simple_array[0, 3] = [1, 2, 3]
             verify_applied_conf task, 'compound' do
-                assert_conf_value 'enm', "Symbol", Symbol, :Second
-                assert_conf_value 'intg', "Fixnum", Fixnum, 30
+                assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 30
                 assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test2"
-                assert_conf_value 'fp', 'Float', Float, 0.2
+                assert_conf_value 'fp', '/double', Typelib::NumericType, 0.2
                 assert_conf_value 'simple_array', '/int32_t[10]', Typelib::ArrayType, simple_array do |v|
                     v.to_a
                 end
@@ -301,58 +301,58 @@ describe Orocos::TaskConfigurations do
             task = Orocos::TaskContext.get "configurations"
 
             verify_apply_conf task, conf, 'compound_in_compound', 'compound', 'compound' do
-                assert_conf_value 'enm', "Symbol", Symbol, :Third
-                assert_conf_value 'intg', "Fixnum", Fixnum, 30
+                assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 30
                 assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test2"
-                assert_conf_value 'fp', 'Float', Float, 0.2
+                assert_conf_value 'fp', '/double', Typelib::NumericType, 0.2
             end
 
             verify_apply_conf task, conf, 'vector_of_compound', 'compound', 'vector_of_compound' do
-                assert_conf_value 0, 'enm', "Symbol", Symbol, :First
-                assert_conf_value 0, 'intg', "Fixnum", Fixnum, 10
-                assert_conf_value 1, 'enm', "Symbol", Symbol, :Second
-                assert_conf_value 1, 'intg', "Fixnum", Fixnum, 20
-                assert_conf_value 2, 'enm', "Symbol", Symbol, :Third
-                assert_conf_value 2, 'intg', "Fixnum", Fixnum, 30
+                assert_conf_value 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 0, 'intg', "/int32_t", Typelib::NumericType, 10
+                assert_conf_value 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 1, 'intg', "/int32_t", Typelib::NumericType, 20
+                assert_conf_value 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 2, 'intg', "/int32_t", Typelib::NumericType, 30
             end
 
             verify_apply_conf task, conf, 'vector_of_vector_of_compound', 'compound', 'vector_of_vector_of_compound' do
-                assert_conf_value 0, 0, 'enm', "Symbol", Symbol, :First
-                assert_conf_value 0, 0, 'intg', "Fixnum", Fixnum, 10
-                assert_conf_value 0, 1, 'enm', "Symbol", Symbol, :Second
-                assert_conf_value 0, 1, 'intg', "Fixnum", Fixnum, 20
-                assert_conf_value 0, 2, 'enm', "Symbol", Symbol, :Third
-                assert_conf_value 0, 2, 'intg', "Fixnum", Fixnum, 30
-                assert_conf_value 1, 0, 'enm', "Symbol", Symbol, :First
-                assert_conf_value 1, 0, 'intg', "Fixnum", Fixnum, 11
-                assert_conf_value 1, 1, 'enm', "Symbol", Symbol, :Second
-                assert_conf_value 1, 1, 'intg', "Fixnum", Fixnum, 21
-                assert_conf_value 1, 2, 'enm', "Symbol", Symbol, :Third
-                assert_conf_value 1, 2, 'intg', "Fixnum", Fixnum, 31
+                assert_conf_value 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
+                assert_conf_value 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 0, 1, 'intg', "/int32_t", Typelib::NumericType, 20
+                assert_conf_value 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 0, 2, 'intg', "/int32_t", Typelib::NumericType, 30
+                assert_conf_value 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 1, 0, 'intg', "/int32_t", Typelib::NumericType, 11
+                assert_conf_value 1, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 1, 1, 'intg', "/int32_t", Typelib::NumericType, 21
+                assert_conf_value 1, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 1, 2, 'intg', "/int32_t", Typelib::NumericType, 31
             end
 
             verify_apply_conf task, conf, 'array_of_compound', 'compound', 'array_of_compound' do
-                assert_conf_value 0, 'enm', "Symbol", Symbol, :First
-                assert_conf_value 0, 'intg', "Fixnum", Fixnum, 10
-                assert_conf_value 1, 'enm', "Symbol", Symbol, :Second
-                assert_conf_value 1, 'intg', "Fixnum", Fixnum, 20
-                assert_conf_value 2, 'enm', "Symbol", Symbol, :Third
-                assert_conf_value 2, 'intg', "Fixnum", Fixnum, 30
+                assert_conf_value 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 0, 'intg', "/int32_t", Typelib::NumericType, 10
+                assert_conf_value 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 1, 'intg', "/int32_t", Typelib::NumericType, 20
+                assert_conf_value 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 2, 'intg', "/int32_t", Typelib::NumericType, 30
             end
 
             verify_apply_conf task, conf, 'array_of_vector_of_compound', 'compound', 'array_of_vector_of_compound' do
-                assert_conf_value 0, 0, 'enm', "Symbol", Symbol, :First
-                assert_conf_value 0, 0, 'intg', "Fixnum", Fixnum, 10
-                assert_conf_value 0, 1, 'enm', "Symbol", Symbol, :Second
-                assert_conf_value 0, 1, 'intg', "Fixnum", Fixnum, 20
-                assert_conf_value 0, 2, 'enm', "Symbol", Symbol, :Third
-                assert_conf_value 0, 2, 'intg', "Fixnum", Fixnum, 30
-                assert_conf_value 1, 0, 'enm', "Symbol", Symbol, :First
-                assert_conf_value 1, 0, 'intg', "Fixnum", Fixnum, 11
-                assert_conf_value 1, 1, 'enm', "Symbol", Symbol, :Second
-                assert_conf_value 1, 1, 'intg', "Fixnum", Fixnum, 21
-                assert_conf_value 1, 2, 'enm', "Symbol", Symbol, :Third
-                assert_conf_value 1, 2, 'intg', "Fixnum", Fixnum, 31
+                assert_conf_value 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
+                assert_conf_value 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 0, 1, 'intg', "/int32_t", Typelib::NumericType, 20
+                assert_conf_value 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 0, 2, 'intg', "/int32_t", Typelib::NumericType, 30
+                assert_conf_value 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 1, 0, 'intg', "/int32_t", Typelib::NumericType, 11
+                assert_conf_value 1, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 1, 1, 'intg', "/int32_t", Typelib::NumericType, 21
+                assert_conf_value 1, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 1, 2, 'intg', "/int32_t", Typelib::NumericType, 31
             end
         end
     end
