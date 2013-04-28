@@ -127,9 +127,9 @@ module Orocos
                          :callback => method(:done_system_state)]) do
 
                     @ros_master_sync.synchronize do
-                        new_update_time = Time.now
                         state  = @ros_master.system_state
                         topics = @ros_master.topics
+                        new_update_time = Time.now
                         [new_update_time, NodeGraph.from_system_state(state, topics)]
                     end
                 end
