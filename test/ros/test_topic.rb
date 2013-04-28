@@ -15,13 +15,16 @@ end
 describe Orocos::ROS::OutputTopic do
     include Orocos::Spec
 
-    attr_reader :topic
+    attr_reader :port, :topic, :name_service
     before do
         Orocos.load_typekit 'base'
+        @name_service = Orocos::ROS::NameService.new
         task = new_ruby_task_context 'ros_test'
-        port = task.create_output_port('out', '/base/Time')
+        @port = task.create_output_port('out', '/base/Time')
         port.publish_on_ros
-        @topic = Orocos::ROS.topic '/ros_test/out'
+        sleep 0.1
+        node = name_service.get Orocos::ROS.caller_id
+        @topic = node.output_port('/ros_test/out')
     end
 
     describe "connect_to" do
@@ -36,13 +39,6 @@ describe Orocos::ROS::OutputTopic do
     end
 
     it "should be able to create a functional reader object" do
-        Orocos.load_typekit 'base'
-        task = new_ruby_task_context 'ros_test'
-        port = task.create_output_port('out', '/base/Time')
-        port.create_stream(Orocos::TRANSPORT_ROS, "/ros_test_out")
-
-        node = name_service.get(Orocos::ROS.caller_id)
-        topic = node.find_output_port('ros_test_out')
         reader = topic.reader
         sample = port.new_sample
         sample.microseconds = 342235
@@ -61,13 +57,16 @@ end
 describe Orocos::ROS::InputTopic do
     include Orocos::Spec
 
-    attr_reader :topic
+    attr_reader :port, :topic, :name_service
     before do
+        @name_service = Orocos::ROS::NameService.new
         Orocos.load_typekit 'base'
         task = new_ruby_task_context 'ros_test'
-        port = task.create_input_port('in', '/base/Time')
+        @port = task.create_input_port('in', '/base/Time')
         port.subscribe_to_ros
-        @topic = Orocos::ROS.topic '/ros_test/in'
+        sleep 0.1 # publication on ROS is asynchronous
+        node = name_service.get Orocos::ROS.caller_id
+        @topic = node.input_port('/ros_test/in')
     end
 
     describe "connect_to" do
@@ -82,13 +81,6 @@ describe Orocos::ROS::InputTopic do
     end
 
     it "should be able to create a writer object" do
-        Orocos.load_typekit 'base'
-        task = new_ruby_task_context 'ros_test'
-        port = task.create_input_port('out', '/base/Time')
-        port.create_stream(Orocos::TRANSPORT_ROS, "/ros_test_in")
-
-        node = name_service.get(Orocos::ROS.caller_id)
-        topic = node.find_input_port('ros_test_in')
         writer = topic.writer
         sample = port.new_sample
         sample.microseconds = 342235
