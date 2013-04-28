@@ -106,6 +106,13 @@ module Orocos
         include FlexMock::MockContainer
 
         def setup
+            if defined?(Orocos::Async)
+                Orocos::Async::NameServiceBase.default_period = 0
+                Orocos::Async::TaskContextBase.default_period = 0
+                Orocos::Async::CORBA::Attribute.default_period = 0
+                Orocos::Async::CORBA::Property.default_period = 0
+                Orocos::Async::CORBA::OutputReader.default_period = 0
+            end
             if File.directory?(WORK_DIR)
                 Orocos.default_working_directory = WORK_DIR
             end

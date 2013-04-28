@@ -21,6 +21,8 @@ module Orocos::Async
 
         attr_reader :task_context_proxies
 
+        self.default_period = 1.0
+
         def initialize(name_service,options = Hash.new)
             @options ||= Kernel.validate_options options,:period => default_period,:start => false,:sync_key => nil,:known_errors => Orocos::NotFound,:event_loop => Orocos::Async.event_loop
             @stored_names ||= Set.new
@@ -92,8 +94,6 @@ module Orocos::Async
     end
 
     class NameService < NameServiceBase
-        self.default_period = 1.0
-
         define_events :name_service_added, :name_service_removed
 
         def initialize(*name_services)
@@ -169,7 +169,6 @@ module Orocos::Async
     module Local
         class NameService < NameServiceBase
             extend Utilrb::EventLoop::Forwardable
-            self.default_period = 1.0
 
             def initialize(options = Hash.new)
                 options,other_options = Kernel.filter_options options,{:tasks => Array.new}
@@ -210,7 +209,6 @@ module Orocos::Async
     # network)
     class RemoteNameService < NameServiceBase
         extend Utilrb::EventLoop::Forwardable
-        self.default_period = 1.0
 
         def initialize(name_service,options = Hash.new)
             options = Kernel.validate_options options,
@@ -320,7 +318,6 @@ module Orocos::Async
 
         class NameService < RemoteNameService
             extend Utilrb::EventLoop::Forwardable
-            self.default_period = 1.0
 
             def initialize(ip="",port="",options = Hash.new)
                 ip,port,options = if ip.is_a? Hash

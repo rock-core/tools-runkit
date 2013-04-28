@@ -395,7 +395,7 @@ module Orocos::Async
             @options,@task_options = Kernel.filter_options options,{:name_service => Orocos::Async.name_service,
                                                        :event_loop => Orocos::Async.event_loop,
                                                        :reconnect => true,
-                                                       :retry_period => 1.0,
+                                                       :retry_period => Orocos::Async::TaskContextBase.default_period,
                                                        :use => nil,
                                                        :raise => false,
                                                        :wait => nil }
