@@ -149,6 +149,10 @@ module Orocos
             @allocated_task_contexts << task
             task
         end
+
+        def wait_for(timeout = 5, &block)
+            Orocos::Async.wait_for(0.005, timeout, &block)
+        end
     end
 end
 

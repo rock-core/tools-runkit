@@ -62,8 +62,7 @@ describe Orocos::Async::PortProxy do
 
             p2 = t1.port("cycle")
             Orocos.run('simple_source') do
-                sleep 0.2
-                Orocos::Async.steps
+                p2.wait
                 assert_equal "Fixnum",p.type_name
             end
         end
@@ -146,8 +145,7 @@ describe Orocos::Async::SubPortProxy do
                 end
                 t1.configure
                 t1.start
-                sleep 0.1
-                Orocos::Async.steps
+                wait_for { data }
                 data.must_be_instance_of Fixnum
             end
         end
@@ -168,10 +166,8 @@ describe Orocos::Async::PropertyProxy do
                 counter +=1
             end
             Orocos.run('process') do
-                sleep 0.1
-                Orocos::Async.steps
+                wait_for { counter > 0 }
             end
-            sleep 0.1
             Orocos::Async.steps
             assert_equal 1,counter
         end
@@ -190,7 +186,6 @@ describe Orocos::Async::PropertyProxy do
             Orocos.run('process') do
                 prop.wait
             end
-            sleep 0.1
             Orocos::Async.steps
             assert_equal 2,counter
         end
@@ -235,8 +230,7 @@ describe Orocos::Async::AttributeProxy do
 
             p2 = t1.attribute("att3")
             Orocos.run('process') do
-                sleep 0.1
-                Orocos::Async.wait_for 0.1,1 do
+                wait_for do
                     p2.reachable?
                 end
                 assert_equal "/std/string",p2.type_name
@@ -275,22 +269,16 @@ describe Orocos::Async::AttributeProxy do
             end
 
             Orocos.run('process') do
-                sleep 0.1
-                Orocos::Async.steps
-                sleep 0.1
                 Orocos::Async.steps
                 assert p.reachable?
             end
             assert_equal 1,vals.size
 
-            Orocos::Async.event_loop.wait_for(0.05,1) do
+            wait_for do
                 !t1.reachable? && !p.reachable?
             end
 
             Orocos.run('process') do
-                sleep 0.1
-                Orocos::Async.steps
-                sleep 0.1
                 Orocos::Async.steps
             end
             assert_equal 2,vals.size
@@ -322,7 +310,7 @@ describe Orocos::Async::PropertyProxy do
 
             p2 = t1.property("prop3")
             Orocos.run('process') do
-                Orocos::Async.wait_for 0.1,1 do 
+                wait_for do 
                     p2.reachable?
                 end
                 assert_equal "/std/string",p2.type_name
@@ -361,21 +349,11 @@ describe Orocos::Async::PropertyProxy do
             end
 
             Orocos.run('process') do
-                sleep 0.11
-                Orocos::Async.steps
-                sleep 0.1
-                Orocos::Async.steps
+                wait_for { vals.size == 1 }
             end
-            assert_equal 1,vals.size
-            sleep 0.1
-            Orocos::Async.steps
-            sleep 0.1
             Orocos::Async.steps
             Orocos.run('process') do
-                sleep 0.11
-                Orocos::Async.steps
-                sleep 0.1
-                Orocos::Async.steps
+                wait_for { vals.size == 2 }
             end
             assert_equal 2,vals.size
         end
@@ -391,7 +369,6 @@ describe Orocos::Async::TaskContextProxy do
     describe "initialize" do 
         before do 
             begin
-                sleep 0.1
                 Orocos::Async.clear
                 Orocos::Async.steps
             rescue
@@ -401,27 +378,21 @@ describe Orocos::Async::TaskContextProxy do
 
         it "should raise Orocos::NotFound if remote task is unreachable and :raise is set to true" do
             t1 = Orocos::Async::TaskContextProxy.new("bla",:raise => true)
-            Orocos::Async.step
-            sleep 0.1
             assert_raises(Orocos::NotFound) do
-                Orocos::Async.step
-                sleep 0.1
-                Orocos::Async.step
+                Orocos::Async.steps
             end
             assert !t1.reachable?
         end
 
         it "should not raise NotFound if remote task is unreachable and :raise is set to false" do
             t1 = Orocos::Async::TaskContextProxy.new("bla")
-            sleep 0.2
             Orocos::Async.step
             assert !t1.reachable?
         end
 
         it "should raise NotFound if a method is called while task is unreachable" do
             t1 = Orocos::Async::TaskContextProxy.new("bla")
-            sleep 0.2
-            Orocos::Async.step
+            Orocos::Async.steps
             assert_raises(Orocos::NotFound) do
                 assert !t1.model
             end
@@ -463,32 +434,20 @@ describe Orocos::Async::TaskContextProxy do
             assert_equal 1, disconnects # on_unreachable will be called because is not yet reachable
 
             Orocos.run('process') do
-                sleep 0.11
-                Orocos::Async.step # queue reconnect
-                sleep 0.11
-                Orocos::Async.step # add reconnect task to thread pool
-                sleep 0.11
-                Orocos::Async.step # process callback
+                Orocos::Async.steps # queue reconnect
                 assert t1.reachable?
                 t1.instance_variable_get(:@delegator_obj).must_be_instance_of Orocos::Async::CORBA::TaskContext
                 assert_equal 1, disconnects 
             end
             assert !t1.reachable?
-            sleep 0.1
             Orocos::Async.steps # queue reconnect
             assert_equal 1, connects
             assert_equal 2, disconnects
 
             Orocos.run('process') do
-                sleep 0.11
-                Orocos::Async.step # queue reconnect
-                sleep 0.11
-                Orocos::Async.step # add reconnect task to thread pool
-                sleep 0.11
-                Orocos::Async.step # process callback
+                Orocos::Async.steps # queue reconnect
                 assert t1.reachable?
             end
-            sleep 0.1
             Orocos::Async.steps # queue reconnect
             assert !t1.reachable?
             assert_equal 2, connects
@@ -525,18 +484,11 @@ describe Orocos::Async::TaskContextProxy do
             #test reconnect logic
             0.upto(2) do
                 Orocos.run('simple_source') do
-                    sleep 0.1
-                    Orocos::Async.steps
-                    sleep 0.1
                     Orocos::Async.steps
                     t1.configure{}
                     t1.start{}
-                    while data.size < 3
-                        Orocos::Async.step
-                        sleep 0.001
-                    end
+                    wait_for(2) { data.size == 3 }
                 end
-                sleep 0.1
                 Orocos::Async.steps
                 assert !data.empty?
                 data.each_with_index do |d,i|
