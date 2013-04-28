@@ -18,7 +18,7 @@ module Orocos::Async::CORBA
                 reachable!(attribute)
             end
             @poll_timer = @event_loop.async_every(method(:read), {:period => period, :start => false,
-                                                  :known_errors => [Orocos::NotFound,Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound]}) do |data,error|
+                                                  :known_errors => [Orocos::NotFound,Orocos::ComError,Orocos::TypekitTypeNotFound]}) do |data,error|
                 if error
                     @poll_timer.cancel
                     self.period = @poll_timer.period
