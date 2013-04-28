@@ -19,6 +19,8 @@ module Orocos::Async
 
         define_events :task_added, :task_removed
 
+        attr_reader :task_context_proxies
+
         def initialize(name_service,options = Hash.new)
             @options ||= Kernel.validate_options options,:period => default_period,:start => false,:sync_key => nil,:known_errors => Orocos::NotFound,:event_loop => Orocos::Async.event_loop
             @stored_names ||= Set.new
@@ -42,6 +44,7 @@ module Orocos::Async
                 end
             end
             @watchdog_timer.doc = name
+            @task_context_proxies = Array.new
         end
 
         def really_add_listener(listener)
@@ -65,7 +68,6 @@ module Orocos::Async
         end
 
         def proxy(name,options = Hash.new)
-            @task_context_proxies ||= Array.new
             options[:event_loop] ||= @event_loop
             options[:name_service] ||= self
             task = @task_context_proxies.find do |t|
