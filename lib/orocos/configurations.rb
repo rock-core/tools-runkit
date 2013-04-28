@@ -293,7 +293,7 @@ module Orocos
 
         def apply_configuration_hash_to_value(value, conf)
             conf.each do |conf_key, conf_value|
-                value[conf_key] = apply_configuration_to_value(value.raw_get_field(conf_key), conf_value)
+                value[conf_key] = apply_configuration_to_value(value.raw_get(conf_key), conf_value)
             end
             value
         end
