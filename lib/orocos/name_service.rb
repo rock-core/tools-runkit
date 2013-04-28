@@ -243,9 +243,6 @@ module Orocos
         # @return [Array] The array with all underlying name services
         # @raise Orocos::NotFound if no name service was added
         def name_services
-            if @name_services.empty?
-                raise Orocos::NotFound, "No name service has been enabled"
-            end
             @name_services
         end
 
@@ -308,7 +305,7 @@ module Orocos
 
         #(see NameServiceBase#get)
         def get(name,options = Hash.new)
-            tasks = name_services.each do |service|
+            name_services.each do |service|
                 begin
                     if service.same_namespace?(name)
                         task_context = service.get(name,options)
