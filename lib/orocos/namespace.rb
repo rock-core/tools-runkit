@@ -10,12 +10,8 @@ module Orocos
         #
         # @param [String] name the new namespace name
         def namespace=(name)
-            ns,name = split_name(name)
-            @namespace = if ns
-                             ns
-                         else
-                             name
-                         end
+            Namespace.validate_namespace_name(name)
+            @namespace = name
         end
 
         # Returns the name of the used namespace.
@@ -97,6 +93,19 @@ module Orocos
                [$1, $2]
             else
                [nil, name]
+            end
+        end
+
+        # Validates that the given name can be used as a namespace name
+        #
+        # The only constraint so far is that namespace names cannot contain the
+        # namespace-to-name separation character {DELIMATOR}
+        #
+        # @param [String] name the namespace name that should be validated
+        # @raise [ArgumentError] if name is not a valid namespace name
+        def self.validate_namespace_name(name)
+            if name =~ /#{DELIMATOR}/
+                raise ArgumentError, "namespace names cannot contain #{DELIMATOR}"
             end
         end
     end
