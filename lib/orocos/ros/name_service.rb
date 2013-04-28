@@ -248,7 +248,6 @@ module Orocos
             def wait_for_update(barrier = Time.now)
                 result = nil
                 @mutex.synchronize do
-                    barrier = update_time
                     while update_time <= barrier
                         process_ros_master_exception
                         @updated_graph_signal.wait(@mutex)
