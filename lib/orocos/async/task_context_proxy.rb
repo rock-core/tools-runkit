@@ -755,7 +755,7 @@ module Orocos::Async
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
                     #called in the context of @delegator_obj
-                    attribute(attribute.name)
+                    attribute(attribute.name,attribute.options)
                 end
             end
             @event_loop.call do
@@ -776,7 +776,7 @@ module Orocos::Async
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
                     #called in the context of @delegator_obj
-                    property(property.name)
+                    property(property.name,property.options)
                 end
             end
             @event_loop.call do

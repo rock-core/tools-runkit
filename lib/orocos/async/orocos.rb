@@ -26,8 +26,8 @@ module Orocos
     class Attribute
         def to_async(options = Hash.new)
             if use = options.delete(:use)
-                Orocos::Async::CORBA::Attribute.new(use,self)
-            else to_async(:use => task.to_async(options))
+                Orocos::Async::CORBA::Attribute.new(use,self,options)
+            else to_async(Hash[:use => task.to_async].merge(options))
             end
         end
 
@@ -39,8 +39,8 @@ module Orocos
     class Property
         def to_async(options = Hash.new)
             if use = options.delete(:use)
-                Orocos::Async::CORBA::Property.new(use,self)
-            else to_async(:use => task.to_async(options))
+                Orocos::Async::CORBA::Property.new(use,self,options)
+            else to_async(Hash[:use => task.to_async].merge(options))
             end
         end
 
@@ -52,8 +52,8 @@ module Orocos
     class InputPort
         def to_async(options = Hash.new)
             if use = options.delete(:use)
-                Orocos::Async::CORBA::InputPort.new(use,self)
-            else to_async(:use => task.to_async(options))
+                Orocos::Async::CORBA::InputPort.new(use,self,options)
+            else to_async(Hash[:use => task.to_async].merge(options))
             end
         end
 
@@ -65,8 +65,8 @@ module Orocos
     class OutputPort
         def to_async(options = Hash.new)
             if use = options.delete(:use)
-                Orocos::Async::CORBA::OutputPort.new(use,self)
-            else to_async(:use => task.to_async(options))
+                Orocos::Async::CORBA::OutputPort.new(use,self,options)
+            else to_async(Hash[:use => task.to_async].merge(options))
             end
         end
 

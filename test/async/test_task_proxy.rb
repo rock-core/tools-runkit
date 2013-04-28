@@ -498,5 +498,35 @@ describe Orocos::Async::TaskContextProxy do
             end
         end
     end
+
+    describe "#property" do
+        it "should allow to override the default period on non-reachable tasks" do
+            t1 = Orocos::Async.proxy("simple_source_source")
+            att = t1.property("an_attribute", :period => 0.42)
+            assert_in_delta 0.42, att.period, 0.00001
+        end
+        it "should allow to override the default period on reachable tasks" do
+            Orocos.run('process') do
+                t1 = Orocos::Async.proxy("process_Test")
+                att = t1.property("prop2", :wait => true, :period => 0.42)
+                assert_in_delta 0.42, att.period, 0.00001
+            end
+        end
+    end
+
+    describe "#attribute" do
+        it "should allow to override the default period on reachable tasks" do
+            Orocos.run('process') do
+                t1 = Orocos::Async.proxy("process_Test")
+                att = t1.attribute("att2", :wait => true, :period => 0.42)
+                assert_in_delta 0.42, att.period, 0.00001
+            end
+        end
+        it "should allow to override the default period on non-reachable tasks" do
+            t1 = Orocos::Async.proxy("process_Test")
+            att = t1.attribute("att2", :period => 0.42)
+            assert_in_delta 0.42, att.period, 0.00001
+        end
+    end
 end
 

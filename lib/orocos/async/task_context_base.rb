@@ -233,12 +233,12 @@ module Orocos::Async
             end
         end
 
-        def attribute(name,&block)
-            call_with_async(:orig_attribute,block,Hash.new,name)
+        def attribute(name,options = Hash.new,&block)
+            call_with_async(:orig_attribute,block,options,name)
         end
 
-        def property(name,&block)
-            call_with_async(:orig_property,block,Hash.new,name)
+        def property(name,options = Hash.new,&block)
+            call_with_async(:orig_property,block,options,name)
         end
 
         def port(name, verify = true,options=Hash.new, &block)
