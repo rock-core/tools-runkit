@@ -5,6 +5,9 @@ module Orocos::Async
 
         def initialize(obj,event,use_last_value=true,&block)
             @block = block
+            if !obj
+                raise ArgumentError, "no object given"
+            end
             @obj = obj
             @event = event
             @use_last_value = use_last_value
