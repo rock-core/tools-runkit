@@ -68,7 +68,7 @@ module Orocos
                 value = type.new
             end
 
-            result = Typelib.handle_invalidation(value) do
+            result = value.allocating_operation do
                 do_read(orocos_type_name, value, copy_old_data)
             end
             if result == 1 || (result == 0 && copy_old_data)
