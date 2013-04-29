@@ -738,7 +738,7 @@ module Orocos
                 if services.empty?
                     raise Orocos::NotFound, "Avahi nameservice could not find a task named '#{name}'"
                 elsif services.size > 1
-                    warn "NameService: multiple services '#{name}' found. Possibly due to publishing on IPv4 and IPv6, or on multiple interfaces -- picking first one in list"
+                    warn "Avahi: '#{name}' found multiple times. Possibly due to publishing on IPv4 and IPv6, or on multiple interfaces -- picking first one in list"
                 end
                 ior = services.first.get_description("IOR")
                 raise Orocos::NotFound, "Avahi nameservice could not retrieve an ior for task #{name}" unless ior
