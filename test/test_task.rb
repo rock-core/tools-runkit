@@ -41,8 +41,10 @@ describe Orocos::TaskContext do
 
     it "should return its name and basename"do
         Orocos.run('simple_source') do
-            source = Orocos::TaskContext.get("simple_source_source")
-            assert_equal "/simple_source_source", source.name
+            ns = Orocos::CORBA::NameService.new
+            ns.ip = "127.0.0.1"
+            source = ns.get("simple_source_source")
+            assert_equal "127.0.0.1/simple_source_source", source.name
             assert_equal "simple_source_source", source.basename
         end
     end

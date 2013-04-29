@@ -17,7 +17,8 @@ describe Orocos do
         Orocos::CORBA.cleanup
         Orocos.task_names.must_equal []
         deployments = %w{process simple_source simple_sink}
-        tasks       = %w{/process_Test /simple_source_source /fast_sink /fast_source /simple_sink_sink}
+        tasks       = %w{/process_Test /simple_source_source /fast_sink /fast_source /simple_sink_sink}.
+            map { |name| Orocos::CORBA.map_to_namespace(name) }
         Orocos.run(*deployments) do |*processes|
             Orocos.task_names.to_set.
                 must_equal tasks.to_set

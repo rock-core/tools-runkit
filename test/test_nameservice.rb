@@ -198,15 +198,16 @@ describe Orocos::CORBA::NameService do
             end
         end
         it "must be able to scope with name spaces" do
-            service = Orocos::CORBA::NameService.new
-            service.ip = "127.0.0.1"
             Orocos.run('simple_source') do
+                service = Orocos::CORBA::NameService.new
+                service.ip = "127.0.0.1"
                 task = service.get("127.0.0.1#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert(task)
                 assert_equal("127.0.0.1",task.namespace)
                 assert_equal("127.0.0.1/simple_source_source",task.name)
 
-                task = Orocos::CORBA::name_service.get("#{Orocos::Namespace::DELIMATOR}simple_source_source")
+                service = Orocos::CORBA::NameService.new
+                task = service.get("#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert task
                 assert_equal "",task.namespace
                 assert_equal("/simple_source_source",task.name)
@@ -214,14 +215,15 @@ describe Orocos::CORBA::NameService do
         end
         it "must be able to deregister and reregister it to the name service" do
             Orocos.run('simple_source') do
-                task = Orocos::CORBA.name_service.get("simple_source_source")
-                assert(Orocos::CORBA::name_service.names.include?("/simple_source_source"))
-                Orocos::CORBA::name_service.deregister("/simple_source_source")
-                assert(!Orocos::CORBA::name_service.names.include?("/simple_source_source"))
-                Orocos::CORBA::name_service.register(task)
-                assert(Orocos::CORBA::name_service.names.include?("/simple_source_source"))
+                service = Orocos::CORBA::NameService.new
+                task = service.get("simple_source_source")
+                assert(service.names.include?("/simple_source_source"))
+                service.deregister("/simple_source_source")
+                assert(!service.names.include?("/simple_source_source"))
+                service.register(task)
+                assert(service.names.include?("/simple_source_source"))
                 #check if register does not produce an error if task is already bound 
-                Orocos::CORBA::name_service.register(task)
+                service.register(task)
             end
         end
         it "must iterate over it" do
