@@ -228,7 +228,7 @@ static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE r
     else
     {
         orogen_transports::TypelibMarshallerBase::Handle* handle =
-            transport->createSample();
+            transport->createHandle();
 
         transport->setTypelibSample(handle, static_cast<uint8_t*>(value.getData()));
         RTT::base::DataSourceBase::shared_ptr ds =
