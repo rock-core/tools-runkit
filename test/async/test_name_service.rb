@@ -49,7 +49,7 @@ describe Orocos::Async::NameService do
     end
 
     it "should report that new task are added and removed" do 
-        ns = Orocos::Async::NameService.new(:period => 0.08)
+        ns = Orocos::Async::NameService.new(:period => 0)
         ns << Orocos::Async::CORBA::NameService.new
         names_added = []
         names_removed = []
@@ -59,14 +59,13 @@ describe Orocos::Async::NameService do
         ns.on_task_removed do |n|
             names_removed << n
         end
+        Orocos::Async.steps
         Orocos.run('process') do
-            sleep 0.1
             Orocos::Async.steps
             assert_equal 1,names_added.size
             assert_equal 0,names_removed.size
             assert_equal "/process_Test",names_added.first
         end
-        sleep 0.1
         Orocos::Async.steps
         assert_equal 1,names_added.size
         assert_equal 1,names_removed.size
