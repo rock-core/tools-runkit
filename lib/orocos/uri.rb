@@ -34,20 +34,20 @@ module URI
         def initialize(scheme, userinfo, host, port, registry, path, opaque, query, fragment, parser = DEFAULT_PARSER, arg_check = false)
             super
             @hash = Orocos::from_query(query)
-            strings = path.split("/")
-            strings.shift
-            @klass = strings.shift
-            if @klass == "port"
-                @task_name = if strings.size > 1
-                                 strings.shift 
-                             else
-                                 ""
-                             end
-                strings = strings.join("/").split(".")
-                @task_name += "/#{strings.shift}"
-                @port_name = strings.join(".")
+
+            if klass_match = Regexp.new("/(port)/(.+)").match(path)
+                klass = klass_match [1]
+                case klass
+                when "port"
+                    if port_match = klass_match[2].match(/(.*)\.(\w+)$/)
+                        @task_name, @port_name = port_match[1], port_match[2]
+                    else
+                        raise ArgumentError, "expected task_name.port_name as path, but got #{klass_match[2]}"
+                    end
+                end
+
             else
-                raise ArgumentError, "no class is encoded in:#{path}" unless klass
+                raise ArgumentError, "#{uri} is not a valid path in an orocos URI"
             end
         end
 
