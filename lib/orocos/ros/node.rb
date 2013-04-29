@@ -203,6 +203,13 @@ module Orocos
                 Async::ROS::Node.new(name_service, server, name, options)
             end
 
+            def to_proxy(options = Hash.new)
+                options[:use] ||= to_async
+                # use name service to check if there is already 
+                # a proxy for the task
+                Orocos::Async.proxy(name,options.merge(:name_service => name_service))
+            end
+
             # Tests if this node is still available
             #
             # @raise [Orocos::ComError] if the node is not available anymore
