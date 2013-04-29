@@ -43,7 +43,7 @@ describe URI::Orocos do
     describe "task" do
         it "can be parsed from string" do
             Orocos.run('simple_source') do
-                uri = URI.parse("OROCOS:/port//simple_source_source.cycle?type_name=/int32_t")
+                uri = URI.parse("OROCOS:/port/simple_source_source.cycle?type_name=/int32_t")
                 task = uri.task_proxy
                 task.wait
                 assert task.reachable?
