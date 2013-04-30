@@ -170,36 +170,20 @@ module Orocos
         result
     end
 
-    def self.deployment_model_from_name(name)
-        pkg = Orocos.available_deployments[name]
-        if !pkg
-            raise NotFound, "deployment #{name} does not exist or its pkg-config orogen-#{name} is not found by pkg-config\ncheck your PKG_CONFIG_PATH environment var. Current value is #{ENV['PKG_CONFIG_PATH']}"
-        end
-        orogen_project = Orocos.master_project.using_project(pkg.project_name)
-        model = orogen_project.deployers.find do |d|
-            d.name == name
-        end
-        if !model
-            raise NotFound, "oroGen project #{pkg.project_name} was expected to contain a deployment called #{name} but does not seem to"
-        end
-        model
-    end
-
-
     # Returns the deployment model for the given deployment name
     #
     # @return [Orocos::Spec::Deployment] the deployment model
     # @raise [Orocos::NotFound] if no deployment with that name exists
     def self.deployment_model_from_name(name)
-        project_name = available_deployments[name]
-        if !project_name
+        pkg = available_deployments[name]
+        if !pkg
             raise Orocos::NotFound, "there is no deployment called #{name}"
         end
 
-        tasklib = Orocos.master_project.using_task_library(project_name.project_name)
-        deployment = tasklib.deployers.find { |d| d.name == name }
+        project = Orocos.master_project.using_project(pkg.project_name)
+        deployment = project.deployers.find { |d| d.name == name }
         if !deployment
-            raise InternalError, "cannot find the deployment called #{name} in #{tasklib}. Candidates were #{tasklib.deployers.map(&:name).sort.join(", ")}"
+            raise InternalError, "cannot find the deployment called #{name} in #{project.name}. Candidates were #{project.deployers.map(&:name).sort.join(", ")}"
         end
         deployment
     end
