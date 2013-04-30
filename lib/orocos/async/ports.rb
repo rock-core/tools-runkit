@@ -368,15 +368,15 @@ module Orocos::Async::CORBA
             if block
                 if @global_writer.respond_to? :write
                     @global_writer.write(sample) do |result,error|
-                        if error
-                            block.call result,error if block.arrity == 2
-                        else
-                            block.call
+                        if block.arrity == 2
+                            block.call result,error
+                        elsif !error
+                            block.call result
                         end
                     end
                 # writer is requested waiting for writer obj
                 elsif @global_writer
-                    # strore code block until writer is obtained
+                    # store code block until writer is obtained
                     @write_blocks << [block,sample]
                     @global_writer
                 # create new global writer
