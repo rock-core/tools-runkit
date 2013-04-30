@@ -368,7 +368,7 @@ module Orocos::Async::CORBA
             if block
                 if @global_writer.respond_to? :write
                     @global_writer.write(sample) do |result,error|
-                        if block.arrity == 2
+                        if block.arity == 2
                             block.call result,error
                         elsif !error
                             block.call result
@@ -384,7 +384,7 @@ module Orocos::Async::CORBA
                     @write_blocks << [block,sample]
                     @global_writer ||= writer(@options) do |writer,error|
                         if error
-                            block.call result,error if block.arrity == 2
+                            block.call result,error if block.arity == 2
                         else
                             @global_writer = writer # overwrites @global_writer before that it is a ThreadPool::Task
                             @global_writer.period = @options[:period] if @options.has_key? :period
