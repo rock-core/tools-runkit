@@ -39,7 +39,8 @@ module Orocos::Async::CORBA
                     elsif options.has_key? :use
                         options[:use].ior
                     end
-            super(ior,options.merge(:ior => ior))
+            name = options[:name] || ior
+            super(name,options.merge(:ior => ior))
             @ior = ior.to_str
         end
 
