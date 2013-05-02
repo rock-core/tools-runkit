@@ -176,7 +176,9 @@ module Orocos::Async
             @pending_adds = Array.new
             invalidate_delegator!
             on_error do |e|
-                unreachable!(:error => e)
+                if e.kind_of?(Orocos::ComError)
+                    unreachable!(:error => e)
+                end
             end
         end
 
