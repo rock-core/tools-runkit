@@ -1,4 +1,8 @@
 require 'orocos'
+if Orocos.initialized?
+    Orocos.fatal "you cannot call Orocos.initialize before loading orocos/async"
+    exit 1
+end
 require 'orocos/log'
 require 'orocos/async/object_base'
 require 'orocos/async/async'
