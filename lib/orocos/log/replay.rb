@@ -148,6 +148,7 @@ module Orocos
                 @current_sample = nil
                 @process_qt_events = false
                 @log_config_file = Replay::log_config_file
+                @namespace = ''
                 reset_time_sync
                 time_sync
             end
