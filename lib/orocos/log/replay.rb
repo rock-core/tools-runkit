@@ -11,11 +11,13 @@ module Orocos
             attr_reader :samples
             attr_reader :stream
             attr_reader :file_name
+            attr_reader :current_state
 
             def initialize(path,stream)
                 @samples = Array.new
                 @file_name = path
                 @stream = stream
+                @current_state = Hash.new
 
                 stream.samples.each do |rt,lg,sample|
                     @samples << sample
@@ -24,6 +26,10 @@ module Orocos
                 @samples.sort! do |a,b|
                     a.time <=> b.time
                 end
+            end
+
+            def write(sample)
+                current_state[sample.key] = sample.value
             end
 
             def pretty_print(pp)
@@ -88,6 +94,18 @@ module Orocos
             #array of stream annotations
             attr_reader :annotations
 
+            # The current annotations
+            #
+            # This is an aggregated version of #annotations, where the value for
+            # each key is the last value known (i.e. the value from the last
+            # annotation with that key that has a timestamp lower than the
+            # current time)
+            def current_annotations
+                annotations.inject(Hash.new) do |current, ann|
+                    current.merge(ann.current_state)
+                end
+            end
+
             # Returns where from the time used for alignment should be taken. It
             # can be one of
             #
@@ -139,6 +157,7 @@ module Orocos
                 @timestamps = Hash.new
                 @tasks = Hash.new
                 @annotations = Array.new
+                @current_annotations = Hash.new
                 @speed = 1
                 @replayed_ports = Array.new
                 @replayed_properties = Array.new
@@ -351,12 +370,16 @@ module Orocos
                     port.set_replay
                 end
 
-                @replayed_objects = @replayed_properties + @replayed_ports
-
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
                 if @used_streams.size == 0
                     raise "No log data are replayed. All selected streams are empty."
                 end
+
+                # If we do have something to replay, then add the annotations as
+                # well
+                @used_streams.concat(annotations.map(&:stream))
+
+                @replayed_objects = @replayed_properties + @replayed_ports + annotations
 
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
