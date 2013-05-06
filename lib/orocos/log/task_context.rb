@@ -310,6 +310,12 @@ module Orocos
                 @tracked = value
             end
 
+            # Calls the provided block when data is replayed into this port
+            def on_data(&block)
+                self.tracked = true
+                @connections << CodeBlockConnection.new(@name,block)
+            end
+
             #Register InputPort which is updated each time write is called
             def connect_to(port=nil,policy = OutputPort::default_policy,&block)
                 port = if port.respond_to? :find_input_port
@@ -321,6 +327,10 @@ module Orocos
                        elsif port
                            port.to_orocos_port 
                        end
+
+                if block && !port
+                    Orocos::Log.warn "connect_to { |data| ... } is deprecated. Use #on_data instead"
+                end
 
                 self.tracked = true
                 policy[:filter] = block if block
