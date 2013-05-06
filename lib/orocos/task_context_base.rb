@@ -323,8 +323,11 @@ module Orocos
 
             @process ||= Orocos.enum_for(:each_process).
                 find do |p|
-                p.task_names.any? { |n| n == name }
+                    p.task_names.any? { |n| n == name }
                 end
+            if process
+                process.register_task(self)
+            end
 
             if options.has_key?(:model)
                 @model = options[:model]

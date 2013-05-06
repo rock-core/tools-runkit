@@ -152,7 +152,7 @@ module Orocos
         # or raises Orocos::NotFound.
         def task(task_name)
             full_name = "#{name}_#{task_name}"
-            if result = tasks.find { |t| t.name == task_name || t.name == full_name }
+            if result = tasks.find { |t| t.basename == task_name || t.basename == full_name }
                 return result
             end
 
@@ -166,6 +166,11 @@ module Orocos
 
             @tasks << result
             result
+        end
+
+        def register_task(task)
+            @tasks.delete_if { |t| t.name == task.name }
+            @tasks << task
         end
 
         # Requires all known ports of +self+ to be logged by the default logger
