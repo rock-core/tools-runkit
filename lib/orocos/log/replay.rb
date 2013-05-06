@@ -518,7 +518,9 @@ module Orocos
                     if @process_qt_events == true
                         start_wait = Time.now
                         while true
-                            $qApp.processEvents()
+                            if $qApp
+                                $qApp.processEvents()
+                            end
                             break if !@start_time                           #break if start_time was reseted throuh processEvents
                             wait = @out_of_sync_delta -(Time.now - start_wait)
                             if wait > 0.001
