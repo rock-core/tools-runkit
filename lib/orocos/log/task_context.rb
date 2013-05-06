@@ -461,6 +461,15 @@ module Orocos
 
             # registers a code block which will be called 
             # when the property changes
+            def on_change(&block)
+                self.tracked = true
+                notify do
+                    block.call(read)
+                end
+            end
+
+            # registers a code block which will be called 
+            # when the property changes
             def notify(&block)
                 @notify_blocks << block
             end
