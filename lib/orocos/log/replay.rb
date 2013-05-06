@@ -490,15 +490,18 @@ module Orocos
                 @actual_speed = required_delta/actual_delta*@speed
             end
 
-            #Gets the next sample and writes it to the ports which are connected
-            #to the OutputPort and updates all its readers.
+            # Gets the next sample, writes it to the ports which are connected
+            # to the OutputPort and updates all its readers.
             #
-            #If time_sync is set to true the method will wait until the 
-            #simulated time delta is equal the recorded time delta.
+            # If a block is given it is called this the name of the replayed port.
             #
-            #If a block is given it is called this the name of the replayed port.
+            # @param [Boolean] time_sync if true, the method will sleep as much
+            #   time as required to match the time delta in the file
             #
-            #You can change the replay speed by changing the instance variable speed.
+            # @yield [reader,sample]
+            # @yieldparam reader the data reader of the port from which the
+            #   sample has been read
+            # @yieldparam sample the data sample
             #
             def step(time_sync=false,&block)
                 #check if stream was generated otherwise call align
