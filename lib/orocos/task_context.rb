@@ -93,6 +93,12 @@ module Orocos
             EOD
         end
 
+        # The logger task that should be used to log data that concerns this
+        # task
+        #
+        # @return [#log]
+        attr_accessor :logger
+
         # A new TaskContext instance representing the
         # remote task context with the given IOR
         # 
@@ -114,6 +120,10 @@ module Orocos
                    end
             super(name,other_options)
             @ior = ior
+
+            if process && (process.default_logger_name != name)
+                self.logger = process.default_logger
+            end
         end
 
         def ping

@@ -173,8 +173,74 @@ module Orocos
             @logged_ports |= Orocos.log_all_process_ports(self, options)
         end
 
-        def setup_default_logger(options)
-            Orocos.setup_default_logger(self, options)
+        @@logfile_indexes = Hash.new
+
+        # Sets up the default logger of this process
+        def setup_default_logger(options = Hash.new)
+            options = Kernel.validate_options options,
+                :remote => false, :log_dir => Orocos.default_working_directory
+
+            is_remote     = options[:remote]
+            log_dir       = options[:log_dir]
+
+            if !(logger = self.default_logger)
+                return
+            end
+            log_file_name = logger.name[/.*(?=_[L|l]ogger)/] || logger.name
+
+            index = 0
+            if options[:remote]
+                index = (@@logfile_indexes[process.name] ||= -1) + 1
+                @@logfile_indexes[process.name] = index
+                logger.file = "#{log_file_name}.#{index}.log"
+            else
+                while File.file?( logfile = File.join(log_dir, "#{log_file_name}.#{index}.log"))
+                    index += 1
+                end
+                logger.file = logfile 
+            end
+            logger
+        end
+
+        # @return [String] the name of the default logger for this process
+        def default_logger_name
+            candidates = model.task_activities.
+                find_all { |d| d.task_model.name == "logger::Logger" }.
+                map { |c| name_mappings[c.name] || c.name }
+
+            if candidates.size > 1
+                if t = candidates.find { |c| c.name == "#{process.name}_Logger" }
+                    return t.name
+                end
+            elsif candidates.size == 1
+                return candidates.first
+            end
+        end
+
+        # Overrides the default logger usually autodetected by #default_logger
+        attr_writer :default_logger
+
+        # @return [#log,false] the logger object that should be used, by
+        #    default, to log data coming out of this process, or false if none
+        #    can be found
+        def default_logger
+            if !@logger.nil?
+                return @logger
+            end
+
+            if logger_name = default_logger_name
+                begin
+                    @logger = TaskContext.get logger_name
+                rescue Orocos::NotFound
+                    Orocos.warn "no default logger defined on #{name}, tried #{logger_name}"
+                    @logger = false # use false to mark "can not find"
+                end
+            else
+                Orocos.warn "cannot determine the default logger name for process #{name}"
+                @logger = false
+            end
+
+            @logger
         end
 
         # Extracts a 'prefix' option from the given options hash, and returns
@@ -838,7 +904,6 @@ module Orocos
                 end
             end
         end
-
     end
 
     # Enumerates the Orocos::Process objects that are currently available in
