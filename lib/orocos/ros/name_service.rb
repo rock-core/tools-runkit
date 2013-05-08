@@ -86,6 +86,8 @@ module Orocos
 
         # A name service implementation that allows to enumerate all ROS nodes
         class NameService < Orocos::NameServiceBase
+            include Namespace
+
             attr_reader :uri
             attr_reader :caller_id
 
