@@ -20,8 +20,13 @@ module Orocos
                 "rostopics#{topic_name.gsub('/', '.')}.#{@@local_transient_port_id += 1}"
             end
 
+            # @return [String] the default port name generated from a topic name
+            def self.default_port_name(topic_name)
+                topic_name.gsub(/^~?\//, '')
+            end
+
             def initialize(task, topic_name, ros_message_type, model = nil,
-                           name = topic_name.gsub(/^~?\//, ''),
+                           name = Topic.default_port_name(topic_name),
                            orocos_type_name = nil)
 
                 if !orocos_type_name
@@ -60,20 +65,36 @@ module Orocos
             #
             # @param [#to_orocos_port] sink the sink port
             def connect_to(sink, policy = Hash.new)
-                if !sink.respond_to?(:to_orocos_port)
+                if sink.respond_to?(:to_topic)
+                    sink = sink.to_topic
+                    if self.task.running? || sink.task.running?
+                        raise ArgumentError, "cannot use #connect_to on topics from running nodes"
+                    end
+
+                    sink.topic_name = self.topic_name
+                elsif sink.respond_to?(:to_orocos_port)
+                    sink.to_orocos_port.subscribe_to_ros(topic_name, policy)
+                else
                     return super
                 end
-                sink.to_orocos_port.subscribe_to_ros(topic_name, policy)
             end
 
             # Unsubscribes an input to this topic
             #
             # @param [#to_orocos_port] sink the sink port
             def disconnect_from(sink)
-                if !sink.respond_to?(:to_orocos_port)
+                if sink.respond_to?(:to_topic)
+                    sink = sink.to_topic
+                    if self.task.running? || sink.task.running?
+                        raise ArgumentError, "cannot use #connect_to on topics from running nodes"
+                    end
+
+                    sink.topic_name = "#{sink.task.name}/#{sink.name}"
+                elsif sink.respond_to?(:to_orocos_port)
+                    sink.to_orocos_port.subscribe_to_ros(topic_name, policy)
+                else
                     return super
                 end
-                sink.to_orocos_port.unsubscribe_from_ros(topic_name)
             end
 
             def to_async(options = Hash.new)
@@ -90,6 +111,12 @@ module Orocos
 
         class InputTopic < Topic
             include InputPortBase
+
+            # The scheme we use for topic connection is to normalize the output
+            # topic names as /node/name and then remap the input topics.
+            #
+            # This allows to overide the topic name on the input topics
+            attr_writer :topic_name
 
             # Used by InputPortWriteAccess to determine which class should be used
             # to create the writer
