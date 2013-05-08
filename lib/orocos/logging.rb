@@ -60,7 +60,7 @@ module Orocos
         exclude_ports = options[:exclude_ports]
         exclude_types = options[:exclude_types]
 
-        if !(logger = setup_default_logger(process, logger_options))
+        if !(logger = process.setup_default_logger(logger_options))
             return Set.new
         end
 
@@ -85,60 +85,6 @@ module Orocos
         end
 
         logged_ports
-    end
-
-    @@logfile_indexes = Hash.new
-
-    # Sets up the process' default logger component
-    #
-    # Returns true if there is a logger on this process, and false otherwise
-    def self.setup_default_logger(process, options)
-        options = Kernel.validate_options options,
-            :remote => false, :log_dir => Orocos.default_working_directory
-
-        is_remote     = options[:remote]
-        log_dir       = options[:log_dir]
-
-        candidates = process.model.task_activities.find_all do |d|
-            d.task_model.name == "logger::Logger"
-        end
-        candidates = candidates.map do |c|
-            process.name_mappings[c.name] || c.name
-        end
-
-        logger_name = nil
-        if candidates.size > 1
-            if t = candidates.find { |c| c.name == "#{process.name}_Logger" }
-                logger_name = t.name
-            end
-        elsif candidates.size == 1
-            logger_name = candidates.first
-        end
-        logger_name ||= "#{process.name}_Logger"
-
-        log_file_name = logger_name[/.*(?=_[L|l]ogger)/]
-        log_file_name ||= process.name
-
-        logger =
-            begin
-                TaskContext.get logger_name
-            rescue
-                Orocos.warn "no default logger defined on #{process.name}, tried #{logger_name}"
-                return
-            end
-
-        index = 0
-        if options[:remote]
-            index = (@@logfile_indexes[process.name] ||= -1) + 1
-            @@logfile_indexes[process.name] = index
-            logger.file = "#{log_file_name}.#{index}.log"
-        else
-            while File.file?( logfile = File.join(log_dir, "#{log_file_name}.#{index}.log"))
-                index += 1
-            end
-            logger.file = logfile 
-        end
-        logger
     end
 end
 
