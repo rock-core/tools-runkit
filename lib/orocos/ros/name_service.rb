@@ -119,6 +119,11 @@ module Orocos
                 poll_system_state
             end
 
+            def ==(other)
+                other.class == self.class &&
+                    other.uri == self.uri
+            end
+
             def to_async(options = Hash.new)
                 Async::ROS::NameService.new(uri, caller_id, options)
             end
