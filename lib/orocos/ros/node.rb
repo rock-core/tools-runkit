@@ -43,8 +43,10 @@ module Orocos
                 else @state_queue << :STOPPED
                 end
 
-                options[:model] ||= Orocos::Spec::ROSNode.new
-                super(name, options)
+                with_defaults, options = Kernel.filter_options options,
+                    :model => Orocos::ROS::Spec::Node.new,
+                    :namespace => name_service.namespace
+                super(name, with_defaults.merge(options))
             end
 
             def ==(other)
