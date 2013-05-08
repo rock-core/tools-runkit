@@ -280,7 +280,8 @@ module Orocos
         # The IOR of this task context
         attr_reader :ior
 
-        # The process that supports it
+        # The underlying process object that represents this node
+        # It is non-nil only if this node has been started by orocos.rb
         attr_accessor :process
 
         # If set, this is a Pocolog::Logfiles object in which the values of
