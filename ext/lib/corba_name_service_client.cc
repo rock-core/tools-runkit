@@ -68,13 +68,15 @@ std::vector<std::string> NameServiceClient::getTaskContextNames()
     // get all available task names from the name server
     CORBA::Object_var control_tasks_var = root_context->resolve(server_name);
     CosNaming::NamingContext_var control_tasks = CosNaming::NamingContext::_narrow (control_tasks_var);
+    if (CORBA::is_nil(control_tasks))
+        return task_names;
 
     if(abort_flag)
         return task_names;
 
     control_tasks->list(0, binding_list, binding_it);
     if (CORBA::is_nil(binding_it))
-        task_names;
+        return task_names;
 
     // iterate over all task names
     while(!abort_flag && binding_it->next_n(10, binding_list))
