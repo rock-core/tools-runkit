@@ -39,8 +39,8 @@ module Orocos
                 @name_mappings = NameMappings.new
                 @state_queue = []
                 if running?
-                    state_queue << :RUNNING
-                else state_queue << :STOPPED
+                    @state_queue << :RUNNING
+                else @state_queue << :STOPPED
                 end
 
                 options[:model] ||= Orocos::Spec::ROSNode.new
@@ -73,15 +73,15 @@ module Orocos
                         Orocos.info "ROS node #{name} terminated with signal #{exit_status.termsig} but #{@expected_exit} was expected"
                     else
                         Orocos.warn "ROS node #{name} unexpectedly terminated with signal #{exit_status.termsig}"
-                        state_queue << :EXCEPTION
+                        @state_queue << :EXCEPTION
                     end
                 else
                     Orocos.warn "ROS node #{name} terminated with code #{exit_status.to_i}"
-                    state_queue << :EXCEPTION
+                    @state_queue << :EXCEPTION
                 end
 
-                if state_queue.last != :EXCEPTION
-                    state_queue << :STOPPED
+                if @state_queue.last != :EXCEPTION
+                    @state_queue << :STOPPED
                 end
 
                 @pid = nil 
@@ -118,7 +118,7 @@ module Orocos
             end
 
             def reset_exception(wait_for_completion = true)
-                state_queue << :STOPPED
+                @state_queue << :STOPPED
                 @exit_status = nil
             end
 
