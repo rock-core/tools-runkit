@@ -16,18 +16,10 @@ module Orocos
             attr_reader :name_service
             # [ROSSlave] access to the node XMLRPC API
             attr_reader :server
-            # [String] the node name
-            attr_reader :name
             # [Hash<String,Topic>] a cache of the topics that are known to be
             # associated with this node. It should never be used directly, as it
             # may contain stale entries. The key is the port name of the topic
             attr_reader :topics
-            # The underlying process object that represents this node
-            # It is non-nil only if this node has been started by orocos.rb
-            # @return [nil]
-            attr_reader :process
-            # @return [Orocos::Spec::TaskContext] the oroGen model that describes this node
-            attr_reader :model
             # @return [NameMappings] the name mappings that are applied from the
             #   node implementation to this running node. This is useful only
             #   when using a model
@@ -42,7 +34,6 @@ module Orocos
             def initialize(name_service, server, name, options = Hash.new)
                 @name_service = name_service
                 @server = server
-                @name = name
                 @input_topics = Hash.new
                 @output_topics = Hash.new
                 @name_mappings = NameMappings.new
