@@ -276,7 +276,9 @@ module Orocos::Async::CORBA
         def add_listener(listener)
             super
             if listener.event == :data
-                reader(@options) do |reader, error|
+                # Errors during reader creation are reported on the port. Do
+                # #on_error on the port to get them
+                reader(@options) do |reader|
                     if @global_reader
                         # We created multiple readers because of concurrency.
                         # Just ignore this one
