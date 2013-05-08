@@ -654,6 +654,7 @@ module Orocos
             end
         end
 
+        # @return [Orocos::Spec::TaskContext,nil] the oroGen model that describes this node
         def model
             if @model
                 @model
