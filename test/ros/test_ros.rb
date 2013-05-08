@@ -11,6 +11,11 @@ describe Orocos::ROS do
     include Orocos
     include Orocos::Spec
 
+    attr_reader :name_service
+    before do
+        @name_service = Orocos::ROS::NameService.new
+    end
+
     describe ".compatible_message_type" do
         it "should return true for a known mapping" do
             Orocos.load_typekit 'base'
@@ -28,7 +33,7 @@ describe Orocos::ROS do
             port = task.create_input_port('out', '/base/Time')
             port.subscribe_to_ros("/ros_test_in")
 
-            node = Orocos.name_service.get(Orocos::ROS.caller_id)
+            node = name_service.get(Orocos::ROS.caller_id)
             assert(p = node.find_input_port('ros_test_in'))
 
             topic = Orocos::ROS.topic '/ros_test_in'
