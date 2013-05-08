@@ -486,6 +486,9 @@ module Orocos
 
         # add default name services
         self.name_service << Orocos::CORBA.name_service
+        if defined?(Orocos::ROS) && Orocos::ROS.enabled?
+            self.name_service << Orocos::ROS.name_service
+        end
         if defined?(Orocos::Async)
             Orocos.name_service.name_services.each do |ns|
                 Orocos::Async.name_service.add(ns)

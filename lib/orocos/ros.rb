@@ -10,6 +10,21 @@ module Orocos
             available? && @enabled && (ENV['ROS_MASTER_URI'] && ENV['ROCK_ROS_INTEGRATION'] != '0')
         end
         @enabled = true
+
+        # Returns the ROS name service that gives access to the master listed in
+        # ROS_MASTER_URI
+        #
+        # @return [NameService,false] the name service object, or false if it
+        #   cannot be accessed
+        def self.name_service
+            if @name_service
+                return @name_service
+            else
+                ns = Orocos::ROS::NameService.new
+                ns.validate
+                @name_service = ns
+            end
+        end
     end
 
     if ROS.available?
@@ -30,9 +45,7 @@ require 'orocos/ros/name_mappings'
 # list. One can remove it manually afterwards.
 if Orocos::ROS.enabled?
     begin
-        ns = Orocos::ROS::NameService.new
-        ns.validate
-        Orocos.name_service << ns
+        Orocos::ROS.name_service
     rescue Orocos::ROS::ComError
         Orocos.warn "ROS integration was enabled, but I cannot contact the ROS master at #{ns.uri}, disabling"
         Orocos::ROS.disable
