@@ -103,7 +103,7 @@ module Orocos
             # @return [Utilrb::ThreadPool]
             attr_reader :thread_pool
 
-            def initialize(uri = ENV['ROS_MASTER_URI'], caller_id = ROS.caller_id)
+            def initialize(uri = ROS.default_ros_master_uri, caller_id = ROS.caller_id)
                 @uri = uri
                 @caller_id = caller_id
                 @ros_graph = NodeGraph.new

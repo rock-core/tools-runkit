@@ -11,6 +11,10 @@ module Orocos
         end
         @enabled = true
 
+        def self.default_ros_master_uri
+            ENV['ROS_MASTER_URI']
+        end
+
         # Returns the ROS name service that gives access to the master listed in
         # ROS_MASTER_URI
         #
@@ -47,7 +51,7 @@ if Orocos::ROS.enabled?
     begin
         Orocos::ROS.name_service
     rescue Orocos::ROS::ComError
-        Orocos.warn "ROS integration was enabled, but I cannot contact the ROS master at #{ns.uri}, disabling"
+        Orocos.warn "ROS integration was enabled, but I cannot contact the ROS master at #{Orocos::ROS.default_ros_master_uri}, disabling"
         Orocos::ROS.disable
     end
 end
