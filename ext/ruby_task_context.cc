@@ -98,7 +98,6 @@ static VALUE local_task_context_dispose(VALUE obj)
     if (!task.tc)
         return Qnil;
 
-    RTT::corba::TaskContextServer::CleanupServer(task.tc);
     delete_local_task_context(&task);
     task.tc = 0;
     return Qnil;
