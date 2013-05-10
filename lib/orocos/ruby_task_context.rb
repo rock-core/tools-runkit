@@ -371,7 +371,10 @@ module Orocos
             type = Orocos.master_project.find_type(type)
             type = Orocos.master_project.find_opaque_for_intermediate(type) || type
             type = Orocos.master_project.find_interface_type(type)
-            Typelib::Registry.rtt_typename(type)
+            if Orocos.registered_type?(type.name)
+                type.name
+            else Typelib::Registry.rtt_typename(type)
+            end
         end
 
         private
