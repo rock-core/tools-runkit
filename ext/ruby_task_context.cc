@@ -73,6 +73,7 @@ static void delete_local_task_context(RLocalTaskContext* rtask)
     for (RTT::DataFlowInterface::Ports::const_iterator it = ports.begin();
             it != ports.end(); ++it)
     {
+        (*it)->disconnect();
         (*it)->setInterface(0);
     }
     delete task;
