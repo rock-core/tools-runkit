@@ -113,12 +113,14 @@ module Orocos
                 Orocos::Async::CORBA::Property.default_period = 0
                 Orocos::Async::CORBA::OutputReader.default_period = 0
             end
-            if File.directory?(WORK_DIR)
-                Orocos.default_working_directory = WORK_DIR
-            end
+
             Orocos::MQueue.auto = Test::USE_MQUEUE
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
-            ENV['PKG_CONFIG_PATH'] += ":#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
+
+            if defined?(WORK_DIR) && File.directory?(WORK_DIR)
+                Orocos.default_working_directory = WORK_DIR
+                ENV['PKG_CONFIG_PATH'] += ":#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
+            end
             Orocos.initialize
             Orocos.export_types = false
 
