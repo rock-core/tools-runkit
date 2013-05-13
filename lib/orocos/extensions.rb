@@ -24,7 +24,9 @@ module Orocos
                     Hash['key' => key, 'value' => value]
                 end
 
-                createLoggingPort(stream_name, object.orocos_type_name, metadata)
+                if !createLoggingPort(stream_name, object.orocos_type_name, metadata)
+                    raise ArgumentError, "cannot create log port on log task #{name} for #{stream_name} and type #{object.orocos_type_name}"
+                end
                 Orocos.info "created logging port #{stream_name} of type #{object.orocos_type_name}"
             end
             stream_name
