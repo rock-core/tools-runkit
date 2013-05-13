@@ -215,6 +215,7 @@ module Orocos
 
             def property_names; [] end
             def attribute_names; [] end
+            def operation_names; [] end
 
             def has_port?(name)
                 !!(find_output_port(name) || find_input_port(name))
