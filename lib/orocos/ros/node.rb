@@ -163,6 +163,7 @@ module Orocos
                     begin
                         node = name_service.get name
                         @server = node.server
+                        break
                     rescue Orocos::NotFound
                     end
                     if timeout && (Time.now - now) > timeout
