@@ -47,12 +47,18 @@ module Orocos
             # Returns the set of topic names that are published by the given
             # node
             def output_topics_for(node_name)
+                if !node_graph[node_name]
+                    raise ArgumentError, "#{node_name} is not a known node"
+                end
                 node_graph[node_name][1] || Set.new
             end
 
             # Returns the set of topic names that are subscribed by the given
             # node
             def input_topics_for(node_name)
+                if !node_graph[node_name]
+                    raise ArgumentError, "#{node_name} is not a known node"
+                end
                 node_graph[node_name][0] || Set.new
             end
 
