@@ -130,23 +130,23 @@ module Orocos
         # Returns an object that represents the given port on the task
         # context. The returned object is either an InputPort or an OutputPort
         def port(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#port is not implemented in #{self.class}"
         end
 
         # Returns an Attribute object representing the given attribute
         def attribute(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#attribute is not implemented in #{self.class}"
         end
 
         # Returns a Property object representing the given property
         def property(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#property is not implemented in #{self.class}"
         end
 
         # Returns an Operation object that represents the given method on the
         # remote component.
         def operation(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#operation is not implemented in #{self.class}"
         end
 
         # Returns the array of the names of available properties on this task
