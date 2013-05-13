@@ -1,3 +1,4 @@
+require 'utilrb/spawn'
 module Orocos
     module ROS
         # A TaskContext-compatible interface of a ROS node
@@ -139,6 +140,21 @@ module Orocos
                 end
             end
 
+            def kill
+                ::Process.kill('INT', @pid)
+            end
+
+            def join
+                return if !running?
+
+                begin
+                    ::Process.waitpid(pid)
+                    exit_status = $?
+                        dead!(exit_status)
+                rescue Errno::ECHILD
+                end
+            end
+
             def cleanup(wait_for_completion = true)
                 # This is no-op for ROS nodes
             end
@@ -148,10 +164,25 @@ module Orocos
                 @exit_status = nil
             end
 
+            def rospack_find(package_name, binary_name)
+                package_path = (`rospack find #{package_name}` || '').strip
+                if package_path.empty?
+                    raise ArgumentError, "rospack cannot find package #{package_name}"
+                end
+
+                bin_path = File.join(package_path, 'bin', binary_name)
+                if !File.file?(bin_path)
+                    raise ArgumentError, "there is no node called #{binary_name} in #{package_name} (looked in #{bin_path})"
+                end
+                bin_path
+            end
+
             # Starts this node
             def spawn
                 args = name_mappings.to_command_line
-                @pid = Utilrb.spawn name, *args
+                package_name, bin_name = *model.name.split("::")
+                binary = rospack_find(package_name.gsub(/^ros_/, ''), bin_name)
+                @pid = Utilrb.spawn binary, "__name:=#{name}", *args
             end
 
             # Waits for this node to be available

@@ -11,6 +11,17 @@ module Orocos
             def apply(string)
                 mappings[string] || string
             end
+
+            def to_command_line
+                result = []
+                mappings.each do |from, to|
+                    if from =~ /^~/
+                        from = "_#{from[1..-1]}"
+                    end
+                    result << "#{from}:=#{to}"
+                end
+                result.join(" ")
+            end
         end
     end
 end
