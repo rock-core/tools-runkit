@@ -31,7 +31,7 @@ module Orocos
             #   the exit status object that represents how the node finished
             attr_reader :exit_status
 
-            def initialize(name_service, server, name, options = Hash.new)
+            def initialize(name_service, server, name = nil, options = Hash.new)
                 @name_service = name_service
                 @server = server
                 @input_topics = Hash.new
@@ -43,10 +43,34 @@ module Orocos
                 else @state_queue << :STOPPED
                 end
 
+                if name.kind_of?(Hash)
+                    name, options = nil, name
+                end
+
                 with_defaults, options = Kernel.filter_options options,
                     :model => Orocos::ROS::Spec::Node.new,
                     :namespace => name_service.namespace
-                super(name, with_defaults.merge(options))
+                options = options.merge(with_defaults)
+
+                # We allow models to be specified by name
+                if options[:model].respond_to?(:to_str)
+                    options[:model] = Orocos.task_model_from_name(options[:model])
+                end
+                # Initialize the name from the model if it has one, and no name
+                # was given
+                if !name
+                    if options[:model]
+                        name = options[:model].name.gsub(/.*::/, '')
+                    else
+                        raise ArgumentError, "no name and no model given. At least one of the two must be provided."
+                    end
+                end
+                super(name, options)
+            end
+
+            def ros_name
+                _, basename = split_name(name)
+                "/#{basename}"
             end
 
             def ==(other)
@@ -291,7 +315,7 @@ module Orocos
                         yield(@output_topics[m.name] ||= OutputTopic.new(self, m.topic_name, m.topic_type, m.name))
                     end
                 else
-                    name_service.output_topics_for(name).each do |topic_name, topic_type|
+                    name_service.output_topics_for(ros_name).each do |topic_name, topic_type|
                         topic_type = name_service.topic_message_type(topic_name)
                         if ROS.compatible_message_type?(topic_type)
                             name, model = resolve_output_topic_name(topic_name)
@@ -315,7 +339,7 @@ module Orocos
                         yield(@input_topics[m.name] ||= InputTopic.new(self, m.topic_name, m.topic_type, m.name))
                     end
                 else
-                    name_service.input_topics_for(name).each do |topic_name|
+                    name_service.input_topics_for(ros_name).each do |topic_name|
                         topic_type = name_service.topic_message_type(topic_name)
                         if ROS.compatible_message_type?(topic_type)
                             name, model = resolve_input_topic_name(topic_name)
