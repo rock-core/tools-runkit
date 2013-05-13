@@ -639,6 +639,7 @@ module Orocos
             end
 
             def has_task?(name)
+                name = map_to_namespace name
                 @tasks.has_key?(name.to_s)
             end
 
