@@ -397,6 +397,7 @@ module Orocos
             def initialize(tasks =[])
                 raise ArgumentError, "wrong argument - Array was expected" unless tasks.is_a? Array
                 @registered_tasks = Array.new
+		@alias = {}
                 tasks.each do |task|
                     register(task)
                 end
@@ -415,6 +416,10 @@ module Orocos
             #(see NameServiceBase#get)
             def get(name,options=Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
+		# search alias hash first
+		task = @alias[name]
+		return task if task
+		# otherwise look in the registered tasks
                 task = @registered_tasks.find do |task|
                     if task.name == name || task.basename == name
                         true
@@ -424,12 +429,19 @@ module Orocos
                 task
             end
 
-            # Registers the IOR of the given {Orocos::TaskContext} on the name service.
+            # Registers the given {Orocos::TaskContext} on the name service.
+	    # If a name is provided, it will be used as an alias. If no name is
+	    # provided, the name of the task is used. This is true even if the
+	    # task name is renamed later.
             #
             # @param [Orocos::TaskContext] task The task.
-            # @param [String] name The name which is used to register the task.
-            def register(task)
-                @registered_tasks << task unless @registered_tasks.include? task
+            # @param [String] name Optional name which is used to register the task.
+            def register(task, name = nil)
+		if name.nil?
+		    @registered_tasks << task unless @registered_tasks.include? task
+		else
+		    @alias[name] = task
+		end
             end
 
             # Local is a collection of name spaces
@@ -441,6 +453,11 @@ module Orocos
             #
             # @param [String,TaskContext] name The name or task
             def deregister(name)
+		# deregister from alias
+		task = @alias[name]
+		@alias.delete name if task
+
+		# and also the task list
                 task = get(name)
                 @registered_tasks.delete task
             rescue Orocos::NotFound
@@ -448,7 +465,8 @@ module Orocos
 
             # (see NameServiceBase#names)
             def names
-                registered_tasks.map &:name
+                ns = registered_tasks.map &:name 
+		ns + @alias.keys
             end
         end
     end
