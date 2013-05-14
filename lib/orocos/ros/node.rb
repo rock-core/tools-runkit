@@ -38,11 +38,6 @@ module Orocos
                 @input_topics = Hash.new
                 @output_topics = Hash.new
                 @name_mappings = NameMappings.new
-                @state_queue = []
-                if running?
-                    @state_queue << :RUNNING
-                else @state_queue << :STOPPED
-                end
 
                 if name.kind_of?(Hash)
                     name, options = nil, name
@@ -67,6 +62,11 @@ module Orocos
                     end
                 end
                 super(name, options)
+
+                if running?
+                    @state_queue << :RUNNING
+                else @state_queue << :STOPPED
+                end
             end
 
             def ros_name
