@@ -30,12 +30,19 @@ module Orocos
         attr_accessor :log_port
         # The type name as registered in the orocos type system
         attr_reader :orocos_type_name
+        # Returns the operation that has to be called if this is an 
+        # dynamic propery. Nil otherwise
+        attr_reader :dynamic_operation
 
         def initialize(task, name, orocos_type_name)
             @task, @name = task, name
             @orocos_type_name = orocos_type_name
             ensure_type_available(:fallback_to_null_type => true)
+            if task.has_operation?("set#{name.capitalize}")
+                @dynamic_operation = task.operation("set#{name.capitalize}")
+            end
         end
+
 
         def full_name
             "#{task.name}.#{name}"
@@ -77,7 +84,13 @@ module Orocos
         def write(value, timestamp = Time.now)
             ensure_type_available
             value = Typelib.from_ruby(value, type)
-            do_write(@orocos_type_name, value)
+            if @dynamic_operation
+                if !@dynamic_operation.callop(value)
+                    raise PropertyChangeRejected, "The change of property #{name} was rejected by the remote task"
+                end
+            else
+                do_write(@orocos_type_name, value)
+            end
             log_value(value, timestamp)
             value
         end
