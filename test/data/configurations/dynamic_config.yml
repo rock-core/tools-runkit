@@ -1,0 +1,21 @@
+--- name:default
+enm: First
+intg: <%= 10+10 %>
+str: "test"
+bl: <%= system("echo test") %>
+fp: 0.1
+--- name:compound
+compound:
+    enm: <%= "second".capitalize %>
+    intg: 30
+    str: <%= File.extname(__FILE__) %>
+    fp: <%= 2*0.1 %>
+    simple_array:
+        - <%= "1".to_i %>
+        - <%= "2.4".to_i %>
+        - <%= "3.0".to_i %>
+--- name:simple_container
+simple_container:
+    - <%= ("1"+"0").to_i %>
+    - <%= ("2"+"0").to_i %>
+    - <%= ("3"+"0").to_i %>
