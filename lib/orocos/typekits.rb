@@ -72,15 +72,19 @@ module Orocos
         'ros' => false
     }
 
+    @lock = Mutex.new
+
     # Load the typekit whose name is given
     #
     # Typekits are shared libraries that include marshalling/demarshalling
     # code. It gets automatically loaded in orocos.rb whenever you start
     # processes.
     def self.load_typekit(name)
-        typekit_pkg = find_typekit_pkg(name)
-        load_typekit_plugins(name, typekit_pkg)
-        load_typekit_registry(name, typekit_pkg)
+        @lock.synchronize do
+            typekit_pkg = find_typekit_pkg(name)
+            load_typekit_plugins(name, typekit_pkg)
+            load_typekit_registry(name, typekit_pkg)
+        end
     end
 
     def self.find_typekit_pkg(name)
