@@ -86,6 +86,10 @@ module Orocos
             Orocos.clear
         end
 
+        def start(*spec)
+            processes.concat Orocos.run(*spec)
+        end
+
         def spawn_and_get(component, task = component)
             begin
                 process = Orocos::Process.new component
@@ -105,6 +109,8 @@ module Orocos
         include FlexMock::ArgumentTypes
         include FlexMock::MockContainer
 
+        attr_reader :processes
+
         def setup
             if defined?(Orocos::Async)
                 Orocos::Async::NameServiceBase.default_period = 0
@@ -122,7 +128,6 @@ module Orocos
                 ENV['PKG_CONFIG_PATH'] += ":#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
             end
             Orocos.initialize
-            Orocos.export_types = false
 
 	    if TEST_MODEL_LESS
 		flexmock(Orocos::TaskContext).new_instances(:get_from_ior).should_receive('model').and_return(nil)
@@ -131,12 +136,56 @@ module Orocos
 		flexmock(Orocos).should_receive(:task_model_from_name).and_raise(Orocos::NotFound)
 	    end
 
+            @processes = Array.new
             @old_timeout = Orocos::CORBA.connect_timeout
             Orocos::CORBA.connect_timeout = 50
             @allocated_task_contexts = Array.new
             super
         end
+
+        def start(*spec)
+            processes.concat Orocos.run(*spec)
+        end
+
+        def name_service
+            Orocos.name_service
+        end
+
+        def read_one_sample(reader, timeout = 1)
+            Integer(timeout / 0.01).times do
+                if value = reader.read_new
+                    return value
+                end
+                sleep 0.01
+
+            end
+            flunk("expected to receive one new sample on #{reader}, but got none (state: #{reader.port.task.rtt_state}")
+        end
+
+        def assert_state_equals(state, task, timeout = 1)
+            expected_toplevel = task.toplevel_state(state)
+            toplevel = task.rtt_state
+            if expected_toplevel != toplevel
+                flunk("#{task} was expected to be in toplevel state #{expected_toplevel} because of #{state} but is in #{toplevel}")
+            end
+
+            Integer(timeout / 0.01).times do
+                if task.state == state
+                    return
+                end
+                sleep 0.01
+            end
+            flunk("#{task} was expected to be in state #{state} but is in #{task.state}")
+        end
+
         def teardown
+            processes.each do |p|
+                begin p.kill
+                rescue Exception => e
+                    Orocos.warn "failed, in teardown, to stop process #{p}: #{e}"
+                end
+            end
+            processes.clear
             @allocated_task_contexts.each(&:dispose)
 	    flexmock_teardown
             super
