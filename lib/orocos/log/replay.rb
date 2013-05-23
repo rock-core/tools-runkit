@@ -666,6 +666,8 @@ module Orocos
 
             #Seeks to the given position
             def seek(pos)
+                #check if stream was generated otherwise call align
+                align if @stream == nil
                 @current_sample = @stream.seek(pos)
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
