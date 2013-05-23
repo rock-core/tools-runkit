@@ -42,6 +42,7 @@ module Orocos
         #This class creates TaskContexts and OutputPorts to simulate the recorded tasks.
         class Replay
             include Namespace
+            include Orocos::PortsSearchable
 
             class << self 
                 attr_accessor :log_config_file 
@@ -257,13 +258,6 @@ module Orocos
                 @tasks.each_value do |task|
                     task.track(value,filter) if !options.has_key?(:tasks) || task.name =~ options[:tasks]
                 end
-            end
-
-            def find_all_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_ports(ports, type_name, port_name)
-            end
-            def find_port(type_name, port_name=nil)
-                Orocos::TaskContext.find_port(ports, type_name, port_name)
             end
 
             #Tries to find a OutputPort for a specefic data type.
