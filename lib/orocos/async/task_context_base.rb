@@ -64,20 +64,23 @@ module Orocos::Async
             # to prevent different behaviors depending on
             # the calling order
             if listener.event == :port_reachable
+                names = @port_names.dup
                 event_loop.once do 
-                    @port_names.each do |name|
+                    names.each do |name|
                         listener.call name
                     end
                 end
             elsif listener.event == :property_reachable
+                names = @property_names.dup
                 event_loop.once do
-                    @property_names.each do |name|
+                    names.each do |name|
                         listener.call name
                     end
                 end
             elsif listener.event == :attribute_reachable
+                names = @attribute_names.dup
                 event_loop.once do
-                    @attribute_names.each do |name|
+                    names.each do |name|
                         listener.call name
                     end
                 end
