@@ -199,22 +199,23 @@ describe Orocos::Async::ObjectBase do
                 obj2.proxy_event(obj,:reachable)
                 #should be still 0 because no listener is registered to obj2
                 assert_equal 0, obj.number_of_listeners(:reachable)
+                assert_equal 0, obj2.number_of_listeners(:reachable)
 
                 called = nil
                 l = obj2.on_reachable do |val|
                     called = val
                 end
-                Orocos::Async.event_loop.step
+                Orocos::Async.event_loop.steps
                 assert_equal 1, obj2.number_of_listeners(:reachable)
                 assert_equal 1, obj.number_of_listeners(:reachable)
 
                 obj.event :reachable,222
-                Orocos::Async.step
+                Orocos::Async.steps
                 assert_equal 222,called
 
                 #this should also remove the listener from obj 
                 l.stop
-                Orocos::Async.event_loop.step
+                Orocos::Async.event_loop.steps
                 assert_equal 0, obj2.number_of_listeners(:reachable)
                 assert_equal 0, obj.number_of_listeners(:reachable)
             end
