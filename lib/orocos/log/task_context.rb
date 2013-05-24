@@ -329,7 +329,7 @@ module Orocos
                        end
 
                 if block && !port
-                    Orocos::Log.warn "connect_to { |data| ... } is deprecated. Use #on_data instead"
+                    Orocos::Log.warn "connect_to to a code block { |data| ... } is deprecated. Use #on_data instead."
                 end
 
                 self.tracked = true
@@ -655,7 +655,7 @@ module Orocos
 
                 #connect state with task state
                 if log_port.name == "state"
-                    log_port.connect_to do |sample|
+                    log_port.on_data do |sample|
                         @rtt_state = sample
                     end
                     log_port.tracked = false

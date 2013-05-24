@@ -64,7 +64,7 @@ module Orocos::Async::Log
             disable_emitting do 
                 reachable! port
             end
-            port.connect_to do |sample,_|
+            port.on_data do |sample,_|
                 emit_data sample
             end
         end
