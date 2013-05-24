@@ -5,37 +5,54 @@ module Orocos
     # initialized by Orocos.initialize has not yet been called
     class NotInitialized < RuntimeError; end
 
-    class Property < AttributeBase
+    class TaskContextAttribute < AttributeBase
+        # Returns the operation that has to be called if this is an 
+        # dynamic propery. Nil otherwise
+        attr_reader :dynamic_operation
+
+        def dynamic?; !!@dynamic_operation end
+
+        def initialize(task, name, orocos_type_name)
+            super
+            if task.has_operation?(opname = "set#{name.capitalize}")
+                @dynamic_operation = task.operation(opname)
+            end
+        end
+
+        def do_write_dynamic(value)
+            if !@dynamic_operation.callop(value)
+                raise PropertyChangeRejected, "the change of property #{name} was rejected by the remote task"
+            end
+        end
+    end
+
+    class Property < TaskContextAttribute
         def log_metadata
             super.merge('rock_stream_type' => 'property')
         end
 
-        def do_write_string(value)
-            task.do_property_write_string(name, value)
-        end
         def do_write(type_name, value)
-            task.do_property_write(name, type_name, value)
-        end
-        def do_read_string
-            task.do_property_read_string(name)
+            if dynamic?
+                do_write_dynamic(value)
+            else
+                task.do_property_write(name, type_name, value)
+            end
         end
         def do_read(type_name, value)
             task.do_property_read(name, type_name, value)
         end
     end
 
-    class Attribute < AttributeBase
+    class Attribute < TaskContextAttribute
         def log_metadata
             super.merge('rock_stream_type' => 'attribute')
         end
-        def do_write_string(value)
-            task.do_attribute_write_string(name, value)
-        end
         def do_write(type_name, value)
-            task.do_attribute_write(name, type_name, value)
-        end
-        def do_read_string
-            task.do_attribute_read_string(name)
+            if dynamic?
+                do_write_dynamic(value)
+            else
+                task.do_attribute_write(name, type_name, value)
+            end
         end
         def do_read(type_name, value)
             task.do_attribute_read(name, type_name, value)
