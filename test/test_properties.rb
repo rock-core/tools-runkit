@@ -15,9 +15,9 @@ describe "reading and writing properties on TaskContext" do
     it "should be able to enumerate its properties" do
         Orocos.run('process') do |process|
             t = process.task('Test')
-            assert_equal %w{prop1 prop2 prop3}, t.property_names.sort
-            assert_equal %w{prop1 prop2 prop3}, t.each_property.map(&:name).sort
-            %w{prop1 prop2 prop3}.each do |name|
+            assert_equal %w{dynamic_prop prop1 prop2 prop3}, t.property_names.sort
+            assert_equal %w{dynamic_prop prop1 prop2 prop3}, t.each_property.map(&:name).sort
+            %w{dynamic_prop prop1 prop2 prop3}.each do |name|
                 t.has_property?(name)
             end
         end
@@ -75,6 +75,14 @@ describe "reading and writing properties on TaskContext" do
             value = prop.read
             assert_equal(22, value.a)
             assert_equal(43, value.b)
+        end
+    end
+
+    it "should call the setter operation in the case of dynamic properties" do
+        Orocos.run('process') do |process|
+            prop = process.task('Test').property('dynamic_prop')
+            prop.write("12345")
+            assert_equal('12345dyn', prop.read)
         end
     end
 end
