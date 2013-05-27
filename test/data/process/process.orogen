@@ -9,6 +9,7 @@ task_context 'Test' do
     property "prop1", "/process/Simple"
     property "prop2", "int"
     property 'prop3', 'string'
+    property('dynamic_prop', 'string').dynamic
 
     attribute "att1", "/process/Simple"
     attribute "att2", "int"

@@ -616,6 +616,17 @@ module Orocos
             "#<TaskContextBase: #{self.class.name}/#{name}>"
         end
 
+        # @return [Symbol] the toplevel state that corresponds to +state+, i.e.
+        #   the value returned by #rtt_state when #state returns 'state'
+        def toplevel_state(state)
+            if exception_state?(state) then :EXCEPTION
+            elsif fatal_state?(state) then :FATAL_ERROR
+            elsif error_state?(state) then :RUNTIME_ERROR
+            elsif runtime_state?(state) then :RUNNING
+            else state
+            end
+        end
+
         def add_default_states
             @error_states   << :RUNTIME_ERROR << :FATAL_ERROR << :EXCEPTION
             @runtime_states << :RUNNING << :RUNTIME_ERROR

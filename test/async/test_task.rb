@@ -191,7 +191,7 @@ describe Orocos::Async::CORBA::TaskContext do
                 end
                 t1.wait(0.2)
                 Orocos::Async.steps
-                assert_equal ["prop1", "prop2", "prop3"],properties
+                assert_equal ["dynamic_prop","prop1", "prop2", "prop3"],properties
                 properties.clear
 
                 #should be called even if the task is already reachable
@@ -200,7 +200,7 @@ describe Orocos::Async::CORBA::TaskContext do
                 end
 
                 Orocos::Async.steps
-                assert_equal ["prop1", "prop2", "prop3"],properties
+                assert_equal ["dynamic_prop","prop1", "prop2", "prop3"],properties
             end
         end
 

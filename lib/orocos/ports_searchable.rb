@@ -10,7 +10,7 @@ module Orocos
         # class, +port_name+ is either a string or a regular expression.
         #
         # This is a helper method used in various places
-        def find_all_ports(type, port_name)
+        def find_all_ports(type, port_name=nil)
             candidates = ports.dup
 
             # Filter out on type
@@ -56,7 +56,7 @@ module Orocos
         # class, +port_name+ is either a string or a regular expression.
         #
         # This is a helper method used in various places
-        def find_port(type, port_name)
+        def find_port(type, port_name=nil)
             candidates = find_all_ports(type, port_name)
             if candidates.size > 1
                 type_name =
@@ -78,7 +78,7 @@ module Orocos
         # class, +port_name+ is either a string or a regular expression.
         #
         # This is a helper method used in various places
-        def find_input_port(type, port_name)
+        def find_input_port(type, port_name=nil)
             candidates = find_all_input_ports(type, port_name)
             if candidates.size > 1
                 type_name = if !type.respond_to?(:to_str)
@@ -99,7 +99,7 @@ module Orocos
         # class, +port_name+ is either a string or a regular expression.
         #
         # This is a helper method used in various places
-        def find_output_port(type, port_name)
+        def find_output_port(type, port_name=nil)
             candidates = find_all_output_ports(type, port_name)
             if candidates.size > 1
                 type_name = if !type.respond_to?(:to_str)

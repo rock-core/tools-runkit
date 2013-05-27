@@ -366,8 +366,8 @@ describe Orocos::Async::TaskContextProxy do
         end
 
         it "should not raise NotFound if remote task is unreachable and :raise is set to false" do
-            t1 = Orocos::Async::TaskContextProxy.new("bla")
-            Orocos::Async.step
+            t1 = Orocos::Async::TaskContextProxy.new("bla",:raise => false)
+            Orocos::Async.steps
             assert !t1.reachable?
         end
 

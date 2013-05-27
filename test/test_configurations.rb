@@ -125,6 +125,39 @@ describe Orocos::TaskConfigurations do
         end
     end
 
+    it "should be able to load dynamic configuration structures" do
+        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'dynamic_config.yml'))
+        assert_equal %w{compound default simple_container}, conf.sections.keys.sort
+
+        verify_loaded_conf conf, 'default' do
+            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
+            assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test"
+            assert_conf_value 'fp', '/double', Typelib::NumericType, 0.1
+            assert_conf_value 'bl', '/bool', Typelib::NumericType, true
+        end
+
+        verify_loaded_conf conf, 'compound', 'compound' do
+            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :Second
+            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 30
+            assert_conf_value 'str', "/std/string", Typelib::ContainerType, ".yml"
+            assert_conf_value 'fp', '/double', Typelib::NumericType, 0.2
+            assert_conf_value 'simple_array', 0, "/int32_t", Typelib::NumericType, 1
+            assert_conf_value 'simple_array', 1, "/int32_t", Typelib::NumericType, 2
+            assert_conf_value 'simple_array', 2, "/int32_t", Typelib::NumericType, 3
+            array = get_conf_value 'simple_array'
+            assert_equal 3, array.size
+        end
+
+        verify_loaded_conf conf, 'simple_container', 'simple_container' do
+            assert_conf_value 0, "/int32_t", Typelib::NumericType, 10
+            assert_conf_value 1, "/int32_t", Typelib::NumericType, 20
+            assert_conf_value 2, "/int32_t", Typelib::NumericType, 30
+            container = get_conf_value
+            assert_equal 3, container.size
+        end
+    end
+
     it "should be able to load complex structures" do
         conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'complex_config.yml'))
 

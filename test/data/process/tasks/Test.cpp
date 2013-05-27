@@ -17,11 +17,10 @@ Test::Test(std::string const& name, TaskCore::TaskState initial_state)
     _att3.set("42");
 }
 
-
-
-
-
-
+bool Test::setDynamic_prop(::std::string const & value)
+{
+    return(process::TestBase::setDynamic_prop(value+"dyn"));
+}
 
 /// The following lines are template definitions for the various state machine
 // hooks defined by Orocos::RTT. See Test.hpp for more detailed
