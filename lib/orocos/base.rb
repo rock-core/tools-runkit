@@ -495,6 +495,8 @@ module Orocos
             end
         end
         @ruby_task = RubyTaskContext.new(name)
+
+        Orocos.load_typekit 'std'
     end
 
     def self.create_orogen_interface(name = nil, &block)
