@@ -16,4 +16,6 @@ require './test_task'
 require './test_uri'
 require './test_namespace'
 require './suite_async'
+if Orocos::ROS.enabled?
 require './suite_ros'
+end
