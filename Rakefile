@@ -10,7 +10,7 @@ begin
 
             self.summary = 'Controlling Orocos modules from Ruby'
             self.description = ""
-            self.url = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
+            self.urls = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
             self.changes = ""
 
             self.extra_deps <<
