@@ -75,6 +75,9 @@ module Orocos
             #this array is filled after align was called
             attr_accessor :replayed_properties
 
+            #array of all replayed annotaions
+            #this array is filled after align was called
+            attr_accessor :replayed_annotations
 
             #set it to true if processing of qt events is needed during synced replay
             attr_accessor :process_qt_events             
@@ -334,6 +337,7 @@ module Orocos
             def align( time_source = self.time_source )
                 @replayed_ports = Array.new
                 @used_streams = Array.new
+                @replayed_annotations = Array.new
 
                 if !replay?
                     Log.warn "No ports are selected. Assuming that all ports shall be replayed."
@@ -346,34 +350,35 @@ module Orocos
                     if task.used?
                         task.port("state").tracked=true if task.has_port?("state")
                         task.properties.values.each do |property|
-                            @replayed_properties << property
-                            @used_streams << property.stream
                             property.tracked = true
-                            property.set_replay
+                            next if property.stream.empty?
+                            @replayed_properties << property
                         end
                     end
                 end
+
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
-                        if !port.stream.empty?
-                            @replayed_ports << port
-                            @used_streams << port.stream
-                        end
+                        next if port.stream.empty?
+                        @replayed_ports << port
                     end
-                    port.set_replay
                 end
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
-                if @used_streams.size == 0
+                if @replayed_properties.empty? && @replayed_ports.empty?
                     raise "No log data are replayed. All selected streams are empty."
                 end
 
                 # If we do have something to replay, then add the annotations as
                 # well
-                @used_streams.concat(annotations.map(&:stream))
+                annotations.each do |annotation|
+                    next if annotation.stream.empty?
+                    @replayed_annotations << annotation
+                end
 
-                @replayed_objects = @replayed_properties + @replayed_ports + annotations
+                @replayed_objects = @replayed_properties + @replayed_ports + @replayed_annotations
+                @used_streams = @replayed_objects.map(&:stream)
 
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
