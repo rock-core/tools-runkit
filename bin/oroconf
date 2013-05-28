@@ -3,7 +3,7 @@
 require 'optparse'
 require 'orocos'
 require 'time'
-require 'rock/bundles'
+require 'rock/bundle'
 
 debug = false
 save_configuration = nil
@@ -63,6 +63,7 @@ directory.
     end
 end
 
+Rock::Bundles.public_logs = false
 Rock::Bundles.initialize
 if Rock::Bundles.has_selected_bundle?
     config_dir = File.join(Rock::Bundles.current_bundle.path, 'config', 'orogen')
