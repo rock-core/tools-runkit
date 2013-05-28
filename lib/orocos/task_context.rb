@@ -385,7 +385,9 @@ module Orocos
         # context
         def operation_names
             CORBA.refine_exceptions(self) do
-                do_operation_names
+                do_operation_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 
@@ -393,7 +395,9 @@ module Orocos
         # context
         def property_names
             CORBA.refine_exceptions(self) do
-                do_property_names
+                do_property_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 
@@ -535,7 +539,9 @@ module Orocos
         # Returns the names of all the ports defined on this task context
         def port_names
             CORBA.refine_exceptions(self) do
-                do_port_names
+                do_port_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 
