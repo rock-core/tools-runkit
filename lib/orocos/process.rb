@@ -280,9 +280,8 @@ module Orocos
 
 	def self.from_pid(pid)
 	    if result = ObjectSpace.enum_for(:each_object, Orocos::Process).find { |mod| mod.pid == pid }
-                result
-            end
-            if defined? Orocos::ROS::Node
+                return result
+            elsif defined? Orocos::ROS::Node
                 ObjectSpace.enum_for(:each_object, Orocos::ROS::Node).find { |mod| mod.pid == pid }
             end
 	end
