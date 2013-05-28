@@ -231,10 +231,12 @@ module Orocos
             options, logger_options = Kernel.filter_options options,:exclude_ports => nil
             exclude_ports = Array(options[:exclude_ports])
 
-            logger_options[:tasks] = Regexp.new(name)
-            Orocos.log_all_process_ports(process,logger_options) do |port|
+            logger_options[:tasks] = Regexp.new(basename)
+            ports = Orocos.log_all_process_ports(process,logger_options) do |port|
                 !exclude_ports.include? port.name
             end
+            raise "#{name}: no ports were selected for logging" if ports.empty?
+            ports
         end
 
         def create_property_log_stream(p)
