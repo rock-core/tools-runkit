@@ -698,7 +698,7 @@ module Orocos
                                 rescue ArgumentError => e
                                     Orocos.warn "invalid metadata['rock_task_name']: #{e}"
                                     Orocos.warn "falling back to stream name: #{stream.name}"
-                                    stream.metadata["rock_task_name"] = nil
+                                    stream.metadata.delete("rock_task_name")
                                     return load_task_from_stream(stream,path)
                                 end
                                 stream.metadata["rock_task_name"]
