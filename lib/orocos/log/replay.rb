@@ -693,6 +693,14 @@ module Orocos
             def load_task_from_stream(stream,path)
                 #get the name of the task which was logged into the stream
                 task_name = if stream.metadata.has_key? "rock_task_name"
+                                begin
+                                    Namespace.validate_namespace_name(stream.metadata["rock_task_name"])
+                                rescue ArgumentError => e
+                                    Orocos.warn "invalid metadata['rock_task_name']: #{e}"
+                                    Orocos.warn "falling back to stream name: #{stream.name}"
+                                    stream.metadata["rock_task_name"] = nil
+                                    return load_task_from_stream(stream,path)
+                                end
                                 stream.metadata["rock_task_name"]
                             else
                                 result = stream.name.to_s.match(/^(.*)\./)

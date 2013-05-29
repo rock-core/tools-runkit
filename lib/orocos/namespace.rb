@@ -109,7 +109,7 @@ module Orocos
         # @raise [ArgumentError] if name is not a valid namespace name
         def self.validate_namespace_name(name)
             if name =~ /#{DELIMATOR}/
-                raise ArgumentError, "namespace names cannot contain #{DELIMATOR}"
+                raise ArgumentError, "namespace #{name} contains #{DELIMATOR} which is not support."
             end
         end
     end
