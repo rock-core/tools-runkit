@@ -5,37 +5,54 @@ module Orocos
     # initialized by Orocos.initialize has not yet been called
     class NotInitialized < RuntimeError; end
 
-    class Property < AttributeBase
+    class TaskContextAttribute < AttributeBase
+        # Returns the operation that has to be called if this is an 
+        # dynamic propery. Nil otherwise
+        attr_reader :dynamic_operation
+
+        def dynamic?; !!@dynamic_operation end
+
+        def initialize(task, name, orocos_type_name)
+            super
+            if task.has_operation?(opname = "set#{name.capitalize}")
+                @dynamic_operation = task.operation(opname)
+            end
+        end
+
+        def do_write_dynamic(value)
+            if !@dynamic_operation.callop(value)
+                raise PropertyChangeRejected, "the change of property #{name} was rejected by the remote task"
+            end
+        end
+    end
+
+    class Property < TaskContextAttribute
         def log_metadata
             super.merge('rock_stream_type' => 'property')
         end
 
-        def do_write_string(value)
-            task.do_property_write_string(name, value)
-        end
         def do_write(type_name, value)
-            task.do_property_write(name, type_name, value)
-        end
-        def do_read_string
-            task.do_property_read_string(name)
+            if dynamic?
+                do_write_dynamic(value)
+            else
+                task.do_property_write(name, type_name, value)
+            end
         end
         def do_read(type_name, value)
             task.do_property_read(name, type_name, value)
         end
     end
 
-    class Attribute < AttributeBase
+    class Attribute < TaskContextAttribute
         def log_metadata
             super.merge('rock_stream_type' => 'attribute')
         end
-        def do_write_string(value)
-            task.do_attribute_write_string(name, value)
-        end
         def do_write(type_name, value)
-            task.do_attribute_write(name, type_name, value)
-        end
-        def do_read_string
-            task.do_attribute_read_string(name)
+            if dynamic?
+                do_write_dynamic(value)
+            else
+                task.do_attribute_write(name, type_name, value)
+            end
         end
         def do_read(type_name, value)
             task.do_attribute_read(name, type_name, value)
@@ -214,10 +231,12 @@ module Orocos
             options, logger_options = Kernel.filter_options options,:exclude_ports => nil
             exclude_ports = Array(options[:exclude_ports])
 
-            logger_options[:tasks] = Regexp.new(name)
-            Orocos.log_all_process_ports(process,logger_options) do |port|
+            logger_options[:tasks] = Regexp.new(basename)
+            ports = Orocos.log_all_process_ports(process,logger_options) do |port|
                 !exclude_ports.include? port.name
             end
+            raise "#{name}: no ports were selected for logging" if ports.empty?
+            ports
         end
 
         def create_property_log_stream(p)
@@ -366,7 +385,9 @@ module Orocos
         # context
         def operation_names
             CORBA.refine_exceptions(self) do
-                do_operation_names
+                do_operation_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 
@@ -374,7 +395,9 @@ module Orocos
         # context
         def property_names
             CORBA.refine_exceptions(self) do
-                do_property_names
+                do_property_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 
@@ -516,7 +539,9 @@ module Orocos
         # Returns the names of all the ports defined on this task context
         def port_names
             CORBA.refine_exceptions(self) do
-                do_port_names
+                do_port_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 

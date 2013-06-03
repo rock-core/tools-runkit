@@ -25,24 +25,24 @@ describe Orocos::RubyTaskContext do
 
     it "can create output ports" do
         task = new_ruby_task_context("producer")
-        port = task.create_output_port("p", "int")
+        port = task.create_output_port("p", "/int32_t")
         assert_kind_of Orocos::OutputPort, port
         assert_equal task, port.task
         assert_equal "p", port.name
 
         assert task.has_port?("p")
         assert_kind_of Orocos::OutputPort, task.port("p")
-        assert_equal "int", task.port("p").orocos_type_name
+        assert_equal "/int32_t", task.port("p").orocos_type_name
     end
 
     it "can create input ports" do
         task = new_ruby_task_context("producer")
-        port = task.create_input_port("p", "int")
+        port = task.create_input_port("p", "/int32_t")
 
         assert_kind_of Orocos::InputPort, port
         assert task.has_port?("p")
         assert_kind_of Orocos::InputPort, task.port("p")
-        assert_equal "int", task.port("p").orocos_type_name
+        assert_equal "/int32_t", task.port("p").orocos_type_name
     end
 
     it "can write and read on ports" do
@@ -119,8 +119,8 @@ describe Orocos::RubyTaskContext do
         it "successfully converts a basic type to the corresponding orocos type name" do
             typename = Orocos.registry.get('int').name
             refute_equal 'int', typename
-            assert_equal 'int', ruby_task.find_orocos_type_name_by_type(typename)
-            assert_equal 'int', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('int'))
+            assert_equal '/int32_t', ruby_task.find_orocos_type_name_by_type(typename)
+            assert_equal '/int32_t', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('int'))
         end
         it "raises if given a non-exported type" do
             assert_raises(Orocos::Generation::ConfigError) { ruby_task.find_orocos_type_name_by_type('/NonExportedType') }

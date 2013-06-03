@@ -14,6 +14,11 @@ namespace process {
     public:
         Test(std::string const& name = "process::Test", TaskCore::TaskState initial_state = Stopped);
 
+        /* Dynamic Property setter of dynamic_prop
+         */
+        virtual bool setDynamic_prop(::std::string const & value);
+
+
         /** This hook is called by Orocos when the state machine transitions
          * from PreOperational to Stopped. If it returns false, then the
          * component will stay in PreOperational. Otherwise, it goes into

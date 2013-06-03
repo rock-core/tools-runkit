@@ -49,6 +49,27 @@ module Orocos
             sections[section_name]
         end
 
+        # Evaluate ruby content that has been embedded into the configuration file
+        # inbetween <%= ... %>
+        def evaluate_dynamic_content(filename, value)
+            ruby_content = ""
+            begin
+                # non greedy matching of dynamic code
+                value.gsub!(/<%=((.|\n)*?)%>/) do |match|
+                    if match =~ /<%=((.|\n)*?)%>/
+                        ruby_content = $1.strip
+                        p = Proc.new {}
+                        eval(ruby_content, p.binding, filename)
+                    else
+                        match
+                    end
+                end
+            rescue Exception => e
+                raise e, "error evaluating dynamic content '#{ruby_content}': #{e.message}", e.backtrace
+            end
+            value
+        end
+
         # Loads the configurations from a YAML file
         #
         # Multiple configurations can be saved in the file, in which case each
@@ -102,6 +123,8 @@ module Orocos
 
             sections.each_with_index do |doc, idx|
                 doc = doc.join("")
+                doc = evaluate_dynamic_content(file, doc)
+
                 result = YAML.load(StringIO.new(doc))
 
                 conf_options = options[idx].first

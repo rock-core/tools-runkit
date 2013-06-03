@@ -42,6 +42,7 @@ module Orocos
         #This class creates TaskContexts and OutputPorts to simulate the recorded tasks.
         class Replay
             include Namespace
+            include Orocos::PortsSearchable
 
             class << self 
                 attr_accessor :log_config_file 
@@ -74,6 +75,9 @@ module Orocos
             #this array is filled after align was called
             attr_accessor :replayed_properties
 
+            #array of all replayed annotaions
+            #this array is filled after align was called
+            attr_accessor :replayed_annotations
 
             #set it to true if processing of qt events is needed during synced replay
             attr_accessor :process_qt_events             
@@ -259,13 +263,6 @@ module Orocos
                 end
             end
 
-            def find_all_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_ports(ports, type_name, port_name)
-            end
-            def find_port(type_name, port_name=nil)
-                Orocos::TaskContext.find_port(ports, type_name, port_name)
-            end
-
             #Tries to find a OutputPort for a specefic data type.
             #For port_name Regexp is allowed.
             #If precise is set to true an error will be raised if more
@@ -340,6 +337,7 @@ module Orocos
             def align( time_source = self.time_source )
                 @replayed_ports = Array.new
                 @used_streams = Array.new
+                @replayed_annotations = Array.new
 
                 if !replay?
                     Log.warn "No ports are selected. Assuming that all ports shall be replayed."
@@ -352,34 +350,35 @@ module Orocos
                     if task.used?
                         task.port("state").tracked=true if task.has_port?("state")
                         task.properties.values.each do |property|
-                            @replayed_properties << property
-                            @used_streams << property.stream
                             property.tracked = true
-                            property.set_replay
+                            next if property.stream.empty?
+                            @replayed_properties << property
                         end
                     end
                 end
+
                 #get all streams which shall be replayed
                 each_port do |port|
                     if port.used?
-                        if !port.stream.empty?
-                            @replayed_ports << port
-                            @used_streams << port.stream
-                        end
+                        next if port.stream.empty?
+                        @replayed_ports << port
                     end
-                    port.set_replay
                 end
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
-                if @used_streams.size == 0
+                if @replayed_properties.empty? && @replayed_ports.empty?
                     raise "No log data are replayed. All selected streams are empty."
                 end
 
                 # If we do have something to replay, then add the annotations as
                 # well
-                @used_streams.concat(annotations.map(&:stream))
+                annotations.each do |annotation|
+                    next if annotation.stream.empty?
+                    @replayed_annotations << annotation
+                end
 
-                @replayed_objects = @replayed_properties + @replayed_ports + annotations
+                @replayed_objects = @replayed_properties + @replayed_ports + @replayed_annotations
+                @used_streams = @replayed_objects.map(&:stream)
 
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
@@ -672,6 +671,8 @@ module Orocos
 
             #Seeks to the given position
             def seek(pos)
+                #check if stream was generated otherwise call align
+                align if @stream == nil
                 @current_sample = @stream.seek(pos)
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
@@ -692,6 +693,14 @@ module Orocos
             def load_task_from_stream(stream,path)
                 #get the name of the task which was logged into the stream
                 task_name = if stream.metadata.has_key? "rock_task_name"
+                                begin
+                                    namespace, _ = Namespace.split_name(stream.metadata["rock_task_name"])
+                                    Namespace.validate_namespace_name(namespace)
+                                rescue ArgumentError => e
+                                    Orocos.warn "invalid metadata rock_task_name:'#{stream.metadata["rock_task_name"]}' for stream #{stream.name}: #{e}"
+                                    stream.metadata.delete("rock_task_name")
+                                    return load_task_from_stream(stream,path)
+                                end
                                 stream.metadata["rock_task_name"]
                             else
                                 result = stream.name.to_s.match(/^(.*)\./)

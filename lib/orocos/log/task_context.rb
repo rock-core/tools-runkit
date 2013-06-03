@@ -127,9 +127,6 @@ module Orocos
             #number of readers which are using the port
             attr_reader :readers        
 
-            #returns true if replay has started
-            attr_reader :replay
-
             #returns the system time when the port was updated with new data
             attr_reader :last_update
 
@@ -278,7 +275,6 @@ module Orocos
                 @current_data = nil
                 @tracked = false
                 @readers = Array.new
-                @replay = false
                 @last_update = Time.now
             end
 
@@ -306,7 +302,7 @@ module Orocos
 
             #If set to true the port is replayed.  
             def tracked=(value)
-                raise "can not track unused port #{stream.name} after the replay has started" if !used? && replay
+                raise "can not track unused port #{stream.name} after the replay has started" if !used? && aligned?
                 @tracked = value
             end
 
@@ -329,7 +325,7 @@ module Orocos
                        end
 
                 if block && !port
-                    Orocos::Log.warn "connect_to { |data| ... } is deprecated. Use #on_data instead"
+                    Orocos::Log.warn "connect_to to a code block { |data| ... } is deprecated. Use #on_data instead."
                 end
 
                 self.tracked = true
@@ -381,11 +377,9 @@ module Orocos
                 end
             end
 
-            #Is called from align.
-            #If replay is set to true, the log file streams are aligned and no more
-            #streams can be added.
-            def set_replay
-                @replay = true
+            # returns true if Log::Replay is aligned
+            def aligned?
+                task.log_replay.aligned?
             end
 
             #Returns the number of samples for the port.
@@ -416,7 +410,6 @@ module Orocos
             #dedicated stream for simulating the port
             attr_reader :stream         
             attr_reader :type_name         
-            attr_reader :replay
 
             def initialize(task, stream)
                 raise "Cannot create Property out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
@@ -433,15 +426,13 @@ module Orocos
 
             #If set to true the port is replayed.
             def tracked=(value)
-                raise "can not track property #{stream.name} after the replay has started" if !used? && replay
+                raise "can not track property #{stream.name} after the replay has started" if !used? && aligned?
                 @tracked = value
             end
 
-            #Is called from align.
-            #If replay is set to true, the log file streams are aligned and no more
-            #streams can be added.
-            def set_replay
-                @replay = true
+            # returns true if Log::Replay is aligned
+            def aligned?
+                task.log_replay.aligned?
             end
 
             def doc?
@@ -655,7 +646,7 @@ module Orocos
 
                 #connect state with task state
                 if log_port.name == "state"
-                    log_port.connect_to do |sample|
+                    log_port.on_data do |sample|
                         @rtt_state = sample
                     end
                     log_port.tracked = false

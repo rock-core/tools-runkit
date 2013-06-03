@@ -80,8 +80,9 @@ module Orocos::Async
             if task
                 options.each_pair do |key,value|
                     if task.options[key] != value
-                        Orocos.warn "TaskContextProxy #{name} is already initialized with the following options: #{task.options}."
-                        Orocos.warn "Ignoring options: #{options}."
+                        # TODO add proper pretty_print methods to display options otherwise console will be flooded
+                        Orocos.warn "TaskContextProxy #{name} is already initialized with different options."
+                       # Orocos.warn "Ignoring options: #{options}."
                         break
                     end
                 end

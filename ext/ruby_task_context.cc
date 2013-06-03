@@ -63,7 +63,6 @@ static void delete_local_task_context(RLocalTaskContext* rtask)
         return;
 
     LocalTaskContext* task = rtask->tc;
-    RTT::corba::TaskContextServer::CleanupServer(task);
 
     // Ruby GC does not give any guarantee about the ordering of garbage
     // collection. Reset the dataflowinterface to NULL on all ports so that
@@ -76,6 +75,7 @@ static void delete_local_task_context(RLocalTaskContext* rtask)
         (*it)->disconnect();
         (*it)->setInterface(0);
     }
+    RTT::corba::TaskContextServer::CleanupServer(task);
     delete task;
 }
 

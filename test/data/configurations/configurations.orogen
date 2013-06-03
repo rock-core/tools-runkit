@@ -7,6 +7,7 @@ task_context "Task" do
     property "intg", "int", 42
     property "str", "std::string", "test3"
     property "fp", "double", 0.5
+    property "bl", "bool", false
 
     property "compound", "ComplexStructure"
     property "simple_container", "std::vector<int>"
