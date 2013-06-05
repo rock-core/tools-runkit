@@ -94,7 +94,9 @@ module Orocos
                     rescue Orocos::StateTransitionFailed => e
                         current_state = rtt_state
                         reason =
-                            if current_state != :#{expected_state}
+                            if current_state == :EXCEPTION
+                                ". The task is in an exception state. You must call #reset_exception before trying again"
+                            elsif current_state != :#{expected_state}
                                 ". Tasks must be in #{expected_state} state before calling #{m}, but was in \#{current_state}"
                             end
 
