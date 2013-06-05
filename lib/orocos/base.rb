@@ -7,7 +7,6 @@ require 'orogen'
 module Orocos
     class InternalError < Exception; end
     class AmbiguousName < RuntimeError; end
-    class PropertyChangeRejected < RuntimeError; end
 
     def self.register_pkgconfig_path(path)
     	base_path = caller(1).first.gsub(/:\d+:.*/, '')
