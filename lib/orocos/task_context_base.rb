@@ -807,23 +807,26 @@ module Orocos
                 end
 
             else
-                if has_port?(m) && args.empty?
+                if has_port?(m)
+                    if !args.empty?
+                        raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}"
+                    end
                     return port(m)
                 elsif has_operation?(m)
                     return operation(m).callop(*args)
-                end
-
-                if args.empty?
-                    begin
-                        prop = property(m)
-                        value = prop.read(*args)
-                        if block_given?
-                            yield(value)
-                            prop.write(value)
-                        end
-                        return value
-                    rescue Orocos::NotFound
+                elsif has_property?(m) || has_attribute?(m)
+                    if !args.empty?
+                        raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}"
                     end
+                    prop = if has_property?(m) then property(m)
+                           else attribute(m)
+                           end
+                    value = prop.read
+                    if block_given?
+                        yield(value)
+                        prop.write(value)
+                    end
+                    return value
                 end
             end
             super(m.to_sym, *args)
