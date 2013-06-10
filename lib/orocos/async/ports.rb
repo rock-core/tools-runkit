@@ -94,7 +94,6 @@ module Orocos::Async::CORBA
         def remove_listener(listener)
             super
             if number_of_listeners(:data) == 0
-                # TODO call reader.disable
                 @poll_timer.cancel
             end
         end
@@ -275,7 +274,7 @@ module Orocos::Async::CORBA
 
         def add_listener(listener)
             super
-            if listener.event == :data
+            if listener.event == :data && !@global_reader
                 # Errors during reader creation are reported on the port. Do
                 # #on_error on the port to get them
                 reader(@options) do |reader|
@@ -295,7 +294,8 @@ module Orocos::Async::CORBA
         def remove_listener(listener)
             super
             if number_of_listeners(:data) == 0 && @global_reader
-                @global_reader.disconnect{} # called it asynchron
+                remove_proxy_event(@global_reader)
+                @global_reader.disconnect{} # call it asynchron
                 @global_reader = nil
             end
         end
