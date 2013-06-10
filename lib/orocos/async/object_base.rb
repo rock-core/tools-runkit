@@ -255,9 +255,14 @@ module Orocos::Async
         def remove_proxy_event(obj,*events)
             return if obj == self
             events = events.flatten
-            events.each do |e|
-                if listener = @proxy_listeners[obj].delete(e)
-                    listener.stop
+            if events.empty?
+                remove_proxy_event(obj,@proxy_listeners[obj].keys)
+                @proxy_listeners.delete(obj)
+            else
+                events.each do |e|
+                    if listener = @proxy_listeners[obj].delete(e)
+                        listener.stop
+                    end
                 end
             end
         end
