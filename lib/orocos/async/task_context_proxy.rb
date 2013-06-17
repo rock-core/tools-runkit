@@ -361,12 +361,14 @@ module Orocos::Async
                     else
                         f
                     end
-                sample = sample.raw_get(f)
-                if !sample
-                    #if the field name is wrong typelib will raise an ArgumentError
-                    Vizkit.warn "Cannot extract subfield for port #{full_name}: Subfield #{f} does not exist (out of index)!"
-                    break
-                end
+                sample = if !f.is_a?(Fixnum) || sample.size > f
+                             sample.raw_get(f)
+                         else
+                             #if the field name is wrong typelib will raise an ArgumentError
+                             Vizkit.warn "Cannot extract subfield for port #{full_name}: Subfield #{f} does not exist (out of index)!"
+                             nil
+                         end
+                return nil unless sample
             end
             #check if the type is right
             if(sample.class != type)
