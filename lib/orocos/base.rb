@@ -248,6 +248,10 @@ module Orocos
             return
         end
 
+        if @registry
+            raise ArgumentError, "you must call Orocos.clear before calling Orocos.load again"
+        end
+
         @master_project = Orocos::Generation::Component.new
         @registry = master_project.registry
         @conf = ConfigurationManager.new
