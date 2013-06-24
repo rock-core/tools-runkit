@@ -100,12 +100,12 @@ when "extract"
         STDERR.puts "#{model_name} is not a known model name"
     end
 
-    if save_configuration
-        puts "saving in #{save_configuration[0]}"
-    end
     Orocos.run model_name => "oroconf_extract" do
         task = Orocos::TaskContext.get "oroconf_extract"
         dump_configuration(task, save_configuration)
+    end
+    if save_configuration
+        puts "saved in #{File.join(save_configuration[0], "#{model_name}.yml")}"
     end
 
 when "logextract"
