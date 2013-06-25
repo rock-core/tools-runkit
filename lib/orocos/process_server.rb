@@ -268,13 +268,14 @@ module Orocos
                 end
 
             elsif cmd_code == COMMAND_START
-                name, options = Marshal.load(socket)
+                name, deployment_name, name_mappings, options = Marshal.load(socket)
                 options ||= Hash.new
                 Orocos.debug "#{socket} requested startup of #{name} with #{options}"
                 begin
-                    p = Orocos::Process.new(name)
+                    p = Orocos::Process.new(name, deployment_name)
+                    p.name_mappings = name_mappings
                     p.spawn(self.options.merge(options))
-                    Orocos.debug "#{name} is started (#{p.pid})"
+                    Orocos.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
                     processes[name] = p
                     socket.write("P")
                     Marshal.dump(p.pid, socket)
@@ -488,21 +489,24 @@ module Orocos
         # remote side.
         #
         # Raises Failed if the server reports a startup failure
-        def start(deployment_name, options = Hash.new)
-            project_name = available_deployments[deployment_name]
-            if !project_name
-                raise ArgumentError, "unknown deployment #{deployment_name}"
-            end
-            self.load_orogen_project(project_name)
+        def start(process_name, deployment_name, name_mappings = Hash.new, options = Hash.new)
+            deployment_model = load_orogen_deployment(deployment_name)
+
+            prefix_mappings, options =
+                Orocos::ProcessBase.resolve_prefix_option(options, deployment_model)
+            name_mappings = prefix_mappings.merge(name_mappings)
 
             socket.write(ProcessServer::COMMAND_START)
-            Marshal.dump([deployment_name, options], socket)
+            Marshal.dump([process_name, deployment_name, name_mappings, options], socket)
             wait_for_answer do |pid_s|
                 if pid_s == "N"
                     raise Failed, "failed to start #{deployment_name}"
                 elsif pid_s == "P"
                     pid = Marshal.load(socket)
-                    return(processes[deployment_name] = RemoteProcess.new(deployment_name, self, pid, options[:cmdline_args][:prefix]))
+                    process = RemoteProcess.new(process_name, deployment_name, self, pid)
+                    process.name_mappings = name_mappings
+                    processes[process_name] = process
+                    return process
                 else
                     raise InternalError, "unexpected reply #{pid_s} to the start command"
                 end
@@ -580,72 +584,32 @@ module Orocos
     end
 
     # Representation of a remote process started with ProcessClient#start
-    class RemoteProcess
+    class RemoteProcess < ProcessBase
         # The deployment name
         attr_reader :name
         # The ProcessClient instance that gives us access to the remote process
         # server
         attr_reader :process_client
-        # The Orocos::Generation::StaticDeployment instance that describes this
-        # process
-        attr_reader :model
-        # a mapping from the original to the new name
-        attr_reader :name_mappings
         # A string describing the host. It can be used to check if two processes
         # are running on the same host
-        def host_id
-            process_client.host_id
-        end
+        def host_id; process_client.host_id end
         # True if this process is located on the same machine than the ruby
         # interpreter
-        def on_localhost?
-            process_client.host == 'localhost'
-        end
-
+        def on_localhost?; process_client.host == 'localhost' end
         # The process ID of this process on the machine of the process server
         attr_reader :pid
 
-        def initialize(name, process_client, pid, prefix = nil)
-            @name = name
+        def initialize(name, deployment_name, process_client, pid)
             @process_client = process_client
             @pid = pid
             @alive = true
-            @model = process_client.load_orogen_deployment(name)
-            @name_mappings = Hash.new
-
-            if prefix
-                @model.task_activities.each do |task|
-                    map_name(task.name, "#{prefix}#{task.name}")                             
-                end
-            end
-        end
-
-        def log_all_ports(options = Hash.new)
-            Orocos.log_all_ports(self, options)
-        end
-
-        def setup_logger(options = Hash.new)
-            Orocos.setup_default_logger(self, options)
+            model = process_client.load_orogen_deployment(deployment_name)
+            super(name, model)
         end
 
         # Called to announce that this process has quit
         def dead!
             @alive = false
-        end
-
-        def map_name(old, new)
-            name_mappings[old] = new
-        end
-
-        def get_mapped_name(name)
-            name_mappings[name] || name
-        end
-
-        def task_names
-            model.task_activities.map do |task|
-                name = task.name
-                get_mapped_name(name)
-            end
         end
 
         # Stops the process

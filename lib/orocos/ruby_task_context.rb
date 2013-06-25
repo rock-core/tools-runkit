@@ -68,7 +68,9 @@ module Orocos
                 value = type.new
             end
 
-            result = do_read(orocos_type_name, value, copy_old_data)
+            result = value.allocating_operation do
+                do_read(orocos_type_name, value, copy_old_data)
+            end
             if result == 1 || (result == 0 && copy_old_data)
                 if sample
                     sample.invalidate_changes_from_converted_types
@@ -83,6 +85,9 @@ module Orocos
     class OutputReader < LocalInputPort
         # The port this object is reading from
         attr_accessor :port
+
+        # The policy of the connection
+        attr_accessor :policy
 
         # Helper method for #read and #read_new
         #
@@ -154,6 +159,9 @@ module Orocos
         # The port this object is reading from
         attr_accessor :port
 
+        # The policy of the connection
+        attr_accessor :policy
+
         # Disconnects this port from the port it is reading
         def disconnect
             disconnect_all
@@ -202,19 +210,31 @@ module Orocos
         #
         # @param [String] name the task name
         # @return [LocalTaskContext]
-        def self.new(name, options = Hash.new)
+        def self.new(name, options = Hash.new, &block)
+            options, _ = Kernel.filter_options options, :model
+
+            if block && !options[:model]
+                model = Orocos::Spec::TaskContext.new(Orocos.master_project, name)
+                model.instance_eval(&block)
+                options[:model] = model
+            end
+
             local_task = LocalTaskContext.new(name)
+            if options[:model] && options[:model].name
+                local_task.model_name = options[:model].name
+            end
+
             remote_task = super(local_task.ior, options)
             local_task.instance_variable_set :@remote_task, remote_task
             remote_task.instance_variable_set :@local_task, local_task
 
-            options, _ = Kernel.filter_options options, :model
             if options[:model]
                 remote_task.setup_from_orogen_model(options[:model])
             end
             remote_task
         end
 
+        attr_accessor :model
 
         def initialize(ior, options = Hash.new)
             @local_ports = Hash.new
@@ -284,7 +304,9 @@ module Orocos
         # @param [String] orocos_type_name the type name as known by RTT. It is
         #   usually the typelib type name
         # @return [Property] the property object
-        def create_property(name, orocos_type_name)
+        def create_property(name, type)
+            orocos_type_name = find_orocos_type_name_by_type(type)
+            Orocos.load_typekit_for orocos_type_name
             local_property = @local_task.do_create_property(Property, name, orocos_type_name)
             @local_properties[local_property.name] = local_property
             @properties[local_property.name] = local_property
@@ -338,13 +360,33 @@ module Orocos
             new_outputs.each do |p|
                 create_output_port(p.name, p.orocos_type_name)
             end
+            @model = orogen_model
             nil
+        end
+
+        def find_orocos_type_name_by_type(type)
+            if type.respond_to?(:name)
+                type = type.name
+            end
+            type = Orocos.master_project.find_type(type)
+            type = Orocos.master_project.find_opaque_for_intermediate(type) || type
+            type = Orocos.master_project.find_interface_type(type)
+            if Orocos.registered_type?(type.name)
+                type.name
+            else Typelib::Registry.rtt_typename(type)
+            end
         end
 
         private
 
         # Helper method for create_input_port and create_output_port
-        def create_port(is_output, klass, name, orocos_type_name, options)
+        def create_port(is_output, klass, name, type, options)
+            # Load the typekit, but no need to check on it being exported since
+            # #find_orocos_type_name_by_type will do it for us
+            Orocos.load_typekit_for(type, false)
+            orocos_type_name = find_orocos_type_name_by_type(type)
+            Orocos.load_typekit_for(orocos_type_name, true)
+
             options = Kernel.validate_options options, :permanent => true
             local_port = @local_task.do_create_port(is_output, klass, name, orocos_type_name)
             if options[:permanent]

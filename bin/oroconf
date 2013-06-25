@@ -3,6 +3,7 @@
 require 'optparse'
 require 'orocos'
 require 'time'
+require 'rock/bundle'
 
 debug = false
 save_configuration = nil
@@ -49,7 +50,9 @@ directory.
     end
 
     opt.on('--save FILE:SECTION', 'in extract and display modes, saves the configuration in the specified file. If a file is a directory, an automatic name will be generated') do |conf_config|
-        if conf_config =~ /:(\w+)$/
+        if !conf_config
+            save_configuration = nil
+        elsif conf_config =~ /:(\w+)$/
             save_configuration = [$`, $1]
         else
             save_configuration = [conf_config]
@@ -60,9 +63,16 @@ directory.
     end
 end
 
-Orocos.initialize
+Rock::Bundles.public_logs = false
+Rock::Bundles.initialize
+if Rock::Bundles.has_selected_bundle?
+    config_dir = File.join(Rock::Bundles.current_bundle.path, 'config', 'orogen')
+    FileUtils.mkdir_p config_dir
+    save_configuration = [config_dir]
+end
 
 remaining = parser.parse(ARGV)
+
 
 def dump_configuration(task, save_configuration)
     model_name = task.model.name
@@ -93,6 +103,9 @@ when "extract"
     Orocos.run model_name => "oroconf_extract" do
         task = Orocos::TaskContext.get "oroconf_extract"
         dump_configuration(task, save_configuration)
+    end
+    if save_configuration
+        puts "saved in #{File.join(save_configuration[0], "#{model_name}.yml")}"
     end
 
 when "logextract"

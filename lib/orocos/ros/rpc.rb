@@ -24,8 +24,11 @@ module Orocos
             end
 
             do_initialize(name)
+
             at_exit do
-                Orocos::ROS.shutdown
+                if Orocos::ROS.initialized?
+                    Orocos::ROS.shutdown
+                end
             end
         end
 
@@ -61,6 +64,10 @@ module Orocos
         class ROSMaster < ROS_XMLRPC
             def system_state
                 call('getSystemState', caller_id)
+            end
+
+            def topics
+                call('getTopicTypes', caller_id)
             end
 
             def lookup_node(name)

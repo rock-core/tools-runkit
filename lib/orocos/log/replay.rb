@@ -11,11 +11,13 @@ module Orocos
             attr_reader :samples
             attr_reader :stream
             attr_reader :file_name
+            attr_reader :current_state
 
             def initialize(path,stream)
                 @samples = Array.new
                 @file_name = path
                 @stream = stream
+                @current_state = Hash.new
 
                 stream.samples.each do |rt,lg,sample|
                     @samples << sample
@@ -24,6 +26,10 @@ module Orocos
                 @samples.sort! do |a,b|
                     a.time <=> b.time
                 end
+            end
+
+            def write(sample)
+                current_state[sample.key] = sample.value
             end
 
             def pretty_print(pp)
@@ -36,6 +42,7 @@ module Orocos
         #This class creates TaskContexts and OutputPorts to simulate the recorded tasks.
         class Replay
             include Namespace
+            include Orocos::PortsSearchable
 
             class << self 
                 attr_accessor :log_config_file 
@@ -45,6 +52,10 @@ module Orocos
 	    #local nameservice, which is automatically registered
 	    #with orocos name resolution
 	    attr_accessor :name_service
+
+	    #local async nameservice, which is automatically registered
+            #if async is available
+	    attr_accessor :name_service_async
 
             #desired replay speed = 1 --> record time
             attr_accessor :speed            
@@ -64,6 +75,9 @@ module Orocos
             #this array is filled after align was called
             attr_accessor :replayed_properties
 
+            #array of all replayed annotaions
+            #this array is filled after align was called
+            attr_accessor :replayed_annotations
 
             #set it to true if processing of qt events is needed during synced replay
             attr_accessor :process_qt_events             
@@ -83,6 +97,18 @@ module Orocos
 
             #array of stream annotations
             attr_reader :annotations
+
+            # The current annotations
+            #
+            # This is an aggregated version of #annotations, where the value for
+            # each key is the last value known (i.e. the value from the last
+            # annotation with that key that has a timestamp lower than the
+            # current time)
+            def current_annotations
+                annotations.inject(Hash.new) do |current, ann|
+                    current.merge(ann.current_state)
+                end
+            end
 
             # Returns where from the time used for alignment should be taken. It
             # can be one of
@@ -135,6 +161,7 @@ module Orocos
                 @timestamps = Hash.new
                 @tasks = Hash.new
                 @annotations = Array.new
+                @current_annotations = Hash.new
                 @speed = 1
                 @replayed_ports = Array.new
                 @replayed_properties = Array.new
@@ -144,6 +171,7 @@ module Orocos
                 @current_sample = nil
                 @process_qt_events = false
                 @log_config_file = Replay::log_config_file
+                @namespace = ''
                 reset_time_sync
                 time_sync
             end
@@ -161,11 +189,11 @@ module Orocos
             #returns false if no ports are or will be replayed
             def replay? 
                 #check if stream was initialized
-                if @stream 
+                if @stream
                     return true
                 else
-                    each_port do |port|
-                        return true if port.used?
+                    each_task do |task|
+                        return true if task.used?
                     end
                 end
                 return false
@@ -180,7 +208,6 @@ module Orocos
                     pp.breakable
                     pp.text "Markers = #{@markers}"
                     pp.breakable
-                    pp.text "TaskContext(s):"
                     @tasks.each_value do |task|
                         pp.breakable
                         task.pretty_print(pp)
@@ -234,13 +261,6 @@ module Orocos
                 @tasks.each_value do |task|
                     task.track(value,filter) if !options.has_key?(:tasks) || task.name =~ options[:tasks]
                 end
-            end
-
-            def find_all_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_ports(ports, type_name, port_name)
-            end
-            def find_port(type_name, port_name=nil)
-                Orocos::TaskContext.find_port(ports, type_name, port_name)
             end
 
             #Tries to find a OutputPort for a specefic data type.
@@ -317,6 +337,7 @@ module Orocos
             def align( time_source = self.time_source )
                 @replayed_ports = Array.new
                 @used_streams = Array.new
+                @replayed_annotations = Array.new
 
                 if !replay?
                     Log.warn "No ports are selected. Assuming that all ports shall be replayed."
@@ -324,39 +345,43 @@ module Orocos
                     track(true)
                 end
 
-                #get all streams which shall be replayed
-                each_port do |port|
-                    if port.used?
-                        if !port.stream.empty?
-                            @replayed_ports << port
-                            @used_streams << port.stream
-                        end
-                    end
-                    port.set_replay
-                end
-
                 #get all properties which shall be replayed
                 each_task do |task|
                     if task.used?
+                        task.port("state").tracked=true if task.has_port?("state")
                         task.properties.values.each do |property|
+                            property.tracked = true
+                            next if property.stream.empty?
                             @replayed_properties << property
-                            @used_streams << property.stream
                         end
                     end
                 end
-                @replayed_objects = @replayed_ports + @replayed_properties
+
+                #get all streams which shall be replayed
+                each_port do |port|
+                    if port.used?
+                        next if port.stream.empty?
+                        @replayed_ports << port
+                    end
+                end
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
-                if @used_streams.size == 0
-                    Log.warn "No log data are replayed. All selected streams are empty."
-                    return
+                if @replayed_properties.empty? && @replayed_ports.empty?
+                    raise "No log data are replayed. All selected streams are empty."
                 end
+
+                # If we do have something to replay, then add the annotations as
+                # well
+                annotations.each do |annotation|
+                    next if annotation.stream.empty?
+                    @replayed_annotations << annotation
+                end
+
+                @replayed_objects = @replayed_properties + @replayed_ports + @replayed_annotations
+                @used_streams = @replayed_objects.map(&:stream)
 
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
-
-                #register task on the local name server
-                register_tasks
 
                 #join streams 
                 @stream = Pocolog::StreamAligner.new(time_source, *@used_streams)
@@ -384,9 +409,14 @@ module Orocos
 
             # registers all replayed log tasks on the local name server
             def register_tasks
-		raise "Log replay already registered with nameserver" if @name_service
-                @name_service = Local::NameService.new @tasks
+                @name_service ||= Local::NameService.new
+                @name_service_async ||= Orocos::Async::Local::NameService.new :tasks => @tasks.values if defined?(Orocos::Async)
+                @tasks.each_pair do |name,task|
+                    @name_service.register task
+                    @name_service_async.register task if @name_service_async
+                end
                 Orocos::name_service.add @name_service
+                Orocos::Async.name_service.add @name_service_async if @name_service_async
             end
 
 	    # deregister the local name service again
@@ -456,15 +486,44 @@ module Orocos
                 end
             end
 
-            #Gets the next sample and writes it to the ports which are connected
-            #to the OutputPort and updates all its readers.
+            #returns ture if the next sample must be replayed to
+            #meet synchronous replay
+            def sync_step?
+                calc_statistics
+                if @out_of_sync_delta > 0.001
+                    false
+                else
+                    true
+                end
+            end
+
+            def calc_statistics
+                index, time, data = @current_sample
+                if getter = (timestamps[data.class.name] || default_timestamp)
+                    time = getter[data]
+                end
+
+                @base_time ||= time
+                @start_time ||= Time.now
+
+                required_delta = (time - @base_time)/@speed
+                actual_delta   = Time.now - @start_time
+                @out_of_sync_delta = @time_sync_proc.call(time,actual_delta,required_delta)
+                @actual_speed = required_delta/actual_delta*@speed
+            end
+
+            # Gets the next sample, writes it to the ports which are connected
+            # to the OutputPort and updates all its readers.
             #
-            #If time_sync is set to true the method will wait until the 
-            #simulated time delta is equal the recorded time delta.
+            # If a block is given it is called this the name of the replayed port.
             #
-            #If a block is given it is called this the name of the replayed port.
+            # @param [Boolean] time_sync if true, the method will sleep as much
+            #   time as required to match the time delta in the file
             #
-            #You can change the replay speed by changing the instance variable speed.
+            # @yield [reader,sample]
+            # @yieldparam reader the data reader of the port from which the
+            #   sample has been read
+            # @yieldparam sample the data sample
             #
             def step(time_sync=false,&block)
                 #check if stream was generated otherwise call align
@@ -474,41 +533,29 @@ module Orocos
                 @current_sample = @stream.step
                 return if !@current_sample
                 index, time, data = @current_sample
-
-                if getter = (timestamps[data.class.name] || default_timestamp)
-                    time = getter[data]
-                end
-                @base_time ||= time
-                @start_time ||= Time.now
-                required_delta = (time - @base_time)/@speed
-                actual_delta   = Time.now - @start_time
+                calc_statistics
 
                 #wait if replay is faster than the desired speed and time_sync is set to true
-                if time_sync
-                    while (wait = @time_sync_proc.call(time,actual_delta,required_delta)) > 0.001
-                        #process qt events every 0.01 sec
-                        if @process_qt_events == true
-                            start_wait = Time.now
-                            while true
+                if time_sync &&  @out_of_sync_delta > 0.001
+                    if @process_qt_events == true
+                        start_wait = Time.now
+                        while true
+                            if $qApp
                                 $qApp.processEvents()
-                                break if !@start_time                           #break if start_time was reseted throuh processEvents
-                                wait2 =wait -(Time.now - start_wait)
-                                if wait2 > 0.001
-                                    sleep [0.01,wait2].min
-                                else
-                                    break
-                                end
                             end
-                        else
-                            sleep(wait)
+                            break if !@start_time                           #break if start_time was reseted throuh processEvents
+                            wait = @out_of_sync_delta -(Time.now - start_wait)
+                            if wait > 0.001
+                                sleep [0.01,wait].min
+                            else
+                                break
+                            end
+                            calc_statistics
                         end
-                        break if !@start_time        # if time was resetted go out 
-                        actual_delta   = Time.now - @start_time
+                    else
+                        sleep(@out_of_sync_delta)
                     end
-                    actual_delta = @start_time ? Time.now - @start_time : required_delta
-                    @out_of_sync_delta = required_delta - actual_delta
                 end
-                @actual_speed = required_delta/actual_delta*@speed
 
                 #write sample to simulated ports or properties
                 @replayed_objects[index].write(data)
@@ -565,7 +612,7 @@ module Orocos
             end
 
             #Returns an array of all simulated ports 
-            def ports 
+            def ports
                 result = Array.new
                 each_port do |port|
                     result << port
@@ -591,6 +638,7 @@ module Orocos
             end
 
             def has_task?(name)
+                name = map_to_namespace name
                 @tasks.has_key?(name.to_s)
             end
 
@@ -623,6 +671,8 @@ module Orocos
 
             #Seeks to the given position
             def seek(pos)
+                #check if stream was generated otherwise call align
+                align if @stream == nil
                 @current_sample = @stream.seek(pos)
                 #write all data to the ports
                 0.upto(@stream.streams.length-1) do |index|
@@ -643,6 +693,14 @@ module Orocos
             def load_task_from_stream(stream,path)
                 #get the name of the task which was logged into the stream
                 task_name = if stream.metadata.has_key? "rock_task_name"
+                                begin
+                                    namespace, _ = Namespace.split_name(stream.metadata["rock_task_name"])
+                                    Namespace.validate_namespace_name(namespace)
+                                rescue ArgumentError => e
+                                    Orocos.warn "invalid metadata rock_task_name:'#{stream.metadata["rock_task_name"]}' for stream #{stream.name}: #{e}"
+                                    stream.metadata.delete("rock_task_name")
+                                    return load_task_from_stream(stream,path)
+                                end
                                 stream.metadata["rock_task_name"]
                             else
                                 result = stream.name.to_s.match(/^(.*)\./)
@@ -748,6 +806,9 @@ module Orocos
                     end
                 end
                 raise ArgumentError, "Nothing was loaded from the following log files #{paths.join("; ")}" if @tasks.empty?
+
+                #register task on the local name server
+                register_tasks
             end
 
             # Clears all reader buffers.

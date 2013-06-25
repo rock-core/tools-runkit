@@ -5,37 +5,54 @@ module Orocos
     # initialized by Orocos.initialize has not yet been called
     class NotInitialized < RuntimeError; end
 
-    class Property < AttributeBase
+    class TaskContextAttribute < AttributeBase
+        # Returns the operation that has to be called if this is an 
+        # dynamic propery. Nil otherwise
+        attr_reader :dynamic_operation
+
+        def dynamic?; !!@dynamic_operation end
+
+        def initialize(task, name, orocos_type_name)
+            super
+            if task.has_operation?(opname = "set#{name.capitalize}")
+                @dynamic_operation = task.operation(opname)
+            end
+        end
+
+        def do_write_dynamic(value)
+            if !@dynamic_operation.callop(value)
+                raise PropertyChangeRejected, "the change of property #{name} was rejected by the remote task"
+            end
+        end
+    end
+
+    class Property < TaskContextAttribute
         def log_metadata
             super.merge('rock_stream_type' => 'property')
         end
 
-        def do_write_string(value)
-            task.do_property_write_string(name, value)
-        end
         def do_write(type_name, value)
-            task.do_property_write(name, type_name, value)
-        end
-        def do_read_string
-            task.do_property_read_string(name)
+            if dynamic?
+                do_write_dynamic(value)
+            else
+                task.do_property_write(name, type_name, value)
+            end
         end
         def do_read(type_name, value)
             task.do_property_read(name, type_name, value)
         end
     end
 
-    class Attribute < AttributeBase
+    class Attribute < TaskContextAttribute
         def log_metadata
             super.merge('rock_stream_type' => 'attribute')
         end
-        def do_write_string(value)
-            task.do_attribute_write_string(name, value)
-        end
         def do_write(type_name, value)
-            task.do_attribute_write(name, type_name, value)
-        end
-        def do_read_string
-            task.do_attribute_read_string(name)
+            if dynamic?
+                do_write_dynamic(value)
+            else
+                task.do_attribute_write(name, type_name, value)
+            end
         end
         def do_read(type_name, value)
             task.do_attribute_read(name, type_name, value)
@@ -77,7 +94,9 @@ module Orocos
                     rescue Orocos::StateTransitionFailed => e
                         current_state = rtt_state
                         reason =
-                            if current_state != :#{expected_state}
+                            if current_state == :EXCEPTION
+                                ". The task is in an exception state. You must call #reset_exception before trying again"
+                            elsif current_state != :#{expected_state}
                                 ". Tasks must be in #{expected_state} state before calling #{m}, but was in \#{current_state}"
                             end
 
@@ -92,6 +111,12 @@ module Orocos
             end
             EOD
         end
+
+        # The logger task that should be used to log data that concerns this
+        # task
+        #
+        # @return [#log]
+        attr_accessor :logger
 
         # A new TaskContext instance representing the
         # remote task context with the given IOR
@@ -114,6 +139,10 @@ module Orocos
                    end
             super(name,other_options)
             @ior = ior
+
+            if process && (process.default_logger_name != name)
+                self.logger = process.default_logger
+            end
         end
 
         def ping
@@ -169,9 +198,6 @@ module Orocos
                 super
             end
             @state_queue
-
-        rescue Orocos::ComError
-            @state_queue = []
         end
 
         # Returns the PID of the thread this task runs on
@@ -207,10 +233,12 @@ module Orocos
             options, logger_options = Kernel.filter_options options,:exclude_ports => nil
             exclude_ports = Array(options[:exclude_ports])
 
-            logger_options[:tasks] = Regexp.new(name)
-            Orocos.log_all_process_ports(process,logger_options) do |port|
+            logger_options[:tasks] = Regexp.new(basename)
+            ports = Orocos.log_all_process_ports(process,logger_options) do |port|
                 !exclude_ports.include? port.name
             end
+            raise "#{name}: no ports were selected for logging" if ports.empty?
+            ports
         end
 
         def create_property_log_stream(p)
@@ -355,11 +383,23 @@ module Orocos
             end
         end
 
+        # Returns the array of the names of available operations on this task
+        # context
+        def operation_names
+            CORBA.refine_exceptions(self) do
+                do_operation_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
+            end
+        end
+
         # Returns the array of the names of available properties on this task
         # context
         def property_names
             CORBA.refine_exceptions(self) do
-                do_property_names
+                do_property_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 
@@ -452,6 +492,10 @@ module Orocos
                 p.log_current_value
             end
             properties[name] = p
+
+        rescue Orocos::ComError,Orocos::CORBA::ComError => e
+            Orocos.error "Property #{name} with communication error: #{e}"
+            raise
         end
 
         # Returns an object that represents the given port on the remote task
@@ -488,13 +532,18 @@ module Orocos
 
         rescue Orocos::NotFound => e
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
+        rescue Orocos::ComError => e
+            Orocos.error "Port #{name} with communication error: #{e}"
+            raise
         end
 
 
         # Returns the names of all the ports defined on this task context
         def port_names
             CORBA.refine_exceptions(self) do
-                do_port_names
+                do_port_names.each do |str|
+                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                end
             end
         end
 
@@ -529,24 +578,66 @@ module Orocos
         end
 
         # Returns the Orogen specification object for this task's model. It will
-        # return nil if the remote task does not expose its model name with
-        # a getModelName operation, and raise Orocos::NotFound if the task model
-        # cannot be accessed locally
+        # return a default model if the remote task does not respond to getModelName
+        # or the description file cannot be found.
         #
         # See also #info
         def model
             model = super
-            if !model && has_operation?("getModelName")
-                model_name = self.getModelName
-                self.model =
-                    begin Orocos.task_model_from_name(model_name)
-                    rescue Orocos::NotFound
-                        Orocos.warn "#{name} is a task context of class #{model_name}, but I cannot find the description for it, falling back"
-                        Orocos::Spec::TaskContext.new(Orocos.master_project, model_name)
-                    end
+            if !model
+                self.model = begin
+                                 model_name = self.getModelName
+                                 if model_name.empty?
+                                     Orocos::Spec::TaskContext.new(Orocos.master_project, "")
+                                 else
+                                     Orocos.task_model_from_name(model_name)
+                                 end
+                             rescue NoMethodError
+                                 if name !~ /.*orocosrb_(\d+)$/
+                                    Orocos.warn "#{name} is a task context not generated by orogen, using default task model"
+                                 end
+                                 Orocos::Spec::TaskContext.new(Orocos.master_project, name)
+                             rescue Orocos::NotFound
+                                 Orocos.warn "#{name} is a task context of class #{model_name}, but I cannot find the description for it, falling back"
+                                 Orocos::Spec::TaskContext.new(Orocos.master_project, model_name)
+                             end
             else
                 model
             end
+        end
+
+        def connect_to(sink, policy = Hash.new)
+            port = find_output_port(sink.type, nil)
+            if !port
+                raise ArgumentError, "port #{sink.name} does not match any output port of #{name}"
+            end
+            port.connect_to(sink, policy)
+        end
+
+        def disconnect_from(sink, policy = Hash.new)
+            each_output_port do |out_port|
+                if out_port.type == sink.type
+                    out_port.disconnect_from(sink)
+                end
+            end
+            nil
+        end
+
+        def resolve_connection_from(source, policy = Hash.new)
+            port = find_input_port(source.type,nil)
+            if !port
+                raise ArgumentError, "port #{source.name} does not match any input port of #{name}."
+            end
+            source.connect_to(port, policy)
+        end
+
+        def resolve_disconnection_from(source)
+            each_input_port do |in_port|
+                if in_port.type == source.type
+                    source.disconnect_from(in_port)
+                end
+            end
+            nil
         end
     end
 end

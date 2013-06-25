@@ -72,15 +72,19 @@ module Orocos
         'ros' => false
     }
 
+    @lock = Mutex.new
+
     # Load the typekit whose name is given
     #
     # Typekits are shared libraries that include marshalling/demarshalling
     # code. It gets automatically loaded in orocos.rb whenever you start
     # processes.
     def self.load_typekit(name)
-        typekit_pkg = find_typekit_pkg(name)
-        load_typekit_plugins(name, typekit_pkg)
-        load_typekit_registry(name, typekit_pkg)
+        @lock.synchronize do
+            typekit_pkg = find_typekit_pkg(name)
+            load_typekit_plugins(name, typekit_pkg)
+            load_typekit_registry(name, typekit_pkg)
+        end
     end
 
     def self.find_typekit_pkg(name)
@@ -122,6 +126,7 @@ module Orocos
         end
 
         begin
+            Orocos.info "loading typekit #{name} on master project"
             typekit = Orocos.master_project.using_typekit(name)
         rescue RuntimeError => e
             raise e, "failed to load typekit #{name}: #{e.message}", e.backtrace
@@ -131,6 +136,7 @@ module Orocos
     end
 
     def self.load_registry(registry, name = nil)
+        Orocos.info "loading registry #{registry} from typekit #{name}"
 	if registry.respond_to?(:to_str)
 	    if File.file?(registry)
 	        Orocos.registry.import(registry)
@@ -142,20 +148,25 @@ module Orocos
 	end
 
 	if Orocos.export_types?
-	    Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
-		if type_name =~ /orogen_typekits/ # just ignore those
-		elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
-		elsif base_type.contains_opaques? # register the intermediate instead
-		    Orocos.master_project.intermediate_type_for(base_type)
-		elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
-		else exported_type
-		end
-	    end
+            Orocos.info "exporting registry to Ruby"
+            export_registry_to_ruby
 	end
 
 	if name
 	    @loaded_typekit_registries << name
 	end
+    end
+
+    def self.export_registry_to_ruby
+        Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
+            if type_name =~ /orogen_typekits/ # just ignore those
+            elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
+            elsif base_type.contains_opaques? # register the intermediate instead
+                Orocos.master_project.intermediate_type_for(base_type)
+            elsif Orocos.master_project.m_type?(base_type) # just ignore, they are registered as the opaque
+            else exported_type
+            end
+        end
     end
 
     # Loads all typekits that are available on this system
@@ -193,9 +204,9 @@ module Orocos
                 plugin_name = transport_library_name(name, transport_name, Orocos.orocos_target)
                 begin
                     plugins[plugin_name] = [Utilrb::PkgConfig.new(plugin_name), required]
-                rescue Utilrb::PkgConfig::NotFound
+                rescue Utilrb::PkgConfig::NotFound => e
                     if required
-                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport"
+                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport: could not find pkg-config package #{e.name} in #{ENV['PKG_CONFIG_PATH']}"
                     end
                 end
             end
@@ -247,8 +258,8 @@ module Orocos
 
         typekit_name, is_exported = Orocos.available_types[typename]
 
-        if registered_type?(typename)
-            typekit_name
+        if registered_type?(typename) && Orocos.registry.include?(typename) && !Orocos.registry.get(typename).null?
+            return typekit_name
         elsif !typekit_name
             raise TypekitTypeNotFound.new(typename), "no type #{typename} has been registered in oroGen components"
         elsif exported && !is_exported
@@ -266,9 +277,16 @@ module Orocos
     # Raises ArgumentError if this type is registered nowhere, or if +exported+
     # is true and the type is not exported.
     def self.load_typekit_for(typename, exported = true)
+        if typename.respond_to?(:name) && Typelib::Registry.base_rtt_type?(typename) &&
+            !Orocos.available_types.has_key?(typename.name)
+            return
+        end
+
         typekit_name = find_typekit_for(typename, exported)
-        load_typekit(typekit_name)
-        return Orocos.master_project.using_typekit(typekit_name)
+        if typekit_name
+            load_typekit(typekit_name)
+            Orocos.master_project.using_typekit(typekit_name)
+        end
     end
 
     # Returns the type that is used to manipulate +t+ in Typelib
@@ -285,15 +303,68 @@ module Orocos
         end
 
         begin
-            typelib_type = do_typelib_type_for(t)
-            return registry.get(typelib_type)
-        rescue ArgumentError
-            type = Orocos.master_project.find_type(t)
-            if !type.contains_opaques?
-                return type
+            if typelib_type = do_typelib_type_for(t)
+                return registry.get(typelib_type)
             end
-            return Orocos.master_project.intermediate_type_for(type)
+        rescue ArgumentError
         end
+
+        if registry.include?(t)
+            type = registry.get(t)
+            if type.contains_opaques?
+                return Orocos.master_project.intermediate_type_for(type)
+            elsif type.null?
+                # 't' is an opaque type and there are no typelib marshallers
+                # to convert it to something we can manipulate, raise
+                raise Typelib::NotFound, "#{t} is an opaque type and there are no typelib marshallers registered in RTT to convert it to a typelib-compatible type"
+            else type
+            end
+        else
+            raise Typelib::NotFound, "#{t} cannot be found in the currently loaded registries"
+        end
+    end
+
+    def self.create_or_get_opaque(type_name)
+        if Orocos.registry.include?(type_name)
+            type = Orocos.registry.get type_name
+            if !type.null?
+                return create_or_get_opaque("/orocos#{type_name}")
+            end
+            type
+        else
+            Orocos.registry.create_null(type_name)
+        end
+    end
+
+    # Finds the typelib type that maps to the given orocos type name
+    #
+    # @param [String] orocos_type_name
+    # @option options [Boolean] fallback_to_opaque (false) if true, a new opaque
+    #   type with the given orocos type name will be added to the registry and
+    #   returned if the type cannot be found
+    #
+    # @raise [Orocos::TypekitTypeNotFound] if the type cannot be found and no
+    #   typekit registers it
+    # @return [Model<Typelib::Type>] a subclass of Typelib::Type that
+    #   represents the requested type
+    def self.find_type_by_orocos_type_name(orocos_type_name, options = Hash.new)
+     begin
+         options = Kernel.validate_options options,
+             :fallback_to_null_type => false
+
+         if !Orocos.registered_type?(orocos_type_name)
+             Orocos.load_typekit_for(orocos_type_name)
+         end
+         Orocos.typelib_type_for(orocos_type_name)
+     rescue Orocos::TypekitTypeNotFound, Typelib::NotFound
+         # Create an opaque type as a placeholder for the unknown
+         # type name
+         if options[:fallback_to_null_type]
+             type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
+             create_or_get_opaque(type_name)
+         else raise
+         end
+     end
     end
 end
 

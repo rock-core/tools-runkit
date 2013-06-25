@@ -17,6 +17,8 @@ module Orocos
             #Handle to the port the reader is reading from
             attr_reader :port
 
+            attr_reader :policy
+
             #filter for log data 
             #the filter is applied during read
             #the buffer is not effected 
@@ -29,7 +31,7 @@ module Orocos
             #
             #see project orocos.rb for more information
             def initialize(port,policy=default_policy)
-                policy = default_policy if !policy
+                @policy = default_policy if !policy
                 @port = port
                 @buffer = Array.new
                 @filter, policy = Kernel.filter_options(policy,[:filter])
@@ -125,11 +127,10 @@ module Orocos
             #number of readers which are using the port
             attr_reader :readers        
 
-            #returns true if replay has started
-            attr_reader :replay
-
             #returns the system time when the port was updated with new data
             attr_reader :last_update
+
+            attr_reader :current_data
 
             #filter for log data
             #the filter is applied before all connections and readers are updated 
@@ -190,6 +191,14 @@ module Orocos
             #if force_local? returns true this port will never be proxied by an orogen port proxy
             def force_local?
                 return true
+            end
+
+            def last_sample_pos
+                task.log_replay.last_sample_pos stream
+            end
+
+            def first_sample_pos 
+                task.log_replay.first_sample_pos stream
             end
 
             def to_orocos_port
@@ -266,7 +275,6 @@ module Orocos
                 @current_data = nil
                 @tracked = false
                 @readers = Array.new
-                @replay = false
                 @last_update = Time.now
             end
 
@@ -294,8 +302,14 @@ module Orocos
 
             #If set to true the port is replayed.  
             def tracked=(value)
-                raise "can not track unused port #{stream.name} after the replay has started" if !used? && replay
+                raise "can not track unused port #{stream.name} after the replay has started" if !used? && aligned?
                 @tracked = value
+            end
+
+            # Calls the provided block when data is replayed into this port
+            def on_data(&block)
+                self.tracked = true
+                @connections << CodeBlockConnection.new(@name,block)
             end
 
             #Register InputPort which is updated each time write is called
@@ -309,6 +323,10 @@ module Orocos
                        elsif port
                            port.to_orocos_port 
                        end
+
+                if block && !port
+                    Orocos::Log.warn "connect_to to a code block { |data| ... } is deprecated. Use #on_data instead."
+                end
 
                 self.tracked = true
                 policy[:filter] = block if block
@@ -359,11 +377,9 @@ module Orocos
                 end
             end
 
-            #Is called from align.
-            #If replay is set to true, the log file streams are aligned and no more
-            #streams can be added.
-            def set_replay
-                @replay = true
+            # returns true if Log::Replay is aligned
+            def aligned?
+                task.log_replay.aligned?
             end
 
             #Returns the number of samples for the port.
@@ -373,6 +389,10 @@ module Orocos
 
             def doc?
                 false
+            end
+
+            def output?
+                true
             end
         end
         
@@ -401,6 +421,18 @@ module Orocos
                 @task = task
                 @current_value = nil
                 @type_name = stream.typename
+                @notify_blocks =[]
+            end
+
+            #If set to true the port is replayed.
+            def tracked=(value)
+                raise "can not track property #{stream.name} after the replay has started" if !used? && aligned?
+                @tracked = value
+            end
+
+            # returns true if Log::Replay is aligned
+            def aligned?
+                task.log_replay.aligned?
             end
 
             def doc?
@@ -415,6 +447,22 @@ module Orocos
             # Sets a new value for the property/attribute
             def write(value)
                 @current_value = value
+                @notify_blocks.each &:call
+            end
+
+            # registers a code block which will be called 
+            # when the property changes
+            def on_change(&block)
+                self.tracked = true
+                notify do
+                    block.call(read)
+                end
+            end
+
+            # registers a code block which will be called 
+            # when the property changes
+            def notify(&block)
+                @notify_blocks << block
             end
 
             def new_sample
@@ -447,100 +495,96 @@ module Orocos
             def metadata
                 stream.metadata
             end
-        end
 
+            def used?
+                tracked
+            end
+        end
 
         #Simulates task based on a log file.
         #Each stream is modeled as one OutputPort which supports the connect_to method
-        class TaskContext
+        class TaskContext < Orocos::TaskContextBase
             include Namespace
-
-            attr_accessor :ports               #all simulated ports
-            attr_accessor :properties          #all simulated properties
             attr_reader :file_path             #path of the dedicated log file
             attr_reader :file_path_config      #path of the dedicated log configuration file
-            attr_reader :state
             attr_reader :log_replay
-	    attr_accessor :model
-
 
             #Creates a new instance of TaskContext.
             #
             #* task_name => name of the task
             #* file_path => path of the log file
             def initialize(log_replay,task_name,file_path,file_path_config)
+                super(task_name)
                 @log_replay = log_replay
-                @ports = Hash.new
-		@invalid_ports = Hash.new # ports that could not be loaded
-                @properties = Hash.new
+                @invalid_ports = Hash.new # ports that could not be loaded
                 @file_path = file_path
-                @name = task_name
-                @state = :replay
                 @file_path_config = nil
                 @file_path_config_reg = file_path_config
+                @rtt_state = :RUNNING
             end
 
-            #to be compatible wiht Orocos::TaskContext
-            #indecates if the task is replayed
-            def running?
-                used?
+            def rename(name)
+                @name = name
             end
 
-            def name
-                map_to_namespace(@name)
+            # Returns the array of the names of available properties on this task
+            # context
+            def property_names
+                @properties.values.map(&:name)
             end
 
-            def basename
-                @name
+            # Returns the array of the names of available attributes on this task
+            # context
+            def attribute_names
+                Array.new
             end
 
-            #to be compatible wiht Orocos::TaskContext
-            def reachable?
+            # Returns the array of the names of available operations on this task
+            # context
+            def operation_names
+                Array.new
+            end
+
+            # Returns the names of all the ports defined on this task context
+            def port_names
+                @ports.keys
+            end
+
+            # Reads the state
+            def rtt_state
+                @rtt_state
+            end
+
+            def ping
                 true
             end
 
-            def doc?
-                false
+            #Returns the property with the given name.
+            #If no port can be found a exception is raised.
+            def property(name, verify = true)
+                name = name.to_str
+                if @properties[name]
+                    p = @properties[name]
+                    p.tracked = true
+                    p
+                else
+                    raise NotFound, "no property named '#{name}' on log task '#{self.name}'"
+                end
             end
 
-            def error?
-                false
+            #Returns the port with the given name.
+            #If no port can be found a exception is raised.
+            def port(name, verify = true)
+                name = name.to_str
+                if @ports[name]
+                    @ports[name]
+                elsif @invalid_ports[name]
+                    raise NotFound, "the port named '#{name}' on log task '#{self.name}' could not be loaded: #{@invalid_ports[name]}"
+                else
+                    raise NotFound, "no port named '#{name}' on log task '#{self.name}'"
+                end
             end
 
-            def stop( arg )
-                true
-            end
-             
-            #to be compatible wiht Orocos::TaskContext
-            def log_all_ports(options = Hash.new)
-
-            end
-
-            #pretty print for TaskContext
-	    def pretty_print(pp)
-                pp.text "#{name}:"
-		pp.nest(2) do
-		    pp.breakable
-		    pp.text "log file: #{file_path}"
-		    pp.breakable
-		    pp.text "port(s):"
-		    pp.nest(2) do
-			@ports.each_value do |port|
-			    pp.breakable
-			    pp.text port.name
-			end
-                    end
-		    pp.breakable
-                    pp.text "property(s):"
-		    pp.nest(2) do
-			@properties.each_value do |port|
-			    pp.breakable
-			    pp.text port.name
-			end
-		    end
-		end
-            end
-    
             #Adds a new property or port to the TaskContext
             #
             #* file_path = path of the log file
@@ -599,107 +643,32 @@ module Orocos
                     @invalid_ports[error.port_name] = error.message
                     raise error
                 end
+
+                #connect state with task state
+                if log_port.name == "state"
+                    log_port.on_data do |sample|
+                        @rtt_state = sample
+                    end
+                    log_port.tracked = false
+                end
                 log_port
-            end
-
-            #TaskContexts do not have attributes. 
-            #This is implementd to be compatible with TaskContext.
-            def each_attribute
-            end
-
-            # Returns true if this task has a Orocos method with the given name.
-            # In this case it always returns false because a TaskContext does not have
-            # Orocos methods.
-            # This is implementd to be compatible with TaskContext.
-            def has_method?(name)
-                return false;
-            end
-
-
-            # Returns the array of the names of available properties on this task
-            # context
-            def property_names
-                @properties.values
-            end
-
-            # Returns the array of the names of available attributes on this task
-            # context
-            def attribute_names
-                Array.new
-            end
-
-            # Returns true if +name+ is the name of a property on this task context
-            def has_property?(name)
-                properties.has_key?(name.to_str)
-            end
-
-            # Returns true if this task has a command with the given name.
-            # In this case it always returns false because a TaskContext does not have
-            # command.
-            # This is implementd to be compatible with TaskContext.
-            def has_command?(name)
-                return false;
-            end
-
-            # Returns true if this task has a port with the given name.
-            def has_port?(name)
-                name = name.to_s
-                return @ports.has_key?(name) || @invalid_ports.has_key?(name)
-            end
-
-            # Iterates through all simulated properties.
-            def each_property(&block)
-                @properties.each_value do |property|
-                    yield(property) if block_given?
-                end
-            end
-
-            #Returns the property with the given name.
-            #If no port can be found a exception is raised.
-            def property(name, verify = true)
-                name = name.to_str
-                if @properties[name]
-                    return @properties[name]
-                else
-                    raise NotFound, "no property named '#{name}' on log task '#{self.name}'"
-                end
-            end
-
-            # Iterates through all simulated ports.
-            def each_port(&block)
-                @ports.each_value do |port|
-                    yield(port) if block_given?
-                end
-            end
-
-	    alias each_output_port each_port
-
-            #Returns the port with the given name.
-            #If no port can be found a exception is raised.
-            def port(name, verify = true)
-                name = name.to_str
-                if @ports[name]
-                    return @ports[name]
-		elsif @invalid_ports[name]
-		    raise NotFound, "the port named '#{name}' on log task '#{self.name}' could not be loaded: #{@invalid_ports[name]}"
-                else
-                    raise NotFound, "no port named '#{name}' on log task '#{self.name}'"
-                end
             end
 
             #Returns an array of ports where each port has at least one connection
             #or tracked set to true.
             def used_ports
-                ports = Array.new
-                @ports.each_value do |port|
-                    ports << port if port.used?
-                end
-                return ports
+                @ports.values.find_all &:used?
             end
 
-            #Returns true if the task has used ports
+            #Returns an array of ports where each port has at least one connection
+            #or tracked set to true.
+            def used_properties
+                @properties.values.find_all &:used?
+            end
+
+            #Returns true if the task shall be replayed
             def used?
-              !used_ports.empty?
+                !used_ports.empty? || !used_properties.empty?
             end
 
             #Returns an array of unused ports
@@ -711,44 +680,8 @@ module Orocos
                 return ports
             end
 
-            def find_all_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_ports(@ports.values, type_name, port_name)
-            end
-
-            def find_all_output_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_input_ports(@ports.values, type_name, port_name)
-            end
-
-            def find_all_input_ports(type_name, port_name=nil)
-                Orocos::TaskContext.find_all_output_ports(@ports.values, type_name, port_name)
-            end
-
-            def find_port(type_name, port_name=nil)
-                Orocos::TaskContext.find_port(@ports.values, type_name, port_name)
-            end
-
-            def find_output_port(type_name, port_name=nil)
-                Orocos::TaskContext.find_output_port(@ports.values, type_name, port_name)
-            end
-
-            def find_input_port(type_name, port_name=nil)
-               nil
-            end
-
             def connect_to(task=nil,policy = OutputPort::default_policy,&block)
                 Orocos::TaskContext.connect_to(self,task,policy,&block)
-            end
-
-            #Tries to find a OutputPort for a specefic data type.
-            #For port_name Regexp is allowed.
-            #If precise is set to true an error will be raised if more
-            #than one port is matching type_name and port_name.
-            def port_for(type_name, port_name, precise=true)
-                Log.warn "#port_for is deprecated. Use either #find_all_ports or #find_port"
-                if precise
-                    find_port(type_name, port_name)
-                else find_all_ports(type_name, port_name)
-                end
             end
 
             #If set to true all ports are replayed 
@@ -771,6 +704,21 @@ module Orocos
                     port.tracked = value
                     Log.info "set" + port.stream.name + value.to_s
                 end
+
+                @properties.each_value do |property|
+                    if(options.has_key? :propertys)
+                        next unless property.name =~ options[:properties]
+                    end
+                    if(options.has_key? :types)
+                        next unless property.type_name =~ options[:types]
+                    end
+                    if(options.has_key? :limit)
+                        next unless property.number_of_samples <= options[:limit]
+                    end
+                    property.tracked = value
+                    @tracked = value
+                    Log.info "set" + property.stream.name + value.to_s
+                end
             end
 
             #Clears all reader buffers
@@ -790,24 +738,24 @@ module Orocos
                     return
                 end
                 if has_port?(m) 
-                  _port = port(m)
-                  _port.filter = block if block         #overwirte filer
-                  return _port
+                    _port = port(m)
+                    _port.filter = block if block         #overwirte filer
+                    return _port
                 end
                 if has_property?(m) 
-                   return property(m)
+                    return property(m)
                 end
                 begin
                     super(m.to_sym,*args,&block)
                 rescue  NoMethodError => e
                     if m.to_sym != :to_ary
-                        Log.error "#{m} is neither a port nor a portperty of #{self.name}"
+                        Log.error "#{m} is neither a port nor a property of #{self.name}"
                         Log.error "The following ports are availabe:"
                         @ports.each_value do |port|
                             Log.error "  #{port.name}"
                         end
                         Log.error "The following properties are availabe:"
-                        @properties.each_value do |proptery|
+                        @properties.each_value do |property|
                             Log.error "  #{property.name}"
                         end
                     end

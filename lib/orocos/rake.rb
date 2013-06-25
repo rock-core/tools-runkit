@@ -10,11 +10,20 @@ module Orocos
                 puts "use of MQueue disabled. Set USE_MQUEUE=1 to enable"
                 false
             end
+        USE_ROS =
+            if ENV['USE_ROS'] == '1'
+                puts "ROS enabled through the USE_ROS environment variable"
+                puts "set USE_ROS=0 to disable"
+                true
+            else
+                puts "use of ROS disabled. Set USE_ROS=1 to enable"
+                false
+            end
 
         # Generates, builds and installs the orogen component defined by the
         # orogen description file +src+. The compiled package is installed in
         # +prefix+
-        def self.generate_and_build(src, work_basedir)
+        def self.generate_and_build(src, work_basedir, transports = nil)
             src_dir  = File.dirname(src)
             src_name = File.basename(src_dir)
 
@@ -29,9 +38,14 @@ module Orocos
             ruby_bin   = RbConfig::CONFIG['RUBY_INSTALL_NAME']
             orogen_bin = File.expand_path('../bin/orogen', Orocos::Generation.base_dir)
             Dir.chdir(work_dir) do
-                transports = %w{corba typelib}
-                if USE_MQUEUE
-                    transports << 'mqueue'
+                if !transports
+                    transports = %w{corba typelib}
+                    if USE_MQUEUE
+                        transports << 'mqueue'
+                    end
+                    if USE_ROS
+                        transports << 'ros'
+                    end
                 end
 
                 if !system(ruby_bin, orogen_bin, '--corba', '--no-rtt-scripting', "--transports=#{transports.join(",")}", File.basename(src))

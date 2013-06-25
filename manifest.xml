@@ -14,5 +14,6 @@
     <depend package="orogen" />
     <depend package="tools/pocolog" optional="1"/>
     <depend package="omniorb" />
+    <depend package="tools/rtt_transports/ros" optional="1"/>
 </package>
 

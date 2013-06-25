@@ -34,18 +34,18 @@ module Orocos
         def initialize(task, name, orocos_type_name)
             @task, @name = task, name
             @orocos_type_name = orocos_type_name
-            @type =
-                begin
-                    Orocos.typelib_type_for(orocos_type_name)
-                rescue Typelib::NotFound
-                    Orocos.load_typekit_for(orocos_type_name)
-                    Orocos.typelib_type_for(orocos_type_name)
-                end
-
-            @type_name = type.name
+            ensure_type_available(:fallback_to_null_type => true)
         end
 
+
+        def full_name
+            "#{task.name}.#{name}"
+        end
+
+        # @deprecated
+        # Returns the name of the typelib type. Use #type.name instead.
         def type_name
+            ensure_type_available
             type.name
         end
 
@@ -56,7 +56,14 @@ module Orocos
                 'rock_orocos_type_name' => orocos_type_name]
         end
 
+        def ensure_type_available(options = Hash.new)
+            if !type || type.null?
+                @type = Orocos.find_type_by_orocos_type_name(@orocos_type_name, options)
+            end
+        end
+
         def raw_read
+            ensure_type_available
             value = type.new
             do_read(@orocos_type_name, value)
             value
@@ -69,6 +76,7 @@ module Orocos
 
         # Sets a new value for the property/attribute
         def write(value, timestamp = Time.now)
+            ensure_type_available
             value = Typelib.from_ruby(value, type)
             do_write(@orocos_type_name, value)
             log_value(value, timestamp)
@@ -90,6 +98,7 @@ module Orocos
         end
 
         def new_sample
+            ensure_type_available
             type.new
         end
 
@@ -102,8 +111,10 @@ module Orocos
         end
 
         def doc
-            property = task.model.find_property(name)
-            property.doc if property
+            if task.model
+                property = task.model.find_property(name)
+                property.doc if property
+            end
         end
     end
 
@@ -120,23 +131,23 @@ module Orocos
         # Returns an object that represents the given port on the task
         # context. The returned object is either an InputPort or an OutputPort
         def port(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#port is not implemented in #{self.class}"
         end
 
         # Returns an Attribute object representing the given attribute
         def attribute(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#attribute is not implemented in #{self.class}"
         end
 
         # Returns a Property object representing the given property
         def property(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#property is not implemented in #{self.class}"
         end
 
         # Returns an Operation object that represents the given method on the
         # remote component.
         def operation(name)
-            raise NotImplementedError
+            raise Orocos::NotFound, "#operation is not implemented in #{self.class}"
         end
 
         # Returns the array of the names of available properties on this task
@@ -270,7 +281,8 @@ module Orocos
         # The IOR of this task context
         attr_reader :ior
 
-        # The process that supports it
+        # The underlying process object that represents this node
+        # It is non-nil only if this node has been started by orocos.rb
         attr_accessor :process
 
         # If set, this is a Pocolog::Logfiles object in which the values of
@@ -313,8 +325,11 @@ module Orocos
 
             @process ||= Orocos.enum_for(:each_process).
                 find do |p|
-                p.task_names.any? { |n| n == name }
+                    p.task_names.any? { |n| n == name }
                 end
+            if process
+                process.register_task(self)
+            end
 
             if options.has_key?(:model)
                 @model = options[:model]
@@ -342,6 +357,21 @@ module Orocos
 
         def basename
             @name
+        end
+
+        # call-seq:
+        #  task.each_operation { |a| ... } => task
+        # 
+        # Enumerates the operation that are available on
+        # this task, as instances of Orocos::Operation
+        def each_operation(&block)
+            if !block_given?
+                return enum_for(:each_operation)
+            end
+            names = operation_names
+            names.each do |name|
+                yield(operation(name))
+            end
         end
 
         # call-seq:
@@ -408,7 +438,7 @@ module Orocos
 
         # Returns true if this task context has a port with the given name
         def has_port?(name)
-            ports_names.include?(name.to_str)
+            port_names.include?(name.to_str)
         end
 
         # Returns true if a documentation about the task is available
@@ -586,6 +616,17 @@ module Orocos
             "#<TaskContextBase: #{self.class.name}/#{name}>"
         end
 
+        # @return [Symbol] the toplevel state that corresponds to +state+, i.e.
+        #   the value returned by #rtt_state when #state returns 'state'
+        def toplevel_state(state)
+            if exception_state?(state) then :EXCEPTION
+            elsif fatal_state?(state) then :FATAL_ERROR
+            elsif error_state?(state) then :RUNTIME_ERROR
+            elsif runtime_state?(state) then :RUNNING
+            else state
+            end
+        end
+
         def add_default_states
             @error_states   << :RUNTIME_ERROR << :FATAL_ERROR << :EXCEPTION
             @runtime_states << :RUNNING << :RUNTIME_ERROR
@@ -626,6 +667,7 @@ module Orocos
             end
         end
 
+        # @return [Orocos::Spec::TaskContext,nil] the oroGen model that describes this node
         def model
             if @model
                 @model
@@ -765,23 +807,26 @@ module Orocos
                 end
 
             else
-                if has_port?(m) && args.empty?
+                if has_port?(m)
+                    if !args.empty?
+                        raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}"
+                    end
                     return port(m)
                 elsif has_operation?(m)
                     return operation(m).callop(*args)
-                end
-
-                if args.empty?
-                    begin
-                        prop = property(m)
-                        value = prop.read(*args)
-                        if block_given?
-                            yield(value)
-                            prop.write(value)
-                        end
-                        return value
-                    rescue Orocos::NotFound
+                elsif has_property?(m) || has_attribute?(m)
+                    if !args.empty?
+                        raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}"
                     end
+                    prop = if has_property?(m) then property(m)
+                           else attribute(m)
+                           end
+                    value = prop.read
+                    if block_given?
+                        yield(value)
+                        prop.write(value)
+                    end
+                    return value
                 end
             end
             super(m.to_sym, *args)

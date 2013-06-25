@@ -1,7 +1,19 @@
 require 'orocos'
-require 'orocos/async/object_base.rb'
-require 'orocos/async/async.rb'
-require 'orocos/async/ports.rb'
-require 'orocos/async/task_context.rb'
-require 'orocos/async/name_service.rb'
-require 'orocos/async/task_context_proxy.rb'
+if Orocos.initialized?
+    Orocos.fatal "you cannot call Orocos.initialize before loading orocos/async"
+    exit 1
+end
+require 'orocos/log'
+require 'orocos/async/object_base'
+require 'orocos/async/async'
+require 'orocos/async/ports'
+require 'orocos/async/attributes'
+require 'orocos/async/task_context_base'
+require 'orocos/async/task_context'
+require 'orocos/async/name_service'
+require 'orocos/async/orocos'
+require 'orocos/async/task_context_proxy'
+require 'orocos/async/log/task_context'
+require 'orocos/async/log/ports'
+require 'orocos/async/log/attributes'
+require 'orocos/ros/async'

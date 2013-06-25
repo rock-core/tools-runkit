@@ -81,13 +81,30 @@ module Orocos::Async
         #
         # @!method wait_for(&block)
         #   (see Utilrb::EventLoop#wait_for)
-        def_delegators :event_loop,:exec,:wait_for,:step,:steps,:clear,:stop
+        def_delegators :event_loop,:exec,:wait_for,:step,:steps,:stop,:every,:once
+    end
+
+    def self.clear
+        event_loop.clear
+        name_service.clear
     end
 
     # Returns the event loop used by {Orocos::Async}
     #
     # @return [Utilrb::EventLoop] The event loop
     def self.event_loop
-        @event_loop ||= Utilrb::EventLoop.new
+        unless @event_loop
+            @event_loop = Utilrb::EventLoop.new
+            @event_loop.thread_pool.resize(5,20)
+        end
+        @event_loop
+    end
+
+    # Returns the thread loop used by {Orocos::Async}. It is the same than the
+    # one used by {Orocos::Async.event_loop}
+    #
+    # @return [Utilrb::ThreadPool] The event loop
+    def self.thread_pool
+        event_loop.thread_pool
     end
 end

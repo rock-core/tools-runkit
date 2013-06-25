@@ -10,7 +10,7 @@ begin
 
             self.summary = 'Controlling Orocos modules from Ruby'
             self.description = ""
-            self.url = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
+            self.urls = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
             self.changes = ""
 
             self.extra_deps <<
@@ -96,6 +96,8 @@ namespace :setup do
     task :orogen_operations    do build_orogen 'operations' end
     desc "builds the test 'configurations' module"
     task :orogen_configurations    do build_orogen 'configurations' end
+    desc "builds the test 'ros_test' module"
+    task :orogen_ros_test    do build_orogen 'ros_test' end
 
     UIFILES = %w{orocos_composer.ui orocos_system_builder.ui}
     desc 'generate all Qt UI files using rbuic4'

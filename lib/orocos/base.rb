@@ -6,6 +6,7 @@ require 'orogen'
 # The Orocos main class
 module Orocos
     class InternalError < Exception; end
+    class AmbiguousName < RuntimeError; end
 
     def self.register_pkgconfig_path(path)
     	base_path = caller(1).first.gsub(/:\d+:.*/, '')
@@ -49,6 +50,12 @@ module Orocos
         # The set of available deployments, as a mapping from the deployment
         # name into the Utilrb::PkgConfig object that represents it
         attr_reader :available_deployments
+
+        # The set of available deployed task contexts, as a mapping from the
+        # deployed task context name into set of all the deployment names of
+        # the deployments that have a task with that name
+        # @return [Hash<String,String>]
+        attr_reader :available_deployed_tasks
 
         # The set of available task libraries, as a mapping from the task
         # library name into the Utilrb::PkgConfig object that represent it
@@ -163,6 +170,60 @@ module Orocos
         result
     end
 
+    # Returns the deployment model for the given deployment name
+    #
+    # @return [Orocos::Spec::Deployment] the deployment model
+    # @raise [Orocos::NotFound] if no deployment with that name exists
+    def self.deployment_model_from_name(name)
+        pkg = available_deployments[name]
+        if !pkg
+            raise Orocos::NotFound, "there is no deployment called #{name}"
+        end
+
+        project = Orocos.master_project.using_project(pkg.project_name)
+        deployment = project.deployers.find { |d| d.name == name }
+        if !deployment
+            raise InternalError, "cannot find the deployment called #{name} in #{project.name}. Candidates were #{project.deployers.map(&:name).sort.join(", ")}"
+        end
+        deployment
+    end
+
+    # Returns the deployed task model for the given name
+    #
+    # @param [String] name the deployed task name
+    # @param [String] deployment_name () the name of the deployment in which the
+    #   task is defined. It must be given only when more than one deployment
+    #   defines a task with the requested name
+    # @return [Orocos::Spec::TaskDeployment] the deployed task model
+    # @raise [Orocos::NotFound] if no deployed tasks with that name exists
+    # @raise [Orocos::NotFound] if deployment_name was given, but the requested
+    #   task is not defined in this deployment
+    # @raise [Orocos::AmbiguousName] if more than one task exists with that
+    #   name. In that case, you will have to provide the deployment name
+    #   explicitly using the second argument
+    def self.deployed_task_model_from_name(name, deployment_name = nil)
+        if deployment_name
+            deployment = deployment_model_from_name(deployment_name)
+        else
+            deployment_names = Orocos.available_deployed_tasks[name]
+            if !deployment_names
+                raise Orocos::NotFound, "cannot find a deployed task called #{name}"
+            elsif deployment_names.size > 1
+                raise Orocos::AmbiguousName, "more than one deployment defines a deployed task called #{name}: #{deployment_names.map(&:name).sort.join(", ")}"
+            end
+            deployment = deployment_model_from_name(deployment_names.first)
+        end
+
+        if !(task = deployment.find_task_by_name(name))
+            if deployment_name
+                raise Orocos::NotFound, "deployment #{deployment_name} does not have a task called #{name}"
+            else
+                raise InternalError, "deployment #{deployment_name} was supposed to have a task called #{name} but does not"
+            end
+        end
+        task
+    end
+
     # Loads a directory containing configuration files
     #
     # See the documentation of ConfigurationManager#load_dir for more
@@ -185,6 +246,10 @@ module Orocos
 
         if @available_projects && !@available_projects.empty?
             return
+        end
+
+        if @registry
+            raise ArgumentError, "you must call Orocos.clear before calling Orocos.load again"
         end
 
         @master_project = Orocos::Generation::Component.new
@@ -224,6 +289,7 @@ module Orocos
 
         if !available_deployments
             @available_deployments = Hash.new
+            @available_deployed_tasks = Hash.new
             Utilrb::PkgConfig.each_package(/^orogen-\w+$/) do |pkg_name|
                 pkg = Utilrb::PkgConfig.new(pkg_name)
                 deployment_name = pkg_name.gsub(/^orogen-/, '')
@@ -232,6 +298,12 @@ module Orocos
                 # available. If not, just ignore the library
                 if Orocos.available_projects.has_key?(pkg.project_name)
                     available_deployments[deployment_name] = pkg
+                    if pkg.deployed_tasks # to ensure a smooth upgrade from older version of oroGen
+                        pkg.deployed_tasks.split(',').each do |deployed_task_name|
+                            available_deployed_tasks[deployed_task_name] ||= Set.new
+                            available_deployed_tasks[deployed_task_name] << deployment_name
+                        end
+                    end
                 else
                     Orocos.warn "found deployment #{deployment_name}, but the corresponding oroGen project #{pkg.project_name} could not be found. Consider deleting #{pkg.path}."
                 end
@@ -310,6 +382,11 @@ module Orocos
             registry.clear_exports(type_export_namespace)
         end
         @registry = nil
+
+        name_service.clear
+        if defined? Orocos::Async
+            Orocos::Async.clear
+        end
     end
 
     def self.reset
@@ -344,25 +421,21 @@ module Orocos
     # Loads an oroGen file or all oroGen files contained in a directory, and
     # registers them in the available_task_models set.
     def self.load_independent_orogen_project(file)
-        old_value = Orocos.master_project.define_dummy_types?
-        begin
-            Orocos.master_project.define_dummy_types = true
+        tasklib = Orocos.master_project.
+            using_task_library(file, :define_dummy_types => true, :validate => false)
 
-            tasklib = Orocos.master_project.
-                using_task_library(file, :define_dummy_types => true, :validate => false)
+        if !tasklib.self_tasks.empty?
+            Orocos.available_task_libraries[tasklib.name] = file
+        end
+        tasklib.self_tasks.each do |task|
+            Orocos.available_task_models[task.name] = file
+        end
 
-            if !tasklib.self_tasks.empty?
-                Orocos.available_task_libraries[tasklib.name] = file
-            end
-            tasklib.self_tasks.each do |task|
-                Orocos.available_task_models[task.name] = file
-            end
-
-            tasklib.deployers.each do |dep|
-                Orocos.master_project.loaded_deployments[dep.name] = dep
-            end
-        ensure
-            Orocos.master_project.define_dummy_types = old_value
+        tasklib.deployers.each do |dep|
+            Orocos.master_project.loaded_deployments[dep.name] = dep
+        end
+        if tasklib.typekit
+            Orocos.load_registry(tasklib.typekit.registry, tasklib.name)
         end
     end
 
@@ -409,10 +482,25 @@ module Orocos
         @initialized = true
 
         if Orocos::ROS.enabled?
-            Orocos::ROS.initialize(name)
+            # ROS does not support being teared down and reinitialized.
+            if !Orocos::ROS.initialized?
+                Orocos::ROS.initialize(name)
+            end
         end
 
+        # add default name services
+        self.name_service << Orocos::CORBA.name_service
+        if defined?(Orocos::ROS) && Orocos::ROS.enabled?
+            self.name_service << Orocos::ROS.name_service
+        end
+        if defined?(Orocos::Async)
+            Orocos.name_service.name_services.each do |ns|
+                Orocos::Async.name_service.add(ns)
+            end
+        end
         @ruby_task = RubyTaskContext.new(name)
+
+        Orocos.load_typekit 'std'
     end
 
     def self.create_orogen_interface(name = nil, &block)

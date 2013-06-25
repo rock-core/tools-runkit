@@ -24,19 +24,45 @@ static VALUE cLocalInputPort;
 
 class LocalTaskContext : public RTT::TaskContext
 {
+    std::string model_name;
+
 public:
+    RTT::Operation< ::std::string() > _getModelName;
+    std::string getModelName() const
+    { return model_name; }
+    void setModelName(std::string const& value)
+    { model_name = value; }
+
     LocalTaskContext(std::string const& name)
-        : RTT::TaskContext(name) {}
+        : RTT::TaskContext(name)
+        , _getModelName("getModelName", &LocalTaskContext::getModelName, this, RTT::ClientThread)
+    {
+        provides()->addOperation( _getModelName)
+            .doc("returns the oroGen model name for this task");
+    }
+};
+
+struct RLocalTaskContext
+{
+    LocalTaskContext* tc;
+    RLocalTaskContext(LocalTaskContext* tc)
+        : tc(tc) {}
 };
 
 LocalTaskContext& local_task_context(VALUE obj)
 {
-    return get_wrapped<LocalTaskContext>(obj);
+    LocalTaskContext* tc = get_wrapped<RLocalTaskContext>(obj).tc;
+    if (!tc)
+        rb_raise(rb_eArgError, "accessing a disposed task context");
+    return *tc;
 }
 
-static void delete_local_task_context(LocalTaskContext* task)
+static void delete_local_task_context(RLocalTaskContext* rtask)
 {
-    RTT::corba::TaskContextServer::CleanupServer(task);
+    if (!rtask->tc)
+        return;
+
+    LocalTaskContext* task = rtask->tc;
 
     // Ruby GC does not give any guarantee about the ordering of garbage
     // collection. Reset the dataflowinterface to NULL on all ports so that
@@ -46,8 +72,10 @@ static void delete_local_task_context(LocalTaskContext* task)
     for (RTT::DataFlowInterface::Ports::const_iterator it = ports.begin();
             it != ports.end(); ++it)
     {
+        (*it)->disconnect();
         (*it)->setInterface(0);
     }
+    RTT::corba::TaskContextServer::CleanupServer(task);
     delete task;
 }
 
@@ -59,14 +87,19 @@ static VALUE local_task_context_new(VALUE klass, VALUE _name)
 
     RTT::corba::TaskContextServer::Create(ruby_task);
 
-    VALUE rlocal_task = Data_Wrap_Struct(cLocalTaskContext, 0, delete_local_task_context, ruby_task);
+    VALUE rlocal_task = Data_Wrap_Struct(cLocalTaskContext, 0, delete_local_task_context, new RLocalTaskContext(ruby_task));
     rb_obj_call_init(rlocal_task, 1, &_name);
     return rlocal_task;
 }
 
 static VALUE local_task_context_dispose(VALUE obj)
 {
-    RTT::corba::TaskContextServer::CleanupServer(&get_wrapped<LocalTaskContext>(obj));
+    RLocalTaskContext& task = get_wrapped<RLocalTaskContext>(obj);
+    if (!task.tc)
+        return Qnil;
+
+    delete_local_task_context(&task);
+    task.tc = 0;
     return Qnil;
 }
 
@@ -87,6 +120,16 @@ static void delete_rtt_ruby_port(RTT::base::PortInterface* port)
 static void delete_rtt_ruby_property(RTT::base::PropertyBase* property)
 {
     delete property;
+}
+
+/** call-seq:
+ *     model_name=(name)
+ *
+ */
+static VALUE local_task_context_set_model_name(VALUE _task, VALUE name)
+{
+    local_task_context(_task).setModelName(StringValuePtr(name));
+    return Qnil;
 }
 
 /** call-seq:
@@ -247,6 +290,7 @@ void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOut
     rb_define_singleton_method(cLocalTaskContext, "new", RUBY_METHOD_FUNC(local_task_context_new), 1);
     rb_define_method(cLocalTaskContext, "dispose", RUBY_METHOD_FUNC(local_task_context_dispose), 0);
     rb_define_method(cLocalTaskContext, "ior", RUBY_METHOD_FUNC(local_task_context_ior), 0);
+    rb_define_method(cLocalTaskContext, "model_name=", RUBY_METHOD_FUNC(local_task_context_set_model_name), 1);
     rb_define_method(cLocalTaskContext, "do_create_port", RUBY_METHOD_FUNC(local_task_context_create_port), 4);
     rb_define_method(cLocalTaskContext, "do_remove_port", RUBY_METHOD_FUNC(local_task_context_remove_port), 1);
     rb_define_method(cLocalTaskContext, "do_create_property", RUBY_METHOD_FUNC(local_task_context_create_property), 3);

@@ -10,12 +10,8 @@ module Orocos
         #
         # @param [String] name the new namespace name
         def namespace=(name)
-            ns,name = split_name(name)
-            @namespace = if ns
-                             ns
-                         else
-                             name
-                         end
+            Namespace.validate_namespace_name(name)
+            @namespace = name
         end
 
         # Returns the name of the used namespace.
@@ -32,6 +28,10 @@ module Orocos
         # @param [String,Array] names the names which shall be mapped
         # @return [String,Array] the mapped names
         def map_to_namespace(names)
+            if !namespace
+                return names
+            end
+
             ary = Array(names)
             ary.map! do |n|
                 _,name = split_name(n)
@@ -51,7 +51,7 @@ module Orocos
         # @return [Boolean]
         def same_namespace?(name)
             ns,_ = split_name(name)
-            if(!ns || ns.empty? && !namespace || ns == namespace)
+            if(!ns || !namespace || ns == namespace)
                true
             else
                false
@@ -97,6 +97,19 @@ module Orocos
                [$1, $2]
             else
                [nil, name]
+            end
+        end
+
+        # Validates that the given name can be used as a namespace name
+        #
+        # The only constraint so far is that namespace names cannot contain the
+        # namespace-to-name separation character {DELIMATOR}
+        #
+        # @param [String] name the namespace name that should be validated
+        # @raise [ArgumentError] if name is not a valid namespace name
+        def self.validate_namespace_name(name)
+            if name =~ /#{DELIMATOR}/
+                raise ArgumentError, "namespace #{name} contains #{DELIMATOR} which is not support."
             end
         end
     end

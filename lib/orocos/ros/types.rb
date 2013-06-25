@@ -17,17 +17,24 @@ module Orocos
         def self.load_all_rosmaps
             @ros_to_orogen_mappings = Hash.new
             @orogen_to_ros_mappings = Hash.new
-            Orocos.available_typekits.each do |name, pkg|
-                rosmap_path = File.join(pkg.prefix, 'share', 'orogen', "#{name}.rosmap")
-                if File.file?(rosmap_path)
-                    rosmap = Orocos::TypekitMarshallers::ROS.load_rosmap(rosmap_path)
-                    orogen_to_ros_mappings.merge! rosmap
-                    rosmap.each do |type_name, ros_name|
-                        set = (ros_to_orogen_mappings[ros_name] ||= Set.new)
-                        set << type_name
-                    end
+            rosmaps = Orocos.available_typekits.map do |name, pkg|
+                begin
+                    Orocos::TypekitMarshallers::ROS.load_rosmap_by_package_name(name)
+                rescue ArgumentError => e
+                    Orocos::ROS.warn e
+                    next
+                end
+            end.compact
+            rosmaps << Orocos::TypekitMarshallers::ROS::DEFAULT_TYPE_TO_MSG
+
+            rosmaps.each do |rosmap|
+                orogen_to_ros_mappings.merge! rosmap
+                rosmap.each do |type_name, ros_name, _|
+                    set = (ros_to_orogen_mappings[ros_name] ||= Set.new)
+                    set << type_name
                 end
             end
+            nil
         end
 
         # Get the list of oroGen types that can be used to communicate with a

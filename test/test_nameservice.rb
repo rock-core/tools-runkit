@@ -13,7 +13,8 @@ avahi_options = { :searchdomains => [ "_orocosrbtest._tcp" ] }
 
 describe Orocos::Local::NameService do
     before do 
-        @service = Orocos::Local::NameService.new "dummy" => :dummy
+        @task = Orocos::TaskContextBase.new("Local/dummy")
+        @service = Orocos::Local::NameService.new [@task]
     end
 
     after do
@@ -22,13 +23,13 @@ describe Orocos::Local::NameService do
 
     describe "when asked for task names" do
         it "must return all registered task names" do 
-            assert(@service.names.include?("/dummy"))
+            assert(@service.names.include?("Local/dummy"))
         end
     end
 
     describe "when asked for task" do
         it "must return the task" do 
-            assert_equal(:dummy,@service.get("dummy"))
+            assert_equal(@task,@service.get("dummy"))
         end
     end
 
@@ -60,12 +61,13 @@ describe Orocos::Local::NameService do
 
     describe "when new tasks is bound" do
         it "it must return them the next time when asked for task names" do 
-            @service.register :dummy2,"dummy2"
-            assert(@service.names.include?("/dummy2"))
-            assert_equal(:dummy2,@service.get(@service.map_to_namespace("dummy2")))
-            assert_equal(:dummy2,@service.get("dummy2"))
+            task = Orocos::TaskContextBase.new("Local/dummy2")
+            @service.register task
+            assert(@service.names.include?("Local/dummy2"))
+            assert_equal(task,@service.get(@service.map_to_namespace("dummy2")))
+            assert_equal(task,@service.get("dummy2"))
             @service.deregister "dummy2"
-            assert(!@service.names.include?("/dummy2"))
+            assert(!@service.names.include?("dummy2"))
         end
     end
 end
@@ -196,14 +198,16 @@ describe Orocos::CORBA::NameService do
             end
         end
         it "must be able to scope with name spaces" do
-            service = Orocos::CORBA::NameService.new :namespace => "foo"
             Orocos.run('simple_source') do
-                task = service.get("foo#{Orocos::Namespace::DELIMATOR}simple_source_source")
+                service = Orocos::CORBA::NameService.new
+                service.ip = "127.0.0.1"
+                task = service.get("127.0.0.1#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert(task)
-                assert_equal("foo",task.namespace)
-                assert_equal("foo/simple_source_source",task.name)
+                assert_equal("127.0.0.1",task.namespace)
+                assert_equal("127.0.0.1/simple_source_source",task.name)
 
-                task = Orocos::CORBA::name_service.get("#{Orocos::Namespace::DELIMATOR}simple_source_source")
+                service = Orocos::CORBA::NameService.new
+                task = service.get("#{Orocos::Namespace::DELIMATOR}simple_source_source")
                 assert task
                 assert_equal "",task.namespace
                 assert_equal("/simple_source_source",task.name)
@@ -211,13 +215,15 @@ describe Orocos::CORBA::NameService do
         end
         it "must be able to deregister and reregister it to the name service" do
             Orocos.run('simple_source') do
-                task = Orocos::CORBA.name_service.get("simple_source_source")
-                Orocos::CORBA::name_service.deregister("/simple_source_source")
-                assert(!Orocos::CORBA::name_service.names.include?("/simple_source_source"))
-                Orocos::CORBA::name_service.register(task)
-                assert(Orocos::CORBA::name_service.names.include?("/simple_source_source"))
+                service = Orocos::CORBA::NameService.new
+                task = service.get("simple_source_source")
+                assert(service.names.include?("/simple_source_source"))
+                service.deregister("/simple_source_source")
+                assert(!service.names.include?("/simple_source_source"))
+                service.register(task)
+                assert(service.names.include?("/simple_source_source"))
                 #check if register does not produce an error if task is already bound 
-                Orocos::CORBA::name_service.register(task)
+                service.register(task)
             end
         end
         it "must iterate over it" do
@@ -302,7 +308,7 @@ describe Orocos::CORBA::NameService do
                 Orocos.run('simple_source') do
                     assert Orocos.name_service.names.include?("/simple_source_source")
                     task = Orocos.name_service.get(::Orocos::Namespace::DELIMATOR+"simple_source_source")
-                    ior = Orocos.name_service.ior(::Orocos::Namespace::DELIMATOR+"simple_source_source")
+                    ior = Orocos::CORBA.name_service.ior(::Orocos::Namespace::DELIMATOR+"simple_source_source")
                     assert_equal ior, task.ior
                 end
             end

@@ -12,6 +12,30 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 describe Orocos::Process do
     include Orocos::Spec
 
+    describe ".partition_run_options" do
+        it "partitions deployment names from task model names using Orocos.available_task_models" do
+            deployments, models, options =
+                Orocos::Process.partition_run_options 'process' => 'name2', 'process::Test' => 'name'
+            assert_equal Hash['process' => 'name2'], deployments
+            assert_equal Hash['process::Test' => 'name'], models
+        end
+        it "sets to nil the prefix for deployments that should not have one" do
+            deployments, models, options =
+                Orocos::Process.partition_run_options 'process', 'process::Test' => 'name'
+            assert_equal Hash['process' => nil], deployments
+        end
+        it "raises if an unexisting name is given" do
+            assert_raises(ArgumentError) do
+                Orocos::Process.partition_run_options 'does_not_exist'
+            end
+        end
+        it "raises if a task model is given without a name" do
+            assert_raises(ArgumentError) do
+                Orocos::Process.partition_run_options 'process::Test'
+            end
+        end
+    end
+
     it "raises NotFound when the deployment name does not exist" do
         assert_raises(Orocos::NotFound) { Orocos::Process.new("does_not_exist") }
     end
@@ -40,7 +64,7 @@ describe Orocos::Process do
 
     it "can start a process with a prefix" do
         Orocos.run('process' => 'prefix') do |process|
-            assert(Orocos::TaskContext.get('prefix_process_Test'))
+            assert(Orocos::TaskContext.get('prefixprocess_Test'))
         end
     end
 
@@ -69,6 +93,28 @@ describe Orocos::Process do
     it "can enumerate its own deployed task contexts" do
         Orocos.run('process') do |process|
             process.task_names.must_equal %w{process_Test}
+        end
+    end
+
+    it "can automatically add prefixes to tasks" do
+        process = Orocos::Process.new 'process'
+        begin
+            process.spawn :prefix => 'prefix'
+            assert_equal Hash["process_Test" => "prefixprocess_Test"], process.name_mappings
+            assert Orocos.name_service.get('prefixprocess_Test')
+        ensure
+            process.kill
+        end
+    end
+
+    it "can rename single tasks" do
+        process = Orocos::Process.new 'process'
+        begin
+            process.map_name "process_Test", "prefixprocess_Test"
+            process.spawn
+            assert Orocos.name_service.get('prefixprocess_Test')
+        ensure
+            process.kill
         end
     end
 end

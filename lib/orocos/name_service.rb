@@ -33,7 +33,7 @@ module Orocos
     #
     # @return [Orocos::NameService] The name service
     def self.name_service
-        @name_service ||= NameService.new(Orocos::CORBA.name_service)
+        @name_service ||= NameService.new()
     end
 
     # @deprecated
@@ -50,7 +50,7 @@ module Orocos
     # 
     # @yield [TaskContext] code block which is called for each TaskContext
     def self.each_task(&block)
-        Orocos.name_service.each_task(block)
+        Orocos.name_service.each_task(&block)
     end
 
     # Removes dangling references from all name services added to the global 
@@ -59,6 +59,10 @@ module Orocos
         name_service.cleanup
     end
 
+    #(see NameService#get)
+    def self.get(*args)
+        Orocos.name_service.get(*args)
+    end
 
     # Base class for all Orocos name services. An orocos name service is used
     # to find local and remote Orocos Tasks based on their name and namespace.
@@ -92,6 +96,11 @@ module Orocos
             raise NotImplementedError
         end
 
+        # return [String] the name of the name service
+        def name
+            self.class.name
+        end
+
         # Gets the IOR for the given Orocos Task having the given name.
         #
         # @param [String] name the name of the TaskContext
@@ -107,6 +116,11 @@ module Orocos
         # @return [Array<String>]
         def names
             raise NotImplementedError
+        end
+
+        # True if +name+ is a valid name inside this service's namespace
+        def same_namespace?(name)
+            true
         end
 
         # Checks if the name service is reachable if not it
@@ -219,12 +233,16 @@ module Orocos
             end
         end
 
+        # Enumerates the name services registered on this global name service
+        #
+        # @yield [TaskContext]
+        def each(&block)
+            @name_services.each(&block)
+        end
+
         # @return [Array] The array with all underlying name services
         # @raise Orocos::NotFound if no name service was added
         def name_services
-            if @name_services.empty?
-                raise Orocos::NotFound, "No name service has been enabled"
-            end
             @name_services
         end
 
@@ -239,12 +257,26 @@ module Orocos
         #
         # @param [NameServiceBase] name_service The name service.
         def add_front(name_service)
+            return if @name_services.include? name_service
             @name_services.insert(0,name_service)
         end
 
         # (see #<<)
-        def add(nameservice)
-            @name_services << nameservice
+        def add(name_service)
+            return if @name_services.include? name_service
+            @name_services << name_service
+        end
+
+        # Remove a name service from the set of resolvants
+        #
+        # @param [NameServiceBase] the name service object
+        # @return [true,false] true if the name service was registered, false
+        #   otherwise
+        def remove(name_service)
+            if @name_services.include? name_service
+                @name_services.delete name_service
+                true
+            end
         end
 
         # Finds an underlying name service of the given class
@@ -273,12 +305,11 @@ module Orocos
 
         #(see NameServiceBase#get)
         def get(name,options = Hash.new)
-            verify_same_namespace(name)
-            tasks = name_services.each do |service|
+            name_services.each do |service|
                 begin
                     if service.same_namespace?(name)
-                        task = service.get(name,options)
-			return task if task
+                        task_context = service.get(name,options)
+			return task_context if task_context
                     end
                 rescue Orocos::NotFound
                 end
@@ -304,7 +335,11 @@ module Orocos
         #(see NameServiceBase#names)
         def names
             names = name_services.collect do |service|
-                service.names
+                begin
+                    service.names
+                rescue Orocos::CORBAError,Orocos::CORBA::ComError
+                    []
+                end
             end
             names.flatten.uniq
         end
@@ -336,7 +371,11 @@ module Orocos
         #
         # @param [String] name The name of the task
         def error_message(name)
-            "The remote task context #{name} could not be resolved using following name services (in priority order): #{name_services.join(', ')}"
+            if name_services.empty?
+                "the remote task context #{name} could not be resolved, because no name services are registered"
+            else
+                "the remote task context #{name} could not be resolved using following name services (in priority order): #{name_services.join(', ')}"
+            end
         end
 
     end
@@ -348,52 +387,86 @@ module Orocos
         # @author Alexander Duda
         class NameService < NameServiceBase
             include Namespace
+
             attr_reader :registered_tasks
 
             # A new NameService instance 
             #
             # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are known by the name service.
             # @note The namespace is always "Local"
-            def initialize(tasks = Hash.new)
-                @registered_tasks = tasks
-                namespace = "Local"
+            def initialize(tasks =[])
+                raise ArgumentError, "wrong argument - Array was expected" unless tasks.is_a? Array
+                @registered_tasks = Array.new
+		@alias = {}
+                tasks.each do |task|
+                    register(task)
+                end
+            end
+
+            #(see NameServiceBase#name)
+            def name
+                super + ":Local"
+            end
+
+            # Returns an Async object that maps to this name service
+            def to_async(options = Hash.new)
+                Orocos::Async::Local::NameService.new(:tasks => registered_tasks)
             end
 
             #(see NameServiceBase#get)
             def get(name,options=Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
-
-                verify_same_namespace(name)
-                task = @registered_tasks[basename(name)]
+		# search alias hash first
+		task = @alias[name]
+		return task if task
+		# otherwise look in the registered tasks
+                task = @registered_tasks.find do |task|
+                    if task.name == name || task.basename == name
+                        true
+                    end
+                end
                 raise Orocos::NotFound, "task context #{name} cannot be found." unless task
                 task
             end
 
-            # Registers the IOR of the given {Orocos::TaskContext} on the name service.
+            # Registers the given {Orocos::TaskContext} on the name service.
+	    # If a name is provided, it will be used as an alias. If no name is
+	    # provided, the name of the task is used. This is true even if the
+	    # task name is renamed later.
             #
             # @param [Orocos::TaskContext] task The task.
-            # @param [String] name The name which is used to register the task.
-            def register(task,name=task.name)
-                verify_same_namespace(name)
-                @registered_tasks[basename(name)] = task
+            # @param [String] name Optional name which is used to register the task.
+            def register(task, name = nil)
+		if name.nil?
+		    @registered_tasks << task unless @registered_tasks.include? task
+		else
+		    @alias[name] = task
+		end
+            end
+
+            # Local is a collection of name spaces
+            def same_namespace?(name_space)
+                true
             end
 
             # Deregisters the given name or task from the name service.
             #
             # @param [String,TaskContext] name The name or task
             def deregister(name)
-                name = if name.respond_to? :name
-                           name.name
-                       else
-                           name
-                       end
-                verify_same_namespace(name)
-                @registered_tasks.delete basename(name)
+		# deregister from alias
+		task = @alias[name]
+		@alias.delete name if task
+
+		# and also the task list
+                task = get(name)
+                @registered_tasks.delete task
+            rescue Orocos::NotFound
             end
 
             # (see NameServiceBase#names)
             def names
-                map_to_namespace(@registered_tasks.keys)
+                ns = registered_tasks.map &:name 
+		ns + @alias.keys
             end
         end
     end
@@ -462,7 +535,6 @@ module Orocos
             #     If no port is given the default port 2809 is used respectively
             #     the one specified by global environment variable ORBInitRef.
             #   @param [Hash] options The options.
-            #   @option options [String] :namespace Arbitrary name which is used as namespace for this instance.
             # @overload initialize(ip,options)
             #   @param [String] ip
             #   @param [Hash] options 
@@ -477,8 +549,17 @@ module Orocos
                                       [ip,port,options]
                                   end
 
-                options = Kernel.validate_options options,:namespace => ip
-                self.namespace = options[:namespace]
+                # no support for options at the moment
+                options = Kernel.validate_options options
+            end
+
+            #(see NameServiceBase#name)
+            def name
+                "CORBA:#{namespace}"
+            end
+
+            def namespace
+                ip
             end
 
             # Sets the ip address or host name where the CORBA name service is running
@@ -496,6 +577,13 @@ module Orocos
             # @return [String] The port where the client tries to reach the CORBA name service
             def port
                 do_port
+            end
+
+            # The async-access object for this name service
+            # @param (see Orocos::Async::CORBA::NameService#initialize)
+            # @return [Orocos::Async::CORBA::NameService]
+            def to_async(options = Hash.new)
+                Orocos::Async::CORBA::NameService.new(ip,port,options)
             end
 
             # Resets the CORBA name service client.
@@ -526,6 +614,11 @@ module Orocos
             def get(name,options = Hash.new)
                 options = Kernel.validate_options options,:name,:namespace,:process
                 ns,_ = split_name(name)
+                ns = if !ns || ns.empty?
+                         namespace
+                     else
+                         ns
+                     end
                 options[:namespace] ||= ns
                 Orocos::TaskContext.new(ior(name),options)
             rescue ComError => e
@@ -558,7 +651,9 @@ module Orocos
 
             #(see NameServiceBase#validate)
             def validate
-                do_validate
+                CORBA.refine_exceptions("corba naming service #{ip}") do
+                    do_validate
+                end
             end
 
             # Removes dangling references from the name service
@@ -580,6 +675,9 @@ module Orocos
 
         end
         @name_service ||= NameService.new
+    end
+
+    class CORBANameService < NameServiceBase
     end
 
     module Avahi
@@ -658,7 +756,7 @@ module Orocos
                 if services.empty?
                     raise Orocos::NotFound, "Avahi nameservice could not find a task named '#{name}'"
                 elsif services.size > 1
-                    warn "NameService: multiple services '#{name}' found. Possibly due to publishing on IPv4 and IPv6, or on multiple interfaces -- picking first one in list"
+                    warn "Avahi: '#{name}' found multiple times. Possibly due to publishing on IPv4 and IPv6, or on multiple interfaces -- picking first one in list"
                 end
                 ior = services.first.get_description("IOR")
                 raise Orocos::NotFound, "Avahi nameservice could not retrieve an ior for task #{name}" unless ior
