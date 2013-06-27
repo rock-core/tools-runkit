@@ -341,7 +341,10 @@ module Orocos
                 elsif @expected_exit
                     Orocos.info "deployment #{name} terminated with signal #{exit_status.termsig} but #{@expected_exit} was expected"
                 else
-                    Orocos.warn "deployment #{name} unexpectedly terminated with signal #{exit_status.termsig}"
+                    Orocos.error "deployment #{name} unexpectedly terminated with signal #{exit_status.termsig}"
+                    Orocos.error "This is normally a fault inside the component, not caused by external framework components."
+                    Orocos.error "Try to run your component within gdb or valgrind (Orocos.run 'component', :gdb=>true, :valgrind=>true)"
+                    Orocos.error "Make also sure your component is installed (thought amake/autoproj build/make install) and not only built."
                 end
             else
                 Orocos.warn "deployment #{name} terminated with code #{exit_status.to_i}"
