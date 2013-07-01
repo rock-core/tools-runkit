@@ -332,9 +332,13 @@ module Orocos
             end
 
             if options.has_key?(:model)
-                @model = options[:model]
+                self.model = options[:model]
             end
-            if !model
+
+            # Load the model from remote if it is not set yet
+            model
+
+            if !@state_symbols
                 @state_symbols = []
                 @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL
                 @state_symbols[STATE_STOPPED]         = :STOPPED
