@@ -147,6 +147,13 @@ module Orocos
             true
         end
 
+        def task(task_name)
+            if t = tasks[task_name]
+                t
+            else raise ArgumentError, "#{self} has no task called #{task_name}"
+            end
+        end
+
         def kill(wait = true, status = RubyProcessServer::Status.new(:exit_code => 0))
             tasks.each_value do |task|
                 task.dispose
