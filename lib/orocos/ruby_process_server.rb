@@ -43,7 +43,7 @@ module Orocos
             else
                 project_name = available_deployments[name]
                 if !project_name
-                    raise ArgumentError, "there is no deployment called #{name} on #{host}:#{port}"
+                    raise ArgumentError, "there is no deployment called #{name} on #{self}"
                 end
 
                 tasklib = load_orogen_project(project_name)
