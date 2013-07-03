@@ -68,6 +68,9 @@ module Orocos
 
         def start(name, deployment_name, name_mappings, options)
             model = load_orogen_deployment(deployment_name)
+            if deployments[name]
+                raise ArgumentError, "#{name} is already started in #{self}"
+            end
 
             prefix_mappings, options =
                 Orocos::ProcessBase.resolve_prefix_option(options, model)
