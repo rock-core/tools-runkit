@@ -7,7 +7,7 @@ require 'utilrb/pkgconfig'
 do_cleanup = false
 parser = OptionParser.new do |opt|
     opt.on('--host=HOST', String, 'the CORBA name server') do |hostname|
-        Orocos::CORBA.name_service = hostname
+        Orocos::CORBA.name_service.ip = hostname
     end
     opt.on('--cleanup', 'try to remove unreachable tasks from the name server') do
         do_cleanup = true
@@ -16,7 +16,7 @@ end
 remaining = parser.parse(ARGV)
 
 if !remaining.empty? && (name_server = remaining.shift)
-    Nameservice::enable(:CORBA, :host => name_server)
+    Orocos::CORBA.name_service.ip = name_server
 end
 
 Orocos.initialize
