@@ -314,36 +314,6 @@ module Orocos
             end
         end
 
-        def apply_configuration_hash_to_value(value, conf)
-            conf.each do |conf_key, conf_value|
-                value[conf_key] = apply_configuration_to_value(value.raw_get(conf_key), conf_value)
-            end
-            value
-        end
-
-        def apply_configuration_array_to_value(value, conf)
-            conf.each_with_index do |element, idx|
-                while value.size <= idx
-                    new_value = value.class.deference.new
-                    new_value.zero!
-                    value.push(new_value)
-                end
-                value[idx] = apply_configuration_to_value(value.raw_get(idx), element)
-            end
-            value
-        end
-
-        # Helper method for #apply_configuration
-        def apply_configuration_to_value(value, conf) # :nodoc:
-            if conf.kind_of?(Hash)
-                apply_configuration_hash_to_value(value, conf)
-            elsif conf.respond_to?(:to_ary)
-                apply_configuration_array_to_value(value, conf)
-            else
-                conf
-            end
-        end
-
         # Applies the specified configuration to the given task
         #
         # See #configuration for a description of +names+ and +override+ 
@@ -369,8 +339,38 @@ module Orocos
             config.each do |prop_name, conf|
                 p = task.property(prop_name)
                 result = p.raw_read
-                result = apply_configuration_to_value(result, conf)
+                result = TaskConfigurations.typelib_from_yaml_value(result, conf)
                 p.write(result, timestamp)
+            end
+        end
+
+        def self.typelib_from_yaml_hash(value, conf)
+            conf.each do |conf_key, conf_value|
+                value.raw_set(conf_key, typelib_from_yaml_value(value.raw_get(conf_key), conf_value))
+            end
+            value
+        end
+
+        def self.typelib_from_yaml_array(value, conf)
+            conf.each_with_index do |element, idx|
+                while value.size <= idx
+                    new_value = value.class.deference.new
+                    new_value.zero!
+                    value.push(new_value)
+                end
+                value[idx] = typelib_from_yaml_value(value.raw_get(idx), element)
+            end
+            value
+        end
+
+        # Helper method for #apply_configuration
+        def self.typelib_from_yaml_value(value, conf) # :nodoc:
+            if conf.kind_of?(Hash)
+                typelib_from_yaml_hash(value, conf)
+            elsif conf.respond_to?(:to_ary)
+                typelib_from_yaml_array(value, conf)
+            else
+                conf
             end
         end
 
