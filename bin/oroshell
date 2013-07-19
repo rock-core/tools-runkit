@@ -5,7 +5,7 @@ require 'orocos'
 
 parser = OptionParser.new do |opt|
     opt.on('--host=HOST', String, "the host we should connect to for naming") do |hostname|
-        Orocos::CORBA.name_service = hostname
+        Orocos::CORBA.name_service.ip = hostname
     end
 end
 
