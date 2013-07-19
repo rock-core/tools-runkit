@@ -57,7 +57,7 @@ module Orocos
             while needs_display
                 needs_display = false
                 info = tasks.map do |t|
-                    if !t.process.running?
+                    if t.process && !t.process.running?
                         if !dead_processes.include?(t)
                             needs_display = true
                             updated_tasks << t
