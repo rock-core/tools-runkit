@@ -18,7 +18,7 @@ module Orocos
                 end
 
                 self.class.reader_specs.each do |task_name, port_name, reader_name, policy|
-                    reader = self.reader(send(task_name).port(port_name), policy)
+                    reader = self.data_reader(send(task_name).port(port_name), policy)
                     instance_variable_set("@#{reader_name}", reader)
                 end
                 self.class.writer_specs.each do |task_name, port_name, writer_name, policy|
