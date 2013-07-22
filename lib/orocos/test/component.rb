@@ -29,12 +29,12 @@ module Orocos
             end
 
             def teardown
-                processes.each { |p| p.kill }
-                processes.clear
                 data_readers.each { |r| r.disconnect }
                 data_readers.clear
                 data_writers.each { |w| w.disconnect }
                 data_writers.clear
+                processes.each { |p| p.kill }
+                processes.clear
                 super if defined? super
             end
 
