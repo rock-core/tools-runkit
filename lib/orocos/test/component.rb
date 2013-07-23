@@ -18,7 +18,7 @@ module Orocos
                 end
 
                 self.class.reader_specs.each do |task_name, port_name, reader_name, policy|
-                    reader = self.reader(send(task_name).port(port_name), policy)
+                    reader = self.data_reader(send(task_name).port(port_name), policy)
                     instance_variable_set("@#{reader_name}", reader)
                 end
                 self.class.writer_specs.each do |task_name, port_name, writer_name, policy|
@@ -29,12 +29,12 @@ module Orocos
             end
 
             def teardown
-                processes.each { |p| p.kill }
-                processes.clear
                 data_readers.each { |r| r.disconnect }
                 data_readers.clear
                 data_writers.each { |w| w.disconnect }
                 data_writers.clear
+                processes.each { |p| p.kill }
+                processes.clear
                 super if defined? super
             end
 

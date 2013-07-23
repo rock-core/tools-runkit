@@ -492,10 +492,6 @@ module Orocos
                 p.log_current_value
             end
             properties[name] = p
-
-        rescue Orocos::ComError,Orocos::CORBA::ComError => e
-            Orocos.error "Property #{name} with communication error: #{e}"
-            raise
         end
 
         # Returns an object that represents the given port on the remote task
@@ -532,9 +528,6 @@ module Orocos
 
         rescue Orocos::NotFound => e
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
-        rescue Orocos::ComError => e
-            Orocos.error "Port #{name} with communication error: #{e}"
-            raise
         end
 
 
