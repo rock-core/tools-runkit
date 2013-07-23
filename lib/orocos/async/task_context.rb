@@ -87,6 +87,20 @@ module Orocos::Async::CORBA
             end
         end
 
+        def respond_to_missing?(method_name, include_private = false)
+            (reachable? && @delegator_obj.respond_to?(method_name)) || super
+        end
+
+        def method_missing(m,*args)
+            if respond_to_missing?(m)
+                event_loop.sync(@delegator_obj,args) do |args|
+                    @delegator_obj.method(m).call(*args)
+                end
+            else
+                super
+            end
+        end
+
         private
 
         # Called by #task_context to create the underlying task context object
