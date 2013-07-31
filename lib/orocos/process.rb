@@ -157,9 +157,9 @@ module Orocos
             end
 
             result = if task_names.include?(task_name)
-                         Orocos.name_service.get task_name, self
+                         Orocos.name_service.get task_name, :process => self
                      elsif task_names.include?(full_name)
-                         Orocos.name_service.get full_name, self
+                         Orocos.name_service.get full_name, :process => self
                      else
                          raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
                      end
