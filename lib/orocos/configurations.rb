@@ -353,7 +353,10 @@ module Orocos
 
         def self.typelib_from_yaml_array(value, conf)
             conf.each_with_index do |element, idx|
-                while value.size <= idx
+                while value.size <= idx and !
+                    if value.kind_of?(Typelib::ArrayType)
+                        raise ArgumentError, "Configuration object size is larger than field #{value}"
+                    end
                     new_value = value.class.deference.new
                     new_value.zero!
                     value.push(new_value)
