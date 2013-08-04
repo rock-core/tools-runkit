@@ -597,31 +597,30 @@ module Orocos
             end
 
             #returns the current data of the current sample
-            def current_sample_data
+            def current_sample_data 
                 if @current_sample
                     _,_,data = @current_sample
                     data
                 end
             end
 
+            # TODO code block should be called with the port as well!
+            # 
             # Extracts time intervals from the log file where the given
             # code block returns true.
             #
             # For each sample the given code block is called with the current
-            # port and sample as parameter. After all samples were replayed the
+            # sample as parameter. After all samples were replayed the
             # generated result vector (true is interpreted as 1) is filtered
-            # with a box filter of the given size. The returned intervals
-            # are these intervals where the filtered result vector is equal
+            # with a block filter of the given size. The returned intervals
+            # are now these intervals where the filtered result vector is equal
             # or bigger than min_val
-            #
+            # 
             # @param [Time] start_time Start time of the interval which is replayed (nil = start of the log file)
             # @param [Time] end_time End time of the interval which is replayed (nil = end of the log file)
             # @param [Float] min_val Min value of the filtered result vector to be regarded as inlayer
             # @param [Float] kernel_size Filter kernel size of the box filter in seconds
-            # @yield [reader,sample]
-            # @yieldparam reader the data reader of the port from which the
-            #   sample has been read
-            # @yieldparam sample the data sample
+            # @yield [Typelib::Type] Custom code block
             # @yieldretun [TrueClass,FalseClass]
             #
             # @return [Array<Array<Time>>] extracted intervals
@@ -634,7 +633,7 @@ module Orocos
                           end
                 seek(start_time)
                 begin
-                    if block.call(current_port,current_sample_data)
+                    if block.call(current_sample_data)
                         result << 1
                     else
                         result << 0
@@ -696,10 +695,7 @@ module Orocos
             # @param [String] comment Comment of the log markers
             # @param [Float] min_val Min value of the filtered result vector to be regarded as inlayer
             # @param [Float] kernel_size Filter kernel size of the box filter in seconds
-            # @yield [reader,sample]
-            # @yieldparam reader the data reader of the port from which the
-            #   sample has been read
-            # @yieldparam sample the data sample
+            # @yield [Typelib::Type] Custom code block
             # @yieldretun [TrueClass,FalseClass]
             #
             # @return [Array<Array<Time>>] extracted intervals
