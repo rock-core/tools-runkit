@@ -352,15 +352,19 @@ module Orocos
         end
 
         def self.typelib_from_yaml_array(value, conf)
-            conf.each_with_index do |element, idx|
-                while value.size <= idx and !
-                    if value.kind_of?(Typelib::ArrayType)
-                        raise ArgumentError, "Configuration object size is larger than field #{value}"
-                    end
+            if value.kind_of?(Typelib::ArrayType)
+                # This is a fixed-size array, verify that the size matches
+                if conf.size > value.size
+                    raise ArgumentError, "Configuration object size is larger than field #{value}"
+                end
+            else
+                while value.size < conf.size
                     new_value = value.class.deference.new
                     new_value.zero!
                     value.push(new_value)
                 end
+            end
+            conf.each_with_index do |element, idx|
                 value[idx] = typelib_from_yaml_value(value.raw_get(idx), element)
             end
             value
