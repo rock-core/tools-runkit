@@ -193,6 +193,11 @@ module Orocos
     # for the given typekit
     #
     # If given, +typekit_pkg+ is the PkgConfig file for the requested typekit
+    #
+    # @return [Array<(String,Boolean)>] set of found libraries. The string is
+    #   the path to the library and the boolean flag indicates whether loading
+    #   this library is optional (from orocos.rb's point of view), or required
+    #   to use the typekit-defined types on transports
     def self.find_typekit_plugin_paths(name, typekit_pkg = nil)
         plugins = Hash.new
         libs = Array.new
