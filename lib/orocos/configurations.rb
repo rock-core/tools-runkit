@@ -549,24 +549,32 @@ module Orocos
             end
         end
 
-        def find_task_configuration_object(task)
+        def find_task_configuration_object(task, options = Hash.new)
+            options = Kernel.validate_options options, :model_name => task.model.name
             if !task.model
                 raise ArgumentError, "cannot use ConfigurationManager#apply for non-orogen tasks"
             end
-            conf[task.model.name]
+            conf[options[:model_name]]
         end
 
         # Applies the specified configuration on +task+
         #
         # See TaskConfigurations#apply for a description of the process
-        def apply(task, names=Array.new, override = false)
-            task_conf = find_task_configuration_object(task)
+        def apply(task, names=Array.new, options = Hash.new)
+            if options == true || options == false
+                # Backward compatibility
+                options = Hash[:override => options]
+            end
+            options, find_options = Kernel.filter_options options, :override => false, :model_name => task.model.name
+
+            model_name = options[:model_name]
+            task_conf = find_task_configuration_object(task, find_options.merge(:model_name => model_name))
             if !task_conf
                 if names == ['default'] || names == []
-                    ConfigurationManager.info "required default configuration on #{task.name} of type #{task.model.name}, but #{task.model.name} has no registered configurations"
+                    ConfigurationManager.info "required default configuration on #{task.name} of type #{model_name}, but #{model_name} has no registered configurations"
                     return
                 else
-                    raise ArgumentError, "no configuration available for #{task.model.name}"
+                    raise ArgumentError, "no configuration available for #{model_name}"
                 end
             end
             
@@ -579,8 +587,8 @@ module Orocos
                         end
             end
 
-            ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{task.model.name}"
-            task_conf.apply(task, names, override)
+            ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{model_name}"
+            task_conf.apply(task, names, options[:override])
             true
         end
 
@@ -592,10 +600,18 @@ module Orocos
         #
         # If +name+ is given, it is used as the new configuration name.
         # Otherwise, the task's name is used
-        def save(task, path, name = nil)
-            task_conf = find_task_configuration_object(task)
+        def save(task, path, options = Hash.new)
+            if options.respond_to?(:to_str) # for backward compatibility
+                options = Hash[:name => options]
+            end
+            options, find_options = Kernel.filter_options options,
+                :name => nil,
+                :model => task.model
+
+            model_name = options[:model].name
+            task_conf = find_task_configuration_object(task, find_options.merge(:model_name => model_name))
             if !task_conf
-                task_conf = conf[task.model.name] = TaskConfigurations.new(task.model)
+                task_conf = conf[model_name] = TaskConfigurations.new(options[:model])
             end
             task_conf.save(task, path, name)
         end
