@@ -234,8 +234,6 @@ module Orocos
             remote_task
         end
 
-        attr_accessor :model
-
         def initialize(ior, options = Hash.new)
             @local_ports = Hash.new
             @local_properties = Hash.new
