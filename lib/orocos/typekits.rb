@@ -344,8 +344,8 @@ module Orocos
     # Finds the typelib type that maps to the given orocos type name
     #
     # @param [String] orocos_type_name
-    # @option options [Boolean] fallback_to_opaque (false) if true, a new opaque
-    #   type with the given orocos type name will be added to the registry and
+    # @option options [Boolean] :fallback_to_null_type (false) if true, a new
+    #   null type with the given orocos type name will be added to the registry and
     #   returned if the type cannot be found
     #
     # @raise [Orocos::TypekitTypeNotFound] if the type cannot be found and no
