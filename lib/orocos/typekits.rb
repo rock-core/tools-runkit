@@ -341,6 +341,13 @@ module Orocos
         end
     end
 
+    # Finds the C++ type that maps to the given typelib type name
+    #
+    # @param [String] typelib_type_name
+    def self.orocos_type_for(typelib_type)
+        master_project.find_opaque_for_intermediate(typelib_type) || typelib_type
+    end
+
     # Finds the typelib type that maps to the given orocos type name
     #
     # @param [String] orocos_type_name
