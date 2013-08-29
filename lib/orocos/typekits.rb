@@ -329,11 +329,11 @@ module Orocos
         end
     end
 
-    def self.create_or_get_opaque(type_name)
+    def self.create_or_get_null_type(type_name)
         if Orocos.registry.include?(type_name)
             type = Orocos.registry.get type_name
             if !type.null?
-                return create_or_get_opaque("/orocos#{type_name}")
+                return create_or_get_null_type("/orocos#{type_name}")
             end
             type
         else
@@ -366,7 +366,7 @@ module Orocos
          # type name
          if options[:fallback_to_null_type]
              type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
-             create_or_get_opaque(type_name)
+             create_or_get_null_type(type_name)
          else raise
          end
      end
