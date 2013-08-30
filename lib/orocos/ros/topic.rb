@@ -86,12 +86,12 @@ module Orocos
                 if sink.respond_to?(:to_topic)
                     sink = sink.to_topic
                     if self.task.running? || sink.task.running?
-                        raise ArgumentError, "cannot use #connect_to on topics from running nodes"
+                        raise ArgumentError, "cannot use #disconnect_from topics from running nodes"
                     end
 
                     sink.topic_name = "#{sink.task.name}/#{sink.name}"
                 elsif sink.respond_to?(:to_orocos_port)
-                    sink.to_orocos_port.subscribe_to_ros(topic_name, policy)
+                    sink.to_orocos_port.unsubscribe_from_ros(topic_name)
                 else
                     return super
                 end
