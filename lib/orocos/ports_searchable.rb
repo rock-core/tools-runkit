@@ -22,13 +22,10 @@ module Orocos
                     end
                 candidates.delete_if { |port| port.type_name != type_name }
             end
-
+                    
             # Filter out on name
             if port_name
-                if !port_name.kind_of?(Regexp)
-                    port_name = Regexp.new(port_name) 
-                end
-                candidates.delete_if { |port| port.full_name !~ port_name }
+                candidates.delete_if { |port| !(port_name === port.name) }
             end
             candidates
         end
