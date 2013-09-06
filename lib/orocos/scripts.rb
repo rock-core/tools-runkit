@@ -120,12 +120,16 @@ module Orocos
             #
             # The task name takes precedence on the model
             attr_reader :conf_setup
+            # Options that should be passed to Orocos.run
+            attr_reader :run_options
         end
         @conf_setup = Hash.new
+        @run_options = Hash.new
 
         def self.common_optparse_setup(optparse)
             @attach = false
             @gui = false
+            @run_options = Hash.new
             optparse.on('--host=HOSTNAME', String) do |hostname|
                 Orocos::CORBA.name_service = hostname.to_str
             end
@@ -153,6 +157,16 @@ module Orocos
                     conf_sections = ['default']
                 end
                 @conf_setup[task] = [file, conf_sections]
+            end
+            optparse.on '--gdbserver', 'start the component(s) with gdb' do
+                run_options[:gdb] = true
+            end
+            optparse.on '--valgrind', 'start the component(s) with gdb' do
+                run_options[:valgrind] = true
+            end
+            optparse.on '--help', 'show this help message' do
+                puts optparse
+                exit 0
             end
         end
 
@@ -195,7 +209,7 @@ module Orocos
             if deployments.empty? && models.empty?
                 yield
             else
-                Orocos.run(deployments.merge(models).merge(options), &block)
+                Orocos.run(deployments.merge(models).merge(options).merge(run_options), &block)
             end
         end
     end
