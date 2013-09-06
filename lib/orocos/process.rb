@@ -143,6 +143,7 @@ module Orocos
         #
         # See also #task_names
         def each_task
+            return enum_for(:each_task) if !block_given?
             task_names.each do |name|
                 yield(task(name))
             end
