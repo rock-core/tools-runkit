@@ -126,19 +126,19 @@ module Orocos
         def self.common_optparse_setup(optparse)
             @attach = false
             @gui = false
-            optparse.on('--host=HOSTNAME') do |hostname|
+            optparse.on('--host=HOSTNAME', String) do |hostname|
                 Orocos::CORBA.name_service = hostname.to_str
             end
-            optparse.on('--gui') do
+            optparse.on('--gui', "start vizkit's task inspector instead of having a text state monitoring") do
                 @gui = true
             end
-            optparse.on('--attach') do
+            optparse.on('--attach', "do not actually start the components, simply attach to running ones") do
                 @attach = true
             end
-            optparse.on('--conf-dir=DIR', String) do |conf_source|
+            optparse.on('--conf-dir=DIR', String, "load the configuration files in this directory (not needed when using bundles)") do |conf_source|
                 Orocos.conf.load_dir(conf_source)
             end
-            optparse.on('--conf=TASK[:FILE],conf0,conf1', String) do |conf_setup|
+            optparse.on('--conf=TASK[:FILE],conf0,conf1', String, "load this specific configuration for the given task. The task is given by its deployed name") do |conf_setup|
                 task, *conf_sections = conf_setup.split(',')
                 task, *file = task.split(':')
                 if !file.empty?
