@@ -34,6 +34,10 @@ module Orocos
             super() if defined? super
         end
 
+        def to_s
+            "#{full_name}"
+        end
+
         # True if +self+ and +other+ represent the same port
         def ==(other)
             other.class == self.class &&
