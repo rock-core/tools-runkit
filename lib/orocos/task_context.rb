@@ -558,7 +558,7 @@ module Orocos
 
         # Calls the required operation with the given argument
         #
-        # This is a shortcut for operation(name).sendop(*arguments)
+        # This is a shortcut for operation(name).calldop(*arguments)
         def callop(name, *args)
             operation(name).callop(*args)
         end

@@ -437,6 +437,43 @@ describe Orocos::TaskConfigurations do
             assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
         end
     end
+
+    describe "typelib_from_yaml_array" do
+        attr_reader :array_t, :vector_t
+        before do
+            registry = Typelib::CXXRegistry.new
+            @array_t = registry.create_array "/double", 2
+            @vector_t = registry.create_container "/std/vector", "/double"
+        end
+
+        it "should resize a smaller container" do
+            vector = vector_t.new
+            Orocos::TaskConfigurations.typelib_from_yaml_array(vector, [1, 2, 3])
+            assert_equal 3, vector.size
+            assert_equal 1, vector[0]
+            assert_equal 2, vector[1]
+            assert_equal 3, vector[2]
+        end
+        it "should keep a bigger container to its current size" do
+            vector = Typelib.from_ruby([1, 2], vector_t)
+            Orocos::TaskConfigurations.typelib_from_yaml_array(vector, [-1])
+            assert_equal 2, vector.size
+            assert_equal -1, vector[0]
+            assert_equal 2, vector[1]
+        end
+        it "should only set the relevant values on a bigger array" do
+            array = Typelib.from_ruby([1, 2], array_t)
+            Orocos::TaskConfigurations.typelib_from_yaml_array(array, [-1])
+            assert_equal -1, array[0]
+            assert_equal 2, array[1]
+        end
+        it "should raise ArgumentError if the array is too small" do
+            array = Typelib.from_ruby([1, 2], array_t)
+            assert_raises(ArgumentError) do
+                Orocos::TaskConfigurations.typelib_from_yaml_array(array, [0, 1, 2])
+            end
+        end
+    end
 end
 
 class TC_Orocos_Configurations < Test::Unit::TestCase

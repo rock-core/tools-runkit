@@ -193,6 +193,11 @@ module Orocos
     # for the given typekit
     #
     # If given, +typekit_pkg+ is the PkgConfig file for the requested typekit
+    #
+    # @return [Array<(String,Boolean)>] set of found libraries. The string is
+    #   the path to the library and the boolean flag indicates whether loading
+    #   this library is optional (from orocos.rb's point of view), or required
+    #   to use the typekit-defined types on transports
     def self.find_typekit_plugin_paths(name, typekit_pkg = nil)
         plugins = Hash.new
         libs = Array.new
@@ -324,11 +329,11 @@ module Orocos
         end
     end
 
-    def self.create_or_get_opaque(type_name)
+    def self.create_or_get_null_type(type_name)
         if Orocos.registry.include?(type_name)
             type = Orocos.registry.get type_name
             if !type.null?
-                return create_or_get_opaque("/orocos#{type_name}")
+                return create_or_get_null_type("/orocos#{type_name}")
             end
             type
         else
@@ -336,11 +341,18 @@ module Orocos
         end
     end
 
+    # Finds the C++ type that maps to the given typelib type name
+    #
+    # @param [String] typelib_type_name
+    def self.orocos_type_for(typelib_type)
+        master_project.find_opaque_for_intermediate(typelib_type) || typelib_type
+    end
+
     # Finds the typelib type that maps to the given orocos type name
     #
     # @param [String] orocos_type_name
-    # @option options [Boolean] fallback_to_opaque (false) if true, a new opaque
-    #   type with the given orocos type name will be added to the registry and
+    # @option options [Boolean] :fallback_to_null_type (false) if true, a new
+    #   null type with the given orocos type name will be added to the registry and
     #   returned if the type cannot be found
     #
     # @raise [Orocos::TypekitTypeNotFound] if the type cannot be found and no
@@ -361,7 +373,7 @@ module Orocos
          # type name
          if options[:fallback_to_null_type]
              type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
-             create_or_get_opaque(type_name)
+             create_or_get_null_type(type_name)
          else raise
          end
      end

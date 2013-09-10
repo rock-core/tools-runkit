@@ -43,7 +43,7 @@ module Orocos
             else
                 project_name = available_deployments[name]
                 if !project_name
-                    raise ArgumentError, "there is no deployment called #{name} on #{host}:#{port}"
+                    raise ArgumentError, "there is no deployment called #{name} on #{self}"
                 end
 
                 tasklib = load_orogen_project(project_name)
@@ -68,6 +68,9 @@ module Orocos
 
         def start(name, deployment_name, name_mappings, options)
             model = load_orogen_deployment(deployment_name)
+            if deployments[name]
+                raise ArgumentError, "#{name} is already started in #{self}"
+            end
 
             prefix_mappings, options =
                 Orocos::ProcessBase.resolve_prefix_option(options, model)
@@ -142,6 +145,13 @@ module Orocos
 
         def wait_running(blocking = false)
             true
+        end
+
+        def task(task_name)
+            if t = tasks[task_name]
+                t
+            else raise ArgumentError, "#{self} has no task called #{task_name}"
+            end
         end
 
         def kill(wait = true, status = RubyProcessServer::Status.new(:exit_code => 0))

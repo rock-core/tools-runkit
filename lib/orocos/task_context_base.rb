@@ -332,9 +332,13 @@ module Orocos
             end
 
             if options.has_key?(:model)
-                @model = options[:model]
+                self.model = options[:model]
             end
-            if !model
+
+            # Load the model from remote if it is not set yet
+            model
+
+            if !@state_symbols
                 @state_symbols = []
                 @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL
                 @state_symbols[STATE_STOPPED]         = :STOPPED
@@ -653,12 +657,14 @@ module Orocos
                     map { |name, type| name.to_sym if type == :fatal }.
                     compact.to_set
 
-                if model.component.typekit
-                    Orocos.load_typekit(model.component.name)
-                end
-                model.used_typekits.each do |tk|
-                    next if tk.virtual?
-                    Orocos.load_typekit(tk.name)
+                if model.project
+                    if model.project.typekit
+                        Orocos.load_typekit(model.project.name)
+                    end
+                    model.used_typekits.each do |tk|
+                        next if tk.virtual?
+                        Orocos.load_typekit(tk.name)
+                    end
                 end
                 if ext = Orocos.extension_modules[model.name]
                     ext.each { |m_ext| extend(m_ext) }

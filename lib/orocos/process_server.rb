@@ -514,6 +514,7 @@ module Orocos
 
         end
 
+
         # Requests that the process server moves the log directory at +log_dir+
         # to +results_dir+
         def save_log_dir(log_dir, results_dir)
@@ -610,6 +611,12 @@ module Orocos
         # Called to announce that this process has quit
         def dead!
             @alive = false
+        end
+
+        # Returns the task context object for the process' task that has this
+        # name
+        def task(task_name)
+            Orocos.name_service.get(task_name)
         end
 
         # Stops the process

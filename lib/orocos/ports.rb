@@ -303,7 +303,7 @@ module Orocos
             if !input_port.kind_of?(InputPort)
                 raise ArgumentError, "an output port can only connect to an input port (got #{input_port})"
             elsif input_port.type.name != type.name
-                raise ArgumentError, "trying to connect an output port of type #{type.name} to an input port of type #{input_port.type.name}"
+                raise ArgumentError, "trying to connect #{self}, an output port of type #{type.name}, to #{input_port}, an input port of type #{input_port.type.name}"
             end
 
             policy = Port.prepare_policy(options)

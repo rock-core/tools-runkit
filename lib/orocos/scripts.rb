@@ -120,25 +120,29 @@ module Orocos
             #
             # The task name takes precedence on the model
             attr_reader :conf_setup
+            # Options that should be passed to Orocos.run
+            attr_reader :run_options
         end
         @conf_setup = Hash.new
+        @run_options = Hash.new
 
         def self.common_optparse_setup(optparse)
             @attach = false
             @gui = false
-            optparse.on('--host=HOSTNAME') do |hostname|
+            @run_options = Hash.new
+            optparse.on('--host=HOSTNAME', String) do |hostname|
                 Orocos::CORBA.name_service = hostname.to_str
             end
-            optparse.on('--gui') do
+            optparse.on('--gui', "start vizkit's task inspector instead of having a text state monitoring") do
                 @gui = true
             end
-            optparse.on('--attach') do
+            optparse.on('--attach', "do not actually start the components, simply attach to running ones") do
                 @attach = true
             end
-            optparse.on('--conf-dir=DIR', String) do |conf_source|
+            optparse.on('--conf-dir=DIR', String, "load the configuration files in this directory (not needed when using bundles)") do |conf_source|
                 Orocos.conf.load_dir(conf_source)
             end
-            optparse.on('--conf=TASK[:FILE],conf0,conf1', String) do |conf_setup|
+            optparse.on('--conf=TASK[:FILE],conf0,conf1', String, "load this specific configuration for the given task. The task is given by its deployed name") do |conf_setup|
                 task, *conf_sections = conf_setup.split(',')
                 task, *file = task.split(':')
                 if !file.empty?
@@ -153,6 +157,16 @@ module Orocos
                     conf_sections = ['default']
                 end
                 @conf_setup[task] = [file, conf_sections]
+            end
+            optparse.on '--gdbserver', 'start the component(s) with gdb' do
+                run_options[:gdb] = true
+            end
+            optparse.on '--valgrind', 'start the component(s) with gdb' do
+                run_options[:valgrind] = true
+            end
+            optparse.on '--help', 'show this help message' do
+                puts optparse
+                exit 0
             end
         end
 
@@ -195,7 +209,7 @@ module Orocos
             if deployments.empty? && models.empty?
                 yield
             else
-                Orocos.run(deployments.merge(models).merge(options), &block)
+                Orocos.run(deployments.merge(models).merge(options).merge(run_options), &block)
             end
         end
     end

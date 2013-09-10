@@ -143,6 +143,7 @@ module Orocos
         #
         # See also #task_names
         def each_task
+            return enum_for(:each_task) if !block_given?
             task_names.each do |name|
                 yield(task(name))
             end
@@ -157,9 +158,9 @@ module Orocos
             end
 
             result = if task_names.include?(task_name)
-                         TaskContext.get task_name, self
+                         Orocos.name_service.get task_name, :process => self
                      elsif task_names.include?(full_name)
-                         TaskContext.get full_name, self
+                         Orocos.name_service.get full_name, :process => self
                      else
                          raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
                      end
@@ -341,7 +342,10 @@ module Orocos
                 elsif @expected_exit
                     Orocos.info "deployment #{name} terminated with signal #{exit_status.termsig} but #{@expected_exit} was expected"
                 else
-                    Orocos.warn "deployment #{name} unexpectedly terminated with signal #{exit_status.termsig}"
+                    Orocos.error "deployment #{name} unexpectedly terminated with signal #{exit_status.termsig}"
+                    Orocos.error "This is normally a fault inside the component, not caused by external framework components."
+                    Orocos.error "Try to run your component within gdb or valgrind (Orocos.run 'component', :gdb=>true, :valgrind=>true)"
+                    Orocos.error "Make also sure your component is installed (thought amake/autoproj build/make install) and not only built."
                 end
             else
                 Orocos.warn "deployment #{name} terminated with code #{exit_status.to_i}"
