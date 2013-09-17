@@ -630,6 +630,8 @@ module Orocos
             if names = resolve_requested_configuration_names(task_conf, names)
                 ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{model_name}"
                 task_conf.apply(task, names, options[:override])
+            else
+                ConfigurationManager.info "required default configuration on #{task.name} of type #{model_name}, but #{model_name} has no registered configurations"
             end
             true
         end
@@ -637,7 +639,6 @@ module Orocos
         def resolve_requested_configuration_names(task_conf, names)
             if !task_conf
                 if names == ['default'] || names == []
-                    ConfigurationManager.info "required default configuration on #{task.name} of type #{model_name}, but #{model_name} has no registered configurations"
                     return
                 else
                     raise ArgumentError, "no configuration available for #{model_name}"
