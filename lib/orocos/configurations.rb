@@ -627,6 +627,14 @@ module Orocos
 
             model_name = options[:model_name]
             task_conf = find_task_configuration_object(task, find_options.merge(:model_name => model_name))
+            if names = resolve_requested_configuration_names(task_conf, names)
+                ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{model_name}"
+                task_conf.apply(task, names, options[:override])
+            end
+            true
+        end
+
+        def resolve_requested_configuration_names(task_conf, names)
             if !task_conf
                 if names == ['default'] || names == []
                     ConfigurationManager.info "required default configuration on #{task.name} of type #{model_name}, but #{model_name} has no registered configurations"
@@ -636,18 +644,15 @@ module Orocos
                 end
             end
             
-            #if no names are given try to figure them out 
+            # If no names are given try to figure them out 
             if !names || names.empty?
-                names = if(task_conf.sections.size == 1)
-                            names = [task_conf.sections.keys.first]
-                        else
-                            ["default"]
-                        end
+                if(task_conf.sections.size == 1)
+                    [task_conf.sections.keys.first]
+                else
+                    ["default"]
+                end
+            else names
             end
-
-            ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{model_name}"
-            task_conf.apply(task, names, options[:override])
-            true
         end
 
         # Dumps the configuration of +task+ on the specified path
@@ -672,6 +677,27 @@ module Orocos
                 task_conf = conf[model_name] = TaskConfigurations.new(options[:model])
             end
             task_conf.save(task, path, name)
+        end
+
+        # Returns a resolved configuration value for a task model name
+        #
+        # @param [String] task_model_name the name of the task model
+        # @param [Array<String>] conf_names the name of the configuration
+        #   sections
+        # @param [Boolean] override if true, values that are set by early
+        #   elements in conf_names will be overriden if set in later elements.
+        #   Otherwise, ArgumentError is thrown when this happens.
+        # @return [Object] a configuration object as formatted by the rules
+        #   described in the {TaskConfigurations#sections} attribute description
+        def resolve(task_model_name, conf_names = Array.new, override = false)
+            if task_model_name.respond_to?(:model)
+                task_model_name = task_model_name.model.name
+            end
+            task_conf = conf[task_model_name]
+            if conf_names = resolve_requested_configuration_names(task_conf, conf_names)
+                task_conf.conf(conf_names, override)
+            else Hash.new
+            end
         end
     end
 end
