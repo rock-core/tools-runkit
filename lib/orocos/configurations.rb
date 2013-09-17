@@ -34,8 +34,31 @@ module Orocos
     #   the specified order. Otherwise, it is added at the end.
     # 
     class TaskConfigurations
+        # The known configuration sections for this task context model
+        #
+        # Configuration sections are formatted as follows:
+        #  - compounds are represented by hashes
+        #  - arrays and containers are represented by arrays
+        #  - all other values are represented by the corresponding typelib value
+        #
+        # This formatting allows to properly perform configuration merging, for
+        # instance when one selects the ('default', 'specific') configuration.
+        # Indeed, the compounds-represented-by-hashes only hold the values that
+        # are explicitly set in the input configuration hash. The nil entries in
+        # the arrays also allow to not override already set values.
+        #
+        # The toplevel value (i.e. the value of e.g. sections['default']) is
+        # always a hash whose keys are the task's property names.
+        #
+        # @return [{String=>{String=>Object}}] 
         attr_reader :sections
+
+        # @return [{String=>Hash}] set of configuration options for each known
+        #   configuration sections
         attr_reader :conf_options
+
+        # @return [Orocos::Spec] the task context model for which self holds
+        #   configurations
         attr_reader :model
 
         def initialize(task_model)
@@ -45,6 +68,9 @@ module Orocos
         end
 
         # Retrieves the configuration for the given section name 
+        #
+        # @return [Object] see the description of {sections} for the description
+        #   of formatting
         def [](section_name)
             sections[section_name]
         end
@@ -80,7 +106,7 @@ module Orocos
         # The first YAML document has, by default, the name 'default'. One can
         # also be provided if needed.
         #
-        # Returns a set of section names, of the section that have been modified
+        # @return [Array<String>] the names of the sections that have been modified
         def load_from_yaml(file)
             document_lines = File.readlines(file)
 
@@ -141,6 +167,12 @@ module Orocos
             raise e, "error loading #{file}: #{e.message}", e.backtrace
         end
 
+        # Add a new configuration section to the configuration set
+        #
+        # @param [String] name the configuration section name
+        # @param [Object] conf the configuration data. See {sections} for a
+        #   description of its formatting
+        # @param [Hash] options the options of this configuration section
         def add(name, conf, options = Hash.new)
             options = Kernel.validate_options options,
                 :merge => true, :chain => nil
@@ -160,6 +192,14 @@ module Orocos
             changed
         end
 
+        # Converts an array to a properly formatted configuration value
+        #
+        # See {sections} for a description of configuration value formatting
+        #
+        # @param [Array] array the input array
+        # @param [Model<Typelib::Type>] the description of the expected type
+        # @return [Object] a properly formatted configuration value based on the
+        #   input array
         def config_from_array(array, value_t)
             element_t = value_t.deference
             array.map do |value|
@@ -173,10 +213,16 @@ module Orocos
             end
         end
 
-        # Normalizes a configuration object in a hash form into a form that can
-        # be used by #configuration
+        # Converts a hash to a properly formatted configuration value
         #
-        # It is an internal helper method used by #load_from_yaml
+        # See {sections} for a description of configuration value formatting
+        #
+        # @param [Hash] hash the input hash
+        # @param [Model<Typelib::Compound>,nil] the description of the
+        #   expected type. If nil, the function will assume that the hash keys
+        #   are propery names and the types will be taken from {model}
+        # @return [Object] a properly formatted configuration value based on the
+        #   input hash
         def config_from_hash(hash, base = nil) # :nodoc:
             result = Hash.new
             hash.each do |key, value|
@@ -240,6 +286,9 @@ module Orocos
 
         # Helper method that adds the configuration of +b+ into the existing
         # configuration hash +a+
+        #
+        # See {sections} for a description of how the configuration value
+        # formatting allows this to be done.
         def self.merge_conf(a, b, override)
             result = if override
                 a.recursive_merge(b) do |k, v1, v2|
@@ -485,7 +534,9 @@ module Orocos
         extend Logger::Hierarchy
 
         # A mapping from the task model names to the corresponding
-        # TaskConfigurations object
+        # {TaskConfigurations} object
+        #
+        # @return [{String=>TaskConfigurations}]
         attr_reader :conf
 
         def initialize
