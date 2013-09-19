@@ -293,9 +293,12 @@ module Orocos
                         p.kill(false)
                         socket.write("Y")
                     rescue Exception => e
+                        Orocos.warn "exception raised while calling #{p}#kill(false)"
+                        Orocos.log_pp(:warn, e)
                         socket.write("N")
                     end
                 else
+                    Orocos.warn "no process named #{name} to end"
                     socket.write("N")
                 end
             end
