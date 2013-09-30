@@ -1,4 +1,4 @@
-= Orocos.rb: deploying and supervising Orocos/RTT modules
+# Orocos.rb: deploying and supervising Orocos/RTT modules
 
 Orocos.rb is a Ruby library which allows to access, read out and control Orocos RTT
 (http://www.orocos.org) components. It uses the CORBA transport of Orocos for that,
@@ -13,15 +13,17 @@ assume that the modules you are working on have been orogen-generated.
 All script snippets in this documentation are Ruby scripts, and assume that you
 have first done:
 
+~~~
   require 'orocos'
   include Orocos
+~~~
 
-== Installation
+## Installation
 
 This package is part of the rubim.orocos package set of RubyInMotion. See
 http://sites.google.com/site/rubyinmotion for installation instructions.
 
-== Starting processes
+## Starting processes
 
 As always with orogen, the dependency tracking is done using pkg-config. So make
 sure that the PKG_CONFIG_PATH environment variable is set properly: it should
@@ -30,21 +32,27 @@ orogen module.
 
 Then, start your modules with 
 
+~~~
   p1, p2 = Orocos::Process.spawn 'canbus', 'hokuyo'
+~~~
 
 where canbus and hokuyo are the names of the processes as deployed by orogen,
 i.e. the name given to #deployment in the orogen specification:
 
+~~~
   deployment 'canbus' do
     # Spawn task contexts
   end
+~~~
 
 Alternatively, you can use the block form. In this form, when the <tt>do ...
 end</tt> block is exited, then the processes are properly shut down.
 
+~~~
   Orocos::Process.spawn 'canbus', 'hokuyo' do |p1, p2|
     # Use the process objects.
   end
+~~~
 
 In both cases, +p1+ and +p2+ refer to Orocos::Process instances that
 respectively represent the +canbus+ and +hokuyo+ processes.
@@ -55,9 +63,11 @@ See the documentation of Orocos::Process for more details.
 
 You can grab an object represeting the remote RTT component with:
 
+~~~
   c = TaskContext.new IOR
   # or 
   d = Orocos.name_service.get TaskName
+~~~
 
 where TaskName is the name given to the task during deployment and 
 IOR the Interoperable Object Reference (IOR). You can list all
@@ -69,6 +79,7 @@ class name or one of its parent class names).
 
 For instance, with the orogen specification looking like:
 
+~~~
   name "controldev"
   task_context "Device" do
     ... generic interface definition ...
@@ -85,6 +96,7 @@ For instance, with the orogen specification looking like:
     subclasses "Device"
     ... specific remote parts ...
   end
+~~~
 
 During deployment, you would choose the "right" one for your system. For
 instance, a local computer would use controldev::Joystick, the robot would
@@ -92,17 +104,20 @@ require a remote control and therefore use controldev::Remote and so on.
 
 Though, the script will be independent from that choice because you can use
 
+~~~
   c = Orocos.name_service.get_provides("controldev::Device")
+~~~
 
 Orocos.name_service.get_provides returns a Orocos::TaskContext instance. See the
 documentation of that class for more details.
 
-== Changing and reading a task context's state
+## Changing and reading a task context's state
 
-== Manipulating a task context
+## Manipulating a task context
 
 You can change the task's properties with:
 
+~~~
   # This property is a "simple" type (i.e. not a struct)
   c.device_name = "/dev/ttyUSB0"
 
@@ -111,70 +126,90 @@ You can change the task's properties with:
   value.maxSpeed = 20
   value. = 200
   c.propertyName = value
+~~~
 
 The properties are represented by Orocos::Attribute objects. In the same way,
 ports can be accessed through Orocos::InputPort and Orocos::OutputPort objects:
 
+~~~
   output_port = c.currentReadings
   input_port  = c.speed
+~~~
 
 Reading/writing these ports is done with:
 
+~~~
   port_reader = c.currentReadings.reader
   port_reader.read # => returns the current reading instance
 
   port_writer = c.speed.writer
   port_writer.write(10) # => returns the current reading instance
+~~~
 
 If the port's type is a structure, then you can either do:
 
+~~~
   sample = port_writer.new_sample # or c.speed.new_sample
   sample.value = 100
   port_writer.write(sample)
+~~~
 
 or represent the structure through a hash:
+
+~~~
   port_writer.write(:value => 100)
+~~~
 
 Orocos::InputPort#writer and Orocos::OutputPort#reader return respectively
 Orocos::InputWriter and Orocos::OutputReader objects. These objects are
 connected to the remote ports using the standard RTT data flow mechanism, so it
 is possible to specify a connection policy:
 
+~~~
   port_reader = c.currentReadings.reader(:type => :buffer, :size => 10, :pull => true)
   port_writer = c.speed.writer(:type => :buffer, :size => 10, :pull => true)
+~~~
 
 See Orocos::Port#validate_policy for an in-depth explanation of possible values.
 
 Finally, the task's methods can be used in this way:
 
+~~~
   m = c.rtt_method('watch')
   ret = m.call(arg1, arg2)
+~~~
 
 and commands are used:
 
+~~~
   m = c.rtt_command('watch')
   handle = m.call(arg1, arg2)
   # Check if the command is finished
+~~~
 
 Both calls store the arguments on the remote component, so if the same method is
 to be called repeatedly, use #recall:
 
+~~~
   m = c.rtt_method('watch')
   ret = m.call(arg1, arg2)
   ret2 = m.recall
+~~~
 
 Orocos::TaskContext#rtt_method returns an Orocos::RTTMethod object while
 Orocos::TaskContext#rtt_command returns an Orocos::Command one.
 
-== Connecting task contexts together
+## Connecting task contexts together
 
 It is possible to connect ports using orocos.rb. Simply do:
 
+~~~
   # Get the InputPort and OutputPort instances# Get the InputPort and OutputPort
   instances# Get the InputPort and OutputPort instances
   input_port  = c.input
   output_port = c.output
   output_port.connect_to(input_port, policy)
+~~~
 
 +policy+ is the connection. It is a hash whose arguments are the policy
 parameters. See Orocos::Port#validate_policy for an in-depth explanation of

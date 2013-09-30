@@ -4,18 +4,22 @@ require 'utilrb/doc/rake'
 
 begin
     require 'hoe'
+    Hoe::plugin :yard
+
     namespace 'dist' do
         config = Hoe.spec('orocos.rb') do |p|
             self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
 
             self.summary = 'Controlling Orocos modules from Ruby'
-            self.description = ""
+            self.description = paragraphs_of('README.markdown', 3..5).join("\n\n")
             self.urls = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
             self.changes = ""
+            licenses << "GPL v2 or later"
 
             self.extra_deps <<
                 ['utilrb', ">= 1.1"] <<
-                ['rake', ">= 0.8"]
+                ['rake', ">= 0.8"] <<
+                ["hoe-yard",   ">= 0.1.2"]
 
             #self.spec.extra_rdoc_files.reject! { |file| file =~ /Make/ }
             #self.spec.extensions << 'ext/extconf.rb'
@@ -137,6 +141,7 @@ if Utilrb.doc?
 
     task 'redocs' => 'doc:reapi'
     task 'doc' => 'doc:api'
+    task 'docs' => 'doc'
 else
     STDERR.puts "WARN: cannot load yard or rdoc , documentation generation disabled"
 end
