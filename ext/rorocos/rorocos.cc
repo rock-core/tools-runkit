@@ -576,7 +576,7 @@ static VALUE mqueue_transportable_type_names(VALUE mod)
 }
 #endif
 
-extern "C" void Init_rorocos_ext()
+extern "C" void Init_rorocos()
 {
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");

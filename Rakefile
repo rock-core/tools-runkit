@@ -1,31 +1,27 @@
 require 'rake'
+require 'rake/extensiontask'
 require './lib/orocos/version'
-require 'utilrb/doc/rake'
+
+hoe_spec = nil 
 
 begin
     require 'hoe'
     Hoe::plugin :yard
 
-    namespace 'dist' do
-        config = Hoe.spec('orocos.rb') do |p|
-            self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
+    hoe_spec = Hoe.spec('orocos.rb') do |p|
+        self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
 
-            self.summary = 'Controlling Orocos modules from Ruby'
-            self.description = paragraphs_of('README.markdown', 3..5).join("\n\n")
-            self.urls = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
-            self.changes = ""
-            licenses << "GPL v2 or later"
+        self.summary = 'Controlling Orocos modules from Ruby'
+        self.description = paragraphs_of('README.markdown', 3..5).join("\n\n")
+        self.urls = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
+        self.changes = ""
+        licenses << "GPL v2 or later"
 
-            self.extra_deps <<
-                ['utilrb', ">= 1.1"] <<
-                ['rake', ">= 0.8"] <<
-                ["hoe-yard",   ">= 0.1.2"]
-
-            #self.spec.extra_rdoc_files.reject! { |file| file =~ /Make/ }
-            #self.spec.extensions << 'ext/extconf.rb'
-        end
-
-        Rake.clear_tasks(/dist:(re|clobber_|)docs/)
+        self.extra_deps <<
+            ['utilrb', ">= 1.1"] <<
+            ['rake', ">= 0.8"] <<
+            ["rake-compiler",   "~> 0.8.0"] <<
+            ["hoe-yard",   ">= 0.1.2"]
     end
 
 rescue LoadError
@@ -46,28 +42,30 @@ def build_orogen(name)
     Orocos::Rake.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
 end
 
+
+Rake.clear_tasks(/^default$/)
 task :default => ["setup:ext", "setup:uic"]
 
-namespace :setup do
-    desc "builds Orocos.rb C extension"
-    task :ext do
-        builddir = File.join('ext', 'build')
-        prefix   = File.join(Dir.pwd, 'ext')
+# Leave in top level namespace to allow rake-compiler to build native gem: 'rake native gem'
+desc "builds Orocos.rb C extension"
+rorocos_task = Rake::ExtensionTask.new('rorocos', hoe_spec.spec) do |ext|
+    # Same info as in ext/rocoros/extconf.rb where cmake
+    # is used to generate the Makefile
+    ext.name = "rorocos"
+    ext.ext_dir = "ext/rorocos"
+    ext.lib_dir = "lib/orocos"
+    ext.tmp_dir = "ext/build"
+    ext.gem_spec = hoe_spec.spec
+    ext.source_pattern = "*.{c,cpp,cc}"
 
-        FileUtils.mkdir_p builddir
-        orocos_target = ENV['OROCOS_TARGET'] || 'gnulinux'
-        Dir.chdir(builddir) do
-            FileUtils.rm_f "CMakeCache.txt"
-            if !system("cmake", "-DRUBY_PROGRAM_NAME=#{FileUtils::RUBY}", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=#{orocos_target}", "-DCMAKE_BUILD_TYPE=Debug", "..")
-                raise "unable to configure the extension using CMake"
-            end
-
-            if !system("make") || !system("make", "install")
-                throw "unable to build the extension"
-            end
-        end
-        FileUtils.ln_sf "../ext/rorocos_ext.so", "lib/rorocos_ext.so"
+    if not Dir.exists?(ext.tmp_dir)
+        FileUtils.mkdir_p ext.tmp_dir
     end
+end
+
+namespace :setup do
+    # Rake-compiler provides task: 'compile'
+    task :ext => :compile
 
     desc "builds the oroGen modules that are needed by the tests"
     task :orogen_all do
@@ -120,29 +118,7 @@ namespace :setup do
     end
 end
 task :setup => "setup:ext"
-desc "remove by-products of setup"
-task :clean do
-    FileUtils.rm_rf "ext/build"
-    FileUtils.rm_rf "ext/rorocos_ext.so"
-    FileUtils.rm_rf "lib/rorocos_ext.so"
-    FileUtils.rm_rf "test/working_copy"
-end
 
-if Utilrb.doc?
-    namespace 'doc' do
-        Utilrb.doc 'api', :include => ['lib/**/*.rb'],
-            :exclude => [],
-            :target_dir => 'doc',
-            :title => 'orocos.rb'
-
-        # desc 'generate all documentation'
-        # task 'all' => 'doc:api'
-    end
-
-    task 'redocs' => 'doc:reapi'
-    task 'doc' => 'doc:api'
-    task 'docs' => 'doc'
-else
-    STDERR.puts "WARN: cannot load yard or rdoc , documentation generation disabled"
-end
+# Add removal of by-products of test setup to the clean task
+CLEAN.include("test/working_copy")
 

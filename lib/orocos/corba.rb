@@ -1,4 +1,4 @@
-require 'rorocos_ext'
+require 'orocos/rorocos'
 require 'typelib'
 
 module Orocos
