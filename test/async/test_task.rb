@@ -8,6 +8,7 @@ TEST_DIR = File.expand_path('..', File.dirname(__FILE__))
 DATA_DIR = File.join(TEST_DIR, 'data')
 WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+MiniTest::Unit.autorun
 
 # helper for generating an ior from a name
 def ior(name)
