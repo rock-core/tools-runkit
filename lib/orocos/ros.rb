@@ -37,6 +37,7 @@ module Orocos
 end
 require 'xmlrpc/client'
 require 'utilrb/thread_pool'
+require 'orogen_ros'
 require 'orocos/ros/rpc'
 require 'orocos/ros/types'
 require 'orocos/ros/name_service'
