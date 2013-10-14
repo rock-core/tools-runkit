@@ -164,24 +164,11 @@ module Orocos
                 @exit_status = nil
             end
 
-            def rospack_find(package_name, binary_name)
-                package_path = (`rospack find #{package_name}` || '').strip
-                if package_path.empty?
-                    raise ArgumentError, "rospack cannot find package #{package_name}"
-                end
-
-                bin_path = File.join(package_path, 'bin', binary_name)
-                if !File.file?(bin_path)
-                    raise ArgumentError, "there is no node called #{binary_name} in #{package_name} (looked in #{bin_path})"
-                end
-                bin_path
-            end
-
             # Starts this node
             def spawn
                 args = name_mappings.to_command_line
                 package_name, bin_name = *model.name.split("::")
-                binary = rospack_find(package_name.gsub(/^ros_/, ''), bin_name)
+                binary = Orocos::ROS.rosnode_find(package_name.gsub(/^ros_/, ''), bin_name)
                 @pid = Utilrb.spawn binary, "__name:=#{name}", *args
             end
 
