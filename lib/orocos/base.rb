@@ -159,13 +159,13 @@ module Orocos
             raise InternalError, "while looking up model of #{name}: found project #{tasklib_name}, but this project does not actually have a task model called #{name}"
         end
 
-        result.each_extension do |name, ext|
-            if !known_orogen_extensions.include?(name)
+        result.each_extension do |ext|
+            if !known_orogen_extensions.include?(ext.name)
                 begin
-                    require "#{name}/runtime"
+                    require "#{ext.name}/runtime"
                 rescue LoadError
                 end
-                known_orogen_extensions << name
+                known_orogen_extensions << ext.name
             end
         end
         result
