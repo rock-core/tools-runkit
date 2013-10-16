@@ -33,7 +33,6 @@ module Orocos::Async
             !!@type
         end
 
-        # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(attribute,options = Hash.new)
             @options = attribute.options
             if @type && @type != attribute.type && @type.name != attribute.orocos_type_name
@@ -41,9 +40,7 @@ module Orocos::Async
             end
             @type = attribute.type
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            disable_emitting do
-                super(attribute,options)
-            end
+            super(attribute,options)
             proxy_event(@delegator_obj,@delegator_obj.event_names)
         rescue Orocos::NotFound
             unreachable!
@@ -182,7 +179,6 @@ module Orocos::Async
             super && @delegator_obj.reachable?
         end
 
-        # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(port,options = Hash.new)
             raise ArgumentError, "port must not be kind of PortProxy" if port.is_a? PortProxy
             if @type && @type != port.type && @type.name != port.orocos_type_name
@@ -190,9 +186,7 @@ module Orocos::Async
             end
 
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            disable_emitting do
-                super(port,options)
-            end
+            super(port,options)
             proxy_event(@delegator_obj,@delegator_obj.event_names)
             @type = port.type
 
@@ -645,7 +639,6 @@ module Orocos::Async
         end
 
         # must be thread safe 
-        # do not emit anything because reachable will be emitted by the delegator_obj
         def reachable!(task_context,options = Hash.new)
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
             raise ArgumentError, "task_context must be an async instance but is #{task_context.class}" if !task_context.respond_to?(:event_names)
@@ -661,9 +654,7 @@ module Orocos::Async
                     remove_proxy_event(@delegator_obj_old,@delegator_obj_old.event_names)
                     @delegator_obj_old = nil
                 end
-                disable_emitting do
-                    super(task_context,options)
-                end
+                super(task_context,options)
                 proxy_event(@delegator_obj,@delegator_obj.event_names)
                 [@ports.values,@attributes.values,@properties.values]
             end

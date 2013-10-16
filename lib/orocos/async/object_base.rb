@@ -2,6 +2,7 @@ module Orocos::Async
 
     class EventListener
         attr_reader :event
+        attr_reader :last_args
 
         def initialize(obj,event,use_last_value=true,&block)
             @block = block
@@ -11,6 +12,7 @@ module Orocos::Async
             @obj = obj
             @event = event
             @use_last_value = use_last_value
+            @last_args
         end
 
         # returns true if the listener shall be called
@@ -25,6 +27,7 @@ module Orocos::Async
 
         # stop listing to the event
         def stop
+            @last_args = nil
             @obj.remove_listener(self)
             self
         end
@@ -43,6 +46,7 @@ module Orocos::Async
 
         # calls the callback
         def call(*args)
+            @last_args = args
             @block.call *args
         end
     end
@@ -245,7 +249,11 @@ module Orocos::Async
                 if existing = @proxy_listeners[obj].delete(e)
                     existing.stop
                 end
-                l = @proxy_listeners[obj][e] = EventListener.new(obj,e) do |*val|
+                # do not replay the last value of reachable or unreachable
+                # othewise all listeners will be triggered twice.
+                # (one time current object and one time object those event is proxied)
+                last_value = e != :reachable && e != :unreachable
+                l = @proxy_listeners[obj][e] = EventListener.new(obj,e,last_value) do |*val|
                     process_event e,*val
                 end
                 l.start if number_of_listeners(e) > 0
@@ -288,21 +296,25 @@ module Orocos::Async
         def really_add_listener(listener)
             if listener.use_last_value?
                 if listener.event == :reachable
-                    if valid_delegator?
-                        listener.call
-                    end
+                    listener.call if valid_delegator?
                 elsif listener.event == :unreachable
-                    if !valid_delegator?
-                        listener.call
-                    end
+                    listener.call if !valid_delegator?
                 end
             end
 
             @listeners[listener.event] << listener
             if number_of_listeners(listener.event) == 1
+                # proxy listener is injecting new samples
                 @proxy_listeners.each do |obj,listeners|
                     if l = listeners[listener.event]
                         obj.add_listener(l)
+                    end
+                end
+            elsif listener.use_last_value?
+                # inject default values if the proxy listener is already connected
+                @proxy_listeners.each do |obj,listeners|
+                    if l=listeners[listener.event]
+                        listener.call(*l.last_args) if l.last_args
                     end
                 end
             end
