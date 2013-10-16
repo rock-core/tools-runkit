@@ -91,7 +91,7 @@ module Orocos::Async
             end
 
 
-            def attribute(name,&block)
+            def attribute(name,options={},&block)
                 if block
                     orig_attribute(name) do |attr|
                         block.call Attribute.new(self,attr)
@@ -101,7 +101,7 @@ module Orocos::Async
                 end
             end
 
-            def property(name,&block)
+            def property(name,options={},&block)
                 if block
                     orig_property(name) do |prop|
                         block.call Property.new(self,prop)
