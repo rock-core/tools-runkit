@@ -28,6 +28,12 @@ module Orocos::Async
                 disable_emitting do 
                     reachable!(log_task)
                 end
+                log_task.on_port_reachable do |name|
+                    emit_port_reachable name
+                end
+                log_task.on_property_reachable do |name|
+                    emit_property_reachable name
+                end
             end
 
             def add_listener(listener)

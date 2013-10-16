@@ -525,11 +525,22 @@ module Orocos
                 @file_path_config = nil
                 @file_path_config_reg = file_path_config
                 @rtt_state = :RUNNING
+                @port_reachable_blocks = Array.new
+                @property_reachable_blocks = Array.new
             end
 
             def rename(name)
                 @name = name
             end
+
+            def on_port_reachable(&block)
+                @port_reachable_blocks << block
+            end
+
+            def on_property_reachable(&block)
+                @property_reachable_blocks << block
+            end
+
 
             # Returns the array of the names of available properties on this task
             # context
@@ -618,6 +629,7 @@ module Orocos
                 log_property = Property.new(self,stream)
                 raise ArgumentError, "The log file #{file_path} is already loaded" if @properties.has_key?(log_property.name)
                 @properties[log_property.name] = log_property
+                @property_reachable_blocks.each{|b|b.call(log_property.name)}
                 return log_property
             end
 
@@ -643,6 +655,7 @@ module Orocos
                     log_port = OutputPort.new(self,stream)
                     raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
                     @ports[log_port.name] = log_port
+                    @port_reachable_blocks.each{|b|b.call(log_port.name)}
                 rescue InitializePortError => error
                     @invalid_ports[error.port_name] = error.message
                     raise error
