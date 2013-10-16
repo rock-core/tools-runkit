@@ -360,21 +360,23 @@ describe Orocos::Async::TaskContextProxy do
 
     describe "initialize" do 
         it "should raise Orocos::NotFound if remote task is unreachable and :raise is set to true" do
-            t1 = Orocos::Async::TaskContextProxy.new("bla",:raise => true)
+            t1 = Orocos::Async::TaskContextProxy.new("bla0",:raise => true)
             assert_raises(Orocos::NotFound) do
                 Orocos::Async.steps
             end
             assert !t1.reachable?
+            # clear all errors
+            Orocos::Async.event_loop.clear_errors
         end
 
         it "should not raise NotFound if remote task is unreachable and :raise is set to false" do
-            t1 = Orocos::Async::TaskContextProxy.new("bla",:raise => false)
+            t1 = Orocos::Async::TaskContextProxy.new("bla1",:raise => false)
             Orocos::Async.steps
             assert !t1.reachable?
         end
 
         it "should raise NotFound if a method is called while task is unreachable" do
-            t1 = Orocos::Async::TaskContextProxy.new("bla")
+            t1 = Orocos::Async::TaskContextProxy.new("bla2")
             Orocos::Async.steps
             assert_raises(Orocos::NotFound) do
                 assert !t1.model
@@ -382,7 +384,7 @@ describe Orocos::Async::TaskContextProxy do
         end
 
         it "should raise Orocos::NotFound if task is not reachable after n seconds" do 
-            t1 = Orocos::Async::TaskContextProxy.new("bla")
+            t1 = Orocos::Async::TaskContextProxy.new("bla3")
             assert_raises(Orocos::NotFound) do
                 t1.wait(0.1)
             end
@@ -512,4 +514,3 @@ describe Orocos::Async::TaskContextProxy do
         end
     end
 end
-
