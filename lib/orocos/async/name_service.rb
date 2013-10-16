@@ -16,6 +16,7 @@ module Orocos::Async
         extend Utilrb::EventLoop::Forwardable
         extend Orocos::Async::ObjectBase::Periodic::ClassMethods
         include Orocos::Async::ObjectBase::Periodic
+        include Orocos::Namespace
 
         define_events :task_added, :task_removed
 
