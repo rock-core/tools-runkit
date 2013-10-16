@@ -62,11 +62,31 @@ module Orocos::Async::CORBA
             @poll_timer.period = self.period
         end
 
+        # waits until object gets reachable raises Orocos::NotFound if the
+        # object was not reachable after the given time spawn
+        def wait(timeout = 5.0)
+            # make sure the poll timer is running otherwise wait
+            # will always fail
+            poll_timer_running  = @poll_timer.running?
+            @poll_timer.start(0.01) unless poll_timer_running
+            time = Time.now
+            @event_loop.wait_for do
+                if timeout && timeout <= Time.now-time
+                    Utilrb::EventLoop.cleanup_backtrace do
+                        raise Orocos::NotFound,"#{self.class}: #{respond_to?(:full_name) ? full_name : name} is not reachable after #{timeout} seconds"
+                    end
+                end
+                reachable?
+            end
+            @poll_timer.stop unless poll_timer_running
+            self
+        end
+
         def really_add_listener(listener)
             super
             if listener.event == :change
                 if !@poll_timer.running?
-                    @poll_timer.start(period) 
+                    @poll_timer.start(period)
                 end
                 listener.call(@last_sample) if @last_sample && listener.use_last_value?
             end
