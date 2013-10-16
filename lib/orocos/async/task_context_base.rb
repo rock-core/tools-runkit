@@ -57,7 +57,7 @@ module Orocos::Async
             Orocos::Async.proxy(name,options)
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             return super unless listener.use_last_value?
 
             # call new listeners with the current value

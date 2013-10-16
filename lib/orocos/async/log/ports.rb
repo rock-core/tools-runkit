@@ -1,4 +1,3 @@
-
 module Orocos::Async::Log
     class OutputReader < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
@@ -26,7 +25,7 @@ module Orocos::Async::Log
             end
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             return super unless listener.use_last_value?
 
             if listener.event == :data
@@ -85,7 +84,7 @@ module Orocos::Async::Log
             @delegator_obj.read
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             return super unless listener.use_last_value?
 
             if listener.event == :data

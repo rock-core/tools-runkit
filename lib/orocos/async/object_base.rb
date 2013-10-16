@@ -249,11 +249,7 @@ module Orocos::Async
                 if existing = @proxy_listeners[obj].delete(e)
                     existing.stop
                 end
-                # do not replay the last value of reachable or unreachable
-                # othewise all listeners will be triggered twice.
-                # (one time current object and one time object those event is proxied)
-                last_value = e != :reachable && e != :unreachable
-                l = @proxy_listeners[obj][e] = EventListener.new(obj,e,last_value) do |*val|
+                l = @proxy_listeners[obj][e] = EventListener.new(obj,e,false) do |*val|
                     process_event e,*val
                 end
                 l.start if number_of_listeners(e) > 0
@@ -301,23 +297,17 @@ module Orocos::Async
                     listener.call if !valid_delegator?
                 end
             end
-
-            @listeners[listener.event] << listener
-            if number_of_listeners(listener.event) == 1
-                # proxy listener is injecting new samples
-                @proxy_listeners.each do |obj,listeners|
-                    if l = listeners[listener.event]
-                        obj.add_listener(l)
+            @proxy_listeners.each do |obj,listeners|
+                if l = listeners[listener.event]
+                    if listener.use_last_value? && !listener.last_args
+                        # replay last value if requested
+                        obj.really_add_listener(listener)
+                        obj.remove_listener(listener)
                     end
-                end
-            elsif listener.use_last_value?
-                # inject default values if the proxy listener is already connected
-                @proxy_listeners.each do |obj,listeners|
-                    if l=listeners[listener.event]
-                        listener.call(*l.last_args) if l.last_args
-                    end
+                    l.start unless l.listening?
                 end
             end
+            @listeners[listener.event] << listener
             listener
         end
 

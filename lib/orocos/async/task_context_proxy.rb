@@ -64,7 +64,7 @@ module Orocos::Async
             @delegator_obj.period = period if valid_delegator?
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             return super unless listener.use_last_value?
 
             if listener.event == :change
@@ -227,7 +227,7 @@ module Orocos::Async
             @last_sample
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             return super unless listener.use_last_value?
 
             if listener.event == :data
@@ -435,8 +435,8 @@ module Orocos::Async
             end
 
             on_port_reachable(false) do |name|
-                if @ports[name] && port(name).reachable?
-                    p = port(name)
+                p = @ports[name]
+                if p && !p.reachable?
                     @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
                         unless p.reachable?
                             connect_port(p)
@@ -446,8 +446,8 @@ module Orocos::Async
                 end
             end
             on_property_reachable(false) do |name|
-                if(@properties[name] && !property(name).reachable?)
-                    p = property(name)
+                p = @properties[name]
+                if(p && !p.reachable?)
                     @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
                         unless p.reachable?
                             connect_property(p)
@@ -457,8 +457,8 @@ module Orocos::Async
                 end
             end
             on_attribute_reachable(false) do |name|
-                if(@attributes[name] && !attribute(name).reachable?)
-                    a = attributes(name)
+                a = @attributes[name]
+                if(a && !a.reachable?)
                     @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
                         unless a.reachable?
                             connect_attribute(a)
