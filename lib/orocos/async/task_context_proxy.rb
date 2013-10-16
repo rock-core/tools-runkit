@@ -117,7 +117,7 @@ module Orocos::Async
         methods << :write
         methods << :type
         def_delegators :@delegator_obj,*methods
-        
+
         def initialize(task_proxy,port_name,options=Hash.new)
             super(port_name,task_proxy.event_loop)
             @task_proxy = task_proxy
@@ -422,6 +422,9 @@ module Orocos::Async
                     end
                 else
                     @resolve_timer.stop
+                    if !task_context.respond_to?(:event_loop)
+                        raise "TaskProxy is using a name service#{@name_service} which is returning #{task_context.class} but Async::TaskContext was expected."
+                    end
                     @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::ComError},task_context) do |val,error|
                         if error
                             @resolve_timer.start
@@ -430,6 +433,36 @@ module Orocos::Async
                     end
                 end
             end
+
+            on_port_reachable do |name|
+                if @ports[name] && !port(name).reachable?
+                    # new port was added which is now connected
+                    p = port(name)
+                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                        connect_port(p)
+                    end
+                    Orocos.warn "task #{self.name} has added a dynamic port called #{name} -> on_data will now be called!"
+                end
+            end
+            on_property_reachable do |name|
+                if(@properties[name] && !property(name).reachable?)
+                    p = property(name)
+                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                        connect_property(p)
+                    end
+                    Orocos.warn "task #{self.name} has added a dynamic property called #{name} -> on_change will now be called!"
+                end
+            end
+            on_attribute_reachable do |name|
+                if(@attributes[name] && !attribute(name).reachable?)
+                    a = attributes(name)
+                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                        connect_attribute(a)
+                    end
+                    Orocos.warn "task #{self.name} has added a dynamic attribute called #{name} -> on_change will now be called!"
+                end
+            end
+
             @resolve_timer.doc = "#{name} reconnect"
             if @options.has_key?(:use)
                 reachable!(@options[:use])
@@ -476,11 +509,12 @@ module Orocos::Async
                 Orocos.warn "ignoring options: #{other_options}"
             end
 
+            return p if !reachable? || p.reachable?
             if options[:wait]
                 connect_property(p)
                 p.wait
             else
-                @event_loop.defer :known_errors => [Orocos::NotFound,Orocos::CORBA::ComError,Orocos::ComError] do
+                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
                     connect_property(p)
                 end
             end
@@ -503,11 +537,12 @@ module Orocos::Async
                 Orocos.warn "ignoring options: #{other_options}"
             end
 
+            return a if !reachable? || a.reachable?
             if options[:wait]
                 connect_attribute(a)
                 a.wait
             else
-                @event_loop.defer :known_errors => [Orocos::NotFound,Orocos::CORBA::ComError,Orocos::ComError] do
+                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
                     connect_attribute(a)
                 end
             end
@@ -542,15 +577,16 @@ module Orocos::Async
                 Orocos.warn "ignoring options: #{other_options}"
             end
 
-            if options[:wait]
-                connect_port(p)
-                p.wait
-            else
-                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+            if reachable? && !p.reachable?
+                if options[:wait]
                     connect_port(p)
+                    p.wait
+                else
+                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                        connect_port(p)
+                    end
                 end
             end
-
             if fields.empty?
                 p
             else
