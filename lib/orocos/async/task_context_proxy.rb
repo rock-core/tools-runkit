@@ -434,32 +434,37 @@ module Orocos::Async
                 end
             end
 
-            on_port_reachable do |name|
-                if @ports[name] && !port(name).reachable?
-                    # new port was added which is now connected
+            on_port_reachable(false) do |name|
+                if @ports[name] && port(name).reachable?
                     p = port(name)
                     @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
-                        connect_port(p)
+                        unless p.reachable?
+                            connect_port(p)
+                            Orocos.warn "task #{self.name} has added a dynamic port called #{name} -> on_data will now be called!"
+                        end
                     end
-                    Orocos.warn "task #{self.name} has added a dynamic port called #{name} -> on_data will now be called!"
                 end
             end
-            on_property_reachable do |name|
+            on_property_reachable(false) do |name|
                 if(@properties[name] && !property(name).reachable?)
                     p = property(name)
                     @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
-                        connect_property(p)
+                        unless p.reachable?
+                            connect_property(p)
+                            Orocos.warn "task #{self.name} has added a dynamic property called #{name} -> on_change will now be called!"
+                        end
                     end
-                    Orocos.warn "task #{self.name} has added a dynamic property called #{name} -> on_change will now be called!"
                 end
             end
-            on_attribute_reachable do |name|
+            on_attribute_reachable(false) do |name|
                 if(@attributes[name] && !attribute(name).reachable?)
                     a = attributes(name)
                     @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
-                        connect_attribute(a)
+                        unless a.reachable?
+                            connect_attribute(a)
+                            Orocos.warn "task #{self.name} has added a dynamic attribute called #{name} -> on_change will now be called!"
+                        end
                     end
-                    Orocos.warn "task #{self.name} has added a dynamic attribute called #{name} -> on_change will now be called!"
                 end
             end
 
