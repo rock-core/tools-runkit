@@ -255,7 +255,9 @@ module Orocos
             #task => simulated task for which the port shall be created
             #stream => stream from which the port shall be created 
             def initialize(task,stream)
-                raise "Cannot create OutputPort out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
+                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
+                    raise "Cannot create OutputPort out of #{stream.class}"
+                end
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
 		if @name == nil
@@ -412,7 +414,9 @@ module Orocos
             attr_reader :type_name         
 
             def initialize(task, stream)
-                raise "Cannot create Property out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
+                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
+                    raise "Cannot create Property out of #{stream.class}"
+                end
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
                 raise 'Stream name does not follow the convention TASKNAME.PROPERTYNAME' if @name == nil
