@@ -20,6 +20,10 @@ module Orocos::Async
             @last_sample = nil
         end
 
+        def task
+            @task_proxy
+        end
+
         def type_name
             type.name
         end
