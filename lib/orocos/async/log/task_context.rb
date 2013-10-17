@@ -34,6 +34,9 @@ module Orocos::Async
                 log_task.on_property_reachable do |name|
                     emit_property_reachable name
                 end
+                log_task.on_state_change do |val|
+                    emit_state_change val
+                end
             end
 
             def really_add_listener(listener)
@@ -46,7 +49,7 @@ module Orocos::Async
                     state = @delegator_obj.current_state
                     event_loop.once{listener.call state} if state
                 elsif listener.event == :port_reachable
-                    event_loop.once do 
+                    event_loop.once do
                         port_names.each do |name|
                             listener.call name if @delegator_obj.port(name).used?
                         end

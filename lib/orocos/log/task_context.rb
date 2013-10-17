@@ -402,7 +402,7 @@ module Orocos
         #It is automatically replayed if at least one OutputPort of the task is replayed
         class Property
             #true -->  this property shall be replayed
-            attr_accessor :tracked         
+            attr_accessor :tracked
             # The underlying TaskContext instance
             attr_reader :task
             # The property/attribute name
@@ -410,8 +410,8 @@ module Orocos
             # The attribute type, as a subclass of Typelib::Type
             attr_reader :type
             #dedicated stream for simulating the port
-            attr_reader :stream         
-            attr_reader :type_name         
+            attr_reader :stream
+            attr_reader :type_name
 
             def initialize(task, stream)
                 if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
@@ -527,6 +527,18 @@ module Orocos
                 @rtt_state = :RUNNING
                 @port_reachable_blocks = Array.new
                 @property_reachable_blocks = Array.new
+                @state_change_blocks = Array.new
+            end
+
+            def current_state=(val)
+                @current_state=val
+                @state_change_blocks.each do |b|
+                    b.call val
+                end
+            end
+
+            def on_state_change(&block)
+                @state_change_blocks << block
             end
 
             def rename(name)
