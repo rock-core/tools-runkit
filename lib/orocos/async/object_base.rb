@@ -154,9 +154,9 @@ module Orocos::Async
         end
 
         attr_reader :event_loop
-        attr_reader :name
         attr_reader :options
         attr_accessor :emitting
+        attr_accessor :name
         define_events :error,:reachable,:unreachable
 
         # Queue of listener that are going to be added by callbacks registered

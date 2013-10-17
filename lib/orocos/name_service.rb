@@ -69,6 +69,7 @@ module Orocos
     #
     # @author Alexander Duda
     class NameServiceBase
+        attr_accessor :name
 
         # Checks if a {TaskContext} with the given name is reachable.
         #
@@ -98,7 +99,7 @@ module Orocos
 
         # return [String] the name of the name service
         def name
-            self.class.name
+            @name || self.class.name
         end
 
         # Gets the IOR for the given Orocos Task having the given name.
