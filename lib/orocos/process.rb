@@ -119,11 +119,15 @@ module Orocos
         # The set of [task_name, port_name] that represent the ports being
         # currently logged by this process' default logger
         attr_reader :logged_ports
+        # The set of task contexts for this process. This is valid only after
+        # the process is actually started
+        attr_reader :tasks
 
         def initialize(name, model)
             @name, @model = name, model
             @name_mappings = Hash.new
             @logged_ports = Set.new
+            @tasks = []
         end
 
         # Sets a batch of name mappings
@@ -296,9 +300,6 @@ module Orocos
         attr_reader :pkg
         # The component process ID
         attr_reader :pid
-        # The set of task contexts for this process. This is valid only after
-        # the process is actually started
-        attr_reader :tasks
 
 	def self.from_pid(pid)
 	    if result = ObjectSpace.enum_for(:each_object, Orocos::Process).find { |mod| mod.pid == pid }
@@ -324,7 +325,6 @@ module Orocos
         # start and supervise the execution of the given Orocos
         # component
         def initialize(name, model_name = name)
-            @tasks = []
             @model = Orocos.deployment_model_from_name(model_name)
             @pkg = Orocos.available_deployments[model_name]
             super(name, model)
