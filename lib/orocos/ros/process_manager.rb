@@ -160,6 +160,13 @@ module Orocos
         class LauncherProcess < ProcessBase
             extend Logger::Root("Orocos::ROS::Launcher", Logger::INFO)
 
+            # Parse run options to 
+            # @return [String, Hash] Names and options
+            def self.parse_run_options(*names)
+                options = names.last.kind_of?(Hash) ? names.pop : Hash.new
+                [ names, options ]
+            end
+
             attr_reader :ros_process_server
             alias :nodes :tasks
 
