@@ -8,7 +8,7 @@ module Orocos
         # The naming 'deployments' is kept when required by the top level interface
         # otherwise 'launcher' is being used to clarify that this should be a 
         # ROS Launcher object
-        class ProcessServer
+        class ProcessManager
             extend Logger::Root("Orocos::ROS", Logger::INFO)
 
             def available_projects; Orocos::ROS.available_projects end
@@ -36,15 +36,15 @@ module Orocos
             end
 
             # Mapping from a launcher name to the corresponding Launcher
-            # instance, for launchers that have been started by this client.
-            attr_reader :launchers
-            alias :processes :launchers
+            # instance, for launcher processes that have been started by this client.
+            attr_reader :launcher_processes
+            alias :processes :launcher_processes
 
-            attr_reader :terminated_launchers
+            attr_reader :terminated_launcher_processes
 
             def initialize
-                @launchers = Hash.new
-                @terminated_launchers = Hash.new
+                @launcher_processes = Hash.new
+                @terminated_launcher_processes = Hash.new
 
                 # Make sure ROS has been loaded, otherwise no
                 # ros specific projects will be found
@@ -52,7 +52,7 @@ module Orocos
 
                 name_service = Orocos.name_service.find(Orocos::ROS::NameService)
                 if !name_service || name_service.empty?
-                    ProcessServer.info "Auto-adding ROS nameservice"
+                    ProcessManager.info "Auto-adding ROS nameservice"
                     Orocos.name_service << Orocos::ROS::NameService.new
                 end
 
@@ -100,7 +100,7 @@ module Orocos
 
             def start(process_name, launcher_name, name_mappings = Hash.new, options = Hash.new)
                 launcher_model = load_orogen_deployment(launcher_name)
-                launchers.each do |process_name, l| 
+                launcher_processes.each do |process_name, l| 
                     if l.name == launcher_name
                         raise ArgumentError, "launcher #{launcher_name} is already started with processname #{process_name} in #{self}"
                     end
@@ -110,10 +110,11 @@ module Orocos
                 #    Orocos::ProcessBase.resolve_prefix_option(options, launcher_model)
                 #name_mappings = prefix_mappings.merge(name_mappings)
 
-                ros_launcher = Launcher.new(self, process_name, launcher_model)
+                ros_launcher = LauncherProcess.new(self, process_name, launcher_model)
                 #ros_launcher.name_mappings = name_mappings
                 ros_launcher.spawn
-                launchers[process_name] = ros_launcher
+                launcher_processess[process_name] = ros_launcher
+                ros_launcher.pid
             end
 
             # Requests that the process server moves the log directory at +log_dir+
@@ -133,8 +134,8 @@ module Orocos
             # Returns a hash that maps launcher names to the Status
             # object that represents their exit status.
             def wait_termination(timeout = nil)
-                result, @terminated_launchers =
-                   terminated_launchers, Hash.new
+                result, @terminated_launcher_processes =
+                   terminated_launcher_processes, Hash.new
                 result
             end
 
@@ -143,20 +144,20 @@ module Orocos
             # The call does not block until the process has quit. You will have to
             # call #wait_termination to wait for the process end.
             def stop(process_name)
-                if launcher = launchers[process_name]
-                    launcher.kill
+                if launcher_process = launcher_processes[process_name]
+                    launcher_process.kill
                 end
             end
 
             def dead_deployment(process_name, status = Status.new(:exit_code => 0))
-                if launcher = launchers.delete(process_name)
-                    terminated_launchers[process_name] = status
+                if launcher_process = launcher_processes.delete(process_name)
+                    terminated_launcher_processes[process_name] = status
                 end
             end
         end
 
         # Corresponding to RemoteProcess / RubyDeployment
-        class Launcher < ProcessBase
+        class LauncherProcess < ProcessBase
             extend Logger::Root("Orocos::ROS::Launcher", Logger::INFO)
 
             attr_reader :ros_process_server
@@ -192,10 +193,10 @@ module Orocos
                     end
                 end
 
-                Launcher.info "Launcher '#{@launcher.name}' spawning"
+                LauncherProcess.info "Launcher '#{@launcher.name}' spawning"
                 @pid = Orocos::ROS.roslaunch(@launcher.project.name, @launcher.name, options)
                 wait_running(wait)
-                Launcher.info "Launcher '#{@launcher.name}' started. Nodes #{@launcher.nodes.map(&:name).join(", ")}  available."
+                LauncherProcess.info "Launcher '#{@launcher.name}' started. Nodes #{@launcher.nodes.map(&:name).join(", ")}  available."
 
                 # Make tasks known
                 model.task_activities.each do |deployed_task|
@@ -248,7 +249,7 @@ module Orocos
 
             # Kill the launcher
             def kill
-                Launcher.info "Killing launcher '#{@launcher.name}', pid #{@pid}. Nodes #{@launcher.nodes.map(&:name).join(", ")} will be teared down."
+                LauncherProcess.info "Killing launcher '#{@launcher.name}', pid #{@pid}. Nodes #{@launcher.nodes.map(&:name).join(", ")} will be teared down."
                 ::Process.kill('INT', @pid)
             end
 

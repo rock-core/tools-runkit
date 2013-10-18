@@ -9,7 +9,7 @@ WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
 include Test::Unit::Assertions
 
-describe Orocos::ROS::ProcessServer do
+describe Orocos::ROS::ProcessManager do
     include Orocos
     include Orocos::Spec
 
@@ -17,7 +17,7 @@ describe Orocos::ROS::ProcessServer do
         Orocos.initialize
         Orocos::ROS.load(File.join(DATA_DIR,"ros_test","specs"))
 
-        process_server = Orocos::ROS::ProcessServer.new
+        process_server = Orocos::ROS::ProcessManager.new
         launcher = process_server.load_orogen_deployment('test')
         assert_equal launcher.name, 'test'
 
@@ -31,7 +31,7 @@ describe Orocos::ROS::ProcessServer do
     end
 end
 
-describe Orocos::ROS::Launcher do 
+describe Orocos::ROS::LauncherProcess do
     include Orocos
     include Orocos::Spec
 
@@ -43,7 +43,7 @@ describe Orocos::ROS::Launcher do
         p = Orocos::ROS::Generation::Project.load(path)
         model = p.ros_launchers[0]
 
-        launcher = Orocos::ROS::Launcher.new(nil, "test", model)
+        launcher = Orocos::ROS::LauncherProcess.new(nil, "test", model)
         assert launcher.spawn
         assert launcher.alive?
 
