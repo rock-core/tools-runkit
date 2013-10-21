@@ -33,7 +33,8 @@ module Orocos::Async
         end
 
         # start listing  to the event
-        def start
+        def start(use_last_value = @use_last_value)
+            @use_last_value = use_last_value
             @obj.add_listener(self)
             self
         end
@@ -249,7 +250,7 @@ module Orocos::Async
                 if existing = @proxy_listeners[obj].delete(e)
                     existing.stop
                 end
-                l = @proxy_listeners[obj][e] = EventListener.new(obj,e,false) do |*val|
+                l = @proxy_listeners[obj][e] = EventListener.new(obj,e,true) do |*val|
                     process_event e,*val
                 end
                 l.start if number_of_listeners(e) > 0
