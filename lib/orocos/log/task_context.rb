@@ -772,6 +772,22 @@ module Orocos
                 end
             end
 
+            def start(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
+            def configure(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
+            def stop(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
+            def cleanup(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
             #This is used to allow the following syntax
             #task.port_name.connect_to(other_port)
             def method_missing(m, *args,&block) #:nodoc:
