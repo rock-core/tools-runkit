@@ -50,7 +50,7 @@ module Orocos::Async
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             @raw_last_sample = attribute.raw_last_sample
             super(attribute,options)
-            proxy_event(@delegator_obj,@delegator_obj.event_names)
+            proxy_event(@delegator_obj,@delegator_obj.event_names-[:reachable])
         rescue Orocos::NotFound
             unreachable!
         end
@@ -219,7 +219,7 @@ module Orocos::Async
 
             remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
             super(port,options)
-            proxy_event(@delegator_obj,@delegator_obj.event_names)
+            proxy_event(@delegator_obj,@delegator_obj.event_names-[:reachable])
             @type = port.type
 
             #check which port we have
@@ -765,7 +765,7 @@ module Orocos::Async
                 end
                 super(task_context,options)
                 # this is emitting on_port_reachable, on_property_reachable ....
-                proxy_event(@delegator_obj,@delegator_obj.event_names)
+                proxy_event(@delegator_obj,@delegator_obj.event_names-[:reachable])
                 [@ports.values,@attributes.values,@properties.values]
             end
             # check if the requested ports are available
@@ -855,7 +855,7 @@ module Orocos::Async
 
         # blocking call shoud be called from a different thread
         def connect_attribute(attribute)
-            return if attribue.reachable?
+            return if attribute.reachable?
             a = @mutex.synchronize do
                 return unless valid_delegator?
                 @delegator_obj.disable_emitting do
@@ -872,7 +872,7 @@ module Orocos::Async
                 end
             end
             @event_loop.call do
-                attribute.reachable!(a) unless attribue.reachable?
+                attribute.reachable!(a) unless attribute.reachable?
             end
         end
 
