@@ -4,9 +4,9 @@ module Orocos::Async::CORBA
         extend Orocos::Async::ObjectBase::Periodic::ClassMethods
         include Orocos::Async::ObjectBase::Periodic
 
-        define_event :data
+        define_events :data,:raw_data
         attr_reader :policy
-        attr_reader :last_sample
+        attr_reader :raw_last_sample
 
         self.default_period = 0.1
 
@@ -16,7 +16,7 @@ module Orocos::Async::CORBA
             super(port.name,port.event_loop)
             @options = Kernel.validate_options options, :period => default_period
             @port = port
-            @last_sample = nil
+            @raw_last_sample = nil
 
             # otherwise event reachable will be queued and all 
             # listeners will be called twice (one for registering and one because
@@ -26,7 +26,7 @@ module Orocos::Async::CORBA
             end
             proxy_event @port,:unreachable
             
-            @poll_timer = @event_loop.async_every(method(:read_new), {:period => period, :start => false,
+            @poll_timer = @event_loop.async_every(method(:raw_read_new), {:period => period, :start => false,
                                                   :known_errors => [Orocos::NotFound,Orocos::ComError]}) do |data,error|
                 if error
                     @poll_timer.cancel
@@ -35,8 +35,9 @@ module Orocos::Async::CORBA
                         event :error,error
                     end
                 elsif data
-                    @last_sample = data
-                    event :data, data
+                    @raw_last_sample = data
+                    event :raw_data, data
+                    event :data, Typelib.to_ruby(data)
                 end
             end
             @poll_timer.doc = port.full_name
@@ -44,10 +45,16 @@ module Orocos::Async::CORBA
             emit_error e
         end
 
+        def last_sample
+            if @raw_last_sample
+                Typelib.to_ruby(@raw_last_sample)
+            end
+        end
+
         # TODO keep timer and remote connection in mind
         def unreachable!(options = Hash.new)
             @poll_timer.cancel
-            @last_sample = nil
+            @raw_last_sample = nil
 
             # ensure that this is always called from the
             # event loop thread
@@ -86,14 +93,17 @@ module Orocos::Async::CORBA
         def really_add_listener(listener)
             if listener.event == :data
                 @poll_timer.start(period) unless @poll_timer.running?
-                listener.call @last_sample if @last_sample && listener.use_last_value?
+                listener.call Typelib.to_ruby(@raw_last_sample) if @raw_last_sample && listener.use_last_value?
+            elsif listener.event == :raw_data
+                @poll_timer.start(period) unless @poll_timer.running?
+                listener.call @raw_last_sample if @raw_last_sample && listener.use_last_value?
             end
             super
         end
 
         def remove_listener(listener)
             super
-            if number_of_listeners(:data) == 0
+            if number_of_listeners(:data) == 0 && number_of_listeners(:raw_data) == 0
                 @poll_timer.cancel
             end
         end
@@ -197,7 +207,7 @@ module Orocos::Async::CORBA
     end
 
     class OutputPort < Port
-        define_event :data
+        define_events :data,:raw_data
 
         def initialize(async_task,port,options=Hash.new)
             super
@@ -206,6 +216,10 @@ module Orocos::Async::CORBA
 
         def last_sample
             @global_reader.last_sample if @global_reader
+        end
+
+        def raw_last_sample
+            @global_reader.raw_last_sample if @global_reader
         end
 
         def reader(options = Hash.new,&block)
@@ -246,6 +260,22 @@ module Orocos::Async::CORBA
             on_event :data,&block
         end
 
+        def on_raw_data(policy = Hash.new,&block)
+            @options = if policy.empty?
+                           @options
+                       elsif @options.empty? && !@global_reader
+                           policy
+                       elsif @options == policy
+                           @options
+                       else
+                           Orocos.warn "OutputPort #{full_name} cannot emit :data with different policies."
+                           Orocos.warn "The current policy is: #{@options}."
+                           Orocos.warn "Ignoring policy: #{policy}."
+                           @options
+                       end
+            on_event :raw_data,&block
+        end
+
         def period
             if @options.has_key?(:period)
                 @options[:period]
@@ -269,12 +299,20 @@ module Orocos::Async::CORBA
                         end
                     end
                 end
+            elsif listener.event == :raw_data
+                if @global_reader
+                    if listener.use_last_value?
+                        if sample = @global_reader.raw_last_sample
+                            listener.call sample
+                        end
+                    end
+                end
             end
         end
 
         def add_listener(listener)
             super
-            if listener.event == :data && !@global_reader
+            if((listener.event == :data || listener.event == :raw_data) && !@global_reader)
                 # Errors during reader creation are reported on the port. Do
                 # #on_error on the port to get them
                 reader(@options) do |reader|
@@ -282,9 +320,9 @@ module Orocos::Async::CORBA
                         # We created multiple readers because of concurrency.
                         # Just ignore this one
                         reader.disconnect
-                    elsif number_of_listeners(:data) > 0 # The listener might already have been removed !
+                    elsif number_of_listeners(:data) > 0 || number_of_listeners(:raw_data) > 0  # The listener might already have been removed !
                         @global_reader = reader
-                        proxy_event(reader,:data)
+                        proxy_event(reader,:data,:raw_data)
                         @global_reader.period = @options[:period] if @options.has_key? :period
                     end
                 end

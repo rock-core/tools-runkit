@@ -8,7 +8,7 @@ module Orocos::Async::Log
 
         attr_reader :policy
         attr_reader :port
-        define_event :data
+        define_events :data,:raw_data
 
         # @param [Async::OutputPort] port The Asyn::OutputPort
         # @param [Orocos::OutputReader] reader The designated reader
@@ -21,6 +21,7 @@ module Orocos::Async::Log
                 reachable! reader
             end
             @port.connect_to do |sample|
+                emit_raw_data @delegator_obj.raw_read
                 emit_data sample
             end
         end
@@ -28,7 +29,14 @@ module Orocos::Async::Log
         def really_add_listener(listener)
             return super unless listener.use_last_value?
 
-            if listener.event == :data
+            if listener.event == :raw_data
+                sample = @delegator_obj.raw_read
+                if sample
+                    event_loop.once do
+                        listener.call sample
+                    end
+                end
+            elsif listener.event == :data
                 sample = @delegator_obj.read
                 if sample
                     event_loop.once do
@@ -84,11 +92,22 @@ module Orocos::Async::Log
             @delegator_obj.read
         end
 
+        def raw_last_sample
+            @delegator_obj.raw_read
+        end
+
         def really_add_listener(listener)
             return super unless listener.use_last_value?
 
             if listener.event == :data
-                sample = @delegator_obj.read
+                sample = last_sample
+                if sample
+                    event_loop.once do
+                        listener.call sample
+                    end
+                end
+            elsif listener.event == :raw_data
+                sample = raw_last_sample
                 if sample
                     event_loop.once do
                         listener.call sample
