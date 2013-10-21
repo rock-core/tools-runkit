@@ -19,6 +19,17 @@ module Orocos
         #   end
         def read(sample = nil)
             if value = read_helper(sample, true)
+                return Typelib.to_ruby(value[0])
+            end
+        end
+
+        # Reads a sample on this input port
+        #
+        # Unlike #read, it will always return a typelib type even for simple types.
+        #
+        # Raises CORBA::ComError if the communication is broken.
+        def raw_read(sample = nil)
+            if value = read_helper(sample,true)
                 value[0]
             end
         end
@@ -46,6 +57,20 @@ module Orocos
         # Raises CORBA::ComError if the communication is broken.
         def read_new(sample = nil)
             if value = read_helper(sample, false)
+                return Typelib.to_ruby(value[0]) if value[1] == NEW_DATA
+            end
+        end
+
+        # Reads a new sample on the associated output port.
+        #
+        # Unlike #raw_read, it will return a non-nil value only if it it different
+        # from the last time #read or #read_new has been called
+        #
+        # Unlike #read_new, it will always return a typelib type even for simple types.
+        #
+        # Raises CORBA::ComError if the communication is broken.
+        def raw_read_new(sample = nil)
+            if value = read_helper(sample, false)
                 value[0] if value[1] == NEW_DATA
             end
         end
@@ -57,7 +82,8 @@ module Orocos
 
         private
 
-        # Helper method for #read and #read_new
+        # Helper method for #read, #raw_read, #read_new and #raw_read_new
+        # always returns a Typelib Type or nil even for simple types
         def read_helper(sample, copy_old_data) # :nodoc:
             if sample
                 if sample.class != type
@@ -75,7 +101,7 @@ module Orocos
                 if sample
                     sample.invalidate_changes_from_converted_types
                 end
-                return [Typelib.to_ruby(value), result]
+                return [value, result]
             end
         end
 
