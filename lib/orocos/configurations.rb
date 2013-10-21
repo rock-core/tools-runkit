@@ -608,10 +608,10 @@ module Orocos
         end
 
         def find_task_configuration_object(task, options = Hash.new)
-            options = Kernel.validate_options options, :model_name => task.model.name
             if !task.model
                 raise ArgumentError, "cannot use ConfigurationManager#apply for non-orogen tasks"
             end
+            options = Kernel.validate_options options, :model_name => task.model.name
             conf[options[:model_name]]
         end
 
