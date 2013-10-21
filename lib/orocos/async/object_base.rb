@@ -273,7 +273,7 @@ module Orocos::Async
 
         def add_listener(listener)
             event = validate_event listener.event
-
+            return listener if pending_adds.include? listener
             pending_adds << listener
             event_loop.once do
                 expected = pending_adds.shift
@@ -304,10 +304,10 @@ module Orocos::Async
                         obj.really_add_listener(listener)
                         obj.remove_listener(listener)
                     end
-                    l.start unless l.listening?
+                    l.start(false) unless l.listening?
                 end
             end
-            @listeners[listener.event] << listener
+            @listeners[listener.event] << listener unless @listeners[listener.event].include?(listener)
             listener
         end
 
