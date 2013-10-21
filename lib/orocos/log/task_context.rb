@@ -79,6 +79,11 @@ module Orocos
                 end
             end
 
+            def raw_read(sample)
+                sample = read(sample)
+                Typelib::from_ruby(sample,type) if sample
+            end
+
             def type_name
                 @port.type_name
             end
@@ -302,6 +307,11 @@ module Orocos
                 return @current_data
             end
 
+            def raw_read()
+                sample = read()
+                Typelib::from_ruby(sample,type) if sample
+            end
+
             #If set to true the port is replayed.  
             def tracked=(value)
                 raise "can not track unused port #{stream.name} after the replay has started" if !used? && aligned?
@@ -446,6 +456,11 @@ module Orocos
             # Read the current value of the property/attribute
             def read
                 @current_value
+            end
+
+            def raw_read()
+                sample = read()
+                Typelib::from_ruby(sample,type) if sample
             end
 
             # Sets a new value for the property/attribute
@@ -788,7 +803,7 @@ module Orocos
                             Log.error "  #{property.name}"
                         end
                     end
-                    raise e 
+                    raise e
                 end
             end
         end
