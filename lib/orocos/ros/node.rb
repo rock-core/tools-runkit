@@ -415,6 +415,10 @@ module Orocos
                     raise Orocos::ComError, "ROS node #{name} is not available on the ROS graph anymore"
                 end
             end
+
+            def log_all_configuration(logfile)
+                # n/a for ROS node
+            end
         end
     end
 end
