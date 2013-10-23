@@ -17,24 +17,6 @@ module Orocos
 
             alias :available_launchers :available_deployments
 
-            class Status
-                def initialize(options = Hash.new)
-                    options = Kernel.validate_options options,
-                        :exit_code => nil,
-                        :signal => nil
-                    @exit_code = options[:exit_code]
-                    @signal = options[:signal]
-                end
-
-                def stopped?; false end
-                def exited?; !@exit_code.nil? end
-                def exitstatus; @exit_code end
-                def signaled?; !@signal.nil? end
-                def termsig; @signal end
-                def stopsig; end
-                def success?; exitstatus == 0 end
-            end
-
             # Mapping from a launcher name to the corresponding Launcher
             # instance, for launcher processes that have been started by this client.
             attr_reader :launcher_processes
@@ -98,7 +80,10 @@ module Orocos
                 orogen_models[name] = model
             end
 
+            # Start a launcher process under the given process_name
+            # @return [Orocos::ROS::LauncherProcess] The launcher process which started by the process manager
             def start(process_name, launcher_name, name_mappings = Hash.new, options = Hash.new)
+                ProcessManager.debug "launcher: '#{launcher_name}' with processname '#{process_name}'"
                 launcher_model = load_orogen_deployment(launcher_name)
                 launcher_processes.each do |process_name, l| 
                     if l.name == launcher_name
@@ -106,15 +91,10 @@ module Orocos
                     end
                 end
 
-                #prefix_mapping, options = 
-                #    Orocos::ProcessBase.resolve_prefix_option(options, launcher_model)
-                #name_mappings = prefix_mappings.merge(name_mappings)
-
                 ros_launcher = LauncherProcess.new(self, process_name, launcher_model)
-                #ros_launcher.name_mappings = name_mappings
                 ros_launcher.spawn
-                launcher_processess[process_name] = ros_launcher
-                ros_launcher.pid
+                launcher_processes[process_name] = ros_launcher
+                ros_launcher
             end
 
             # Requests that the process server moves the log directory at +log_dir+
@@ -172,14 +152,18 @@ module Orocos
 
             attr_reader :launcher
 
+            # The process ID of this process on the machine of the process server
+            attr_reader :pid
+
             def host_id; 'localhost' end
             def on_localhost?; true end
-            def pid; @launcher.pid end
+            def alive; !!@pid end
 
             def initialize(ros_process_server, name, model)
                 @ros_process_server = ros_process_server
                 @nodes = Hash.new
                 @launcher = model
+                @pid = nil
                 super(name, model)
             end
 
@@ -196,39 +180,35 @@ module Orocos
 
                 task_names.each do |name|
                     if Orocos.name_service.task_reachable?(name)
-                        raise ArgumentError, "there is already a task called #{name}, are you starting the same component twice ?"
+                        raise ArgumentError, "there is already a task called '#{name}', are you starting the same component twice ?"
                     end
                 end
 
-                LauncherProcess.info "Launcher '#{@launcher.name}' spawning"
+                LauncherProcess.debug "Launcher '#{@launcher.name}' spawning"
                 @pid = Orocos::ROS.roslaunch(@launcher.project.name, @launcher.name, options)
-                wait_running(wait)
                 LauncherProcess.info "Launcher '#{@launcher.name}' started. Nodes #{@launcher.nodes.map(&:name).join(", ")}  available."
 
-                # Make tasks known
-                model.task_activities.each do |deployed_task|
-                    # will register on #@tasks
-                    task(deployed_task.name)
-                end
-
-                @alive = true
                 @pid
             end
 
             # True if the process is running. This is an alias for running?
-            def alive?; @alive end
+            def alive?; !!@pid end
             # True if the process is running. This is an alias for alive?
-            def running?; @alive end
+            def running?; alive? end
 
             # Wait for all nodes of the launcher to become available
             # @throws [Orocos::NotFound] if the nodes are not available after a given timeout
+            # @return [Bool] True if process is running, false otherwise
             def wait_running(timeout = nil)
-                now = Time.now
-                while true
+                is_running = Orocos::Process.wait_running(self,timeout) do |launcher_process|
                     all_nodes_available = true
-
                     begin
-                        launcher.nodes.each do |n|
+                        nodes = launcher_process.launcher.nodes
+                        if nodes.empty?
+                            LauncherProcess.warn "launcher_process: #{launcher_process} does not have any nodes"
+                        end
+
+                        nodes.each do |n|
                             # Wait till node is visible in ROS
                             if !Orocos::ROS.rosnode_running?(n.name)
                                 all_nodes_available = false
@@ -243,26 +223,42 @@ module Orocos
                     end
 
                     if all_nodes_available
-                        break
+                        LauncherProcess.debug "all nodes #{nodes.map(&:name).join(", ")} are reachable, assuming the launcher process is up and running"
                     end
-
-                    if timeout && (Time.now - now) > timeout
-                        if !all_nodes_available
-                            raise Orocos::NotFound, "#{self} is still not reachable after #{timeout} seconds"
-                        end
-                    end
+                    all_nodes_available
                 end
+
+                is_running
+            end
+
+            # Wait for termination of the launcher process
+            # @return [Process::Status] Final process status
+            def wait_termination(timeout = nil)
+                status = nil
+                begin
+                    Timeout::timeout(timeout) do
+                        pid, status = ::Process.waitpid2(@pid, Process::WNOHANG)
+                    end
+                rescue Timeout::Error => e
+                    raise RuntimeError, "Waiting for launcher process '#{name}' with pid '#{@pid}' timed out out"
+                end
+                status
             end
 
             # Kill the launcher
-            def kill
-                LauncherProcess.info "Killing launcher '#{@launcher.name}', pid #{@pid}. Nodes #{@launcher.nodes.map(&:name).join(", ")} will be teared down."
-                ::Process.kill('INT', @pid)
+            def kill(wait = true)
+                LauncherProcess.debug "Sending SIGTERM to launcher '#{@launcher.name}', pid #{@pid}. Nodes #{@launcher.nodes.map(&:name).join(", ")} will be teared down."
+                ::Process.kill('SIGTERM', @pid)
+                if wait
+                    status = @launcher.wait_termination
+                end
             end
 
             # Called to announce that this process has quit
-            def dead!
-                @alive = false
+            def dead!(exit_status)
+                LauncherProcess.debug "Announcing launcher '#{@launcher.name}', pid #{@pid} dead!"
+                @pid = nil
+                ros_process_server.dead_deployment(name, exit_status)
             end
         end
     end # module ROS

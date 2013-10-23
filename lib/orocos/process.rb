@@ -781,30 +781,40 @@ module Orocos
             end
         end
 
-	def self.wait_running(process, timeout = nil)
+	# Wait for a process (TaskContext by default) to become reachable
+	# To determine whether the process is reachable a block can be given taken the
+	# process object as argument
+	# If no block is given the default implementation applies which relies on
+	# TaskContext#reachable?
+	def self.wait_running(process, timeout = nil, &block)
 	    if timeout == 0
 		return nil if !process.alive?
-                
-                # Get any task name from that specific deployment, and check we
-                # can access it. If there is none
-                all_reachable = process.task_names.all? do |task_name|
-                    if TaskContext.reachable?(task_name)
-                        Orocos.debug "#{task_name} is reachable"
-                        true
-                    else
-                        Orocos.debug "could not access #{task_name}, #{name} is not running yet ..."
-                        false
+
+                # Use custom block to check if the process is reachable
+                if block_given?
+                    block.call(process)
+                else
+                    # Get any task name from that specific deployment, and check we
+                    # can access it. If there is none
+                    all_reachable = process.task_names.all? do |task_name|
+                        if TaskContext.reachable?(task_name)
+                            Orocos.debug "#{task_name} is reachable"
+                            true
+                        else
+                            Orocos.debug "could not access #{task_name}, #{name} is not running yet ..."
+                            false
+                        end
                     end
+                    if all_reachable
+                        Orocos.info "all tasks of #{process.name} are reachable, assuming it is up and running"
+                    end
+                    all_reachable
                 end
-                if all_reachable
-                    Orocos.info "all tasks of #{process.name} are reachable, assuming it is up and running"
-                end
-                all_reachable
 	    else
                 start_time = Time.now
                 got_alive = process.alive?
                 while true
-		    if wait_running(process, 0)
+		    if wait_running(process, 0, &block)
 			break
                     elsif not timeout
                         break
