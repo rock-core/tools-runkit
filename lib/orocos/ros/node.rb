@@ -44,7 +44,7 @@ module Orocos
                 end
 
                 with_defaults, options = Kernel.filter_options options,
-                    :model => Orocos::ROS::Spec::Node.new,
+                    :model => Orocos::ROS::Spec::Node.new(nil,name),
                     :namespace => name_service.namespace
                 options = options.merge(with_defaults)
 
