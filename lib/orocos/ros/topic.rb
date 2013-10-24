@@ -44,7 +44,7 @@ module Orocos
             end
 
             def pretty_print(pp) # :nodoc:
-                pp.text " #{name} (#{type_name}), ros: #{topic_name}(#{ros_message_type})"
+                pp.text " #{name} (#{orocos_type_name}), ros: #{topic_name}(#{ros_message_type})"
             end
 
             def ==(other)
