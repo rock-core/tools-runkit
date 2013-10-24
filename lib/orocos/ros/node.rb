@@ -71,7 +71,7 @@ module Orocos
 
             def ros_name
                 _, basename = split_name(name)
-                "/#{basename}"
+                Orocos::ROS.rosnode_normalize_name(basename)
             end
 
             def ==(other)
