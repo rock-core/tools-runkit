@@ -237,7 +237,11 @@ module Orocos
             def operation_names; [] end
 
             def has_port?(name)
-                !!(find_output_port(name) || find_input_port(name))
+                verify = true
+                if model.spec_available?
+                    verify = false
+                end
+                !!(find_output_port(name, verify) || find_input_port(name, verify))
             end
 
             def port(name, verify = true)
