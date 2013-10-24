@@ -372,6 +372,15 @@ module Orocos
                 end
             end
         end
+
+        if Orocos::ROS.enabled?
+            if !Orocos::ROS.loaded?
+                # Loads all ROS projects that can be found in
+                # Orocos::ROS#spec_search_directories
+                Orocos::ROS.load
+            end
+        end
+
         nil
     end
 
