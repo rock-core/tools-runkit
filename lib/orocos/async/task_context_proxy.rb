@@ -24,6 +24,10 @@ module Orocos::Async
             @task_proxy
         end
 
+        def full_name
+            "#{task.name}.#{name}"
+        end
+
         def type_name
             type.name
         end
