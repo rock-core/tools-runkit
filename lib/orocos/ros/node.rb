@@ -65,7 +65,8 @@ module Orocos
 
                 if running?
                     @state_queue << :RUNNING
-                else @state_queue << :STOPPED
+                else
+                    @state_queue << :PRE_OPERATIONAL
                 end
             end
 
@@ -117,11 +118,22 @@ module Orocos
 
             def configure(wait_for_completion = true)
                 # This is a no-op for ROS nodes
+                if state == :PRE_OPERATIONAL
+                    @state_queue << :STOPPED
+                else
+                    Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true configuration of #{self} is not supported."
+                    raise StateTransitionFailed, "#{self} cannot be configured in state #{state}"
+                end
             end
 
             def start(wait_for_completion = true)
                 if running?
-                    raise StateTransitionFailed, "#{self} is already running"
+                    if state == :RUNNING
+                        raise StateTransitionFailed, "#{self} is already running"
+                    else
+                        @state_queue << :RUNNING
+                        Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true start of #{self} is not performed, since the node was already started."
+                    end
                 end
 
                 spawn
@@ -131,6 +143,11 @@ module Orocos
             end
 
             def stop(wait_for_completion = true)
+                @state_queue << :STOPPED
+                Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true stopping of Orocos::ROS::Node is not performed. Use #shutdown for halting"
+            end
+
+            def shutdown(wait_for_completion = true)
                 if !running?
                     raise StateTransitionFailed, "#{self} is not running"
                 end
