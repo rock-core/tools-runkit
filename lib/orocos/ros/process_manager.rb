@@ -22,11 +22,14 @@ module Orocos
             attr_reader :launcher_processes
             alias :processes :launcher_processes
 
-            attr_reader :terminated_launcher_processes
+            # @return [Set<LauncherProcess>] the set of launcher processes for which
+            #   {#kill} has been called but the exit status has not yet been read by
+            #   {#wait_termination}
+            attr_reader :dying_launcher_processes
 
             def initialize
                 @launcher_processes = Hash.new
-                @terminated_launcher_processes = Hash.new
+                @dying_launcher_processes = Array.new
 
                 # Make sure ROS has been loaded, otherwise no
                 # ros specific projects will be found
@@ -114,25 +117,32 @@ module Orocos
             # Returns a hash that maps launcher names to the Status
             # object that represents their exit status.
             def wait_termination(timeout = nil)
-                result, @terminated_launcher_processes =
-                   terminated_launcher_processes, Hash.new
-                result
+                if timeout != 0
+                    raise ArgumentError, "#{self.class} does not support non-zero timeouts in #wait_termination"
+                end
+
+                terminated_launchers = Hash.new
+                dying_launcher_processes.delete_if do |launcher_process|
+                    _, status = ::Process.waitpid2(launcher_process.pid, ::Process::WNOHANG)
+                    if status
+                        terminated_launchers[launcher_process] = status
+                        launcher_processes.delete(launcher_process.name)
+                        launcher_process.dead!(status)
+                    end
+                end
+                terminated_launchers
             end
 
-            # Requests to stop the given launcher process
+            # Kills the given launcher process and registers it in
+            # {#dying_launcher_processes} for later reporting by {#wait_termination}
             #
-            # The call does not block until the process has quit. You will have to
-            # call #wait_termination to wait for the process end.
-            def stop(process_name)
-                if launcher_process = launcher_processes[process_name]
-                    launcher_process.kill
-                end
-            end
-
-            def dead_deployment(process_name, status = Status.new(:exit_code => 0))
-                if launcher_process = launcher_processes.delete(process_name)
-                    terminated_launcher_processes[process_name] = status
-                end
+            # @param [LauncherProcess] launcher the launcher process to be killed
+            # @return [void]
+            def kill(launcher_process)
+                Orocos::ROS.warn "ProcessManager is killing launcher process #{launcher_process.name} with pid '#{launcher_process.pid}'"
+                ::Process.kill('SIGTERM', launcher_process.pid)
+                dying_launcher_processes << launcher_process
+                nil
             end
         end
 
@@ -198,7 +208,7 @@ module Orocos
 
             # Wait for all nodes of the launcher to become available
             # @throws [Orocos::NotFound] if the nodes are not available after a given timeout
-            # @return [Bool] True if process is running, false otherwise
+            # @return [Boolean] True if process is running, false otherwise
             def wait_running(timeout = nil)
                 is_running = Orocos::Process.wait_running(self,timeout) do |launcher_process|
                     all_nodes_available = true
@@ -234,14 +244,13 @@ module Orocos
             # Wait for termination of the launcher process
             # @return [Process::Status] Final process status
             def wait_termination(timeout = nil)
-                status = nil
-                begin
-                    Timeout::timeout(timeout) do
-                        pid, status = ::Process.waitpid2(@pid, Process::WNOHANG)
-                    end
-                rescue Timeout::Error => e
-                    raise RuntimeError, "Waiting for launcher process '#{name}' with pid '#{@pid}' timed out out"
+                if timeout
+                    raise NotImplementedError, "ROS::ProcessManager#wait_termination cannot be called with a timeout"
                 end
+
+                _, status = begin ::Process.waitpid2(@pid, Process::WNOHANG)
+                              rescue Errno::ECHILD
+                              end
                 status
             end
 
@@ -249,6 +258,7 @@ module Orocos
             def kill(wait = true)
                 LauncherProcess.debug "Sending SIGTERM to launcher '#{@launcher.name}', pid #{@pid}. Nodes #{@launcher.nodes.map(&:name).join(", ")} will be teared down."
                 ::Process.kill('SIGTERM', @pid)
+                ros_process_server.kill(self)
                 if wait
                     status = @launcher.wait_termination
                 end
@@ -258,7 +268,6 @@ module Orocos
             def dead!(exit_status)
                 LauncherProcess.debug "Announcing launcher '#{@launcher.name}', pid #{@pid} dead!"
                 @pid = nil
-                ros_process_server.dead_deployment(name, exit_status)
             end
         end
     end # module ROS
