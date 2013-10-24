@@ -139,7 +139,7 @@ module Orocos
             # @param [LauncherProcess] launcher the launcher process to be killed
             # @return [void]
             def kill(launcher_process)
-                Orocos::ROS.warn "ProcessManager is killing launcher process #{launcher_process.name} with pid '#{launcher_process.pid}'"
+                Orocos::ROS.info "ProcessManager is killing launcher process #{launcher_process.name} with pid '#{launcher_process.pid}'"
                 ::Process.kill('SIGTERM', launcher_process.pid)
                 dying_launcher_processes << launcher_process
                 nil
