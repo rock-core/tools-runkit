@@ -12,10 +12,8 @@ module Orocos
             extend Logger::Root("Orocos::ROS", Logger::INFO)
 
             def available_projects; Orocos::ROS.available_projects end
-            def available_deployments; Orocos::ROS.available_launchers end
+            def available_launchers; Orocos::ROS.available_launchers end
             def available_typekits; Orocos::ROS.available_typekits end
-
-            alias :available_launchers :available_deployments
 
             # Mapping from a launcher name to the corresponding Launcher
             # instance, for launcher processes that have been started by this client.
@@ -40,23 +38,13 @@ module Orocos
                     ProcessManager.info "Auto-adding ROS nameservice"
                     Orocos.name_service << Orocos::ROS::NameService.new
                 end
-
             end 
-
-            # Loading an orogen project which defines
-            # a ros project
-            def load_orogen_project(name)
-                # At this stage the ROS projects should be known
-                # to the Orocos.master_project and
-                # will be loaded from cache
-                Orocos.master_project.load_orogen_project(name)
-            end
 
             # Loading a ros launcher definition, which corresponds to 
             # a deployment in orogen
             #
             # @return [Orocos::ROS::Spec::Launcher]
-            def load_orogen_deployment(name)
+            def load_ros_launcher(name)
                 launcher = available_launchers[name]
                 if !launcher
                     raise ArgumentError, "there is no launcher called #{name} on #{self}"
@@ -79,15 +67,17 @@ module Orocos
             def disconnect
             end
 
-            def register_deployment_model(model, name = model.name)
-                orogen_models[name] = model
+            # Register the model for a launcher
+            # @argument [Orocos::ROS::Spec::Launcher]
+            def register_launcher_model(model, name = model.name)
+                launcher_models[name] = model
             end
 
             # Start a launcher process under the given process_name
             # @return [Orocos::ROS::LauncherProcess] The launcher process which started by the process manager
             def start(process_name, launcher_name, name_mappings = Hash.new, options = Hash.new)
                 ProcessManager.debug "launcher: '#{launcher_name}' with processname '#{process_name}'"
-                launcher_model = load_orogen_deployment(launcher_name)
+                launcher_model = load_ros_launcher(launcher_name)
                 launcher_processes.each do |process_name, l| 
                     if l.name == launcher_name
                         raise ArgumentError, "launcher #{launcher_name} is already started with processname #{process_name} in #{self}"
