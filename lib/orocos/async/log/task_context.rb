@@ -39,6 +39,16 @@ module Orocos::Async
                 end
             end
 
+            # writes all ports and properties to a
+            # RubyTaskContext
+            def to_ruby
+                @ruby_task_context ||= TaskContextBase::to_ruby(self)
+            end
+
+            def ruby_task_context?
+                !!@ruby_task_context
+            end
+
             def really_add_listener(listener)
                 return super unless listener.use_last_value?
 
@@ -69,36 +79,6 @@ module Orocos::Async
                 end
                 super
             end
-
-            def ruby_task_context?
-                !!@ruby_task_context
-            end
-
-            # writes all ports and properties to a
-            # RubyTaskContext
-            def to_ruby_task_context
-                if @ruby_task_context
-                    return @ruby_task_context
-                end
-
-                task = Orocos::RubyTaskContext.new(basename)
-                each_port do |port|
-                    p = task.create_output_port(port.name,port.type)
-                    port.on_data do |data|
-                        p.write data
-                    end
-                end
-                each_property do |prop|
-                    p = task.create_property(prop.name,prop.type)
-                    p.write p.new_sample.zero!
-                    prop.on_change do |data|
-                        p.write data
-                    end
-                end
-                task.start
-                task
-            end
-
 
             def attribute(name,options={},&block)
                 if block
