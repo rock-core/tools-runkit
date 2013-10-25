@@ -113,11 +113,15 @@ module Orocos
 
                 terminated_launchers = Hash.new
                 dying_launcher_processes.delete_if do |launcher_process|
-                    _, status = ::Process.waitpid2(launcher_process.pid, ::Process::WNOHANG)
+                    _, status = ::Process.waitpid2(launcher_process.pid, ::Process::WUNTRACED | ::Process::WNOHANG)
                     if status
+                        Orocos::ROS.info "announing dead launcher_process: #{launcher_process}"
                         terminated_launchers[launcher_process] = status
                         launcher_processes.delete(launcher_process.name)
                         launcher_process.dead!(status)
+                        true
+                    else
+                        false
                     end
                 end
                 terminated_launchers
@@ -186,7 +190,7 @@ module Orocos
 
                 LauncherProcess.debug "Launcher '#{@launcher.name}' spawning"
                 @pid = Orocos::ROS.roslaunch(@launcher.project.name, @launcher.name, options)
-                LauncherProcess.info "Launcher '#{@launcher.name}' started. Nodes #{@launcher.nodes.map(&:name).join(", ")}  available."
+                LauncherProcess.info "Launcher '#{@launcher.name}' started, pid '#{@pid}'. Nodes #{@launcher.nodes.map(&:name).join(", ")}  available."
 
                 @pid
             end
@@ -238,7 +242,7 @@ module Orocos
                     raise NotImplementedError, "ROS::ProcessManager#wait_termination cannot be called with a timeout"
                 end
 
-                _, status = begin ::Process.waitpid2(@pid, Process::WNOHANG)
+                _, status = begin ::Process.waitpid2(@pid, ::Process::WUNTRACED | Process::WNOHANG)
                               rescue Errno::ECHILD
                               end
                 status
