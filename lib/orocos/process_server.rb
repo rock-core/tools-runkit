@@ -434,6 +434,7 @@ module Orocos
 
         # Returns the StaticDeployment instance that represents the remote
         # deployment +deployment_name+
+        # @return [Orocos::Spec::Deployment]
         def load_orogen_deployment(deployment_name)
             project_name = available_deployments[deployment_name]
             if !project_name
