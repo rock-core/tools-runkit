@@ -500,6 +500,12 @@ module Orocos
                 Orocos::ProcessBase.resolve_prefix_option(options, deployment_model)
             name_mappings = prefix_mappings.merge(name_mappings)
 
+            if Orocos::ROS.enabled?
+                # Enable ROS by default when available for this deployment
+                if deployment_model.transports.include?('ros')
+                    options.merge!(:cmdline_args => {"with-ros" => true})
+                end
+            end
             socket.write(ProcessServer::COMMAND_START)
             Marshal.dump([process_name, deployment_name, name_mappings, options], socket)
             wait_for_answer do |pid_s|
