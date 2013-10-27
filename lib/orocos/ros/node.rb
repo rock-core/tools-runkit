@@ -290,7 +290,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_output_port(name, verify = true, wait_if_unavailable = true)
                 each_output_port(verify) do |p|
-                    if p.name == name || p.topic_name == name
+                    if p.name == name || p.topic_name == ::Orocos::ROS.normalize_topic_name(name)
                         return p
                     end
                 end
@@ -305,7 +305,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_input_port(name, verify = true, wait_if_unavailable = true)
                 each_input_port(verify) do |p|
-                    if p.name == name || p.topic_name == name
+                    if p.name == name || p.topic_name == ::Orocos::ROS.normalize_topic_name(name)
                         return p
                     end
                 end
@@ -325,7 +325,7 @@ module Orocos
             # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
             def resolve_output_topic_name(topic_name)
                 model.each_output_port do |m|
-                    if apply_name_mappings(m.topic_name) == topic_name
+                    if apply_name_mappings(m.topic_name) == ::Orocos::ROS.normalize_topic_name(topic_name)
                         return m.name, m
                     end
                 end
@@ -336,7 +336,7 @@ module Orocos
             # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
             def resolve_input_topic_name(topic_name)
                 model.each_input_port do |m|
-                    if apply_name_mappings(m.topic_name) == topic_name
+                    if apply_name_mappings(m.topic_name) == ::Orocos::ROS.normalize_topic_name(topic_name)
                         return m.name, m
                     end
                 end
