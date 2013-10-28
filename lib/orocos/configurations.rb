@@ -627,7 +627,7 @@ module Orocos
 
             model_name = options[:model_name]
             task_conf = find_task_configuration_object(task, find_options.merge(:model_name => model_name))
-            if names = resolve_requested_configuration_names(task_conf, names)
+            if names = resolve_requested_configuration_names(model_name, task_conf, names)
                 ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{model_name}"
                 task_conf.apply(task, names, options[:override])
             else
@@ -636,7 +636,7 @@ module Orocos
             true
         end
 
-        def resolve_requested_configuration_names(task_conf, names)
+        def resolve_requested_configuration_names(model_name, task_conf, names)
             if !task_conf
                 if names == ['default'] || names == []
                     return
@@ -695,7 +695,7 @@ module Orocos
                 task_model_name = task_model_name.model.name
             end
             task_conf = conf[task_model_name]
-            if conf_names = resolve_requested_configuration_names(task_conf, conf_names)
+            if conf_names = resolve_requested_configuration_names(task_model_name, task_conf, conf_names)
                 task_conf.conf(conf_names, override)
             else Hash.new
             end
