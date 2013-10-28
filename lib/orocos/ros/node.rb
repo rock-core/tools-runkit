@@ -264,7 +264,7 @@ module Orocos
             def port(name, verify = true)
                 p = (find_output_port(name, verify) || find_input_port(name, verify))
                 if !p
-                    raise Orocos::NotFound, "cannot find topic #{name} attached to node #{name}"
+                    raise Orocos::NotFound, "cannot find topic #{name} attached to node #{self.name}"
                 end
                 p
             end
