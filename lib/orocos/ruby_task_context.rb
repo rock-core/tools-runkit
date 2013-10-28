@@ -228,14 +228,16 @@ module Orocos
         end
 
         # Creates a new local task context that fits the given oroGen model
+        #
+        # @return [RubyTaskContext]
         def self.from_orogen_model(name, orogen_model)
             new(name, :model => orogen_model)
         end
 
-        # Creates a new local taks context with the given name
+        # Creates a new ruby task context with the given name
         #
         # @param [String] name the task name
-        # @return [LocalTaskContext]
+        # @return [RubyTaskContext]
         def self.new(name, options = Hash.new, &block)
             options, _ = Kernel.filter_options options, :model
 
