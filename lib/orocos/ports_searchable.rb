@@ -20,7 +20,7 @@ module Orocos
                         type.name
                     else type.to_str
                     end
-                candidates.delete_if { |port| port.type_name != type_name }
+                candidates.delete_if { |port| port.type.name != type_name }
             end
                     
             # Filter out on name
