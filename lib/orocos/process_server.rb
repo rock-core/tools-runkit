@@ -380,7 +380,7 @@ module Orocos
         # Connects to the process server at +host+:+port+
         #
         # @options options [Orocos::NameService] :name_service
-        #   (Orocos.name_service). The name service object that should be used
+        #   (Orocos::CORBA.name_service). The name service object that should be used
         #   to resolve tasks started by this process server
         def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT, options = Hash.new)
             @host = host
@@ -404,7 +404,7 @@ module Orocos
                    end
 
             options = Kernel.validate_options options,
-                :name_service => Orocos.name_service
+                :name_service => Orocos::CORBA.name_service
             @name_service = options[:name_service]
 
             @available_projects    = info[0]
