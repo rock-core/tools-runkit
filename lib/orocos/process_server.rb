@@ -368,6 +368,9 @@ module Orocos
         attr_reader :server_pid
         # A string that allows to uniquely identify this process server
         attr_reader :host_id
+        # The name service object that allows to resolve tasks from this process
+        # server
+        attr_reader :name_service
 
         def to_s
             "#<Orocos::ProcessServer #{host}:#{port}>"
@@ -375,7 +378,11 @@ module Orocos
         def inspect; to_s end
 
         # Connects to the process server at +host+:+port+
-        def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT)
+        #
+        # @options options [Orocos::NameService] :name_service
+        #   (Orocos.name_service). The name service object that should be used
+        #   to resolve tasks started by this process server
+        def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT, options = Hash.new)
             @host = host
             @port = port
             @socket =
@@ -395,6 +402,10 @@ module Orocos
                    rescue EOFError
                        raise StartupFailed, "process server failed at '#{host}:#{port}'"
                    end
+
+            options = Kernel.validate_options options,
+                :name_service => Orocos.name_service
+            @name_service = options[:name_service]
 
             @available_projects    = info[0]
             @available_deployments = info[1]
@@ -624,7 +635,7 @@ module Orocos
         # Returns the task context object for the process' task that has this
         # name
         def task(task_name)
-            Orocos.name_service.get(task_name)
+            process_client.name_service.get(task_name)
         end
 
         # Stops the process
