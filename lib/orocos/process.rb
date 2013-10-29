@@ -176,16 +176,16 @@ module Orocos
 
         # Returns the TaskContext instance for a task that runs in this process,
         # or raises Orocos::NotFound.
-        def task(task_name)
+        def task(task_name, name_service = Orocos.name_service)
             full_name = "#{name}_#{task_name}"
             if result = tasks.find { |t| t.basename == task_name || t.basename == full_name }
                 return result
             end
 
             result = if task_names.include?(task_name)
-                         Orocos.name_service.get task_name, :process => self
+                         name_service.get task_name, :process => self
                      elsif task_names.include?(full_name)
-                         Orocos.name_service.get full_name, :process => self
+                         name_service.get full_name, :process => self
                      else
                          raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
                      end

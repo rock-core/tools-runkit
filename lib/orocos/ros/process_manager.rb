@@ -182,7 +182,7 @@ module Orocos
                 options.merge!(unknown_options)
 
                 task_names.each do |name|
-                    if name_service.task_reachable?(name)
+                    if ros_process_server.name_service.task_reachable?(name)
                         raise ArgumentError, "there is already a task called '#{name}', are you starting the same component twice ?"
                     end
                 end
@@ -192,6 +192,13 @@ module Orocos
                 LauncherProcess.info "Launcher '#{@launcher.name}' started, pid '#{@pid}'. Nodes #{@launcher.nodes.map(&:name).join(", ")}  available."
 
                 @pid
+            end
+
+            # Retrieve the task (node) using the internal name service instance
+            # @return [Orocos::ROS::Node] A task (node) instance
+            # @raise [Orocos::NotFound] If task (node) cannot be found in the name service
+            def task(name)
+                super(name, ros_process_server.name_service)
             end
 
             # True if the process is running. This is an alias for running?
