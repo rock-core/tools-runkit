@@ -25,6 +25,9 @@ module Orocos
             #   {#wait_termination}
             attr_reader :dying_launcher_processes
 
+            # @return [Orocos::ROS::NameService] the ROS nameservice used by this process manager
+            attr_reader :name_service
+
             def initialize
                 @launcher_processes = Hash.new
                 @dying_launcher_processes = Array.new
@@ -33,11 +36,13 @@ module Orocos
                 # ros specific projects will be found
                 Orocos::ROS.load
 
-                name_service = Orocos.name_service.find(Orocos::ROS::NameService)
-                if !name_service || name_service.empty?
+                @name_service = Orocos.name_service.find(Orocos::ROS::NameService)
+                if !@name_service
                     ProcessManager.info "Auto-adding ROS nameservice"
-                    Orocos.name_service << Orocos::ROS::NameService.new
+                    @name_service = Orocos::ROS::NameService.new
+                    Orocos.name_service << @name_service
                 end
+
             end 
 
             # Loading a ros launcher definition, which corresponds to 
@@ -204,8 +209,11 @@ module Orocos
             # @throws [Orocos::NotFound] if the nodes are not available after a given timeout
             # @return [Boolean] True if process is running, false otherwise
             def wait_running(timeout = nil)
+
                 is_running = Orocos::Process.wait_running(self,timeout) do |launcher_process|
                     all_nodes_available = true
+                    all_topics_available = true
+                    topics = []
                     begin
                         nodes = launcher_process.launcher.nodes
                         if nodes.empty?
@@ -218,18 +226,48 @@ module Orocos
                                 all_nodes_available = false
                                 break
                             end
+
                             # Check if the node can be seen in the Orocos nameservice as
                             # well
                             task = Orocos.name_service.get(n.name)
+
+                            # Try to check whether the topics in the spec are already available
+                            # Note that we have to try to instanciate write and reader and using
+                            # to_orocos_port in order to make sure the ROS node is really accessible
+                            if spec = Orocos::ROS.node_spec_by_node_name(n.name)
+                                spec.each_input_port do |port|
+                                    if ros_process_server.name_service.find_topic_by_name(port.topic_name)
+                                        topics << port.topic_name
+                                        next
+                                    end
+
+                                    all_topics_available = false
+                                    break
+                                end
+
+                                spec.each_output_port do |port|
+                                    if ros_process_server.name_service.find_topic_by_name(port.topic_name)
+                                        topics << port.topic_name
+                                        next
+                                    end
+                                    all_topics_available = false
+                                    break
+                                end
+                            else
+                                raise ArgumentError, "No ROS Node specification available for #{n.name}"
+                            end
                         end
                     rescue Orocos::NotFound => e
                         all_nodes_available = false
+                        all_topics_available = false
                     end
 
-                    if all_nodes_available
-                        LauncherProcess.debug "all nodes #{nodes.map(&:name).join(", ")} are reachable, assuming the launcher process is up and running"
+                    if ! (all_nodes_available && all_topics_available)
+                        LauncherProcess.debug "reachable nodes: #{nodes.map(&:name).join(", ")}"
+                        LauncherProcess.debug "reachable topics: #{topics.join(", ")}"
                     end
-                    all_nodes_available
+
+                    all_nodes_available && all_topics_available
                 end
 
                 is_running
