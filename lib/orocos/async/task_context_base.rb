@@ -28,6 +28,7 @@ module Orocos::Async
             task.on_port_reachable do |port|
                 next if t.has_port?(port)
                 port = task.port(port)
+                port.wait
                 p = t.create_output_port(port.name,port.type)
                 port.on_data do |data|
                     p.write data
@@ -36,6 +37,7 @@ module Orocos::Async
             task.on_property_reachable do |prop|
                 next if task.has_property?(prop)
                 prop = task.property(prop)
+                prop.wait
                 p = @ruby_task_context.create_property(prop.name,prop.type)
                 p.write p.new_sample.zero!
                 prop.on_change do |data|
