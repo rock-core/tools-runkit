@@ -109,7 +109,10 @@ module Orocos
             # @return [Utilrb::ThreadPool]
             attr_reader :thread_pool
 
-            def initialize(uri = ROS.default_ros_master_uri, caller_id = ROS.caller_id)
+            def initialize(uri = ROS.default_ros_master_uri, caller_id = ROS.caller_id, options = Hash.new)
+                options = Kernel.validate_options options,
+                    :poll_period => 0.1
+
                 @uri = uri
                 @caller_id = caller_id
                 @ros_graph = NodeGraph.new
@@ -117,7 +120,7 @@ module Orocos
                 @ros_master_sync = Mutex.new
                 @updated_graph_signal = ConditionVariable.new
                 @update_time = Time.at(0)
-                @poll_period = 0.1
+                @poll_period = options[:poll_period]
                 super()
 
                 @ros_master = ROSMaster.new(uri, caller_id)
