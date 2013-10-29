@@ -36,13 +36,7 @@ module Orocos
                 # ros specific projects will be found
                 Orocos::ROS.load
 
-                @name_service = Orocos.name_service.find(Orocos::ROS::NameService)
-                if !@name_service
-                    ProcessManager.info "Auto-adding ROS nameservice"
-                    @name_service = Orocos::ROS::NameService.new
-                    Orocos.name_service << @name_service
-                end
-
+                @name_service = Orocos::ROS::NameService.new
             end 
 
             # Loading a ros launcher definition, which corresponds to 
