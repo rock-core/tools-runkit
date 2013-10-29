@@ -634,8 +634,13 @@ module Orocos::Async
             options,other_options = Kernel.filter_options options,:wait => @options[:wait]
             wait if options[:wait]
 
+            # support for subports
             fields = name.split(".")
             name = if fields.empty?
+                       name
+                   elsif name[0] == "/"
+                       # special case for log ports like: logger_name.port("/task_name.port_name")
+                       fields = []
                        name
                    else
                        fields.shift
@@ -759,7 +764,7 @@ module Orocos::Async
         def reachable!(task_context,options = Hash.new)
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
             raise ArgumentError, "task_context must be an async instance but is #{task_context.class}" if !task_context.respond_to?(:event_names)
-            ports,attributes,properties = @mutex.synchronize do
+            @mutex.synchronize do
                 @last_task_class ||= task_context.class
                 if @last_task_class != task_context.class
                     Vizkit.warn "Class missmatch: TaskContextProxy #{name} was recently connected to #{@last_task_class} and is now connected to #{task_context.class}."
@@ -772,25 +777,26 @@ module Orocos::Async
                     @delegator_obj_old = nil
                 end
                 super(task_context,options)
+
+                # check if the requested ports are available
+                @ports.values.each do |port|
+                    unless task_context.port_names.include? port.name
+                        Orocos.warn "task #{name} has currently no port called #{port.name} - on_data will be called when the port was added"
+                    end
+                end
+                @attributes.values.each do |attribute|
+                    unless task_context.attribute_names.include? attribute.name
+                        Orocos.warn "task #{name} has currently no attribute called #{attribute.name} - on_change will be called when the attribute was added"
+                    end
+                end
+                @properties.values.each do |property|
+                    unless task_context.property_names.include? property.name
+                        Orocos.warn "task #{name} has currently no property called #{property.name} - on_change will be called when the property was added"
+                    end
+                end
+
                 # this is emitting on_port_reachable, on_property_reachable ....
                 proxy_event(@delegator_obj,@delegator_obj.event_names-[:reachable])
-                [@ports.values,@attributes.values,@properties.values]
-            end
-            # check if the requested ports are available
-            ports.each do |port|
-                unless task_context.port_names.include? port.name
-                    Orocos.warn "task #{name} has currently no port called #{port.name} - on_data will be called when the port was added"
-                end
-            end
-            attributes.each do |attribute|
-                unless task_context.attribute_names.include? attribute.name
-                    Orocos.warn "task #{name} has currently no attribute called #{attribute.name} - on_change will be called when the attribute was added"
-                end
-            end
-            properties.each do |property|
-                unless task_context.property_names.include? property.name
-                    Orocos.warn "task #{name} has currently no property called #{property.name} - on_change will be called when the property was added"
-                end
             end
         end
 
