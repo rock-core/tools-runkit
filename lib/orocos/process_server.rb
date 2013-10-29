@@ -635,7 +635,7 @@ module Orocos
         # Returns the task context object for the process' task that has this
         # name
         def task(task_name)
-            process_client.name_service.get(task_name)
+            return super(task_name, process_client.name_service)
         end
 
         # Stops the process
