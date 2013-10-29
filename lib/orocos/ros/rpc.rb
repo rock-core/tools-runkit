@@ -23,6 +23,8 @@ module Orocos
                 raise RuntimeError, "cannot initialize the ROS layer multiple times"
             end
 
+            Orocos::ROS.load
+
             do_initialize(name)
 
             at_exit do
