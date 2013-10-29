@@ -564,6 +564,10 @@ module Orocos::Async
             self
         end
 
+        def to_ruby
+            TaskContextBase::to_ruby(self)
+        end
+
         # asychronsosly tries to connect to the remote task
         def reconnect(wait_for_task = false)
             @resolve_timer.start options[:retry_period]
