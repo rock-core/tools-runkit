@@ -182,7 +182,7 @@ module Orocos
                 options.merge!(unknown_options)
 
                 task_names.each do |name|
-                    if Orocos.name_service.task_reachable?(name)
+                    if name_service.task_reachable?(name)
                         raise ArgumentError, "there is already a task called '#{name}', are you starting the same component twice ?"
                     end
                 end
@@ -221,9 +221,9 @@ module Orocos
                                 break
                             end
 
-                            # Check if the node can be seen in the Orocos nameservice as
+                            # Check if the node can be seen in the nameservice as
                             # well
-                            task = Orocos.name_service.get(n.name)
+                            task = ros_process_server.name_service.get(n.name)
 
                             # Try to check whether the topics in the spec are already available
                             # Note that we have to try to instanciate write and reader and using
