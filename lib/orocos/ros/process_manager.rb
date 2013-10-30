@@ -244,7 +244,7 @@ module Orocos
                             # to_orocos_port in order to make sure the ROS node is really accessible
                             if spec = Orocos::ROS.node_spec_by_node_name(n.name)
                                 spec.each_input_port do |port|
-                                    if ros_process_server.name_service.find_topic_by_name(port.topic_name)
+                                    if task.port(port.topic_name)
                                         topics << port.topic_name
                                         next
                                     end
@@ -254,7 +254,7 @@ module Orocos
                                 end
 
                                 spec.each_output_port do |port|
-                                    if ros_process_server.name_service.find_topic_by_name(port.topic_name)
+                                    if task.port(port.topic_name)
                                         topics << port.topic_name
                                         next
                                     end
