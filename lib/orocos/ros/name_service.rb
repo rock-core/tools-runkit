@@ -102,7 +102,7 @@ module Orocos
             # @return [Time]
             attr_reader :update_time
             attr_reader :ros_graph
-            attr_reader :poll_period
+            attr_accessor :poll_period
 
             # The Utilrb::ThreadPool object that handles the asynchronous update
             # of the ROS node graph
