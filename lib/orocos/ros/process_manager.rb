@@ -29,12 +29,7 @@ module Orocos
             attr_reader :name_service
 
             # Initialize process server
-            # @argument options, with the following being available:
-            #     :name_service_poll_period, default: 1 second
-            def initialize(options = Hash.new)
-                options = Kernel.validate_options options,
-                    :name_service_poll_period => 1
-
+            def initialize
                 @launcher_processes = Hash.new
                 @dying_launcher_processes = Array.new
 
@@ -43,7 +38,7 @@ module Orocos
                 Orocos::ROS.load
 
                 # Allow to adjust the update frequency of the nameservice to manage cpu costs
-                @name_service = Orocos::ROS::NameService.new(ROS.default_ros_master_uri, ROS.caller_id, :poll_period => options[:name_service_poll_period])
+                @name_service = Orocos::ROS.name_service
             end 
 
             # Loading a ros launcher definition, which corresponds to 
