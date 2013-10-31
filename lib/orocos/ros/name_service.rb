@@ -111,7 +111,7 @@ module Orocos
 
             def initialize(uri = ROS.default_ros_master_uri, caller_id = ROS.caller_id, options = Hash.new)
                 options = Kernel.validate_options options,
-                    :poll_period => 0.1
+                    :poll_period => 1
 
                 @uri = uri
                 @caller_id = caller_id
