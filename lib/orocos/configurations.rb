@@ -313,14 +313,19 @@ module Orocos
         end
 
         # Returns the task configuration that is the combination of the
-        # configurations listed in +names+
+        # named configuration sections
         #
-        # If +override+ is false (the default), a requested configuration
-        # cannot override a value set by another (the set of fields they are
-        # setting must be disjoint)
-        #
-        # Otherwise, the configurations are merged in the same order than listed
-        # in +names+
+        # @param [Array<String>] names the list of sections that should be applied
+        # @param [Boolean] override if false, one of the sections listed in the
+        #   names parameter cannot override the value set by another. Otherwise,
+        #   the configurations are merged, with the sections appearing last
+        #   overriding the sections appearing first.
+        # @raise ArgumentError if one of the listed sections does not exist, or
+        #   if the override option is false and two sections try to set the same
+        #   property
+        # @return [Hash] a hash in which the keys are property names and the
+        #   values Typelib values that can be used to set these properties. See
+        #   {#apply} for a shortcut to apply a configuration on a task
         #
         # For instance, let's assume that the following configurations are
         # available
@@ -365,7 +370,12 @@ module Orocos
 
         # Applies the specified configuration to the given task
         #
-        # See #configuration for a description of +names+ and +override+ 
+        # @param [TaskContext] task the task on which the configuration should
+        #   be applied
+        # @param (see #conf)
+        # @raise (see #conf)
+        #
+        # See {#conf} for additional examples
         def apply(task, names, override = false)
             if names.respond_to?(:to_ary)
                 config = conf(names, override)
@@ -617,7 +627,13 @@ module Orocos
 
         # Applies the specified configuration on +task+
         #
-        # See TaskConfigurations#apply for a description of the process
+        # @param task (see TaskConfigurations#apply)
+        # @param names (see TaskConfigurations#apply)
+        # @option options [String] :model_name (task.model.name) the name of the
+        #   model that should be used to resolve the configurations
+        # @option options [Boolean] :override (false) see the documentation of
+        #   {TaskConfigurations#apply}
+        # @raise (see TaskConfigurations#apply)
         def apply(task, names=Array.new, options = Hash.new)
             if options == true || options == false
                 # Backward compatibility
