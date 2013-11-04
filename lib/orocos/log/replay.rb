@@ -656,7 +656,7 @@ module Orocos
             # @yieldparam reader the data reader of the port from which the
             #   sample has been read
             # @yieldparam sample the data sample
-            # @yieldretun [TrueClass,FalseClass]
+            # @yieldreturn [Boolean]
             #
             # @return [Array<Array<Time>>] extracted intervals
             def extract_intervals(start_time=nil,end_time=nil, min_val=0.8,kernel_size=5.0,&block)
@@ -734,7 +734,7 @@ module Orocos
             # @yieldparam reader the data reader of the port from which the
             #   sample has been read
             # @yieldparam sample the data sample
-            # @yieldretun [TrueClass,FalseClass]
+            # @yieldreturn [Boolean]
             #
             # @return [Array<Array<Time>>] extracted intervals
             # @see extract_intervals

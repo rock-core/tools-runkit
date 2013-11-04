@@ -199,7 +199,7 @@ module Orocos
 
     # Generic functionality for all output objects
     #
-    # For {reader} to work, the mixed-in class must provide a reader_class
+    # For {#reader} to work, the mixed-in class must provide a reader_class
     # singleton method, and must be able to connect to an input port
     #
     # It also implements the fallback calls for the connection / disconnection

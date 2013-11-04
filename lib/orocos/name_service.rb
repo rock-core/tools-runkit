@@ -59,8 +59,8 @@ module Orocos
         name_service.cleanup
     end
 
-    #(see NameService#get)
-    def self.get(*args)
+    # (see NameService#get)
+    def self.get(name, options = Hash.new)
         Orocos.name_service.get(*args)
     end
 
@@ -270,7 +270,7 @@ module Orocos
 
         # Remove a name service from the set of resolvants
         #
-        # @param [NameServiceBase] the name service object
+        # @param [NameServiceBase] name_service the name service object
         # @return [true,false] true if the name service was registered, false
         #   otherwise
         def remove(name_service)

@@ -69,7 +69,7 @@ module Orocos
 
         # Retrieves the configuration for the given section name 
         #
-        # @return [Object] see the description of {sections} for the description
+        # @return [Object] see the description of {#sections} for the description
         #   of formatting
         def [](section_name)
             sections[section_name]
@@ -170,7 +170,7 @@ module Orocos
         # Add a new configuration section to the configuration set
         #
         # @param [String] name the configuration section name
-        # @param [Object] conf the configuration data. See {sections} for a
+        # @param [Object] conf the configuration data. See {#sections} for a
         #   description of its formatting
         # @param [Hash] options the options of this configuration section
         def add(name, conf, options = Hash.new)
@@ -194,10 +194,10 @@ module Orocos
 
         # Converts an array to a properly formatted configuration value
         #
-        # See {sections} for a description of configuration value formatting
+        # See {#sections} for a description of configuration value formatting
         #
         # @param [Array] array the input array
-        # @param [Model<Typelib::Type>] the description of the expected type
+        # @param [Model<Typelib::Type>] value_t the description of the expected type
         # @return [Object] a properly formatted configuration value based on the
         #   input array
         def config_from_array(array, value_t)
@@ -215,12 +215,12 @@ module Orocos
 
         # Converts a hash to a properly formatted configuration value
         #
-        # See {sections} for a description of configuration value formatting
+        # See {#sections} for a description of configuration value formatting
         #
         # @param [Hash] hash the input hash
-        # @param [Model<Typelib::Compound>,nil] the description of the
+        # @param [Model<Typelib::Compound>,nil] base the description of the
         #   expected type. If nil, the function will assume that the hash keys
-        #   are propery names and the types will be taken from {model}
+        #   are propery names and the types will be taken from {#model}
         # @return [Object] a properly formatted configuration value based on the
         #   input hash
         def config_from_hash(hash, base = nil) # :nodoc:
@@ -287,7 +287,7 @@ module Orocos
         # Helper method that adds the configuration of +b+ into the existing
         # configuration hash +a+
         #
-        # See {sections} for a description of how the configuration value
+        # See {#sections} for a description of how the configuration value
         # formatting allows this to be done.
         def self.merge_conf(a, b, override)
             result = if override

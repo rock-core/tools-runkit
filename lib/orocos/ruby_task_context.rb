@@ -307,7 +307,7 @@ module Orocos
 
         # Remove the given port from this task's interface
         #
-        # @param [LocalInputPort,LocalOutputPort] the port to be removed
+        # @param [LocalInputPort,LocalOutputPort] port the port to be removed
         # @return [void]
         def remove_port(port)
             @local_ports.delete(port.name)
@@ -327,8 +327,7 @@ module Orocos
         # Creates a new property on this task context
         #
         # @param [String] name the property name
-        # @param [String] orocos_type_name the type name as known by RTT. It is
-        #   usually the typelib type name
+        # @param [Model<Typelib::Type>,String] type the type or type name
         # @return [Property] the property object
         def create_property(name, type)
             orocos_type_name = find_orocos_type_name_by_type(type)

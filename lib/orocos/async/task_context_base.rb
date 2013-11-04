@@ -195,7 +195,7 @@ module Orocos::Async
         # Returns nil if the TaskContext is not connected.
         # Returns an EventLoop Event if not called from the event loop thread.
         #
-        # @prarm [Exception] reason The reason for the disconnect
+        # @param [Exception] reason The reason for the disconnect
         # @return [Orocos::TaskContext,nil,Utilrb::EventLoop::Event]
         def unreachable!(options = Hash.new)
             options = Kernel.validate_options options, :error
@@ -249,12 +249,12 @@ module Orocos::Async
         # all non-async objects must provide a #to_async call to create a
         # corresponding asynchronous-access object.
         #
-        # @arg [Symbol] method_name the method that should be called
-        # @arg [Proc,nil] user_callback the user-provided callback if there is
+        # @param [Symbol] method_name the method that should be called
+        # @param [Proc,nil] user_callback the user-provided callback if there is
         #   one
-        # @arg [Hash] to_async_options the options that should be passed to
+        # @param [Hash] to_async_options the options that should be passed to
         #   to_async
-        # @arg [Array] the arguments that should be forwarded to the underlying
+        # @param [Array] the arguments that should be forwarded to the underlying
         #   method
         #
         # @return [Object] in the synchronous case, the method returns the
@@ -416,7 +416,8 @@ module Orocos::Async
 
         # Returns the designated object and an error object.
         # This must be thread safe as it is called from the worker threads!
-        # @delegator_obj must not be directly accessed without synchronize.
+        # the @delegator_obj instance variable must not be directly accessed
+        # without proper synchronization.
         def task_context
             @mutex.synchronize do
                 begin

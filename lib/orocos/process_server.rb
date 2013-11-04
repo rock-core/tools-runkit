@@ -379,7 +379,7 @@ module Orocos
 
         # Connects to the process server at +host+:+port+
         #
-        # @options options [Orocos::NameService] :name_service
+        # @option options [Orocos::NameService] :name_service
         #   (Orocos.name_service). The name service object that should be used
         #   to resolve tasks started by this process server
         def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT, options = Hash.new)
