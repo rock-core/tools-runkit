@@ -436,7 +436,7 @@ module Orocos
             elsif conf.respond_to?(:to_ary)
                 typelib_from_yaml_array(value, conf)
             else
-                conf
+                Typelib.from_ruby(conf, value.class)
             end
         end
 
