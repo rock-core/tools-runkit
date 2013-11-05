@@ -69,7 +69,7 @@ module Orocos
 
         # Retrieves the configuration for the given section name 
         #
-        # @return [Object] see the description of {sections} for the description
+        # @return [Object] see the description of {#sections} for the description
         #   of formatting
         def [](section_name)
             sections[section_name]
@@ -170,7 +170,7 @@ module Orocos
         # Add a new configuration section to the configuration set
         #
         # @param [String] name the configuration section name
-        # @param [Object] conf the configuration data. See {sections} for a
+        # @param [Object] conf the configuration data. See {#sections} for a
         #   description of its formatting
         # @param [Hash] options the options of this configuration section
         def add(name, conf, options = Hash.new)
@@ -194,10 +194,10 @@ module Orocos
 
         # Converts an array to a properly formatted configuration value
         #
-        # See {sections} for a description of configuration value formatting
+        # See {#sections} for a description of configuration value formatting
         #
         # @param [Array] array the input array
-        # @param [Model<Typelib::Type>] the description of the expected type
+        # @param [Model<Typelib::Type>] value_t the description of the expected type
         # @return [Object] a properly formatted configuration value based on the
         #   input array
         def config_from_array(array, value_t)
@@ -215,12 +215,12 @@ module Orocos
 
         # Converts a hash to a properly formatted configuration value
         #
-        # See {sections} for a description of configuration value formatting
+        # See {#sections} for a description of configuration value formatting
         #
         # @param [Hash] hash the input hash
-        # @param [Model<Typelib::Compound>,nil] the description of the
+        # @param [Model<Typelib::Compound>,nil] base the description of the
         #   expected type. If nil, the function will assume that the hash keys
-        #   are propery names and the types will be taken from {model}
+        #   are propery names and the types will be taken from {#model}
         # @return [Object] a properly formatted configuration value based on the
         #   input hash
         def config_from_hash(hash, base = nil) # :nodoc:
@@ -287,7 +287,7 @@ module Orocos
         # Helper method that adds the configuration of +b+ into the existing
         # configuration hash +a+
         #
-        # See {sections} for a description of how the configuration value
+        # See {#sections} for a description of how the configuration value
         # formatting allows this to be done.
         def self.merge_conf(a, b, override)
             result = if override
@@ -313,14 +313,19 @@ module Orocos
         end
 
         # Returns the task configuration that is the combination of the
-        # configurations listed in +names+
+        # named configuration sections
         #
-        # If +override+ is false (the default), a requested configuration
-        # cannot override a value set by another (the set of fields they are
-        # setting must be disjoint)
-        #
-        # Otherwise, the configurations are merged in the same order than listed
-        # in +names+
+        # @param [Array<String>] names the list of sections that should be applied
+        # @param [Boolean] override if false, one of the sections listed in the
+        #   names parameter cannot override the value set by another. Otherwise,
+        #   the configurations are merged, with the sections appearing last
+        #   overriding the sections appearing first.
+        # @raise ArgumentError if one of the listed sections does not exist, or
+        #   if the override option is false and two sections try to set the same
+        #   property
+        # @return [Hash] a hash in which the keys are property names and the
+        #   values Typelib values that can be used to set these properties. See
+        #   {#apply} for a shortcut to apply a configuration on a task
         #
         # For instance, let's assume that the following configurations are
         # available
@@ -365,7 +370,12 @@ module Orocos
 
         # Applies the specified configuration to the given task
         #
-        # See #configuration for a description of +names+ and +override+ 
+        # @param [TaskContext] task the task on which the configuration should
+        #   be applied
+        # @param (see #conf)
+        # @raise (see #conf)
+        #
+        # See {#conf} for additional examples
         def apply(task, names, override = false)
             if names.respond_to?(:to_ary)
                 config = conf(names, override)
@@ -393,6 +403,8 @@ module Orocos
             end
         end
 
+        # Helper method for {.typelib_from_yaml_value} when the YAML value is a
+        # hash
         def self.typelib_from_yaml_hash(value, conf)
             conf.each do |conf_key, conf_value|
                 value.raw_set(conf_key, typelib_from_yaml_value(value.raw_get(conf_key), conf_value))
@@ -400,6 +412,8 @@ module Orocos
             value
         end
 
+        # Helper method for {.typelib_from_yaml_value} when the YAML value is an
+        # array
         def self.typelib_from_yaml_array(value, conf)
             if value.kind_of?(Typelib::ArrayType)
                 # This is a fixed-size array, verify that the size matches
@@ -419,17 +433,34 @@ module Orocos
             value
         end
 
-        # Helper method for #apply_configuration
-        def self.typelib_from_yaml_value(value, conf) # :nodoc:
+        # Applies a value coming from a YAML-compatible data structure to a
+        # typelib value
+        #
+        # @param [Typelib::Type] value the value to be updated. Note that the
+        #   actually updated value is returned by the method (it might be
+        #   different)
+        # @param [Object] conf a straight YAML object (i.e. an object that is
+        #   made only of data that is part of the YAML representation). It is
+        #   usually generated by {.typelib_to_yaml_value}
+        # @return [Typelib::Type] the updated value. It is not necessarily equal
+        #   to value
+        def self.typelib_from_yaml_value(value, conf)
             if conf.kind_of?(Hash)
                 typelib_from_yaml_hash(value, conf)
             elsif conf.respond_to?(:to_ary)
                 typelib_from_yaml_array(value, conf)
             else
-                conf
+                Typelib.from_ruby(conf, value.class)
             end
         end
 
+        # Converts a typelib value into an object that can be represented
+        # straight in YAML
+        #
+        # The inverse operation can be performed by {.typelib_from_yaml_value}
+        #
+        # @param [Typelib::Type] value the value to be converted
+        # @return [Object] a value that can be represented in YAML as-is
         def self.typelib_to_yaml_value(value)
             if value.kind_of?(Typelib::CompoundType)
                 result = Hash.new
@@ -449,6 +480,12 @@ module Orocos
             end
         end
 
+        # Converts the properties of a task into a hash that can be represented
+        # in YAML
+        #
+        # @param [#each_property] task the task. The yield properties have to
+        #   respond to raw_read
+        # @return [Hash] the converted data
         def self.config_as_hash(task)
             current_config = Hash.new
             task.each_property do |prop|
@@ -457,13 +494,26 @@ module Orocos
             current_config
         end
 
+        # Saves the current configuration of task in a file and updates the
+        # section in this object
+        #
+        # @param (see TaskConfigurations.save)
+        # @return (see TaskConfigurations.save)
         def save(task, file, name)
             config_hash = self.class.save(task, file, name)
             sections[name] = config_from_hash(config_hash)
         end
 
-        # Saves the current configuration of +task+ in the provided file. +name+
-        # is the name of the new section.
+        # Saves the current configuration of task in a file
+        #
+        # @param [TaskContext] task the task whose configuration is to be saved
+        # @param [String] file either a file or a directory. If it is a
+        #   directory, the generated file will be named based on the task's
+        #   model name
+        # @param [String] name the name of the new sectin in the file
+        # @return [Hash] the task configuration in YAML representation, as
+        #   returned by {.config_as_hash}
+        # @see TaskConfigurations#save
         def self.save(task, file, name)
             if File.directory?(file)
                 file = File.join(file, "#{task.model.name}.yml")
@@ -617,7 +667,13 @@ module Orocos
 
         # Applies the specified configuration on +task+
         #
-        # See TaskConfigurations#apply for a description of the process
+        # @param task (see TaskConfigurations#apply)
+        # @param names (see TaskConfigurations#apply)
+        # @option options [String] :model_name (task.model.name) the name of the
+        #   model that should be used to resolve the configurations
+        # @option options [Boolean] :override (false) see the documentation of
+        #   {TaskConfigurations#apply}
+        # @raise (see TaskConfigurations#apply)
         def apply(task, names=Array.new, options = Hash.new)
             if options == true || options == false
                 # Backward compatibility

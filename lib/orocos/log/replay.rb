@@ -37,9 +37,19 @@ module Orocos
             end
         end
 
-        #Class for loading and replaying OROCOS log files.
+        # Class for loading and replaying pocolog (Rock) log files.
         #
-        #This class creates TaskContexts and OutputPorts to simulate the recorded tasks.
+        # This class creates objects whose API is compatible with
+        # {Orocos::TaskContext} and {Orocos::OutputPort}, using the log data.
+        #
+        # By default, all tasks that are present in the log files provided to
+        # {open} can be resolved using the orocos name service. If this
+        # behaviour is unwanted, call {#deregister_tasks} after {.open} or {#load} was
+        # called. To do it on a task-by-task basis, do the following after the
+        # call to {.open} or {#load}
+        #
+        #     replay.name_service.deregister 'task_name'
+        #
         class Replay
             include Namespace
             include Orocos::PortsSearchable
@@ -49,12 +59,14 @@ module Orocos
             end
             @log_config_file = "properties."
 
-	    #local nameservice, which is automatically registered
-	    #with orocos name resolution
+            # @return [Orocos::Local] a local nameservice on which the log tasks
+            #   are registered. It is added to the global name service with
+            #   {#register_tasks} and removed with {#unregister_tasks}
 	    attr_accessor :name_service
 
-	    #local async nameservice, which is automatically registered
-            #if async is available
+            # @return [Orocos::Async::Local] a local async nameservice on which the log tasks
+            #   are registered. It is added to the global name service with
+            #   {#register_tasks} and removed with {#unregister_tasks}
 	    attr_accessor :name_service_async
 
             #desired replay speed = 1 --> record time
@@ -68,31 +80,47 @@ module Orocos
             attr_reader :current_sample
 
             #array of all replayed ports  
-            #this array is filled after align was called
+            #this array is filled after {align} was called
             attr_accessor :replayed_ports
 
             #array of all replayed properties
-            #this array is filled after align was called
+            #this array is filled after {align} was called
             attr_accessor :replayed_properties
 
             #array of all replayed annotaions
-            #this array is filled after align was called
+            #this array is filled after {align} was called
             attr_accessor :replayed_annotations
 
             #set it to true if processing of qt events is needed during synced replay
-            attr_accessor :process_qt_events             
+            attr_accessor :process_qt_events
 
-            #hash of code blocks which are used to calculate the replayed timestamps
-            #during replay 
+            # @return [Hash<String,#call>] a mapping from a typelib type name to
+            #   an object that allows to extract the timestamp from a value of
+            #   that type
+            #
+            # @see {timestamp}
             attr_reader :timestamps
 
-            #indicates if the replayed data are replayed synchronously 
-            #<0 means the replayed samples are behind the simulated times
-            #>0 means that the replayed samples are replayed to fast
+            # Measure of time synchronization during replay
+            #
+            # This is updated during replay to reflect how fast the replay
+            # actually is. This is the difference (in seconds) between the
+            # replay time that we should have and the replay time that we
+            # actually have
+            #
+            # In practice, negative values mean that the replayed samples are
+            # behind the simulated times, and positive values mean that the
+            # replayed samples are replayed to fast
+            #
+            # @return [Float]
             attr_reader :out_of_sync_delta
 
-            #actual replay speed 
-            #this can be different to speed if the hard disk is too slow  
+            # The actual replay speed 
+            #
+            # This is updated during replay, and reflects the actual replay
+            # speed
+            #
+            # @return [Float]
             attr_reader :actual_speed
 
             #array of stream annotations
@@ -247,7 +275,13 @@ module Orocos
                 end
             end
 
-            #Sets a code block for a special type to calculate the timestamp during repaly.
+            # Declares how the timestamp can be extracted out of values of a given type
+            #
+            # @example use the 'time' field in /base/samples/RigidBodyState as timestamp
+            #   replay.timestamp '/base/samples/RigidBodyState' do |rbs|
+            #     rbs.time
+            #   end
+            #
             def timestamp(type_name, &block)
                 timestamps[type_name] = block
             end
@@ -622,7 +656,7 @@ module Orocos
             # @yieldparam reader the data reader of the port from which the
             #   sample has been read
             # @yieldparam sample the data sample
-            # @yieldretun [TrueClass,FalseClass]
+            # @yieldreturn [Boolean]
             #
             # @return [Array<Array<Time>>] extracted intervals
             def extract_intervals(start_time=nil,end_time=nil, min_val=0.8,kernel_size=5.0,&block)
@@ -700,7 +734,7 @@ module Orocos
             # @yieldparam reader the data reader of the port from which the
             #   sample has been read
             # @yieldparam sample the data sample
-            # @yieldretun [TrueClass,FalseClass]
+            # @yieldreturn [Boolean]
             #
             # @return [Array<Array<Time>>] extracted intervals
             # @see extract_intervals
