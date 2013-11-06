@@ -26,11 +26,13 @@ module Orocos
         attr_reader :deployments
         attr_reader :orogen_models
         attr_reader :terminated_deployments
+        attr_reader :name_service
 
         def initialize
             @deployments = Hash.new
             @orogen_models = Hash.new
             @terminated_deployments = Hash.new
+            @name_service = Orocos::Local::NameService.new
         end
 
         def load_orogen_project(name)
@@ -123,7 +125,6 @@ module Orocos
 
     class RubyDeployment < ProcessBase
         attr_reader :ruby_process_server
-        attr_reader :tasks
 
         def host_id; 'localhost' end
         def on_localhost?; true end
@@ -131,14 +132,15 @@ module Orocos
 
         def initialize(ruby_process_server, name, model)
             @ruby_process_server = ruby_process_server
-            @tasks = Hash.new
             super(name, model)
         end
 
         def spawn(options = Hash.new)
             model.task_activities.each do |deployed_task|
-                tasks[deployed_task.name] = RubyTaskContext.
+                task = RubyTaskContext.
                     from_orogen_model(get_mapped_name(deployed_task.name), deployed_task.task_model)
+                tasks << task
+                ruby_process_server.name_service.register(task)
             end
             @alive = true
         end
@@ -148,10 +150,7 @@ module Orocos
         end
 
         def task(task_name)
-            if t = tasks[task_name]
-                t
-            else raise ArgumentError, "#{self} has no task called #{task_name}"
-            end
+            super(task_name, ruby_process_server.name_service)
         end
 
         def kill(wait = true, status = RubyProcessServer::Status.new(:exit_code => 0))
