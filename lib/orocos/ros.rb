@@ -7,9 +7,29 @@ module Orocos
             @enabled = false
         end
         def self.enabled?
-            available? && @enabled && (ENV['ROS_MASTER_URI'] && ENV['ROCK_ROS_INTEGRATION'] != '0')
+            if @enabled == false
+                return false
+            elsif available? && (ENV['ROCK_ROS_INTEGRATION'] != '0')
+                return false if !ENV['ROS_MASTER_URI']
+
+                if @enabled.nil?
+                    # This is getting automatically enabled, check if it is
+                    # actually available
+                    begin
+                        Orocos::ROS.name_service
+                        Orocos.default_cmdline_arguments = Orocos.default_cmdline_arguments.merge('with-ros' => true)
+                        Orocos.debug "ROS integration was enabled, passing default arguments: #{Orocos.default_cmdline_arguments}"
+                        @enabled = true
+                    rescue Orocos::ROS::ComError
+                        Orocos.warn "ROS integration was enabled, but I cannot contact the ROS master at #{Orocos::ROS.default_ros_master_uri}, disabling"
+                        Orocos::ROS.disable
+                        Orocos.default_cmdline_arguments = Orocos.default_cmdline_arguments.delete('with-ros')
+                        @enabled = false
+                    end
+                end
+                @enabled
+            end
         end
-        @enabled = true
 
         def self.default_ros_master_uri
             ENV['ROS_MASTER_URI']
@@ -45,17 +65,3 @@ require 'orocos/ros/topic'
 require 'orocos/ros/ports'
 require 'orocos/ros/name_mappings'
 require 'orocos/ros/process_manager'
-
-# If ROS_MASTER_URI is set, auto-add the name service to the default
-# list. One can remove it manually afterwards.
-if Orocos::ROS.enabled?
-    begin
-        Orocos::ROS.name_service
-        Orocos.default_cmdline_arguments = Orocos.default_cmdline_arguments.merge('with-ros' => true)
-        Orocos.debug "ROS integration was enabled, passing default arguments: #{Orocos.default_cmdline_arguments}"
-    rescue Orocos::ROS::ComError
-        Orocos.warn "ROS integration was enabled, but I cannot contact the ROS master at #{Orocos::ROS.default_ros_master_uri}, disabling"
-        Orocos::ROS.disable
-        Orocos.default_cmdline_arguments = Orocos.default_cmdline_arguments.delete('with-ros')
-    end
-end
