@@ -52,8 +52,7 @@ module Orocos
                 launcher = nodelib.ros_launchers.find { |l| l.name == name }
 
                 if !launcher
-                    raise InternalError, "cannot find the launcher called #{name} in #{nodelib}.
-                    Candidates were #{nodelib.deployers.map(&:name).join(", ")}"
+                    raise InternalError, "cannot find the launcher called #{name} in #{nodelib}. Candidates were #{nodelib.deployers.map(&:name).join(", ")}"
                 end
                 return launcher
             end
