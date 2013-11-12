@@ -26,15 +26,16 @@ module Orocos
             attr_reader :dying_launcher_processes
 
             # @return [Orocos::ROS::NameService] the ROS nameservice used by this process manager
-            attr_reader :name_service
+            def name_service
+                @name_service ||= Orocos::ROS.name_service
+            end
+
+            attr_writer :name_service
 
             # Initialize process server
             def initialize
                 @launcher_processes = Hash.new
                 @dying_launcher_processes = Array.new
-
-                # Allow to adjust the update frequency of the nameservice to manage cpu costs
-                @name_service = Orocos::ROS.name_service
             end 
 
             # Loading a ros launcher definition, which corresponds to 
