@@ -426,16 +426,29 @@ module Orocos
 
             deployments, models = Hash.new, Hash.new
             names.each { |n| mapped_names[n] = nil }
-            mapped_names.each do |name, new_name|
-                if Orocos.available_task_models[name.to_s]
+            mapped_names.each do |object, new_name|
+                # If given a name, resolve to the corresponding oroGen spec
+                # object
+                if object.respond_to?(:to_str) || object.respond_to?(:to_sym)
+                    object = object.to_s
+                    if Orocos.available_task_models[object]
+                        object = Orocos.task_model_from_name(object)
+                    elsif Orocos.available_deployments[object]
+                        object = Orocos.deployment_model_from_name(object)
+                    else
+                        raise ArgumentError, "#{object} is neither a task model nor a deployment name"
+                    end
+                end
+
+                case object
+                when Orocos::Spec::TaskContext
                     if !new_name
                         raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
                     end
-                    models[name.to_s] = new_name
-                elsif Orocos.available_deployments[name.to_s]
-                    deployments[name.to_s] = (new_name if new_name)
-                else
-                    raise ArgumentError, "#{name} is neither a task model nor a deployment name"
+                    models[object] = new_name
+                when Orocos::Spec::Deployment
+                    deployments[object] = (new_name if new_name)
+                else raise ArgumentError, "expected a task context model or a deployment model, got #{object}"
                 end
             end
             return deployments, models, options
@@ -455,10 +468,10 @@ module Orocos
 
             valgrind = parse_cmdline_wrapper_option(
                 'valgrind', process_options[:valgrind], process_options[:valgrind_options],
-                deployments.keys + models.values)
+                deployments.keys.map(&:name) + models.values)
             gdb = parse_cmdline_wrapper_option(
                 'gdbserver', process_options[:gdb], process_options[:gdb_options],
-                deployments.keys + models.values)
+                deployments.keys.map(&:name) + models.values)
 
             name_mappings = resolve_name_mappings(deployments, models)
             processes = name_mappings.map do |deployment_name, mappings, name|
@@ -505,22 +518,22 @@ module Orocos
         
         def self.resolve_name_mappings(deployments, models)
             processes = []
-            processes += deployments.map do |process_name, prefix|
-                mapped_name   = process_name
+            processes += deployments.map do |deployment, prefix|
+                mapped_name   = deployment.name
                 name_mappings = Hash.new
                 if prefix
                     name_mappings, _ = ProcessBase.resolve_prefix_option(
                         Hash[:prefix => prefix],
-                        Orocos.deployment_model_from_name(process_name))
-                    mapped_name = "#{prefix}#{process_name}"
+                        deployment)
+                    mapped_name = "#{prefix}#{deployment.name}"
                 end
 
-                [process_name, name_mappings, mapped_name]
+                [deployment.name, name_mappings, mapped_name]
             end
-            models.each do |model_name, desired_names|
+            models.each do |model, desired_names|
                 desired_names = [desired_names] unless desired_names.kind_of? Array 
                 desired_names.each do |desired_name|
-                    process_name = Orocos::Generation.default_deployment_name(model_name)
+                    process_name = Orocos::Generation.default_deployment_name(model.name)
                     name_mappings = Hash[
                         process_name => desired_name,
                         "#{process_name}_Logger" => "#{desired_name}_Logger"]
