@@ -33,10 +33,6 @@ module Orocos
                 @launcher_processes = Hash.new
                 @dying_launcher_processes = Array.new
 
-                # Make sure ROS has been loaded, otherwise no
-                # ros specific projects will be found
-                Orocos::ROS.load
-
                 # Allow to adjust the update frequency of the nameservice to manage cpu costs
                 @name_service = Orocos::ROS.name_service
             end 
