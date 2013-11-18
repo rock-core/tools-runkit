@@ -1,5 +1,4 @@
 require 'orogen'
-require 'orogen/gen'
 module Orocos
     module Rake
         USE_MQUEUE =
@@ -25,6 +24,8 @@ module Orocos
         # orogen description file +src+. The compiled package is installed in
         # +prefix+
         def self.generate_and_build(src, work_basedir, transports = nil)
+            require 'orogen/gen'
+
             src_dir  = File.dirname(src)
             src_name = File.basename(src_dir)
 
