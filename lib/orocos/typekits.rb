@@ -88,11 +88,9 @@ module Orocos
     end
 
     def self.find_typekit_pkg(name)
-        begin
-            Utilrb::PkgConfig.new("#{name}-typekit-#{Orocos.orocos_target}")
-        rescue Utilrb::PkgConfig::NotFound
-            raise NotFound, "the '#{name}' typekit is not available to pkgconfig"
-        end
+        Utilrb::PkgConfig.new("#{name}-typekit-#{Orocos.orocos_target}")
+    rescue Utilrb::PkgConfig::NotFound
+        raise TypekitNotFound, "the '#{name}' typekit is not available to pkgconfig"
     end
 
     def self.load_typekit_plugins(name, typekit_pkg = nil)
