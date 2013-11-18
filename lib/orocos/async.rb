@@ -16,4 +16,7 @@ require 'orocos/async/task_context_proxy'
 require 'orocos/async/log/task_context'
 require 'orocos/async/log/ports'
 require 'orocos/async/log/attributes'
+
+if Orocos::ROS.available?
 require 'orocos/ros/async'
+end
