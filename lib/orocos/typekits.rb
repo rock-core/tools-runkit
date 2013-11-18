@@ -301,7 +301,29 @@ module Orocos
         type.name
     end
 
+    def self.max_sizes(typename = nil, *sizes, &block)
+        @max_sizes ||= Hash.new
+
+        if !typename && sizes.empty?
+            return @max_sizes
         end
+
+        type = default_loader.resolve_type(typename)
+        type = default_loader.intermediate_type_for(type)
+        sizes = Orocos::Spec::Port.validate_max_sizes_spec(type, sizes)
+        @max_sizes[type.name].merge!(sizes, &block)
+    end
+
+    def self.max_sizes_for(type)
+        if type.respond_to?(:name)
+            type = type.name
+        end
+        max_sizes[type] || Hash.new
+    end
+
+    def self.normalize_typename(typename)
+        load_typekit_for(typename)
+        registry.get(typename).name
     end
 end
 
