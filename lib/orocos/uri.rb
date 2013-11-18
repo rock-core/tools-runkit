@@ -1,3 +1,4 @@
+require 'uri'
 module URI
     class Orocos < URI::Generic
         class << self
