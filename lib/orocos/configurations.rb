@@ -634,15 +634,17 @@ module Orocos
         # returns false if nothing was loaded or if the configuration was already loaded 
         # Otherwise, it returns a mapping from task model names to the list of
         # configuration sections that have changed for this particular model
-        def load_file(file,model_name = nil)
+        def load_file(file, model = nil)
             return if !File.file?(file)
-            model_name ||= File.basename(file, '.yml')
 
-            begin
-                model = Orocos.task_model_from_name(model_name)
-            rescue Orocos::NotFound
-                ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
-                return false
+            if !model || model.respond_to?(:to_str)
+                model_name = model || File.basename(file, '.yml')
+                begin
+                    model = Orocos.task_model_from_name(model_name)
+                rescue Orocos::NotFound
+                    ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
+                    return false
+                end
             end
 
             ConfigurationManager.info "loading configuration file #{file} for #{model.name}"

@@ -44,7 +44,7 @@ module Orocos
             end
 
             def pretty_print(pp) # :nodoc:
-                pp.text " #{name} (#{type_name}), ros: #{topic_name}(#{ros_message_type})"
+                pp.text " #{name} (#{orocos_type_name}), ros: #{topic_name}(#{ros_message_type})"
             end
 
             def ==(other)
@@ -65,6 +65,7 @@ module Orocos
             #
             # @param [#to_orocos_port] sink the sink port
             def connect_to(sink, policy = Hash.new)
+                Orocos::ROS.debug "connect output topic #{self} to #{sink} with policy: #{policy}"
                 if sink.respond_to?(:to_topic)
                     sink = sink.to_topic
                     if self.task.running? || sink.task.running?

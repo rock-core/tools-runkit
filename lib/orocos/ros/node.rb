@@ -44,7 +44,7 @@ module Orocos
                 end
 
                 with_defaults, options = Kernel.filter_options options,
-                    :model => Orocos::ROS::Spec::Node.new,
+                    :model => Orocos::ROS::Spec::Node.new(nil,name),
                     :namespace => name_service.namespace
                 options = options.merge(with_defaults)
 
@@ -65,13 +65,14 @@ module Orocos
 
                 if running?
                     @state_queue << :RUNNING
-                else @state_queue << :STOPPED
+                else
+                    @state_queue << :PRE_OPERATIONAL
                 end
             end
 
             def ros_name
                 _, basename = split_name(name)
-                "/#{basename}"
+                Orocos::ROS.rosnode_normalize_name(basename)
             end
 
             def ==(other)
@@ -117,11 +118,22 @@ module Orocos
 
             def configure(wait_for_completion = true)
                 # This is a no-op for ROS nodes
+                if state == :PRE_OPERATIONAL
+                    @state_queue << :STOPPED
+                else
+                    Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true configuration of #{self} is not supported."
+                    raise StateTransitionFailed, "#{self} cannot be configured in state #{state}"
+                end
             end
 
             def start(wait_for_completion = true)
                 if running?
-                    raise StateTransitionFailed, "#{self} is already running"
+                    if state == :RUNNING
+                        raise StateTransitionFailed, "#{self} is already running"
+                    else
+                        @state_queue << :RUNNING
+                        Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true start of #{self} is not performed, since the node was already started."
+                    end
                 end
 
                 spawn
@@ -131,6 +143,11 @@ module Orocos
             end
 
             def stop(wait_for_completion = true)
+                @state_queue << :STOPPED
+                Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true stopping of Orocos::ROS::Node is not performed. Use #shutdown for halting"
+            end
+
+            def shutdown(wait_for_completion = true)
                 if !running?
                     raise StateTransitionFailed, "#{self} is not running"
                 end
@@ -164,24 +181,11 @@ module Orocos
                 @exit_status = nil
             end
 
-            def rospack_find(package_name, binary_name)
-                package_path = (`rospack find #{package_name}` || '').strip
-                if package_path.empty?
-                    raise ArgumentError, "rospack cannot find package #{package_name}"
-                end
-
-                bin_path = File.join(package_path, 'bin', binary_name)
-                if !File.file?(bin_path)
-                    raise ArgumentError, "there is no node called #{binary_name} in #{package_name} (looked in #{bin_path})"
-                end
-                bin_path
-            end
-
             # Starts this node
             def spawn
                 args = name_mappings.to_command_line
                 package_name, bin_name = *model.name.split("::")
-                binary = rospack_find(package_name.gsub(/^ros_/, ''), bin_name)
+                binary = Orocos::ROS.rosnode_find(package_name.gsub(/^ros_/, ''), bin_name)
                 @pid = Utilrb.spawn binary, "__name:=#{name}", *args
             end
 
@@ -250,13 +254,17 @@ module Orocos
             def operation_names; [] end
 
             def has_port?(name)
-                !!(find_output_port(name) || find_input_port(name))
+                verify = true
+                if model.spec_available?
+                    verify = false
+                end
+                !!(find_output_port(name, verify) || find_input_port(name, verify))
             end
 
             def port(name, verify = true)
                 p = (find_output_port(name, verify) || find_input_port(name, verify))
                 if !p
-                    raise Orocos::NotFound, "cannot find topic #{name} attached to node #{name}"
+                    raise Orocos::NotFound, "cannot find topic #{name} attached to node #{self.name}"
                 end
                 p
             end
@@ -282,7 +290,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_output_port(name, verify = true, wait_if_unavailable = true)
                 each_output_port(verify) do |p|
-                    if p.name == name || p.topic_name == name
+                    if p.name == name || p.topic_name == ::Orocos::ROS.normalize_topic_name(name)
                         return p
                     end
                 end
@@ -297,7 +305,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_input_port(name, verify = true, wait_if_unavailable = true)
                 each_input_port(verify) do |p|
-                    if p.name == name || p.topic_name == name
+                    if p.name == name || p.topic_name == ::Orocos::ROS.normalize_topic_name(name)
                         return p
                     end
                 end
@@ -317,7 +325,7 @@ module Orocos
             # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
             def resolve_output_topic_name(topic_name)
                 model.each_output_port do |m|
-                    if apply_name_mappings(m.topic_name) == topic_name
+                    if apply_name_mappings(m.topic_name) == ::Orocos::ROS.normalize_topic_name(topic_name)
                         return m.name, m
                     end
                 end
@@ -328,7 +336,7 @@ module Orocos
             # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
             def resolve_input_topic_name(topic_name)
                 model.each_input_port do |m|
-                    if apply_name_mappings(m.topic_name) == topic_name
+                    if apply_name_mappings(m.topic_name) == ::Orocos::ROS.normalize_topic_name(topic_name)
                         return m.name, m
                     end
                 end
@@ -427,6 +435,10 @@ module Orocos
                 if !name_service.has_node?(name)
                     raise Orocos::ComError, "ROS node #{name} is not available on the ROS graph anymore"
                 end
+            end
+
+            def log_all_configuration(logfile)
+                # n/a for ROS node
             end
         end
     end
