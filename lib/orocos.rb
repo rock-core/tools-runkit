@@ -31,7 +31,12 @@ end
 
 module Orocos
     OROCOSRB_LIB_DIR = File.expand_path('orocos', File.dirname(__FILE__))
+
+    extend Logger::Root('orocos.rb', Logger::WARN)
 end
+
+require 'orogen'
+require 'utilrb/module/attr_predicate'
 
 require 'orocos/namespace'
 require 'orocos/logging'

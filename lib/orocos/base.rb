@@ -1,11 +1,6 @@
-require 'orogen'
-require 'typelib'
-require 'utilrb/module/attr_predicate'
-require 'orogen'
-
 # The Orocos main class
 module Orocos
-    class InternalError < Exception; end
+    class InternalError < RuntimeError; end
     class AmbiguousName < RuntimeError; end
     class PropertyChangeRejected < RuntimeError; end
 
