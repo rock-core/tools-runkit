@@ -381,15 +381,6 @@ module Orocos::Async
             super + "." + @subfield.join(".")
         end
 
-        def find_orocos_type_name_by_type(type)
-            type = Orocos.master_project.find_opaque_for_intermediate(type) || type
-            type = Orocos.master_project.find_interface_type(type)
-            if Orocos.registered_type?(type.name)
-                type.name
-            else Typelib::Registry.rtt_typename(type)
-            end
-        end
-
         def orocos_type_name
             type.name
         end
