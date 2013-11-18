@@ -330,7 +330,7 @@ module Orocos
         # @param [Model<Typelib::Type>,String] type the type or type name
         # @return [Property] the property object
         def create_property(name, type)
-            orocos_type_name = find_orocos_type_name_by_type(type)
+            orocos_type_name = Orocos.find_orocos_type_name_by_type(type)
             Orocos.load_typekit_for orocos_type_name
             local_property = @local_task.do_create_property(Property, name, orocos_type_name)
             @local_properties[local_property.name] = local_property
@@ -389,19 +389,6 @@ module Orocos
             nil
         end
 
-        def find_orocos_type_name_by_type(type)
-            if type.respond_to?(:name)
-                type = type.name
-            end
-            type = Orocos.master_project.find_type(type)
-            type = Orocos.master_project.find_opaque_for_intermediate(type) || type
-            type = Orocos.master_project.find_interface_type(type)
-            if Orocos.registered_type?(type.name)
-                type.name
-            else Typelib::Registry.rtt_typename(type)
-            end
-        end
-
         private
 
         # Helper method for create_input_port and create_output_port
@@ -409,7 +396,7 @@ module Orocos
             # Load the typekit, but no need to check on it being exported since
             # #find_orocos_type_name_by_type will do it for us
             Orocos.load_typekit_for(type, false)
-            orocos_type_name = find_orocos_type_name_by_type(type)
+            orocos_type_name = Orocos.find_orocos_type_name_by_type(type)
             Orocos.load_typekit_for(orocos_type_name, true)
 
             options = Kernel.validate_options options, :permanent => true

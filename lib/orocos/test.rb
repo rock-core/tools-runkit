@@ -22,7 +22,9 @@ module Orocos
             end
 
             def mock_task_context_model(&block)
-                flexmock(Orocos.create_orogen_interface(&block))
+                project = OroGen::Spec::Project.new
+                interface = project.task_context(nil, &block)
+                flexmock(interface)
             end
 
             def mock_input_port(port_model)
