@@ -187,27 +187,9 @@ module Orocos
             cmd_code = socket.read(1)
             raise EOFError if !cmd_code
 
-            if cmd_code == COMMAND_LOAD_PROJECT
-                project_name, _ = Marshal.load(socket)
-                Orocos.debug "#{socket} requested project loading for project #{project_name}"
-                begin
-                    project = Orocos.default_loader.project_model_from_name(project_name)
-                    socket.write("Y")
-                rescue Exception => e
-                    Orocos.debug "loading project #{project_name} failed with #{e.message}"
-                    socket.write("N")
-                end
-
-            elsif cmd_code == COMMAND_PRELOAD_TYPEKIT
-                typekit_name, _ = Marshal.load(socket)
-                Orocos.debug "#{socket} requested typekit loading for typekit #{typekit_name}"
-                begin
-                    Orocos::CORBA.load_typekit(typekit_name)
-                    socket.write("Y")
-                rescue Exception => e
-                    Orocos.debug "loading typekit #{typekit_name} failed with #{e.message}"
-                    socket.write("N")
-                end
+            if cmd_code == COMMAND_GET_PID
+                Orocos.debug "#{socket} requested PID"
+                Marshal.dump([::Process.pid], socket)
 
             elsif cmd_code == COMMAND_GET_INFO
                 Orocos.debug "#{socket} requested system information"
@@ -226,7 +208,7 @@ module Orocos
                 Orocos.available_deployments.each do |name, pkg|
                     available_deployments[name] = pkg.project_name
                 end
-                Marshal.dump([available_projects, available_deployments, available_typekits, ::Process.pid], socket)
+                Marshal.dump([available_projects, available_deployments, available_typekits], socket)
             elsif cmd_code == COMMAND_MOVE_LOG
                 Orocos.debug "#{socket} requested moving a log directory"
                 begin

@@ -7,3 +7,4 @@ end
 require 'orocos/remote_processes/protocol'
 require 'orocos/remote_processes/client'
 require 'orocos/remote_processes/process'
+require 'orocos/remote_processes/loader'

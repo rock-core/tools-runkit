@@ -61,78 +61,42 @@ module Orocos
 
             socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
             socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-            socket.write(COMMAND_GET_INFO)
-
-	    if !select([socket], [], [], 2)
-	       raise "timeout while reading process server at '#{host}:#{port}'"
-	    end
-            info = begin Marshal.load(socket)
-                   rescue EOFError
-                       raise StartupFailed, "process server failed at '#{host}:#{port}'"
-                   end
 
             options = Kernel.validate_options options,
                 :name_service => Orocos.name_service
             @name_service = options[:name_service]
 
-            @available_projects    = info[0]
-            @available_deployments = info[1]
-            @available_typekits    = info[2]
-            @server_pid            = info[3]
+
+            begin
+                @server_pid = pid
+            rescue EOFError
+                raise StartupFailed, "process server failed at '#{host}:#{port}'"
+            end
+
+            @loader = Loader.new(*info[0..2])
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"
-            @loaded_orogen_projects = Set.new
         end
 
-        # Loads the oroGen project definition called 'name' using the data the
-        # process server sent us.
-        def load_orogen_project(name)
-            name = name.to_str
-            if !available_projects[name]
-                raise ArgumentError, "there is no orogen project called #{name} on #{host}:#{port}"
+        def pid
+            if @server_pid
+                return @server_pid
             end
 
-            if @loaded_orogen_projects.include?(name)
-                Orocos.master_project.load_orogen_project(name)
-            end
-
-            # Ask the process server to load the information about that project.
-            # This reduces the process startup overhead quite heavily
-            socket.write(COMMAND_LOAD_PROJECT)
-            Marshal.dump([name], socket)
-            if !wait_for_ack
-                raise ArgumentError, "process server could not load information about the project #{name}"
-            end
-
-	    Orocos.master_project.register_orogen_file(available_projects[name], name)
-	    project = Orocos.master_project.load_orogen_project(name)
-            @loaded_orogen_projects << name.to_s
-            project
+            socket.write(COMMAND_GET_PID)
+	    if !select([socket], [], [], 2)
+	       raise "timeout while reading process server at '#{host}:#{port}'"
+	    end
+            @server_pid = Marshal.load(socket)
         end
 
-        # Returns the StaticDeployment instance that represents the remote
-        # deployment +deployment_name+
-        def load_orogen_deployment(deployment_name)
-            project_name = available_deployments[deployment_name]
-            if !project_name
-                raise ArgumentError, "there is no deployment called #{deployment_name} on #{host}:#{port}"
-            end
-
-            tasklib = load_orogen_project(project_name)
-            deployment = tasklib.deployers.find { |d| d.name == deployment_name }
-            if !deployment
-                raise InternalError, "cannot find the deployment called #{deployment_name} in #{tasklib}. Candidates were #{tasklib.deployers.map(&:name).join(", ")}"
-            end
-            deployment
-        end
-
-        def preload_typekit(name)
-            socket.write(COMMAND_PRELOAD_TYPEKIT)
-            Marshal.dump([name], socket)
-            if !wait_for_ack
-                raise ArgumentError, "process server could not load information about the project #{name}"
-            end
+        def info
+            socket.write(COMMAND_GET_INFO)
+	    if !select([socket], [], [], 2)
+	       raise "timeout while reading process server at '#{host}:#{port}'"
+	    end
+            Marshal.load(socket)
         end
 
         def disconnect
@@ -185,7 +149,7 @@ module Orocos
                     raise Failed, "failed to start #{deployment_name}"
                 elsif pid_s == "P"
                     pid = Marshal.load(socket)
-                    process = RemoteProcess.new(process_name, deployment_name, self, pid)
+                    process = Process.new(process_name, deployment_name, self, pid)
                     process.name_mappings = name_mappings
                     processes[process_name] = process
                     return process
