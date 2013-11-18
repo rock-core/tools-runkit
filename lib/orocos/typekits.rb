@@ -120,8 +120,8 @@ module Orocos
             if type_name =~ /orogen_typekits/ # just ignore those
             elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
             elsif base_type.contains_opaques? # register the intermediate instead
-                master_typekit.intermediate_type_for(base_type)
-            elsif master_typekit.m_type?(base_type) # just ignore, they are registered as the opaque
+                default_loader.intermediate_type_for(base_type)
+            elsif default_loader.m_type?(base_type) # just ignore, they are registered as the opaque
             else exported_type
             end
         end
@@ -162,7 +162,7 @@ module Orocos
 
         plugin_name = typekit_library_name(name, Orocos.orocos_target)
         plugins[plugin_name] = [typekit_pkg || find_typekit_pkg(name), true]
-        if Orocos::Generation::VERSION >= "0.8"
+        if OroGen::VERSION >= "0.8"
             AUTOLOADED_TRANSPORTS.each do |transport_name, required|
                 plugin_name = transport_library_name(name, transport_name, Orocos.orocos_target)
                 begin
@@ -200,7 +200,11 @@ module Orocos
     # Raises ArgumentError if this type is registered nowhere, or if +exported+
     # is true and the type is not exported.
     def self.load_typekit_for(typename, exported = true)
-        default_pkgconfig_loader.typekit_for(typename, exported)
+        typekit = default_pkgconfig_loader.typekit_for(typename, exported)
+        if !typekit.virtual?
+            load_typekit typekit.name
+        end
+        typekit
     end
 
     # Returns the type that is used to manipulate +t+ in Typelib
@@ -226,7 +230,7 @@ module Orocos
         if registry.include?(t)
             type = registry.get(t)
             if type.contains_opaques?
-                master_typekit.intermediate_type_for(type)
+                default_loader.intermediate_type_for(type)
             elsif type.null?
                 # 't' is an opaque type and there are no typelib marshallers
                 # to convert it to something we can manipulate, raise
@@ -254,7 +258,7 @@ module Orocos
     #
     # @param [Typelib::Type,String] typelib_type
     def self.orocos_type_for(typelib_type)
-        master_project.find_opaque_for_intermediate(typelib_type) || typelib_type
+        default_loader.find_opaque_for_intermediate(typelib_type) || typelib_type
     end
 
     # Finds the typelib type that maps to the given orocos type name
@@ -286,16 +290,19 @@ module Orocos
         end
     end
 
-    def find_orocos_type_name_by_type(type)
+    def self.find_orocos_type_name_by_type(type)
         if type.respond_to?(:name)
             type = type.name
         end
-        type = master_typekit.resolve_type(type)
-        type = master_typekit.find_opaque_for_intermediate(type) || type
-        type = master_typekit.find_interface_type(type)
-        if registered_type?(type.name)
-            type.name
-        else Typelib::Registry.rtt_typename(type)
+        type = default_loader.resolve_type(type)
+        type = default_loader.opaque_type_for(type)
+        type = default_loader.resolve_interface_type(type)
+        if !registered_type?(type.name)
+            load_typekit_for(type.name)
+        end
+        type.name
+    end
+
         end
     end
 end

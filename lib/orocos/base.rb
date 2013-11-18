@@ -4,6 +4,9 @@ module Orocos
     class AmbiguousName < RuntimeError; end
     class PropertyChangeRejected < RuntimeError; end
 
+    class NotFound < RuntimeError; end
+    class TypekitNotFound < NotFound; end
+
     def self.register_pkgconfig_path(path)
     	base_path = caller(1).first.gsub(/:\d+:.*/, '')
 	ENV['PKG_CONFIG_PATH'] = "#{File.expand_path(path, File.dirname(base_path))}:#{ENV['PKG_CONFIG_PATH']}"
@@ -58,7 +61,12 @@ module Orocos
     #
     # @see default_loader
     def self.default_pkgconfig_loader
-        @default_pkgconfig_loader ||= OroGen::Loaders::PkgConfig.new(orocos_target)
+        if !@default_pkgconfig_loader
+            loader = OroGen::Loaders::PkgConfig.new(orocos_target)
+            OroGen::Loaders::RTT.setup_loader(loader)
+            @default_pkgconfig_loader = loader
+        end
+        @default_pkgconfig_loader
     end
 
     def self.orocos_target
@@ -93,6 +101,16 @@ module Orocos
         !!@default_loader
     end
 
+    def self.load_extension_runtime_library(extension_name)
+        if !known_orogen_extensions.include?(extension_name)
+            begin
+                require "runtime/#{extension.name}"
+            rescue LoadError
+            end
+            known_orogen_extensions << extension_name
+        end
+    end
+
     def self.load(name = nil)
         if ENV['ORO_LOGFILE'] && orocos_logfile && (ENV['ORO_LOGFILE'] != orocos_logfile)
             raise "trying to change the path to ORO_LOGFILE from #{orocos_logfile} to #{ENV['ORO_LOGFILE']}. This is not supported"
@@ -100,31 +118,28 @@ module Orocos
         ENV['ORO_LOGFILE'] ||= File.expand_path("orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt")
         @orocos_logfile = ENV['ORO_LOGFILE']
 
-        if @available_projects && !@available_projects.empty?
-            return
-        end
-
-        if @registry
-            raise ArgumentError, "you must call Orocos.clear before calling Orocos.load again"
-        end
-
         @conf = ConfigurationManager.new
-        @master_project = OroGen::Spec::Project.new
-        @registry = Typelib::Registry.new
-        default_loader.on_project_load do |project|
-            if !project.self_tasks.empty?
-                master_project.using_task_library project
-            end
-        end
+        @loaded_typekit_plugins.clear
+        @max_sizes = Hash.new
         default_loader.on_typekit_load do |typekit|
-            master_project.using_typekit typekit
-            if Orocos.export_types?
-                Orocos.info "exporting registry to Ruby"
+            if export_types?
                 Orocos.export_registry_to_ruby
             end
         end
-        @loaded_typekit_plugins.clear
+        default_loader.on_project_load do |project|
+            project.self_tasks.each do |task|
+                task.each_extension do |ext|
+                    load_extension_runtime_library(ext.name)
+                end
+            end
+
+            if export_types?
+                Orocos.export_registry_to_ruby
+            end
+        end
+
         load_standard_typekits
+
 
         if Orocos::ROS.enabled?
             if !Orocos::ROS.loaded?
@@ -138,12 +153,11 @@ module Orocos
     end
 
     def self.clear
-        @default_loader = nil
         @ruby_task.dispose if @ruby_task
         if export_types? && registry
             registry.clear_exports(type_export_namespace)
         end
-        @registry = nil
+        @default_loader = nil
 
         name_service.clear
         if defined? Orocos::Async
@@ -215,9 +229,12 @@ module Orocos
                 Orocos::Async.name_service.add(ns)
             end
         end
-        @ruby_task = RubyTasks::TaskContext.new(name)
-
         Orocos.load_typekit 'std'
+        @ruby_task = RubyTasks::TaskContext.new(name)
+    end
+
+    def self.create_orogen_task_context_model(name = nil)
+        OroGen::Spec::TaskContext.new(OroGen::Spec::Project.new(default_loader), name)
     end
 end
 

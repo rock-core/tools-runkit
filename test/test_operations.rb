@@ -70,7 +70,7 @@ describe Orocos::Operation do
 
     it "should be able to get the operation signatures" do
         assert_operation_signature [], [], 'empty'
-        assert_operation_signature ['int'], ['/Test/Parameters'], 'simple'
+        assert_operation_signature ['/int32_t'], ['/Test/Parameters'], 'simple'
         assert_operation_signature ['/Test/Parameters'], ['/Test/Parameters'], 'simple_with_return'
         assert_operation_signature ['/Test/Opaque'], ['/Test/Parameters'], 'with_returned_opaque'
         assert_operation_signature ['/Test/Parameters'], ['/Test/Opaque'], 'with_opaque_argument'

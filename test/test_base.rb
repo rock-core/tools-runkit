@@ -16,20 +16,36 @@ describe "the Orocos module" do
         Orocos.task_names
     end
 
-    it "should be able to list all available task libraries" do
-        test_deployments = %w{configurations echo operations process simple_sink simple_source states system_test uncaught}
-        assert((test_deployments.to_set - Orocos.available_task_libraries.keys.to_set).empty?)
-
-        pkgconfig_names = test_deployments.
-            map { |name| "#{name}-tasks-#{Orocos.orocos_target}" }.
-            sort
-        assert((pkgconfig_names.to_set - Orocos.available_task_libraries.values.map(&:name).to_set).to_set)
-    end
-
-    it "should be able to list all available task models" do
-        assert_equal 'echo', Orocos.available_task_models['echo::Echo']
-        assert_equal 'process', Orocos.available_task_models['process::Test']
-        assert_equal 'simple_sink', Orocos.available_task_models['simple_sink::sink']
+    describe "#find_orocos_type_name_by_type" do
+        before do
+            Orocos.load_typekit 'echo'
+        end
+        it "can be given an opaque type directly" do
+            assert_equal '/OpaquePoint', Orocos.find_orocos_type_name_by_type('/OpaquePoint')
+            assert_equal '/OpaquePoint', Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/OpaquePoint'))
+        end
+        it "can be given an opaque-containing type directly" do
+            assert_equal '/OpaqueContainingType', Orocos.find_orocos_type_name_by_type('/OpaqueContainingType')
+            assert_equal '/OpaqueContainingType', Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/OpaqueContainingType'))
+        end
+        it "converts a non-exported intermediate type to the corresponding opaque" do
+            assert_equal '/OpaquePoint', Orocos.find_orocos_type_name_by_type('/echo/Point')
+            assert_equal '/OpaquePoint', Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/echo/Point'))
+        end
+        it "converts a non-exported m-type to the corresponding opaque-containing type" do
+            assert_equal '/OpaqueContainingType', Orocos.find_orocos_type_name_by_type('/OpaqueContainingType_m')
+            assert_equal '/OpaqueContainingType', Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/OpaqueContainingType_m'))
+        end
+        it "successfully converts a basic type to the corresponding orocos type name" do
+            typename = Orocos.registry.get('int').name
+            refute_equal 'int', typename
+            assert_equal '/int32_t', Orocos.find_orocos_type_name_by_type(typename)
+            assert_equal '/int32_t', Orocos.find_orocos_type_name_by_type(Orocos.registry.get('int'))
+        end
+        it "raises if given a non-exported type" do
+            assert_raises(Orocos::ConfigError) { Orocos.find_orocos_type_name_by_type('/NonExportedType') }
+            assert_raises(Orocos::ConfigError) { Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/NonExportedType')) }
+        end
     end
 end
 

@@ -47,9 +47,9 @@ describe Orocos::RubyTaskContext do
 
     it "can write and read on ports" do
         producer = new_ruby_task_context("producer")
-        out_p = producer.create_output_port("p", "int")
+        out_p = producer.create_output_port("p", "/int32_t")
         consumer = new_ruby_task_context("consumer")
-        in_p = consumer.create_input_port("p", "int")
+        in_p = consumer.create_input_port("p", "/int32_t")
 
         out_p.connect_to in_p
         out_p.write 10
@@ -74,13 +74,15 @@ describe Orocos::RubyTaskContext do
     end
 
     it "allows to get access to the model name if one is given" do
-        model = Orocos::Spec::TaskContext.new(nil, 'myModel')
+        project = OroGen::Spec::Project.new(Orocos.default_loader)
+        model = OroGen::Spec::TaskContext.new(project, 'myModel')
         task = new_ruby_task_context('task', :model => model)
         assert_equal "myModel", task.getModelName
     end
 
     it "makes #model returns the oroGen model if given" do
-        model = Orocos::Spec::TaskContext.new
+        project = OroGen::Spec::Project.new(Orocos.default_loader)
+        model = Orocos::Spec::TaskContext.new(project)
         task = new_ruby_task_context('task', :model => model)
         assert_same model, task.model
     end
@@ -94,38 +96,5 @@ describe Orocos::RubyTaskContext do
         assert_equal :STOPPED, task.rtt_state
     end
 
-    describe "#find_orocos_type_name_by_type" do
-        attr_reader :ruby_task
-        before do
-            Orocos.load_typekit 'echo'
-            @ruby_task = new_ruby_task_context('task')
-        end
-        it "can be given an opaque type directly" do
-            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type('/OpaquePoint')
-            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/OpaquePoint'))
-        end
-        it "can be given an opaque-containing type directly" do
-            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type('/OpaqueContainingType')
-            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/OpaqueContainingType'))
-        end
-        it "converts a non-exported intermediate type to the corresponding opaque" do
-            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type('/echo/Point')
-            assert_equal '/OpaquePoint', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/echo/Point'))
-        end
-        it "converts a non-exported m-type to the corresponding opaque-containing type" do
-            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type('/OpaqueContainingType_m')
-            assert_equal '/OpaqueContainingType', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/OpaqueContainingType_m'))
-        end
-        it "successfully converts a basic type to the corresponding orocos type name" do
-            typename = Orocos.registry.get('int').name
-            refute_equal 'int', typename
-            assert_equal '/int32_t', ruby_task.find_orocos_type_name_by_type(typename)
-            assert_equal '/int32_t', ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('int'))
-        end
-        it "raises if given a non-exported type" do
-            assert_raises(Orocos::Generation::ConfigError) { ruby_task.find_orocos_type_name_by_type('/NonExportedType') }
-            assert_raises(Orocos::Generation::ConfigError) { ruby_task.find_orocos_type_name_by_type(Orocos.registry.get('/NonExportedType')) }
-        end
-    end
 end
 

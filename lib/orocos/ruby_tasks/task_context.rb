@@ -31,10 +31,13 @@ module Orocos
         # @param [String] name the task name
         # @return [TaskContext]
         def self.new(name, options = Hash.new, &block)
-            options, _ = Kernel.filter_options options, :model
+            options, _ = Kernel.filter_options options,
+                :model => nil,
+                :project => OroGen::Spec::Project.new(Orocos.default_loader)
 
+            project = options.delete(:project)
             if block && !options[:model]
-                model = Orocos::Spec::TaskContext.new(Orocos.master_project, name)
+                model = Orocos::Spec::TaskContext.new(options[:project], name)
                 model.instance_eval(&block)
                 options[:model] = model
             end

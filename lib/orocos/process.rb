@@ -325,8 +325,8 @@ module Orocos
         # start and supervise the execution of the given Orocos
         # component
         def initialize(name, model_name = name)
-            @model = Orocos.deployment_model_from_name(model_name)
-            @pkg = Orocos.available_deployments[model_name]
+            @model = Orocos.default_loader.deployment_model_from_name(model_name)
+            @pkg = Orocos.default_pkgconfig_loader.available_deployments[model_name]
             super(name, model)
         end
 
@@ -431,12 +431,14 @@ module Orocos
                 # object
                 if object.respond_to?(:to_str) || object.respond_to?(:to_sym)
                     object = object.to_s
-                    if Orocos.available_task_models[object]
-                        object = Orocos.task_model_from_name(object)
-                    elsif Orocos.available_deployments[object]
-                        object = Orocos.deployment_model_from_name(object)
-                    else
-                        raise ArgumentError, "#{object} is neither a task model nor a deployment name"
+                    begin
+                        object = Orocos.default_loader.task_model_from_name(object)
+                    rescue OroGen::NotFound
+                        begin
+                            object = Orocos.default_loader.deployment_model_from_name(object)
+                        rescue OroGen::NotFound
+                            raise ArgumentError, "#{object} is neither a task model nor a deployment name"
+                        end
                     end
                 end
 
