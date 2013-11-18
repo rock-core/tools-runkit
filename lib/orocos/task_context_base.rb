@@ -657,15 +657,6 @@ module Orocos
                     map { |name, type| name.to_sym if type == :fatal }.
                     compact.to_set
 
-                if model.project
-                    if model.project.typekit
-                        Orocos.load_typekit(model.project.name)
-                    end
-                    model.used_typekits.each do |tk|
-                        next if tk.virtual?
-                        Orocos.load_typekit(tk.name)
-                    end
-                end
                 if ext = Orocos.extension_modules[model.name]
                     ext.each { |m_ext| extend(m_ext) }
                 end
