@@ -232,7 +232,7 @@ module Orocos
             elsif type.null?
                 # 't' is an opaque type and there are no typelib marshallers
                 # to convert it to something we can manipulate, raise
-                raise Typelib::NotFound, "#{t} is an opaque type and there are no typelib marshallers registered in RTT to convert it to a typelib-compatible type"
+                raise Typelib::NotFound, "#{t} is a null type and there are no typelib marshallers registered in RTT to convert it to a typelib-compatible type"
             else type
             end
         else
