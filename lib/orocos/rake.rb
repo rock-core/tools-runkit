@@ -1,4 +1,5 @@
 require 'orogen'
+require 'orogen/gen'
 module Orocos
     module Rake
         USE_MQUEUE =
