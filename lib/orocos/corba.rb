@@ -54,7 +54,7 @@ module Orocos
             end
         end
 
-        # For backward compatibility reasons. Use Orocos.load_typekit instead
+        # @deprecated use {Orocos.load_typekit} instead
         def self.load_typekit(name)
             Orocos.load_typekit(name)
         end
