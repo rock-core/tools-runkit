@@ -14,8 +14,10 @@ module Orocos::Async
                       :attribute_unreachable,
                       :state_change
 
-        # writes all ports and properties of the given task to a
-        # RubyTaskContext
+        # Creates a {RubyTasks::TaskContext} on which all values passed to the
+        # given task should be mirrored
+        #
+        # @return [RubyTasks::TaskContext]
         def self.to_ruby(task)
             begin
                 t = Orocos::CORBA.name_service.get(task.basename)
@@ -24,7 +26,7 @@ module Orocos::Async
                     "registered on the main CORBA name service."
             rescue Orocos::NotFound
             end
-            t = Orocos::RubyTaskContext.new(task.basename)
+            t = Orocos::RubyTasks::TaskContext.new(task.basename)
             task.on_port_reachable do |port|
                 next if t.has_port?(port)
                 port = task.port(port)
@@ -94,7 +96,7 @@ module Orocos::Async
         # writes all ports and properties to a
         # RubyTaskContext
         def to_ruby
-            @ruby_task_context ||= TaskContextBase::to_ruby(self)
+            @ruby_task_context ||= TaskContextBase.to_ruby(self)
         end
 
         def ruby_task_context?

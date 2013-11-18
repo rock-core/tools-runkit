@@ -198,7 +198,7 @@ module Orocos
         end
 
         def new_ruby_task_context(name, options = Hash.new, &block)
-            task = Orocos::RubyTaskContext.new(name, options, &block)
+            task = Orocos::RubyTasks::TaskContext.new(name, options, &block)
             @allocated_task_contexts << task
             task
         end

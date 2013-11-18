@@ -39,12 +39,21 @@ module Orocos::Async
                 end
             end
 
-            # writes all ports and properties to a
-            # RubyTaskContext
+            # Creates a {RubyTasks::TaskContext} on which all logged values
+            # should be mirrored
+            #
+            # It will create only one such task context, i.e. the method will
+            # always return the same object
+            #
+            # @return [RubyTasks::TaskContext]
             def to_ruby
-                @ruby_task_context ||= TaskContextBase::to_ruby(self)
+                @ruby_task_context ||= TaskContextBase.to_ruby(self)
             end
 
+            # Checks whether this log task has a corresponding ruby task context
+            #
+            # @return [Boolean]
+            # @see to_ruby
             def ruby_task_context?
                 !!@ruby_task_context
             end

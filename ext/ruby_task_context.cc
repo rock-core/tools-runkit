@@ -285,7 +285,8 @@ static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE r
 
 void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOutputPort, VALUE cInputPort)
 {
-    cRubyTaskContext = rb_define_class_under(mOrocos, "RubyTaskContext", cTaskContext);
+    VALUE mRubyTasks = rb_define_module_under(mOrocos, "RubyTasks");
+    cRubyTaskContext = rb_define_class_under(mRubyTasks, "TaskContext", cTaskContext);
     cLocalTaskContext = rb_define_class_under(cRubyTaskContext, "LocalTaskContext", rb_cObject);
     rb_define_singleton_method(cLocalTaskContext, "new", RUBY_METHOD_FUNC(local_task_context_new), 1);
     rb_define_method(cLocalTaskContext, "dispose", RUBY_METHOD_FUNC(local_task_context_dispose), 0);
@@ -295,9 +296,9 @@ void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOut
     rb_define_method(cLocalTaskContext, "do_remove_port", RUBY_METHOD_FUNC(local_task_context_remove_port), 1);
     rb_define_method(cLocalTaskContext, "do_create_property", RUBY_METHOD_FUNC(local_task_context_create_property), 3);
 
-    cLocalOutputPort = rb_define_class_under(mOrocos, "LocalOutputPort", cOutputPort);
+    cLocalOutputPort = rb_define_class_under(mRubyTasks, "LocalOutputPort", cOutputPort);
     rb_define_method(cLocalOutputPort, "do_write", RUBY_METHOD_FUNC(local_output_port_write), 2);
-    cLocalInputPort = rb_define_class_under(mOrocos, "LocalInputPort", cInputPort);
+    cLocalInputPort = rb_define_class_under(mRubyTasks, "LocalInputPort", cInputPort);
     rb_define_method(cLocalInputPort, "do_read", RUBY_METHOD_FUNC(local_input_port_read), 3);
     rb_define_method(cLocalInputPort, "do_clear", RUBY_METHOD_FUNC(local_input_port_clear), 0);
 }

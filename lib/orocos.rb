@@ -45,6 +45,12 @@ require 'orocos/operations'
 require 'orocos/process'
 require 'orocos/corba'
 require 'orocos/mqueue'
+
+# Updated file layout for ruby tasks
+require 'orocos/ruby_tasks'
+require 'orocos/input_reader'
+require 'orocos/output_writer'
+# This backward-compatibility code !
 require 'orocos/ruby_task_context'
 
 require 'orocos/scripts'
