@@ -187,9 +187,6 @@ module Orocos
         libs
     end
 
-    TypekitTypeNotFound = OroGen::Loaders::PkgConfig::TypekitTypeNotFound
-    TypekitTypeNotExported = OroGen::Loaders::PkgConfig::TypekitTypeNotExported
-
     # Looks for and loads the typekit that handles the specified type
     #
     # If +exported+ is true (the default), the type needs to be both defined and

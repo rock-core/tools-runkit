@@ -3,9 +3,14 @@ module Orocos
     class InternalError < RuntimeError; end
     class AmbiguousName < RuntimeError; end
     class PropertyChangeRejected < RuntimeError; end
+    # @deprecated use OroGen::ConfigError instead
+    ConfigError = OroGen::ConfigError
 
     class NotFound < RuntimeError; end
     class TypekitNotFound < NotFound; end
+    TypekitTypeNotFound    = OroGen::NotTypekitType
+    TypekitTypeNotExported = OroGen::NotExportedType
+
 
     def self.register_pkgconfig_path(path)
     	base_path = caller(1).first.gsub(/:\d+:.*/, '')
@@ -236,6 +241,11 @@ module Orocos
 
     def self.create_orogen_task_context_model(name = nil)
         OroGen::Spec::TaskContext.new(OroGen::Spec::Project.new(default_loader), name)
+    end
+
+    # @deprecated access default_loader.task_model_from_name directly instead
+    def self.task_model_from_name(*args, &block)
+        default_loader.task_model_from_name(*args, &block)
     end
 end
 

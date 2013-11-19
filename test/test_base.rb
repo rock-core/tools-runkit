@@ -43,8 +43,8 @@ describe "the Orocos module" do
             assert_equal '/int32_t', Orocos.find_orocos_type_name_by_type(Orocos.registry.get('int'))
         end
         it "raises if given a non-exported type" do
-            assert_raises(Orocos::ConfigError) { Orocos.find_orocos_type_name_by_type('/NonExportedType') }
-            assert_raises(Orocos::ConfigError) { Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/NonExportedType')) }
+            assert_raises(Orocos::TypekitTypeNotExported) { Orocos.find_orocos_type_name_by_type('/NonExportedType') }
+            assert_raises(Orocos::TypekitTypeNotExported) { Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/NonExportedType')) }
         end
     end
 
