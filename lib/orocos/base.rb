@@ -104,7 +104,7 @@ module Orocos
     def self.load_extension_runtime_library(extension_name)
         if !known_orogen_extensions.include?(extension_name)
             begin
-                require "runtime/#{extension.name}"
+                require "runtime/#{extension_name}"
             rescue LoadError
             end
             known_orogen_extensions << extension_name
@@ -163,6 +163,8 @@ module Orocos
             registry.clear_exports(type_export_namespace)
         end
         @default_loader = nil
+        @default_pkgconfig_loader = nil
+        known_orogen_extensions.clear
 
         name_service.clear
         if defined? Orocos::Async

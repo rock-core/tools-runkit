@@ -61,5 +61,32 @@ describe "the Orocos module" do
             assert Orocos.loaded?
         end
     end
+
+    describe "extension runtime loading" do
+        attr_reader :project
+
+        before do
+            @project = OroGen::Spec::Project.new(Orocos.default_loader)
+            task = flexmock
+            task.should_receive(:each_extension).and_yield(flexmock(:name => 'test'))
+            project.self_tasks['test_project::Task'] = task
+        end
+
+        it "sets up a on_project_load hook that loads the extensions" do
+            flexmock(Orocos).should_receive(:load_extension_runtime_library).with('test').once
+            Orocos.default_loader.register_project_model(project)
+        end
+
+        it "loads the extension file through require" do
+            flexmock(Orocos).should_receive(:require).with("runtime/test").once
+            Orocos.load_extension_runtime_library('test')
+        end
+
+        it "loads the same extension file only once" do
+            flexmock(Orocos).should_receive(:require).with("runtime/test").once
+            Orocos.load_extension_runtime_library('test')
+            Orocos.load_extension_runtime_library('test')
+        end
+    end
 end
 
