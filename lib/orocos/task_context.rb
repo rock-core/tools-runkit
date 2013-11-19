@@ -83,7 +83,7 @@ module Orocos
         end
 
         def self.state_transition_call(m, expected_state, target_state)
-            class_eval <<-EOD
+            class_eval <<-EOD, __FILE__, (__LINE__ + 1)
             def #{m}(wait_for_completion = true, polling = 0.05)
                 if wait_for_completion
                     current_state = peek_current_state
