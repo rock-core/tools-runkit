@@ -35,6 +35,15 @@ describe Orocos::Port do
             assert_equal(p1, p2)
         end
     end
+
+    describe ".validate_policy" do
+        it "should raise if a buffer is given without a size" do
+            assert_raises(ArgumentError) { Orocos::Port.validate_policy :type => :buffer }
+        end
+        it "should raise if a data is given with a size" do
+            assert_raises(ArgumentError) { Orocos::Port.validate_policy :type => :data, :size => 10 }
+        end
+    end
 end
 
 describe Orocos::OutputPort do

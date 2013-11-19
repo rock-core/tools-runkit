@@ -376,8 +376,44 @@ describe Orocos::TaskContext do
             assert_equal("echo::Echo", t.model.name)
             assert !t.process
         end
-
     end
+
+    describe "#input_port" do
+        attr_reader :task, :in_p, :out_p
+        before do
+            @task = new_ruby_task_context 'test'
+            @in_p  = task.create_input_port 'in', '/double'
+            @out_p = task.create_output_port 'out', '/double'
+        end
+        it "returns the input port object if there is one" do
+            assert_equal in_p, task.input_port('in')
+        end
+        it "raises NotFound if the port is an input port" do
+            assert_raises(Orocos::NotFound) { task.input_port 'out' }
+        end
+        it "raises NotFound if the port does not exist" do
+            assert_raises(Orocos::NotFound) { task.input_port 'does_not_exist' }
+        end
+    end
+
+    describe "#output_port" do
+        attr_reader :task, :in_p, :out_p
+        before do
+            @task = new_ruby_task_context 'test'
+            @in_p  = task.create_input_port 'in', '/double'
+            @out_p = task.create_output_port 'out', '/double'
+        end
+        it "returns the output port object if there is one" do
+            assert_equal out_p, task.output_port('out')
+        end
+        it "raises NotFound if the port is an input port" do
+            assert_raises(Orocos::NotFound) { task.output_port 'in' }
+        end
+        it "raises NotFound if the port does not exist" do
+            assert_raises(Orocos::NotFound) { task.output_port 'does_not_exist' }
+        end
+    end
+
 
     describe "#model" do
         attr_reader :task
