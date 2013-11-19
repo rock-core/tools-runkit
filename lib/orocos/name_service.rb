@@ -1,5 +1,3 @@
-require "orocos/nameservice_deprecated.rb"         # load deprecated old name service
-
 module Orocos
     # Returns the global name service abstracting all underlying name services.
     # This should be the default way to acquire an handle to an Orocos Task by
