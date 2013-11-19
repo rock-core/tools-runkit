@@ -661,6 +661,7 @@ module Orocos
                     ext.each { |m_ext| extend(m_ext) }
                 end
                 add_default_states
+            else @model = nil
             end
         end
 
