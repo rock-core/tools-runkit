@@ -182,6 +182,7 @@ module Orocos
         end
 
         def teardown
+	    flexmock_teardown
             processes.each do |p|
                 begin p.kill
                 rescue Exception => e
@@ -190,7 +191,6 @@ module Orocos
             end
             processes.clear
             @allocated_task_contexts.each(&:dispose)
-	    flexmock_teardown
             super
             Orocos::CORBA.connect_timeout = @old_timeout if @old_timeout
             Orocos::CORBA.instance_variable_set :@loaded_typekits, []

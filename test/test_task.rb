@@ -385,4 +385,61 @@ describe Orocos::TaskContext do
         end
 
     end
+
+    describe "#model" do
+        attr_reader :task
+        before do
+            start 'echo'
+            @task = Orocos.name_service.get 'echo_Echo'
+            task.process = nil
+            task.model = nil
+        end
+
+        it "should create a default model if the task does not have a getModelName operation" do
+            m = Orocos.create_orogen_task_context_model("/echo_Echo")
+            flexmock(task).should_receive(:getModelName).and_raise(NoMethodError)
+            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once.
+                with("/echo_Echo").and_return(m)
+            flexmock(task).should_receive(:model=).with(m).once.pass_thru
+
+            assert_equal m, task.model
+            assert_equal m, task.model
+        end
+
+        it "should create a default model if the task getModelName operation returns an empty name" do
+            m = Orocos.create_orogen_task_context_model("/echo_Echo")
+            flexmock(task).should_receive(:getModelName).and_return("")
+            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once.
+                with().and_return(m)
+            flexmock(task).should_receive(:model=).with(m).once.pass_thru
+
+            assert_equal m, task.model
+            assert_equal m, task.model
+        end
+
+        it "should create a default model if the returned model name cannot be resolved" do
+            m = Orocos.create_orogen_task_context_model("/echo_Echo")
+            flexmock(task).should_receive(:getModelName).and_return("test::Task")
+            flexmock(Orocos.default_loader).should_receive(:task_model_from_name).
+                with('test::Task').and_raise(OroGen::NotFound)
+            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once.
+                with('test::Task').and_return(m)
+            flexmock(task).should_receive(:model=).with(m).once.pass_thru
+
+            assert_equal m, task.model
+            assert_equal m, task.model
+        end
+
+        it "sets as model the value returned by the loader" do
+            m = Orocos.create_orogen_task_context_model("/echo_Echo")
+            flexmock(task).should_receive(:getModelName).and_return("test::Task")
+            flexmock(Orocos.default_loader).should_receive(:task_model_from_name).
+                with('test::Task').and_return(m)
+            flexmock(task).should_receive(:model=).with(m).once.pass_thru
+
+            assert_equal m, task.model
+            assert_equal m, task.model
+        end
+    end
 end
+
