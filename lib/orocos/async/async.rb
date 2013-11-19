@@ -86,7 +86,7 @@ module Orocos::Async
 
     def self.clear
         event_loop.clear
-        name_service.clear
+        @name_service = nil
     end
 
     # Returns the event loop used by {Orocos::Async}

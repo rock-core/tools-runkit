@@ -4,6 +4,10 @@ module Orocos::Async
         @name_service ||= Orocos::Async::NameService.new()
     end
 
+    def self.name_service=(name_service)
+        @name_service = nil
+    end
+
     def self.get(name,options =Hash.new)
         name_service.get(name,options)
     end

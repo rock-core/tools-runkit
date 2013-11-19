@@ -36,6 +36,10 @@ module Orocos
         @name_service ||= NameService.new()
     end
 
+    def self.name_service=(name_service)
+        @name_service = name_service
+    end
+
     # @deprecated
     #
     # Returns the task names that are registered on CORBA
@@ -480,7 +484,9 @@ module Orocos
             # {Orocos.name_service}
             #
             # @return [Orocos::CORBA::NameService] The global CORBA name service 
-            attr_reader :name_service
+            def name_service
+                @name_service ||= NameService.new
+            end
 
             # Sets the default CORBA name service and replaces the old instance stored
             # in {Orocos#name_service} if there is one.
@@ -675,7 +681,6 @@ module Orocos
             end
 
         end
-        @name_service ||= NameService.new
     end
 
     class CORBANameService < NameServiceBase

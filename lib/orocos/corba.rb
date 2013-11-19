@@ -96,6 +96,10 @@ module Orocos
             do_deinit
         end
 
+        def self.clear
+            @name_service = nil
+        end
+
         # Improves exception messages for exceptions that are raised from the
         # C++ extension
         def self.refine_exceptions(obj0, obj1 = nil) # :nodoc:

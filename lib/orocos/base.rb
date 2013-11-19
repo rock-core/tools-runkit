@@ -167,10 +167,8 @@ module Orocos
         @default_pkgconfig_loader = nil
         known_orogen_extensions.clear
 
-        Orocos::CORBA.name_service = nil
-        Orocos.name_service = nil
-
-        name_service.clear
+        Orocos::CORBA.clear
+        @name_service = nil
         if defined? Orocos::Async
             Orocos::Async.clear
         end
