@@ -13,16 +13,21 @@ describe Orocos::Process do
     include Orocos::Spec
 
     describe ".partition_run_options" do
+        attr_reader :deployment_m, :task_m
+        before do
+            @deployment_m = Orocos.default_loader.deployment_model_from_name('process')
+            @task_m = Orocos.default_loader.task_model_from_name('process::Test')
+        end
         it "partitions deployment names from task model names using Orocos.available_task_models" do
             deployments, models, options =
                 Orocos::Process.partition_run_options 'process' => 'name2', 'process::Test' => 'name'
-            assert_equal Hash['process' => 'name2'], deployments
-            assert_equal Hash['process::Test' => 'name'], models
+            assert_equal Hash[deployment_m => 'name2'], deployments
+            assert_equal Hash[task_m => 'name'], models
         end
         it "sets to nil the prefix for deployments that should not have one" do
             deployments, models, options =
                 Orocos::Process.partition_run_options 'process', 'process::Test' => 'name'
-            assert_equal Hash['process' => nil], deployments
+            assert_equal Hash[deployment_m => nil], deployments
         end
         it "raises if an unexisting name is given" do
             assert_raises(ArgumentError) do
@@ -37,7 +42,7 @@ describe Orocos::Process do
     end
 
     it "raises NotFound when the deployment name does not exist" do
-        assert_raises(Orocos::NotFound) { Orocos::Process.new("does_not_exist") }
+        assert_raises(OroGen::NotFound) { Orocos::Process.new("does_not_exist") }
     end
 
     it "can spawn a new process and waits for it" do
