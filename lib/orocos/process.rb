@@ -267,7 +267,9 @@ module Orocos
                     @logger = false # use false to mark "can not find"
                 end
             else
-                Orocos.warn "cannot determine the default logger name for process #{name}"
+                if Orocos.warn_for_missing_default_loggers?
+                    Orocos.warn "cannot determine the default logger name for process #{name}"
+                end
                 @logger = false
             end
 

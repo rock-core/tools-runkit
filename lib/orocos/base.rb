@@ -49,10 +49,11 @@ module Orocos
         # data readers and writers
         attr_reader :ruby_task
 
-        # The main oroGen loader object
+        attr_predicate :warn_for_missing_default_loggers?, true
     end
     @use_mq_warning = true
     @keep_orocos_logfile = false
+    @warn_for_missing_default_loggers = true
     
     # The loader object that should be used to load typekits and projects
     #
