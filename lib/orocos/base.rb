@@ -132,7 +132,7 @@ module Orocos
             end
         end
         default_loader.on_project_load do |project|
-            project.self_tasks.each do |task|
+            project.self_tasks.each_value do |task|
                 task.each_extension do |ext|
                     load_extension_runtime_library(ext.name)
                 end
