@@ -19,7 +19,7 @@ describe Orocos::TaskConfigurations do
 
     def setup
         super
-        @model = Orocos.task_model_from_name('configurations::Task')
+        @model = Orocos.default_loader.task_model_from_name('configurations::Task')
         @conf  = TaskConfigurations.new(model)
     end
 
@@ -500,9 +500,10 @@ class TC_Orocos_Configurations < Test::Unit::TestCase
 
     def test_override_arrays
         if !Orocos.registry.include?('/base/Vector3d')
-            Orocos.registry.create_compound('/base/Vector3d') do |t|
+            type_m = Orocos.registry.create_compound('/base/Vector3d') do |t|
                 t.data = '/double[4]'
             end
+            Orocos.default_loader.register_type_model(type_m)
         end
 
         model = mock_task_context_model do

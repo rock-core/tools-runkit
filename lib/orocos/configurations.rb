@@ -640,7 +640,7 @@ module Orocos
             if !model || model.respond_to?(:to_str)
                 model_name = model || File.basename(file, '.yml')
                 begin
-                    model = Orocos.task_model_from_name(model_name)
+                    model = Orocos.default_loader.task_model_from_name(model_name)
                 rescue Orocos::NotFound
                     ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
                     return false

@@ -50,7 +50,7 @@ module Orocos
 
                 # We allow models to be specified by name
                 if options[:model].respond_to?(:to_str)
-                    options[:model] = Orocos.task_model_from_name(options[:model])
+                    options[:model] = Orocos.default_loader.task_model_from_name(options[:model])
                 end
                 # Initialize the name from the model if it has one, and no name
                 # was given

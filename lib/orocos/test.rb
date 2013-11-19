@@ -22,8 +22,9 @@ module Orocos
             end
 
             def mock_task_context_model(&block)
-                project = OroGen::Spec::Project.new
-                interface = project.task_context(nil, &block)
+                project = OroGen::Spec::Project.new(Orocos.default_loader)
+                interface = OroGen::Spec::TaskContext.new(project)
+                interface.instance_eval(&block)
                 flexmock(interface)
             end
 
