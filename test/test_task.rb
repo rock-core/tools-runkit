@@ -32,13 +32,6 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should load its own typekit" do
-        Orocos.run('simple_source') do
-            source = Orocos::TaskContext.get("simple_source_source")
-            assert(Orocos.loaded_typekit?("simple_source"))
-        end
-    end
-
     it "should return its name and basename"do
         Orocos.run('simple_source') do
             ns = Orocos::CORBA::NameService.new
