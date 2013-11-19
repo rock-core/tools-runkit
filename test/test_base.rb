@@ -47,5 +47,19 @@ describe "the Orocos module" do
             assert_raises(Orocos::ConfigError) { Orocos.find_orocos_type_name_by_type(Orocos.registry.get('/NonExportedType')) }
         end
     end
+
+    describe ".loaded?" do
+        it "should return false after #clear" do
+            assert Orocos.loaded? # setup() calls Orocos.initialize
+            Orocos.clear
+            assert !Orocos.loaded?
+        end
+        it "should return true after #load" do
+            assert Orocos.loaded? # setup() calls Orocos.initialize
+            Orocos.clear
+            Orocos.load
+            assert Orocos.loaded?
+        end
+    end
 end
 

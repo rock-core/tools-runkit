@@ -96,11 +96,6 @@ module Orocos
         conf.load_dir(dir)
     end
 
-    # Returns true if Orocos.load has been called
-    def self.loaded?
-        !!@default_loader
-    end
-
     def self.load_extension_runtime_library(extension_name)
         if !known_orogen_extensions.include?(extension_name)
             begin
@@ -109,6 +104,11 @@ module Orocos
             end
             known_orogen_extensions << extension_name
         end
+    end
+
+    # Returns true if Orocos.load has been called
+    def self.loaded?
+        @loaded
     end
 
     def self.load(name = nil)
@@ -140,7 +140,6 @@ module Orocos
 
         load_standard_typekits
 
-
         if Orocos::ROS.enabled?
             if !Orocos::ROS.loaded?
                 # Loads all ROS projects that can be found in
@@ -148,6 +147,7 @@ module Orocos
                 Orocos::ROS.load
             end
         end
+        @loaded = true
 
         nil
     end
@@ -163,6 +163,7 @@ module Orocos
         if defined? Orocos::Async
             Orocos::Async.clear
         end
+        @loaded = false
     end
 
     def self.reset
@@ -189,7 +190,7 @@ module Orocos
     # problem. See the "Error messages" package in the user's guide for more
     # information on how to fix those.
     def self.initialize(name = "orocosrb_#{::Process.pid}")
-        if !registry
+        if !loaded?
             self.load(name)
         end
 
