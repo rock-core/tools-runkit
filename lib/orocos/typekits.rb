@@ -230,8 +230,9 @@ module Orocos
                 else
                     Orocos.warn "plugin #{file} is registered through pkg-config, but the library cannot be found in #{pkg.library_dirs.join(", ")}"
                 end
+            else
+                libs << [lib, required]
             end
-            libs << [lib, required]
         end
         libs
     end
