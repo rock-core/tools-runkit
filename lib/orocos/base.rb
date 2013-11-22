@@ -200,6 +200,9 @@ module Orocos
         if defined? Orocos::Async
             Orocos::Async.clear
         end
+        if Orocos::ROS.enabled?
+            Orocos::ROS.clear
+        end
         @loaded = false
     end
 
