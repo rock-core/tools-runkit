@@ -5,7 +5,7 @@ module Orocos
     # Process servers allow to start/stop and monitor processes on remote
     # machines. Instances of this class provides access to remote process
     # servers.
-    class ProcessClient
+    class Client
         # Emitted when an operation fails
         class Failed < RuntimeError; end
         class StartupFailed < RuntimeError; end

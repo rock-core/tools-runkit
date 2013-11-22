@@ -1,7 +1,7 @@
 module Orocos
     module RemoteProcesses
     # Representation of a remote process started with ProcessClient#start
-    class RemoteProcess < ProcessBase
+    class Process < ProcessBase
         # The ProcessClient instance that gives us access to the remote process
         # server
         attr_reader :process_client
