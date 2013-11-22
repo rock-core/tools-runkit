@@ -115,6 +115,9 @@ module Orocos
         attr_reader :processes
 
         def setup
+            @processes = Array.new
+            @allocated_task_contexts = Array.new
+            @old_timeout = Orocos::CORBA.connect_timeout
             if defined?(Orocos::Async)
                 Orocos::Async::NameServiceBase.default_period = 0
                 Orocos::Async::TaskContextBase.default_period = 0
@@ -139,10 +142,7 @@ module Orocos
 		flexmock(Orocos).should_receive(:task_model_from_name).and_raise(Orocos::NotFound)
 	    end
 
-            @processes = Array.new
-            @old_timeout = Orocos::CORBA.connect_timeout
             Orocos::CORBA.connect_timeout = 50
-            @allocated_task_contexts = Array.new
             super
         end
 
