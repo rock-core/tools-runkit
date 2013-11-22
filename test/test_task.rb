@@ -389,10 +389,10 @@ describe Orocos::TaskContext do
             assert_equal in_p, task.input_port('in')
         end
         it "raises NotFound if the port is an input port" do
-            assert_raises(Orocos::NotFound) { task.input_port 'out' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.input_port 'out' }
         end
         it "raises NotFound if the port does not exist" do
-            assert_raises(Orocos::NotFound) { task.input_port 'does_not_exist' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.input_port 'does_not_exist' }
         end
     end
 
@@ -407,10 +407,10 @@ describe Orocos::TaskContext do
             assert_equal out_p, task.output_port('out')
         end
         it "raises NotFound if the port is an input port" do
-            assert_raises(Orocos::NotFound) { task.output_port 'in' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.output_port 'in' }
         end
         it "raises NotFound if the port does not exist" do
-            assert_raises(Orocos::NotFound) { task.output_port 'does_not_exist' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.output_port 'does_not_exist' }
         end
     end
 

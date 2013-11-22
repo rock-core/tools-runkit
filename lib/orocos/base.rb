@@ -11,6 +11,17 @@ module Orocos
     TypekitTypeNotFound    = OroGen::NotTypekitType
     TypekitTypeNotExported = OroGen::NotExportedType
 
+    # Emitted when an interface object is requested, that does not exist
+    class InterfaceObjectNotFound < Orocos::NotFound
+        attr_reader :task
+        attr_reader :name
+
+        def initialize(task, name)
+            @task = task
+            @name = name
+            super()
+        end
+    end
 
     def self.register_pkgconfig_path(path)
     	base_path = caller(1).first.gsub(/:\d+:.*/, '')

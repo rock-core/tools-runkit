@@ -2,18 +2,6 @@ require 'orocos/ports_searchable'
 
 module Orocos
 
-    # Emitted when an interface object is requested, that does not exist
-    class InterfaceObjectNotFound < Orocos::NotFound
-        attr_reader :task
-        attr_reader :name
-
-        def initialize(task, name)
-            @task = task
-            @name = name
-            super()
-        end
-    end
-
     # This class represents both RTT attributes and properties
     class AttributeBase
         # The underlying TaskContext instance
@@ -526,7 +514,7 @@ module Orocos
             if p.respond_to?(:writer)
                 return p
             else
-                raise NotFound, "#{name} is an output port of #{self.name}, was expecting an input port"
+                raise InterfaceObjectNotFound.new(self, name), "#{name} is an output port of #{self.name}, was expecting an input port"
             end
         end
 
@@ -535,7 +523,7 @@ module Orocos
             if p.respond_to?(:reader)
                 return p
             else
-                raise NotFound, "#{name} is an input port of #{self.name}, was expecting an output port"
+                raise InterfaceObjectNotFound.new(self, name), "#{name} is an input port of #{self.name}, was expecting an output port"
             end
         end
 
