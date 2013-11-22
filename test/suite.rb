@@ -20,3 +20,5 @@ require './test/suite_async'
 if Orocos::ROS.enabled?
 require './test/suite_ros'
 end
+
+require './test/suite_async'
