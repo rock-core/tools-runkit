@@ -64,4 +64,4 @@ require 'utilrb/hash/recursive_merge'
 require 'orocos/configurations'
 
 require 'orocos/extensions'
-require 'orocos/ros/autodetect'
+require 'orocos/ros'
