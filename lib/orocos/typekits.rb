@@ -195,7 +195,7 @@ module Orocos
     # Raises ArgumentError if this type is registered nowhere, or if +exported+
     # is true and the type is not exported.
     def self.load_typekit_for(typename, exported = true)
-        typekit = default_pkgconfig_loader.typekit_for(typename, exported)
+        typekit = default_loader.typekit_for(typename, exported)
         if !typekit.virtual?
             load_typekit typekit.name
         end
@@ -253,7 +253,7 @@ module Orocos
     #
     # @param [Typelib::Type,String] typelib_type
     def self.orocos_type_for(typelib_type)
-        default_loader.find_opaque_for_intermediate(typelib_type) || typelib_type
+        default_loader.opaque_type_for(typelib_type)
     end
 
     # Finds the typelib type that maps to the given orocos type name
