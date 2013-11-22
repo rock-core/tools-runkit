@@ -11,9 +11,10 @@ module Orocos
         class ProcessManager
             extend Logger::Root("Orocos::ROS", Logger::INFO)
 
-            def available_projects; Orocos::ROS.available_projects end
-            def available_launchers; Orocos::ROS.available_launchers end
-            def available_typekits; Orocos::ROS.available_typekits end
+            # The loader object that should be used to get ROS models
+            #
+            # @return [Orocos::ROS::Loader]
+            attr_reader :loader
 
             # Mapping from a launcher name to the corresponding Launcher
             # instance, for launcher processes that have been started by this client.
@@ -36,38 +37,10 @@ module Orocos
             def initialize
                 @launcher_processes = Hash.new
                 @dying_launcher_processes = Array.new
+                @loader = Orocos::ROS.default_loader
             end 
 
-            # Loading a ros launcher definition, which corresponds to 
-            # a deployment in orogen
-            #
-            # @return [Orocos::ROS::Spec::Launcher]
-            def load_ros_launcher(name)
-                launcher = available_launchers[name]
-                if !launcher
-                    raise ArgumentError, "there is no launcher called #{name} on #{self}"
-                end
-
-                nodelib = launcher.project
-                launcher = nodelib.ros_launchers.find { |l| l.name == name }
-
-                if !launcher
-                    raise InternalError, "cannot find the launcher called #{name} in #{nodelib}. Candidates were #{nodelib.deployers.map(&:name).join(", ")}"
-                end
-                return launcher
-            end
-
-            def preload_typekit(name)
-                Orocos.load_typekit name
-            end
-
             def disconnect
-            end
-
-            # Register the model for a launcher
-            # @argument [Orocos::ROS::Spec::Launcher]
-            def register_launcher_model(model, name = model.name)
-                launcher_models[name] = model
             end
 
             # Start a launcher process under the given process_name
