@@ -83,9 +83,7 @@ module Orocos
             @default_loader = loader
             loader.add default_pkgconfig_loader
             loader.add default_file_loader
-            if ROS.enabled?
-                loader.add ROS.default_loader
-            end
+            loader.add ROS.default_loader
         end
         @default_loader
     end

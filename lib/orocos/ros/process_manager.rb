@@ -13,7 +13,7 @@ module Orocos
 
             # The loader object that should be used to get ROS models
             #
-            # @return [Orocos::ROS::Loader]
+            # @return [OroGen::ROS::Loader]
             attr_reader :loader
 
             # Mapping from a launcher name to the corresponding Launcher
@@ -85,7 +85,7 @@ module Orocos
                 dying_launcher_processes.delete_if do |launcher_process|
                     _, status = ::Process.waitpid2(launcher_process.pid, ::Process::WUNTRACED | ::Process::WNOHANG)
                     if status
-                        Orocos::ROS.info "announing dead launcher_process: #{launcher_process}"
+                        ROS.info "announing dead launcher_process: #{launcher_process}"
                         terminated_launchers[launcher_process] = status
                         launcher_processes.delete(launcher_process.name)
                         launcher_process.dead!(status)
@@ -103,7 +103,7 @@ module Orocos
             # @param [LauncherProcess] launcher the launcher process to be killed
             # @return [void]
             def kill(launcher_process)
-                Orocos::ROS.info "ProcessManager is killing launcher process #{launcher_process.name} with pid '#{launcher_process.pid}'"
+                ROS.info "ProcessManager is killing launcher process #{launcher_process.name} with pid '#{launcher_process.pid}'"
                 ::Process.kill('SIGTERM', launcher_process.pid)
                 dying_launcher_processes << launcher_process
                 nil
@@ -112,7 +112,7 @@ module Orocos
 
         # Corresponding to RemoteProcess / RubyDeployment
         class LauncherProcess < ProcessBase
-            extend Logger::Root("Orocos::ROS::Launcher", Logger::INFO)
+            extend Logger::Root("Orocos::ROS::LauncherProcess", Logger::INFO)
 
             # Parse run options to 
             # @return [String, Hash] Names and options
@@ -178,7 +178,7 @@ module Orocos
             def running?; alive? end
 
             # Wait for all nodes of the launcher to become available
-            # @throws [Orocos::NotFound] if the nodes are not available after a given timeout
+            # @raise [Orocos::NotFound] if the nodes are not available after a given timeout
             # @return [Boolean] True if process is running, false otherwise
             def wait_running(timeout = nil)
 
@@ -194,7 +194,7 @@ module Orocos
 
                         nodes.each do |n|
                             # Wait till node is visible in ROS
-                            if !Orocos::ROS.rosnode_running?(n.name)
+                            if !ROS.rosnode_running?(n.name)
                                 all_nodes_available = false
                                 break
                             end
@@ -206,7 +206,7 @@ module Orocos
                             # Try to check whether the topics in the spec are already available
                             # Note that we have to try to instanciate write and reader and using
                             # to_orocos_port in order to make sure the ROS node is really accessible
-                            if spec = Orocos::ROS.node_spec_by_node_name(n.name)
+                            if spec = ROS.node_spec_by_node_name(n.name)
                                 spec.each_input_port do |port|
                                     if task.port(port.topic_name)
                                         topics << port.topic_name

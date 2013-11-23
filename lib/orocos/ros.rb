@@ -63,6 +63,7 @@ end
 require 'xmlrpc/client'
 require 'utilrb/thread_pool'
 require 'orogen/ros'
+require 'orocos/ros/base'
 require 'orocos/ros/rpc'
 require 'orocos/ros/name_service'
 require 'orocos/ros/node'

@@ -44,7 +44,7 @@ module Orocos
                 end
 
                 with_defaults, options = Kernel.filter_options options,
-                    :model => Orocos::ROS::Spec::Node.new(nil,name),
+                    :model => OroGen::ROS::Spec::Node.new(nil,name),
                     :namespace => name_service.namespace
                 options = options.merge(with_defaults)
 
@@ -72,7 +72,7 @@ module Orocos
 
             def ros_name
                 _, basename = split_name(name)
-                Orocos::ROS.rosnode_normalize_name(basename)
+                OroGen::ROS.rosnode_normalize_name(basename)
             end
 
             def ==(other)
@@ -91,20 +91,20 @@ module Orocos
                 exit_status = (@exit_status ||= exit_status)
 
                 if !exit_status
-                    Orocos.info "deployment #{name} exited, exit status unknown"
+                    ROS.info "deployment #{name} exited, exit status unknown"
                 elsif exit_status.success?
-                    Orocos.info "deployment #{name} exited normally"
+                    ROS.info "deployment #{name} exited normally"
                 elsif exit_status.signaled?
                     if @expected_exit == exit_status.termsig
-                        Orocos.info "ROS node #{name} terminated with signal #{exit_status.termsig}"
+                        ROS.info "ROS node #{name} terminated with signal #{exit_status.termsig}"
                     elsif @expected_exit
-                        Orocos.info "ROS node #{name} terminated with signal #{exit_status.termsig} but #{@expected_exit} was expected"
+                        ROS.info "ROS node #{name} terminated with signal #{exit_status.termsig} but #{@expected_exit} was expected"
                     else
-                        Orocos.warn "ROS node #{name} unexpectedly terminated with signal #{exit_status.termsig}"
+                        ROS.warn "ROS node #{name} unexpectedly terminated with signal #{exit_status.termsig}"
                         @state_queue << :EXCEPTION
                     end
                 else
-                    Orocos.warn "ROS node #{name} terminated with code #{exit_status.to_i}"
+                    ROS.warn "ROS node #{name} terminated with code #{exit_status.to_i}"
                     @state_queue << :EXCEPTION
                 end
 
@@ -121,7 +121,7 @@ module Orocos
                 if state == :PRE_OPERATIONAL
                     @state_queue << :STOPPED
                 else
-                    Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true configuration of #{self} is not supported."
+                    ROS.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true configuration of #{self} is not supported."
                     raise StateTransitionFailed, "#{self} cannot be configured in state #{state}"
                 end
             end
@@ -132,7 +132,7 @@ module Orocos
                         raise StateTransitionFailed, "#{self} is already running"
                     else
                         @state_queue << :RUNNING
-                        Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true start of #{self} is not performed, since the node was already started."
+                        ROS.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true start of #{self} is not performed, since the node was already started."
                     end
                 end
 
@@ -144,7 +144,7 @@ module Orocos
 
             def stop(wait_for_completion = true)
                 @state_queue << :STOPPED
-                Orocos.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true stopping of Orocos::ROS::Node is not performed. Use #shutdown for halting"
+                ROS.warn "setting state of Orocos::ROS::Node '#{ros_name}' to #{state}, though true stopping of Orocos::ROS::Node is not performed. Use #shutdown for halting"
             end
 
             def shutdown(wait_for_completion = true)
@@ -185,7 +185,7 @@ module Orocos
             def spawn
                 args = name_mappings.to_command_line
                 package_name, bin_name = *model.name.split("::")
-                binary = Orocos::ROS.rosnode_find(package_name.gsub(/^ros_/, ''), bin_name)
+                binary = OroGen::ROS.rosnode_find(package_name.gsub(/^ros_/, ''), bin_name)
                 @pid = Utilrb.spawn binary, "__name:=#{name}", *args
             end
 
@@ -290,7 +290,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_output_port(name, verify = true, wait_if_unavailable = true)
                 each_output_port(verify) do |p|
-                    if p.name == name || p.topic_name == ::Orocos::ROS.normalize_topic_name(name)
+                    if p.name == name || p.topic_name == OroGen::ROS.normalize_topic_name(name)
                         return p
                     end
                 end
@@ -305,7 +305,7 @@ module Orocos
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_input_port(name, verify = true, wait_if_unavailable = true)
                 each_input_port(verify) do |p|
-                    if p.name == name || p.topic_name == ::Orocos::ROS.normalize_topic_name(name)
+                    if p.name == name || p.topic_name == OroGen::ROS.normalize_topic_name(name)
                         return p
                     end
                 end
@@ -325,7 +325,7 @@ module Orocos
             # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
             def resolve_output_topic_name(topic_name)
                 model.each_output_port do |m|
-                    if apply_name_mappings(m.topic_name) == ::Orocos::ROS.normalize_topic_name(topic_name)
+                    if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)
                         return m.name, m
                     end
                 end
@@ -336,7 +336,7 @@ module Orocos
             # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
             def resolve_input_topic_name(topic_name)
                 model.each_input_port do |m|
-                    if apply_name_mappings(m.topic_name) == ::Orocos::ROS.normalize_topic_name(topic_name)
+                    if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)
                         return m.name, m
                     end
                 end
