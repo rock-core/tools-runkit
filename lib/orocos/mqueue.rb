@@ -39,7 +39,7 @@ module Orocos
             # If true, orocos.rb will try to use the MQ transport when
             # * the max sample size on the output port is known. If the port type
             #   contains variable-sized containers, it means that
-            #   Orocos::OutputPort#max_size and/or Orocos::Spec::OutputPort#max_size
+            #   {Orocos::OutputPort#max_size} and/or OroGen::Spec::OutputPort#max_size
             #   have been used on resp. the port object or the model that describes
             #   it.
             # * it is known that the two involved tasks are on the same host (this

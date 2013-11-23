@@ -37,7 +37,7 @@ module Orocos
 
             project = options.delete(:project)
             if block && !options[:model]
-                model = Orocos::Spec::TaskContext.new(options[:project], name)
+                model = OroGen::Spec::TaskContext.new(options[:project], name)
                 model.instance_eval(&block)
                 options[:model] = model
             end
@@ -136,7 +136,7 @@ module Orocos
         # Sets up the interface of this task context so that it matches the
         # given oroGen model
         #
-        # @param [Orocos::Spec::TaskContext] orogen_model the oroGen model
+        # @param [OroGen::Spec::TaskContext] orogen_model the oroGen model
         # @return [void]
         def setup_from_orogen_model(orogen_model)
             new_properties, new_outputs, new_inputs = [], [], []

@@ -108,7 +108,7 @@ module Orocos
         # @return [String]
         attr_reader :name
         # The deployment oroGen model
-        # @return [Orocos::Generation::StaticDeployment]
+        # @return [OroGen::Spec::Deployment]
         attr_reader :model
         # @deprecated
         # For backward compatibility only
@@ -445,12 +445,12 @@ module Orocos
                 end
 
                 case object
-                when Orocos::Spec::TaskContext
+                when OroGen::Spec::TaskContext
                     if !new_name
                         raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
                     end
                     models[object] = new_name
-                when Orocos::Spec::Deployment
+                when OroGen::Spec::Deployment
                     deployments[object] = (new_name if new_name)
                 else raise ArgumentError, "expected a task context model or a deployment model, got #{object}"
                 end

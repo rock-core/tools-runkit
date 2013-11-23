@@ -57,7 +57,7 @@ module Orocos
         #   configuration sections
         attr_reader :conf_options
 
-        # @return [Orocos::Spec] the task context model for which self holds
+        # @return [OroGen::Spec::TaskContext] the task context model for which self holds
         #   configurations
         attr_reader :model
 

@@ -322,7 +322,7 @@ module Orocos
             end
 
             # Resolves the given topic name into a port name and a port model.
-            # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
+            # @return [(String,OroGen::ROS::Spec::OutputTopic),(String,nil)]
             def resolve_output_topic_name(topic_name)
                 model.each_output_port do |m|
                     if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)
@@ -333,7 +333,7 @@ module Orocos
             end
 
             # Resolves the given topic name into a port name and a port model.
-            # @return [(String,nil),(String,Orocos::Spec::ROSNode)]
+            # @return [(String,OroGen::ROS::Spec::InputTopic),(String,nil)]
             def resolve_input_topic_name(topic_name)
                 model.each_input_port do |m|
                     if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)

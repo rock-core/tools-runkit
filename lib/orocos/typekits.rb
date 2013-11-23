@@ -307,7 +307,7 @@ module Orocos
 
         type = default_loader.resolve_type(typename)
         type = default_loader.intermediate_type_for(type)
-        sizes = Orocos::Spec::Port.validate_max_sizes_spec(type, sizes)
+        sizes = OroGen::Spec::Port.validate_max_sizes_spec(type, sizes)
         @max_sizes[type.name].merge!(sizes, &block)
     end
 

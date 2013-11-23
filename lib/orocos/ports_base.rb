@@ -8,12 +8,10 @@ module Orocos
         def full_name; "#{task.name}.#{name}" end
         # The port's type name as used by the RTT
         attr_reader :orocos_type_name
-        # @return [Orocos::Spec::Port,nil] the port model
-        attr_reader :model
         # The port's type as a Typelib::Type object
         attr_reader :type
-        # The port's model as either a OroGen::Spec::InputPort or
-        # OroGen::Spec::OutputPort
+        # The port's model
+        # @return [OroGen::Spec::Port,nil] the port model
         attr_reader :model
 
         def initialize(task, name, orocos_type_name, model)
@@ -115,7 +113,7 @@ module Orocos
         dsl_attribute :max_sizes do |*values|
             # Validate that all values are integers and all names map to
             # known types
-            value = Orocos::Spec::OutputPort.validate_max_sizes_spec(type, values)
+            value = OroGen::Spec::OutputPort.validate_max_sizes_spec(type, values)
             max_sizes.merge(value)
         end
 
@@ -126,7 +124,7 @@ module Orocos
         # on the values given to #max_sizes. If not enough is known, this method
         # will return nil.
         def max_marshalling_size
-            Orocos::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
+            OroGen::Spec::OutputPort.compute_max_marshalling_size(type, max_sizes)
         end
     end
 

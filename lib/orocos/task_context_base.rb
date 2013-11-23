@@ -560,11 +560,10 @@ module Orocos
         # started by this Ruby instance
         #
         # To get the Orogen specification for the task context itself (an
-        # Orocos::Generation::TaskContext instance), use #model.
+        # OroGen::Spec::TaskContext instance), use {#model}.
         #
-        # The returned value is an instance of Orocos::Generation::TaskDeployment
-        #
-        # See also #model
+        # @return [OroGen::Spec::TaskDeployment]
+        # @see model
         def info
             if process
                 @info ||= process.orogen.task_activities.find { |act| act.name == name }
@@ -653,7 +652,7 @@ module Orocos
             end
         end
 
-        # @return [Orocos::Spec::TaskContext,nil] the oroGen model that describes this node
+        # @return [OroGen::Spec::TaskContext,nil] the oroGen model that describes this node
         def model
             if @model
                 @model
@@ -672,8 +671,9 @@ module Orocos
             model && model.implements?(class_name)
         end
 
-        # Returns the Orocos::Generation::OutputPort instance that describes the
-        # required port, or nil if the port does not exist
+        # Resolves the model of a port
+        #
+        # @return [OroGen::Spec::OutputPort,nil]
         def output_port_model(name)
             if port_model = model.each_output_port.find { |p| p.name == name }
                 port_model
@@ -681,8 +681,9 @@ module Orocos
             end
         end
 
-        # Returns the Orocos::Generation::InputPort instance that describes the
-        # required port, or nil if the port does not exist
+        # Resolves the model of a port
+        #
+        # @return [OroGen::Spec::InputPort,nil]
         def input_port_model(name)
             if port_model = model.each_input_port.find { |p| p.name == name }
                 port_model
