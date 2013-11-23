@@ -537,7 +537,7 @@ module Orocos
             models.each do |model, desired_names|
                 desired_names = [desired_names] unless desired_names.kind_of? Array 
                 desired_names.each do |desired_name|
-                    process_name = Orocos::Generation.default_deployment_name(model.name)
+                    process_name = OroGen::Spec::Project.default_deployment_name(model.name)
                     name_mappings = Hash[
                         process_name => desired_name,
                         "#{process_name}_Logger" => "#{desired_name}_Logger"]
