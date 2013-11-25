@@ -293,20 +293,9 @@ module Orocos::Async
         end
 
         def on_data(policy = Hash.new,&block)
-            raise RuntimeError , "Port #{name} is not an output port" if !output?
-            @options = if policy.empty?
-                           @options
-                       elsif @options.empty? && !valid_delegator?
-                           policy
-                       elsif @options == policy
-                           @options
-                       else
-                           Orocos.warn "ProxyPort #{full_name} cannot emit :data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
-                           @options
-                       end
-            on_event :data,&block
+            on_raw_data policy do |sample|
+                yield Typelib::to_ruby(sample,type)
+            end
         end
 
         def on_raw_data(policy = Hash.new,&block)

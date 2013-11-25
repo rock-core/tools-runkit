@@ -37,6 +37,8 @@ module Orocos::Async::CORBA
                 elsif data
                     @raw_last_sample = data
                     event :raw_data, data
+                    # TODO just emit raw_data and convert it to ruby
+                    # if someone is listening to (see PortProxy)
                     event :data, Typelib.to_ruby(data)
                 end
             end
