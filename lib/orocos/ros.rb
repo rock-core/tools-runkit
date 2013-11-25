@@ -35,9 +35,17 @@ module Orocos
         Port.transport_names[TRANSPORT_ROS] = 'ROS'
     end
 end
+begin
+    require 'orogen_ros'
+rescue LoadError
+    if Orocos::ROS.available?
+        Orocos.warn "ROS transport is available, but I cannot load the orogen_ros library, disabling"
+        Orocos::ROS.enabled = false
+    end
+end
+
 require 'xmlrpc/client'
 require 'utilrb/thread_pool'
-require 'orogen_ros'
 require 'orocos/ros/rpc'
 require 'orocos/ros/types'
 require 'orocos/ros/name_service'
