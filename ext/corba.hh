@@ -4,6 +4,7 @@
 #include <omniORB4/CORBA.h>
 
 #include <exception>
+#include "StdExceptionC.h"
 #include "TaskContextC.h"
 #include "DataFlowC.h"
 #include <iostream>
@@ -79,11 +80,13 @@ extern VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CO
 extern CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src);
 
 #define CORBA_EXCEPTION_HANDLERS \
+    catch(RTT::corba::StdException& e) { rb_raise(eCORBA, "%s", std::string(e.what).c_str()); } \
     catch(CosNaming::NamingContext::NotFound& e) { rb_raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
-    catch(CORBA::COMM_FAILURE&) { rb_raise(eCORBAComError, "CORBA communication failure"); } \
-    catch(CORBA::TRANSIENT&) { rb_raise(eCORBAComError, "CORBA transient exception"); } \
-    catch(CORBA::INV_OBJREF&) { rb_raise(eCORBA, "CORBA invalid obj reference"); } \
-    catch(CORBA::SystemException&) { rb_raise(eCORBA, "CORBA system exception"); } \
+    catch(CORBA::COMM_FAILURE& e) { rb_raise(eCORBAComError, "CORBA communication failure: %s", e.NP_minorString()); } \
+    catch(CORBA::TRANSIENT& e) { rb_raise(eCORBAComError, "CORBA transient exception: %s", e.NP_minorString()); } \
+    catch(CORBA::INV_OBJREF& e) { rb_raise(eCORBA, "CORBA invalid obj reference: %s", e.NP_minorString()); } \
+    catch(CORBA::SystemException& e) { rb_raise(eCORBA, "CORBA system exception: %s", e.NP_minorString()); } \
+    catch(::RTT::corba::CException& e) { rb_raise(eCORBA, "%s", e.message); } \
     catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
 
 
@@ -97,12 +100,13 @@ class InvalidIORError :public std::runtime_error
 #define CORBA_EXCEPTION_HANDLERS2 \
     catch(RTT::corba::CNoSuchPortException) { BlockingFunctionBase::raise(eNotFound,"");}\
     catch(RTT::corba::CNoSuchNameException) { BlockingFunctionBase::raise(eNotFound,"");}\
+    catch(RTT::corba::StdException& e) { rb_raise(eCORBA, "%s", std::string(e.what).c_str()); } \
     catch(CosNaming::NamingContext::NotFound& e) { BlockingFunctionBase::raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
-    catch(CORBA::COMM_FAILURE&) { BlockingFunctionBase::raise(eCORBAComError, "CORBA communication failure"); } \
-    catch(CORBA::TRANSIENT&) { BlockingFunctionBase::raise(eCORBAComError, "CORBA transient exception"); } \
-    catch(CORBA::INV_OBJREF&) { BlockingFunctionBase::raise(eCORBA, "CORBA invalid obj reference"); } \
-    catch(CORBA::SystemException&) { BlockingFunctionBase::raise(eCORBA, "CORBA system exception"); } \
-    catch(CORBA::Exception& e) { BlockingFunctionBase::raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }\
+    catch(CORBA::COMM_FAILURE& e) { rb_raise(eCORBAComError, "CORBA communication failure: %s", e.NP_minorString()); } \
+    catch(CORBA::TRANSIENT& e) { rb_raise(eCORBAComError, "CORBA transient exception: %s", e.NP_minorString()); } \
+    catch(CORBA::INV_OBJREF& e) { rb_raise(eCORBA, "CORBA invalid obj reference: %s", e.NP_minorString()); } \
+    catch(CORBA::SystemException& e) { rb_raise(eCORBA, "CORBA system exception: %s", e.NP_minorString()); } \
+    catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); } \
     catch(InvalidIORError &e) { BlockingFunctionBase::raise(rb_eArgError, e.what());}
 
 template<typename F, typename A=boost::function<void()> >
