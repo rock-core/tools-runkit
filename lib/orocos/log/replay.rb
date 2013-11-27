@@ -929,10 +929,19 @@ module Orocos
                         all_files = Dir.enum_for(:glob, File.join(path, '*.*.log'))
                         by_basename = all_files.inject(Hash.new) do |h, path|
                             split = path.match(/^(.*)\.(\d+)\.log$/)
-                            basename, number = split[1], Integer(split[2])
-                            h[basename] ||= Array.new
-                            h[basename][number] = path
-                            h
+                            if split
+                                basename, number = split[1], Integer(split[2])
+                                h[basename] ||= Array.new
+                                h[basename][number] = path
+                                h
+                            else
+                                Orocos.warn "invalid log file name #{path}. Expecting: /^(.*)\.(\d+)\.log$/"
+                                h
+                            end
+                        end
+                        if by_basename.empty?
+                            Orocos.warn "empty directory: #{path}"
+                            next
                         end
 
                         by_basename.each_value do |files|
