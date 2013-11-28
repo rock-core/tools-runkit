@@ -197,17 +197,14 @@ module Orocos
                 Server.debug "#{socket} requested system information"
                 available_projects = Hash.new
                 available_typekits = Hash.new
-                Orocos.available_projects.each do |name, (pkg, deffile)|
-                    available_projects[name] = File.read(deffile)
-                    if pkg && pkg.type_registry && !pkg.type_registry.empty?
-                        registry = File.read(pkg.type_registry)
-                        typelist = File.join(File.dirname(pkg.type_registry), "#{name}.typelist")
-                        typelist = File.read(typelist)
-                        available_typekits[name] = [registry, typelist]
-                    end
-                end
                 available_deployments = Hash.new
-                Orocos.available_deployments.each do |name, pkg|
+                Orocos.default_pkgconfig_loader.available_projects.each do |name, project|
+                    available_projects[name] = File.read(project.orogen_path)
+                end
+                Orocos.default_pkgconfig_loader.available_typekits.each do |name, typekit|
+                    available_typekits[name] = Orocos.default_pkgconfig_loader.typekit_model_text_from_name(name)
+                end
+                Orocos.default_pkgconfig_loader.available_deployments.each do |name, pkg|
                     available_deployments[name] = pkg.project_name
                 end
                 Marshal.dump([available_projects, available_deployments, available_typekits], socket)
