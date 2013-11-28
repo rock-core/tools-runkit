@@ -12,6 +12,9 @@ module Orocos
 
         # The socket instance used to communicate with the server
         attr_reader :socket
+        # The loader object that allows to access models from the remote server
+        # @return [Loader]
+        attr_reader :loader
 
         # Mapping from orogen project names to the corresponding content of the
         # orogen files. These projects are the ones available to the remote
@@ -63,7 +66,8 @@ module Orocos
             socket.fcntl(Fcntl::FD_CLOEXEC, 1)
 
             options = Kernel.validate_options options,
-                :name_service => Orocos.name_service
+                :name_service => Orocos.name_service,
+                :root_loader => Orocos.default_loader
             @name_service = options[:name_service]
 
 
@@ -73,7 +77,7 @@ module Orocos
                 raise StartupFailed, "process server failed at '#{host}:#{port}'"
             end
 
-            @loader = Loader.new(*info[0..2])
+            @loader = Loader.new(self, options[:root_loader])
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"
