@@ -9,6 +9,8 @@ module Orocos
     #
     # Use {ProcessClient} to access a server
     class Server
+        extend Logger::Root("Orocos::RemoteProcesses::Server", Logger::INFO)
+
         # Returns a unique directory name as a subdirectory of
         # +base_dir+, based on +path_spec+. The generated name
         # is of the form
@@ -54,7 +56,7 @@ module Orocos
         DEFAULT_OPTIONS = { :wait => false, :output => '%m-%p.txt' }
 
         # Start a standalone process server using the given options and port.
-        # The options are passed to Orocos.run when a new deployment is started
+        # The options are passed to Server.run when a new deployment is started
         def self.run(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
             Orocos.disable_sigchld_handler = true
             Orocos.initialize
@@ -89,7 +91,7 @@ module Orocos
         #
         # All started processes are stopped when the server quits
         def exec
-            Orocos.info "starting on port #{port}"
+            Server.info "starting on port #{port}"
             server = TCPServer.new(nil, port)
             server.fcntl(Fcntl::FD_CLOEXEC, 1)
             com_r, com_w = IO.pipe
@@ -105,7 +107,7 @@ module Orocos
                 end
             end
 
-            Orocos.info "process server listening on port #{port}"
+            Server.info "process server listening on port #{port}"
 
             while true
                 readable_sockets, _ = select(@all_ios, nil, nil)
@@ -114,7 +116,7 @@ module Orocos
                     socket = server.accept
                     socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
                     socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-                    Orocos.debug "new connection: #{socket}"
+                    Server.debug "new connection: #{socket}"
                     @all_ios << socket
                 end
 
@@ -130,14 +132,14 @@ module Orocos
                         process_name, process = *process
                         process.dead!(exit_status)
                         processes.delete(process_name)
-                        Orocos.debug "announcing death: #{process_name}"
+                        Server.debug "announcing death: #{process_name}"
                         each_client do |socket|
                             begin
-                                Orocos.debug "  announcing to #{socket}"
+                                Server.debug "  announcing to #{socket}"
                                 socket.write("D")
                                 Marshal.dump([process_name, exit_status], socket)
                             rescue IOError
-                                Orocos.debug "  #{socket}: IOError"
+                                Server.debug "  #{socket}: IOError"
                             end
                         end
                     end
@@ -145,7 +147,7 @@ module Orocos
 
                 readable_sockets.each do |socket|
                     if !handle_command(socket)
-                        Orocos.debug "#{socket} closed"
+                        Server.debug "#{socket} closed"
                         socket.close
                         @all_ios.delete(socket)
                     end
@@ -154,14 +156,14 @@ module Orocos
 
         rescue Exception => e
             if e.class == Interrupt # normal procedure
-                Orocos.fatal "process server exited normally"
+                Server.fatal "process server exited normally"
                 return
             end
 
-            Orocos.fatal "process server exited because of unhandled exception"
-            Orocos.fatal "#{e.message} #{e.class}"
+            Server.fatal "process server exited because of unhandled exception"
+            Server.fatal "#{e.message} #{e.class}"
             e.backtrace.each do |line|
-                Orocos.fatal "  #{line}"
+                Server.fatal "  #{line}"
             end
 
         ensure
@@ -170,9 +172,9 @@ module Orocos
 
         # Helper method that stops all running processes
         def quit_and_join # :nodoc:
-            Orocos.warn "stopping process server"
+            Server.warn "stopping process server"
             processes.each_value do |p|
-                Orocos.warn "killing #{p.name}"
+                Server.warn "killing #{p.name}"
                 p.kill
             end
 
@@ -188,11 +190,11 @@ module Orocos
             raise EOFError if !cmd_code
 
             if cmd_code == COMMAND_GET_PID
-                Orocos.debug "#{socket} requested PID"
+                Server.debug "#{socket} requested PID"
                 Marshal.dump([::Process.pid], socket)
 
             elsif cmd_code == COMMAND_GET_INFO
-                Orocos.debug "#{socket} requested system information"
+                Server.debug "#{socket} requested system information"
                 available_projects = Hash.new
                 available_typekits = Hash.new
                 Orocos.available_projects.each do |name, (pkg, deffile)|
@@ -210,71 +212,71 @@ module Orocos
                 end
                 Marshal.dump([available_projects, available_deployments, available_typekits], socket)
             elsif cmd_code == COMMAND_MOVE_LOG
-                Orocos.debug "#{socket} requested moving a log directory"
+                Server.debug "#{socket} requested moving a log directory"
                 begin
                     log_dir, results_dir = Marshal.load(socket)
                     log_dir     = File.expand_path(log_dir)
                     date_tag    = File.read(File.join(log_dir, 'time_tag')).strip
                     results_dir = File.expand_path(results_dir)
-                    Orocos.debug "  #{log_dir} => #{results_dir}"
+                    Server.debug "  #{log_dir} => #{results_dir}"
                     if File.directory?(log_dir)
                         dirname = Server.unique_dirname(results_dir + '/', '', date_tag)
                         FileUtils.mv log_dir, dirname
                     end
                 rescue Exception => e
-                    Orocos.warn "failed to move log directory from #{log_dir} to #{results_dir}: #{e.message}"
+                    Server.warn "failed to move log directory from #{log_dir} to #{results_dir}: #{e.message}"
                     if dirname
-                        Orocos.warn "   target directory was #{dirname}"
+                        Server.warn "   target directory was #{dirname}"
                     end
                 end
 
             elsif cmd_code == COMMAND_CREATE_LOG
                 begin
-                    Orocos.debug "#{socket} requested creating a log directory"
+                    Server.debug "#{socket} requested creating a log directory"
                     log_dir, time_tag = Marshal.load(socket)
                     log_dir     = File.expand_path(log_dir)
-                    Orocos.debug "  #{log_dir}, time: #{time_tag}"
+                    Server.debug "  #{log_dir}, time: #{time_tag}"
                     FileUtils.mkdir_p(log_dir)
                     File.open(File.join(log_dir, 'time_tag'), 'w') do |io|
                         io.write(time_tag)
                     end
                 rescue Exception => e
-                    Orocos.warn "failed to create log directory #{log_dir}: #{e.message}"
-                    Orocos.warn "   #{e.backtrace[0]}"
+                    Server.warn "failed to create log directory #{log_dir}: #{e.message}"
+                    Server.warn "   #{e.backtrace[0]}"
                 end
 
             elsif cmd_code == COMMAND_START
                 name, deployment_name, name_mappings, options = Marshal.load(socket)
                 options ||= Hash.new
-                Orocos.debug "#{socket} requested startup of #{name} with #{options}"
+                Server.debug "#{socket} requested startup of #{name} with #{options}"
                 begin
                     p = Orocos::Process.new(name, deployment_name)
                     p.name_mappings = name_mappings
                     p.spawn(self.options.merge(options))
-                    Orocos.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
+                    Server.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
                     processes[name] = p
                     socket.write("P")
                     Marshal.dump(p.pid, socket)
                 rescue Exception => e
-                    Orocos.debug "failed to start #{name}: #{e.message}"
-                    Orocos.debug "  " + e.backtrace.join("\n  ")
+                    Server.debug "failed to start #{name}: #{e.message}"
+                    Server.debug "  " + e.backtrace.join("\n  ")
                     socket.write("N")
                 end
             elsif cmd_code == COMMAND_END
                 name = Marshal.load(socket)
-                Orocos.debug "#{socket} requested end of #{name}"
+                Server.debug "#{socket} requested end of #{name}"
                 p = processes[name]
                 if p
                     begin
                         p.kill(false)
                         socket.write("Y")
                     rescue Exception => e
-                        Orocos.warn "exception raised while calling #{p}#kill(false)"
-                        Orocos.log_pp(:warn, e)
+                        Server.warn "exception raised while calling #{p}#kill(false)"
+                        Server.log_pp(:warn, e)
                         socket.write("N")
                     end
                 else
-                    Orocos.warn "no process named #{name} to end"
+                    Server.warn "no process named #{name} to end"
                     socket.write("N")
                 end
             end
