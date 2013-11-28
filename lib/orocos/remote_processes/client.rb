@@ -92,7 +92,7 @@ module Orocos
 	    if !select([socket], [], [], 2)
 	       raise "timeout while reading process server at '#{host}:#{port}'"
 	    end
-            @server_pid = Marshal.load(socket)
+            @server_pid = Integer(Marshal.load(socket).first)
         end
 
         def info
