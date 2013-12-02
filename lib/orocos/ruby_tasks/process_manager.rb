@@ -24,16 +24,22 @@ module Orocos
         attr_reader :loader
         attr_reader :terminated_deployments
 
-        def initialize
+        def initialize(loader = Orocos.default_loader)
             @deployments = Hash.new
+            @loader = OroGen::Loaders::Aggregate.new
+            self.loader.add loader
             @terminated_deployments = Hash.new
         end
 
         def disconnect
         end
 
+        def register_deployment_model(model)
+            loader.loaded_deployment_models[model.name] = model
+        end
+
         def start(name, deployment_name, name_mappings, options)
-            model = if deployment_model.respond_to?(:to_str)
+            model = if deployment_name.respond_to?(:to_str)
                         loader.deployment_model_from_name(deployment_name)
                     else deployment_name
                     end
