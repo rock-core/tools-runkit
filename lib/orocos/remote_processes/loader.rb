@@ -5,6 +5,10 @@ module Orocos
         class Loader < OroGen::Loaders::Base
             attr_reader :client
 
+            attr_reader :available_projects
+            attr_reader :available_deployments
+            attr_reader :available_typekits
+
             def initialize(client, root_loader = self)
                 @client = client
                 @available_projects,
