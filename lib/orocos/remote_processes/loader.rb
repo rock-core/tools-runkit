@@ -28,7 +28,7 @@ module Orocos
                 if text = available_projects[name]
                     return text
                 else
-                    raise OroGen::NotFound, "#{client} has no project called #{name}"
+                    raise OroGen::NotFound, "#{client} has no project called #{name}, available projects: #{available_projects.keys.sort.join(", ")}"
                 end
             end
 
