@@ -128,8 +128,10 @@ module Orocos
         # @param [Model<Typelib::Type>,String] type the type or type name
         # @return [Property] the property object
         def create_property(name, type)
+            Orocos.load_typekit_for(type, false)
             orocos_type_name = Orocos.find_orocos_type_name_by_type(type)
-            Orocos.load_typekit_for orocos_type_name
+            Orocos.load_typekit_for(orocos_type_name, true)
+
             local_property = @local_task.do_create_property(Property, name, orocos_type_name)
             @local_properties[local_property.name] = local_property
             @properties[local_property.name] = local_property
