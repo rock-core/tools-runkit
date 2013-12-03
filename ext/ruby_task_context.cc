@@ -6,7 +6,7 @@
 #include <rtt/base/PortInterface.hpp>
 #include <rtt/transports/corba/TransportPlugin.hpp>
 
-#include <rtt/base/OutputPortInterface.hpp>
+#include <rtt/OutputPort.hpp>
 #include <rtt/base/InputPortInterface.hpp>
 
 #include <typelib_ruby.hh>
@@ -22,24 +22,98 @@ static VALUE cLocalTaskContext;
 static VALUE cLocalOutputPort;
 static VALUE cLocalInputPort;
 
-class LocalTaskContext : public RTT::TaskContext
+struct LocalTaskContext : public RTT::TaskContext
 {
     std::string model_name;
 
-public:
     RTT::Operation< ::std::string() > _getModelName;
+    RTT::OutputPort< ::boost::int32_t > _state;
     std::string getModelName() const
     { return model_name; }
     void setModelName(std::string const& value)
     { model_name = value; }
-
+    
     LocalTaskContext(std::string const& name)
-        : RTT::TaskContext(name)
+        : RTT::TaskContext(name, TaskCore::PreOperational)
         , _getModelName("getModelName", &LocalTaskContext::getModelName, this, RTT::ClientThread)
+        , _state("state")
+    {
+        setupComponentInterface();
+    }
+
+    void setupComponentInterface()
     {
         provides()->addOperation( _getModelName)
             .doc("returns the oroGen model name for this task");
+        _state.keepLastWrittenValue(false);
+        _state.keepNextWrittenValue(true);
+        ports()->addPort(_state);
+        
+        _state.keepLastWrittenValue(true);
+        _state.write(getTaskState());
     }
+
+    void report(int state) { _state.write(state); }
+    void state(int state) { _state.write(state); }
+    void error(int state)
+    {
+        _state.write(state);
+        TaskContext::error();
+    }
+    void exception(int state)
+    {
+        _state.write(state);
+        TaskContext::exception();
+    }
+    void fatal(int state)
+    {
+        _state.write(state);
+        TaskContext::fatal();
+    }
+    struct StateExporter
+    {
+        RTT::TaskContext const& task;
+        RTT::OutputPort<boost::int32_t>&   port;
+
+        StateExporter(RTT::TaskContext const& task, RTT::OutputPort<int>& port)
+            : task(task), port(port) {}
+        ~StateExporter()
+        {
+            port.write(task.getTaskState());
+        }
+    };
+    bool start()
+    {
+        StateExporter exporter(*this, _state);
+        return RTT::TaskContext::start();
+    }
+
+    bool configure()
+    {
+        StateExporter exporter(*this, _state);
+        return RTT::TaskContext::configure();
+    }
+    bool recover()
+    {
+        StateExporter exporter(*this, _state);
+        return RTT::TaskContext::recover();
+    }
+    bool stop()
+    {
+        StateExporter exporter(*this, _state);
+        return RTT::TaskContext::stop();
+    }
+    bool cleanup()
+    {
+        StateExporter exporter(*this, _state);
+        return RTT::TaskContext::cleanup();
+    }
+    void fatal()
+    { return fatal(RTT::TaskContext::FatalError); }
+    void error()
+    { return error(RTT::TaskContext::RunTimeError); }
+    void exception()
+    { return exception(RTT::TaskContext::Exception); }
 };
 
 struct RLocalTaskContext
