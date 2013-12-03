@@ -37,7 +37,7 @@ module Orocos
 
             project = options.delete(:project)
             if block && !options[:model]
-                model = OroGen::Spec::TaskContext.new(options[:project], name)
+                model = OroGen::Spec::TaskContext.new(project, name)
                 model.instance_eval(&block)
                 options[:model] = model
             end
