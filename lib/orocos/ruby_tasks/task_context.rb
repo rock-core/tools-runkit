@@ -55,6 +55,9 @@ module Orocos
                 remote_task.setup_from_orogen_model(options[:model])
             end
             remote_task
+        rescue ::Exception
+            local_task.dispose
+            raise
         end
 
         def initialize(ior, options = Hash.new)
