@@ -173,6 +173,14 @@ module Orocos
                 else new_outputs << p
                 end
             end
+            orogen_model.each_operation do |op|
+                if !has_operation?(op.name)
+                    singleton_class.class_eval do
+                        define_method(op.name) do |*args|
+                        end
+                    end
+                end
+            end
 
             remove_inputs.each { |p| remove_input_port p }
             remove_outputs.each { |p| remove_output_port p }
