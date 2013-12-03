@@ -2,7 +2,7 @@ module Orocos
     module RubyTasks
     class Process < ProcessBase
         attr_reader :ruby_process_server
-        attr_reader :tasks
+        attr_reader :deployed_tasks
 
         def host_id; 'localhost' end
         def on_localhost?; true end
@@ -10,13 +10,13 @@ module Orocos
 
         def initialize(ruby_process_server, name, model)
             @ruby_process_server = ruby_process_server
-            @tasks = Hash.new
+            @deployed_tasks = Hash.new
             super(name, model)
         end
 
         def spawn(options = Hash.new)
             model.task_activities.each do |deployed_task|
-                tasks[deployed_task.name] = TaskContext.
+                deployed_tasks[deployed_task.name] = TaskContext.
                     from_orogen_model(get_mapped_name(deployed_task.name), deployed_task.task_model)
             end
             @alive = true
@@ -27,14 +27,14 @@ module Orocos
         end
 
         def task(task_name)
-            if t = tasks[task_name]
+            if t = deployed_tasks[task_name]
                 t
             else raise ArgumentError, "#{self} has no task called #{task_name}"
             end
         end
 
         def kill(wait = true, status = ProcessManager::Status.new(:exit_code => 0))
-            tasks.each_value do |task|
+            deployed_tasks.each_value do |task|
                 task.dispose
             end
             dead!(status)
