@@ -162,6 +162,10 @@ module Orocos::Async
             @raw_last_sample = nil
         end
 
+        def to_s
+            "#<Orocos::Async::PortProxy #{full_name}[#{type.name}]>"
+        end
+
         def type_name
             type.name
         end
