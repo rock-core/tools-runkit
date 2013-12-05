@@ -531,6 +531,15 @@ module Orocos
                 end
             end
 
+            def current_time
+                _, time, data = @current_sample
+                return if !time
+                if getter = (timestamps[data.class.name] || default_timestamp)
+                    getter[data]
+                else time
+                end
+            end
+
             def calc_statistics
                 index, time, data = @current_sample
                 if getter = (timestamps[data.class.name] || default_timestamp)
