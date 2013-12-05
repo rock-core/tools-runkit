@@ -279,15 +279,13 @@ module Orocos::Async
             return super unless listener.use_last_value?
 
             if listener.event == :data
-                sample = raw_last_sample
-                if sample
+                if sample = last_sample
                     event_loop.once do
-                        listener.call Typelib.to_ruby(sample)
+                        listener.call sample
                     end
                 end
             elsif listener.event == :raw_data
-                sample = last_sample
-                if sample
+                if sample = raw_last_sample
                     event_loop.once do
                         listener.call sample
                     end
