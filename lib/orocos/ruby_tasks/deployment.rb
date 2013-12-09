@@ -14,6 +14,10 @@ module Orocos
             super(name, model)
         end
 
+        def pid
+            ::Process.pid
+        end
+
         def spawn(options = Hash.new)
             model.task_activities.each do |deployed_task|
                 deployed_tasks[deployed_task.name] = TaskContext.
