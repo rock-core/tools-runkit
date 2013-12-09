@@ -57,10 +57,9 @@ end
 regexp = /#{pattern.first}/i
 
 Orocos.load
-master_project = Orocos::Generation::Project.new
 
-def load_orogen_project(master_project, name, debug)
-    master_project.load_orogen_project(name)
+def load_orogen_project(loader, name, debug)
+    loader.project_model_from_name(name)
 rescue Exception => e
     if debug
         raise
@@ -71,10 +70,12 @@ end
 
 if search_for.include?(:tasks)
     found = []
-    Orocos.available_task_models.each do |name, project_name|
+    Orocos.default_pkgconfig_loader.available_task_models.each do |name, project_name|
         if name =~ regexp || project_name =~ regexp
-            if tasklib = load_orogen_project(master_project, project_name, debug)
-                found << [tasklib.self_tasks.find { |t| t.name == name }, project_name]
+            if tasklib = load_orogen_project(Orocos.default_loader, project_name, debug)
+                if task = tasklib.self_tasks.find { |_, t| t.name == name }
+                    found << [task.last, project_name]
+                end
             end
         end
     end
@@ -88,12 +89,12 @@ end
 
 if search_for.include?(:deployments)
     found = []
-    Orocos.available_deployments.each do |name, pkg|
+    Orocos.default_pkgconfig_loader.available_deployments.each do |name, pkg|
         project_name = pkg.project_name
         if name =~ regexp || project_name =~ regexp
-            if tasklib = load_orogen_project(master_project, project_name, debug)
-		if deployer = tasklib.deployers.find { |n| n.name == name }
-		    found << [deployer, project_name]
+            if tasklib = load_orogen_project(Orocos.default_loader, project_name, debug)
+		if deployer = tasklib.deployers.find { |_, n| n.name == name }
+		    found << [deployer.last, project_name]
 		end
             end
         end
@@ -107,20 +108,17 @@ if search_for.include?(:deployments)
 end
 
 if search_for.include?(:types)
-    Orocos.available_projects.each_key do |project_name|
+    Orocos.default_loader.each_available_project_name do |project_name|
         seen = Set.new
         found = ValueSet.new
-        next if !master_project.has_typekit?(project_name)
+        next if !Orocos.default_loader.has_typekit?(project_name)
 
-        project = load_orogen_project(master_project, project_name, debug)
-        next if !project
-        typekit = project.typekit
+        typekit = Orocos.default_loader.typekit_model_from_name(project_name)
         matching_types = typekit.typelist.grep(regexp)
         if !matching_types.empty?
-            master_project.using_typekit(project_name)
             matching_types.each do |type_name|
                 if !seen.include?(type_name)
-                    found << [master_project.find_type(type_name), project_name]
+                    found << [Orocos.default_loader.registry.get(type_name), project_name]
                     seen << type_name
                 end
             end
