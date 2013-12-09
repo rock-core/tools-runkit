@@ -6,7 +6,6 @@ require 'orocos'
 search_for = []
 
 debug = false
-configuration_mode = false
 save_configuration = nil
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOT
@@ -44,38 +43,6 @@ usage: oroinspect <search term>"
 end
 
 remaining = parser.parse(ARGV)
-
-if configuration_mode
-    Orocos.initialize
-    deployment_name, model_name = *remaining
-    if !deployment_name || !model_name
-        puts parser
-        exit(1)
-    end
-
-    Orocos.run deployment_name do
-        puts "#{deployment_name} #{model_name}"
-        task = begin Orocos::TaskContext.get :provides => model_name
-               rescue Orocos::NotFound
-                   Orocos::TaskContext.get model_name
-               end
-
-        model_name = task.model.name
-        Orocos.task_model_from_name(model_name)
-        if save_configuration
-            file, section_name = *save_configuration
-            if File.directory?(file)
-                file = File.join(file, "#{model_name}.yml")
-            end
-            section_name ||= "default"
-            Orocos::TaskConfigurations.save(task, file, section_name)
-        else
-            pp Orocos::TaskConfigurations.config_as_hash(task)
-        end
-    end
-
-    exit
-end
 
 pattern = remaining
 if pattern.empty?
