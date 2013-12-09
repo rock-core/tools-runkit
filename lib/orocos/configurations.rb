@@ -733,7 +733,7 @@ module Orocos
         # If +name+ is given, it is used as the new configuration name.
         # Otherwise, the task's name is used
         def save(task, path, options = Hash.new)
-            if options.respond_to?(:to_str) # for backward compatibility
+            if options.respond_to?(:to_str) || !options # for backward compatibility
                 options = Hash[:name => options]
             end
             options, find_options = Kernel.filter_options options,
