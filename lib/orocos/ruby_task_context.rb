@@ -108,7 +108,7 @@ module Orocos
             result = value.allocating_operation do
                 do_read(orocos_type_name, value, copy_old_data)
             end
-            if result == 1 || (result == 0 && copy_old_data)
+            if result == NEW_DATA || (result == OLD_DATA && copy_old_data)
                 if sample
                     sample.invalidate_changes_from_converted_types
                 end
