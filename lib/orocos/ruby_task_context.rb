@@ -23,10 +23,9 @@ module Orocos
             end
         end
 
+        # @deprecated use {raw_read} instead
         def read_raw(sample = nil)
-            if value = read_helper(sample, true)
-                return Typelib.to_ruby(value[0])
-            end
+            raw_read(sample)
         end
 
         # Reads a sample on this input port
@@ -67,10 +66,9 @@ module Orocos
             end
         end
 
+        # @deprecated use {raw_read_new} instead
         def read_raw_new(sample = nil)
-            if value = read_helper(sample, false)
-                return Typelib.to_ruby(value[0]) if value[1] == NEW_DATA
-            end
+            raw_read_new(sample)
         end
 
         # Reads a new sample on the associated output port.
