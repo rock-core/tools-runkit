@@ -19,7 +19,7 @@ module Orocos
         #   end
         def read(sample = nil)
             if value = read_raw(sample)
-                Typelib.to_ruby(sample)
+                Typelib.to_ruby(value)
             end
         end
 
