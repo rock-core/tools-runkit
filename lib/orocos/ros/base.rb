@@ -8,14 +8,18 @@ module Orocos
             default_loader.map_message_type_to_orogen(message_type)
         end
 
-        def self.default_loader
-            if !@default_loader
-                loader = OroGen::ROS::Loader.new(Orocos.default_loader)
-                loader.search_path << OroGen::ROS::OROGEN_ROS_LIB_DIR
-                loader.project_model_from_name 'ros'
-                @default_loader = loader
+        class DefaultLoader < OroGen::ROS::Loader
+            def clear
+                super
+                if !search_path.include?(OroGen::ROS::OROGEN_ROS_LIB_DIR)
+                    search_path << OroGen::ROS::OROGEN_ROS_LIB_DIR
+                end
+                project_model_from_name 'ros'
             end
-            @default_loader
+        end
+
+        def self.default_loader
+            @default_loader ||= DefaultLoader.new(Orocos.default_loader)
         end
 
         # Helper method for initialize
@@ -26,7 +30,7 @@ module Orocos
         def self.loaded?; !!@loaded end
         
         def self.clear
-            @default_loader = nil
+            default_loader.clear
             @loaded = false
         end
 

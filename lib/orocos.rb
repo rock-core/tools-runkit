@@ -20,6 +20,7 @@ rescue LoadError
 end
     
 require 'orocos/base'
+require 'orocos/default_loader'
 require 'orocos/typekits'
 
 begin

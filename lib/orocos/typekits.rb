@@ -7,31 +7,22 @@ module Orocos
         # process
         attr_reader :loaded_typekit_plugins
 
-        # The set of typekits whose registries have been merged in the master registry
-        attr_reader :loaded_typekit_registries
-
-        # If true, the types that get loaded are exported in the Ruby namespace.
-        # For instance, a /base/Pose type included in Orocos.registry will be
-        # available as Base::Pose
-        #
-        # The export can be done in a sub-namespace by setting
-        # Orocos.type_export_namespace
-        attr_predicate :export_types?, true
-
-        # The namespace in which the types should be exported if
-        # Orocos.export_types? is true. It defaults to Types
-        attr_accessor :type_export_namespace
-
         # List of already loaded plugins, as a set of full paths to the shared
         # library
         attr_reader :loaded_plugins
     end
     @loaded_typekit_plugins = []
-    @loaded_typekit_registries = []
     @loaded_plugins = Set.new
     @failed_plugins = Set.new
-    @export_types = true
-    @type_export_namespace = Types
+
+    # @deprecated use {default_loader}.type_export_namespace instead
+    def self.type_export_namespace; default_loader.type_export_namespace end
+    # @deprecated use {default_loader}.type_export_namespace= instead
+    def self.type_export_namespace=(namespace); default_loader.type_export_namespace = namespace end
+    # @deprecated use {default_loader}.export_types? instead
+    def self.export_types?; default_loader.export_types? end
+    # @deprecated use {default_loader}.export_types= instead
+    def self.export_types=(value); default_loader.export_types = value end
 
     # Given a pkg-config file and a base name for a shared library, finds the
     # full path to the library
@@ -111,18 +102,6 @@ module Orocos
             end
         end
         @loaded_typekit_plugins << name
-    end
-
-    def self.export_registry_to_ruby
-        Orocos.registry.export_to_ruby(Orocos.type_export_namespace) do |type_name, base_type, mod, basename, exported_type|
-            if type_name =~ /orogen_typekits/ # just ignore those
-            elsif base_type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
-            elsif base_type.contains_opaques? # register the intermediate instead
-                default_loader.intermediate_type_for(base_type)
-            elsif default_loader.m_type?(base_type) # just ignore, they are registered as the opaque
-            else exported_type
-            end
-        end
     end
 
     # Loads all typekits that are available on this system

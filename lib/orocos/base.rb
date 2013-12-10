@@ -71,15 +71,14 @@ module Orocos
     @use_mq_warning = true
     @keep_orocos_logfile = false
     @warn_for_missing_default_loggers = true
-    
+
     # The loader object that should be used to load typekits and projects
     #
     # @return [OroGen::Loaders::Aggregate]
     # @see default_loader
     def self.default_loader
         if !@default_loader
-            loader = OroGen::Loaders::Aggregate.new
-            OroGen::Loaders::RTT.setup_loader(loader)
+            loader = DefaultLoader.new
             @default_loader = loader
             loader.add default_pkgconfig_loader
             loader.add default_file_loader
@@ -163,22 +162,6 @@ module Orocos
         @conf = ConfigurationManager.new
         @loaded_typekit_plugins.clear
         @max_sizes = Hash.new
-        default_loader.on_typekit_load do |typekit|
-            if export_types?
-                Orocos.export_registry_to_ruby
-            end
-        end
-        default_loader.on_project_load do |project|
-            project.self_tasks.each_value do |task|
-                task.each_extension do |ext|
-                    load_extension_runtime_library(ext.name)
-                end
-            end
-
-            if export_types?
-                Orocos.export_registry_to_ruby
-            end
-        end
 
         load_standard_typekits
 
@@ -196,12 +179,7 @@ module Orocos
 
     def self.clear
         @ruby_task.dispose if @ruby_task
-        if export_types? && registry
-            registry.clear_exports(type_export_namespace)
-        end
-        @default_loader = nil
-        @default_pkgconfig_loader = nil
-        @default_project = nil
+        default_loader.clear
         known_orogen_extensions.clear
 
         Orocos::CORBA.clear
