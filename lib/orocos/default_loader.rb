@@ -2,7 +2,7 @@ module Orocos
     class DefaultLoader < OroGen::Loaders::Aggregate
         # @return [Boolean] whether the types that get registered on {registry}
         #   should be exported as Ruby constants
-        attr_predicate :export_types?
+        attr_predicate :export_types?, true
 
         # The namespace in which the types should be exported if
         # {export_types?} returns true. It defaults to Types
