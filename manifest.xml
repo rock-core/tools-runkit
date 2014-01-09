@@ -11,6 +11,7 @@
     <license>GPL v2 or later</license>
     <url>http://orocos.org/dfki</url>
 
+    <depend package="cmake" />
     <depend package="orogen" />
     <depend package="tools/pocolog" optional="1"/>
     <depend package="omniorb" />
