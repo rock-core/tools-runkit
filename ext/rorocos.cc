@@ -404,6 +404,8 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
         result.lock_policy = RTT::corba::CLocked;
     else if (lock_type == rb_intern("lock_free"))
         result.lock_policy = RTT::corba::CLockFree;
+    else if (lock_type == rb_intern("unsync"))
+        result.lock_policy = RTT::corba::CUnsync;
     else
     {
         VALUE obj_as_str = rb_funcall(lock_type, rb_intern("to_s"), 0);
