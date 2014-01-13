@@ -34,6 +34,15 @@ module Orocos
             stream_name
         end
 
+        # Log the given interface object on self
+        #
+        # It creates the log port using {create_log} if needed, or reuses
+        # an existing log port with a matching name
+        #
+        # @param [Attribute,Property,OutputPort] object the object that should
+        #   be logged
+        # @param [Integer] buffer_size the size of the log buffer (only used for
+        #   ports)
         def log(object, buffer_size = Orocos.default_log_buffer_size)
             stream_name = create_log(object)
             if object.kind_of?(Port)
