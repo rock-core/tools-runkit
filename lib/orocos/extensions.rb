@@ -5,24 +5,28 @@ module Orocos
     @default_log_buffer_size = 25
 
     extend_task 'logger::Logger' do
-        def create_log(object)
-            stream_type =
-                case object
-                when Orocos::Port then 'port'
-                when Orocos::Attribute then 'attribute'
-                when Orocos::Property then 'property'
-                else
-                    raise ArgumentError, "expected a port, property or attribute but got #{object.class}"
-                end
+        # Create a new log port for the given interface object
+        #
+        # @param [Attribute,Property,OutputPort] object the object that is going
+        #   to be logged
+        # @param [Hash] options
+        # @option options [String] name (#{object.task.name}.#{object.name}) the created port name 
+        # @option options [Array<{'key' => String, 'value' => String}>] metadata additional metadata to be stored in the log stream
+        # @return [String] the stream name, which is also the name of the
+        #   created input port
+        def create_log(object, options = Hash.new)
+            options = Kernel.validate_options options,
+                :name => "#{object.task.name}.#{object.name}",
+                :metadata => []
 
-            stream_name = "#{object.task.name}.#{object.name}"
-
+            stream_name = options[:name]
             if !has_port?(stream_name)
-                metadata = object.log_metadata.map do |key, value|
+                stream_metadata = object.log_metadata.map do |key, value|
                     Hash['key' => key, 'value' => value]
                 end
+                stream_metadata.concat(options[:metadata])
 
-                if !createLoggingPort(stream_name, object.orocos_type_name, metadata)
+                if !createLoggingPort(stream_name, object.orocos_type_name, stream_metadata)
                     raise ArgumentError, "cannot create log port on log task #{name} for #{stream_name} and type #{object.orocos_type_name}"
                 end
                 Orocos.info "created logging port #{stream_name} of type #{object.orocos_type_name}"
