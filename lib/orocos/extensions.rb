@@ -5,8 +5,6 @@ module Orocos
     @default_log_buffer_size = 25
 
     extend_task 'logger::Logger' do
-        attribute(:logged_ports) { Set.new }
-
         def create_log(object)
             stream_type =
                 case object
