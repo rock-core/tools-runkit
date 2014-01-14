@@ -164,7 +164,7 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
     RTT::corba::CDescriptions_var args = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getArguments,
                 (_objref_COperationInterface*)task.main_service,StringValuePtr(opname)));
 
-    for (int i = 0; i < args->length(); ++i)
+    for (unsigned int i = 0; i < args->length(); ++i)
     {
         RTT::corba::CArgumentDescription arg =
             args[i];
