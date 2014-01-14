@@ -78,6 +78,7 @@ public:
 
 extern VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::Any& src);
 extern CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src);
+extern void corba_must_be_initialized();
 
 #define CORBA_EXCEPTION_HANDLERS \
     catch(RTT::corba::CNoSuchPortException) { this->rb_raise(eNotFound);}\

@@ -118,8 +118,7 @@ tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 ///
 VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
 {
-    if(!CorbaAccess::instance())
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    corba_must_be_initialized();
 
     // all parametes are forwarded to ruby initialize
     if(argc < 1)
