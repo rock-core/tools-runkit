@@ -266,10 +266,9 @@ static VALUE name_service_ior(VALUE self,VALUE task_name)
 {
     corba_must_be_initialized();
 
-    std::string ior;
     std::string name = StringValueCStr(task_name);
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
-    ior = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::getIOR,&name_service,name));
+    std::string ior = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::getIOR,&name_service,name));
     return rb_str_new2(ior.c_str());
 }
 
