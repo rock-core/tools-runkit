@@ -33,13 +33,12 @@ rescue Exception => e
     end
 end
 
-def build_orogen(name)
+def build_orogen(name, options = Hash.new)
     require './lib/orocos/rake'
     work_dir = File.expand_path(File.join('test', 'working_copy'))
-    prefix   = File.join(work_dir, 'prefix')
     data_dir = File.expand_path(File.join('test', 'data'))
 
-    Orocos::Rake.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
+    Orocos::Rake.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir, options
 end
 
 task :default => ["setup:ext", "setup:uic"]
@@ -66,40 +65,44 @@ namespace :setup do
     end
 
     desc "builds the oroGen modules that are needed by the tests"
-    task :orogen_all do
-        build_orogen 'process'
-        build_orogen 'simple_sink'
-        build_orogen 'simple_source'
-        build_orogen 'echo'
-        build_orogen 'operations'
-        build_orogen 'configurations'
-        build_orogen 'states'
-        build_orogen 'uncaught'
-        build_orogen 'system'
+    task :orogen_all, [:keep_wc,:transports] do |_, args|
+        build_orogen 'process', args
+        build_orogen 'simple_sink', args
+        build_orogen 'simple_source', args
+        build_orogen 'echo', args
+        build_orogen 'operations', args
+        build_orogen 'configurations', args
+        build_orogen 'states', args
+        build_orogen 'uncaught', args
+        build_orogen 'system', args
     end
 
     desc "builds the test 'process' module"
-    task :orogen_process do build_orogen 'process' end
+    task :orogen_process, [:keep_wc,:transports] do |_, args| build_orogen 'process', args end
     desc "builds the test 'simple_sink' module"
-    task :orogen_sink    do build_orogen 'simple_sink' end
+    task :orogen_sink, [:keep_wc,:transports]    do |_, args| build_orogen 'simple_sink', args end
     desc "builds the test 'simple_source' module"
-    task :orogen_source  do build_orogen 'simple_source' end
+    task :orogen_source, [:keep_wc,:transports]  do |_, args| build_orogen 'simple_source', args end
     desc "builds the test 'echo' module"
-    task :orogen_echo    do build_orogen 'echo' end
+    task :orogen_echo, [:keep_wc,:transports]    do |_, args| build_orogen 'echo', args end
     desc "builds the test 'states' module"
-    task :orogen_states    do build_orogen 'states' end
+    task :orogen_states, [:keep_wc,:transports]    do |_, args| build_orogen 'states', args end
     desc "builds the test 'uncaught' module"
-    task :orogen_uncaught    do build_orogen 'uncaught' end
+    task :orogen_uncaught, [:keep_wc,:transports]    do |_, args| build_orogen 'uncaught', args end
     desc "builds the test 'system' module"
-    task :orogen_system    do build_orogen 'system' end
+    task :orogen_system, [:keep_wc,:transports]    do |_, args| build_orogen 'system', args end
     desc "builds the test 'operations' module"
-    task :orogen_operations    do build_orogen 'operations' end
+    task :orogen_operations, [:keep_wc,:transports]    do |_, args| build_orogen 'operations', args end
     desc "builds the test 'configurations' module"
-    task :orogen_configurations    do build_orogen 'configurations' end
+    task :orogen_configurations, [:keep_wc,:transports]    do |_, args| build_orogen 'configurations', args end
     desc "builds the test 'ros_test' module"
-    task :orogen_ros_test    do build_orogen 'ros_test' end
+    task :orogen_ros_test, [:keep_wc,:transports]    do |_, args| build_orogen 'ros_test', args end
 
-    UIFILES = %w{orocos_composer.ui orocos_system_builder.ui}
+    task :test do
+        Rake::Task['setup:orogen_all'].invoke(true, nil)
+    end
+
+    UIFILES = %w{}
     desc 'generate all Qt UI files using rbuic4'
     task :uic do
         rbuic = 'rbuic4'
@@ -123,6 +126,7 @@ task :clean do
     FileUtils.rm_rf "lib/rorocos_ext.so"
     FileUtils.rm_rf "test/working_copy"
 end
+task :test => 'setup:test'
 
 if Utilrb.doc?
     namespace 'doc' do
