@@ -80,14 +80,16 @@ extern VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CO
 extern CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src);
 
 #define CORBA_EXCEPTION_HANDLERS \
-    catch(RTT::corba::StdException& e) { rb_raise(eCORBA, "%s", std::string(e.what).c_str()); } \
-    catch(CosNaming::NamingContext::NotFound& e) { rb_raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
-    catch(CORBA::COMM_FAILURE& e) { rb_raise(eCORBAComError, "CORBA communication failure: %s", e.NP_minorString()); } \
-    catch(CORBA::TRANSIENT& e) { rb_raise(eCORBAComError, "CORBA transient exception: %s", e.NP_minorString()); } \
-    catch(CORBA::INV_OBJREF& e) { rb_raise(eCORBA, "CORBA invalid obj reference: %s", e.NP_minorString()); } \
-    catch(CORBA::SystemException& e) { rb_raise(eCORBA, "CORBA system exception: %s", e.NP_minorString()); } \
-    catch(::RTT::corba::CException& e) { rb_raise(eCORBA, "%s", e.message); } \
-    catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); }
+    catch(RTT::corba::CNoSuchPortException) { this->rb_raise(eNotFound);}\
+    catch(RTT::corba::CNoSuchNameException) { this->rb_raise(eNotFound);}\
+    catch(RTT::corba::StdException& e) { this->rb_raise(eCORBA, e.what); } \
+    catch(CosNaming::NamingContext::NotFound& e) { this->rb_raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
+    catch(CORBA::COMM_FAILURE& e) { this->rb_raise(eCORBAComError, "CORBA communication failure: %s", e.NP_minorString()); } \
+    catch(CORBA::TRANSIENT& e) { this->rb_raise(eCORBAComError, "CORBA transient exception: %s", e.NP_minorString()); } \
+    catch(CORBA::INV_OBJREF& e) { this->rb_raise(eCORBA, "CORBA invalid obj reference: %s", e.NP_minorString()); } \
+    catch(CORBA::SystemException& e) { this->rb_raise(eCORBA, "CORBA system exception: %s", e.NP_minorString()); } \
+    catch(CORBA::Exception& e) { this->rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); } \
+    catch(InvalidIORError &e) { this->rb_raise(rb_eArgError, e.what());}
 
 
 class InvalidIORError :public std::runtime_error
@@ -97,38 +99,23 @@ class InvalidIORError :public std::runtime_error
             std::runtime_error(what_arg) { }
 };
 
-#define CORBA_EXCEPTION_HANDLERS2 \
-    catch(RTT::corba::CNoSuchPortException) { BlockingFunctionBase::raise(eNotFound,"");}\
-    catch(RTT::corba::CNoSuchNameException) { BlockingFunctionBase::raise(eNotFound,"");}\
-    catch(RTT::corba::StdException& e) { rb_raise(eCORBA, "%s", std::string(e.what).c_str()); } \
-    catch(CosNaming::NamingContext::NotFound& e) { BlockingFunctionBase::raise(eNotFound, "cannot find naming context %s",e.rest_of_name[0].id.in()); } \
-    catch(CORBA::COMM_FAILURE& e) { rb_raise(eCORBAComError, "CORBA communication failure: %s", e.NP_minorString()); } \
-    catch(CORBA::TRANSIENT& e) { rb_raise(eCORBAComError, "CORBA transient exception: %s", e.NP_minorString()); } \
-    catch(CORBA::INV_OBJREF& e) { rb_raise(eCORBA, "CORBA invalid obj reference: %s", e.NP_minorString()); } \
-    catch(CORBA::SystemException& e) { rb_raise(eCORBA, "CORBA system exception: %s", e.NP_minorString()); } \
-    catch(CORBA::Exception& e) { rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); } \
-    catch(InvalidIORError &e) { BlockingFunctionBase::raise(rb_eArgError, e.what());}
-
 template<typename F, typename A=boost::function<void()> >
 class CORBABlockingFunction : public BlockingFunction<F,A>
 {
     public:
         static void call(F processing, A abort = boost::bind(&BlockingFunctionBase::abort_default))
         {
-            CORBABlockingFunction<F, A> bf(processing, abort);
-            bf.blockingCall();
+            return BlockingFunctionBase::doCall< void, CORBABlockingFunction<F,A> >(processing, abort);
         }
 
-    protected:
         CORBABlockingFunction(F processing, A abort):
-            BlockingFunction<F, A>::BlockingFunction(processing, abort)
-    { }
+            BlockingFunction<F, A>(processing, abort) { }
 
         virtual void processing()
         {
             // add corba exception handlers
-            try { BlockingFunction<F,A>::processing_fct(); }
-            CORBA_EXCEPTION_HANDLERS2
+            try { this->processing_fct(); }
+            CORBA_EXCEPTION_HANDLERS
             EXCEPTION_HANDLERS
         }
 };
@@ -140,20 +127,17 @@ class CORBABlockingFunctionWithResult : public BlockingFunctionWithResult<F,A>
         typedef typename F::result_type result_t;
         static result_t call(F processing, A abort = boost::bind(&BlockingFunctionBase::abort_default))
         {
-            CORBABlockingFunctionWithResult<F, A> bf(processing, abort);
-            bf.blockingCall();
-            return bf.return_val;
+            return BlockingFunctionBase::doCall< result_t, CORBABlockingFunctionWithResult<F,A> >(processing, abort);
         }
-    protected:
+
         CORBABlockingFunctionWithResult(F processing, A abort):
-            BlockingFunctionWithResult<F, A>::BlockingFunctionWithResult(processing, abort)
-    { }
+            BlockingFunctionWithResult<F, A>::BlockingFunctionWithResult(processing, abort) { }
 
         virtual void processing()
         {
             // add corba exception handlers
-            try { BlockingFunctionWithResult<F,A>::return_val = BlockingFunctionWithResult<F,A>::processing_fct(); }
-            CORBA_EXCEPTION_HANDLERS2
+            try { this->return_val = this->processing_fct(); }
+            CORBA_EXCEPTION_HANDLERS
             EXCEPTION_HANDLERS
         }
 };
