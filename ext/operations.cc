@@ -64,25 +64,6 @@ static CAnyArguments* corba_args_from_ruby(VALUE type_names, VALUE args)
     return corba_args._retn();
 }
 
-static VALUE result_to_ruby(CORBA::Any_var corba_result, VALUE result_type_name, VALUE result_)
-{
-    if (!RTEST(result_))
-        return Qnil;
-
-    if (rb_obj_is_kind_of(result_, rb_cString))
-    {
-        char const* result_str;
-        corba_result >>= result_str;
-        return rb_str_new2(result_str);
-    }
-    else
-    {
-        Typelib::Value result = typelib_get(result_);
-        corba_to_ruby(StringValuePtr(result_type_name), result, corba_result);
-        return result_;
-    }
-}
-
 static VALUE operation_call(VALUE task_, VALUE name, VALUE result_type_name, VALUE result, VALUE args_type_names, VALUE args)
 {
     RTaskContext& task = get_wrapped<RTaskContext>(task_);
@@ -128,14 +109,6 @@ static VALUE operation_send(VALUE task_, VALUE name, VALUE args_type_names, VALU
                 (_objref_COperationInterface*)task.main_service,
                 StringValuePtr(name),corba_args));
     return simple_wrap(cSendHandle, new RSendHandle(corba_result));
-}
-
-static VALUE send_handle_check_status(VALUE handle_)
-{
-    RSendHandle& handle = get_wrapped<RSendHandle>(handle_);
-    RTT::corba::CSendStatus status = corba_blocking_fct_call_with_result(boost::bind(&_objref_CSendHandle::checkStatus,
-                (CSendHandle_ptr)handle.handle));
-    return INT2FIX(status);
 }
 
 static VALUE send_handle_collect_if_done(VALUE handle_, VALUE result_type_names, VALUE results)
