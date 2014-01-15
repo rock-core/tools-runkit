@@ -7,9 +7,9 @@ lib_dir = "lib/orocos"
 main_dir = File.join(File.dirname(__FILE__),"..","..")
 if prefix = ENV['CMAKE_PREFIX_PATH']
     prefix = ENV['CMAKE_PREFIX_PATH'].split(":").first
-    prefix = File.join(prefix,"lib","ruby",RbConfig::CONFIG['ruby_version'],RbConfig::CONFIG['arch'])
+    prefix = File.join(prefix,"lib","ruby",RbConfig::CONFIG['ruby_version'],RbConfig::CONFIG['arch'],"orocos")
 else
-    prefix = File.join(main_dir,lib_dir)
+    prefix = File.join(main_dir,lib_dir,"orocos")
 end
 
 
