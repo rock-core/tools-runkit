@@ -192,7 +192,7 @@ module Orocos
             if !(logger = self.default_logger)
                 return
             end
-            log_file_name = logger.name[/.*(?=_[L|l]ogger)/] || logger.name
+            log_file_name = logger.basename[/.*(?=_[L|l]ogger)/] || logger.basename
 
             index = 0
             if options[:remote]
