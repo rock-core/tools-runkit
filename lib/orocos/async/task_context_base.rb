@@ -14,6 +14,40 @@ module Orocos::Async
                       :attribute_unreachable,
                       :state_change
 
+        # writes all ports and properties of the given task to a
+        # RubyTaskContext
+        def self.to_ruby(task)
+            begin
+                t = Orocos::CORBA.name_service.get(task.basename)
+                raise "Cannot create ruby task for #{task.name} "\
+                    "because there is already a task #{t.name} "\
+                    "registered on the main CORBA name service."
+            rescue Orocos::NotFound
+            end
+            t = Orocos::RubyTaskContext.new(task.basename)
+            task.on_port_reachable do |port|
+                next if t.has_port?(port)
+                port = task.port(port)
+                port.wait
+                p = t.create_output_port(port.name,port.type)
+                port.on_data do |data|
+                    p.write data
+                end
+            end
+            task.on_property_reachable do |prop|
+                next if task.has_property?(prop)
+                prop = task.property(prop)
+                prop.wait
+                p = @ruby_task_context.create_property(prop.name,prop.type)
+                p.write p.new_sample.zero!
+                prop.on_change do |data|
+                    p.write data
+                end
+            end
+            t.start
+            t
+        end
+
         # @!attribute raise_on_access_error?
         #   If set to true, #task_context will raise whenever the access to the
         #   remote task context failed. Otherwise, the exception will  be
@@ -57,7 +91,17 @@ module Orocos::Async
             Orocos::Async.proxy(name,options)
         end
 
-        def add_listener(listener)
+        # writes all ports and properties to a
+        # RubyTaskContext
+        def to_ruby
+            @ruby_task_context ||= TaskContextBase::to_ruby(self)
+        end
+
+        def ruby_task_context?
+            !!@ruby_task_context
+        end
+
+        def really_add_listener(listener)
             return super unless listener.use_last_value?
 
             # call new listeners with the current value
@@ -151,7 +195,7 @@ module Orocos::Async
         # Returns nil if the TaskContext is not connected.
         # Returns an EventLoop Event if not called from the event loop thread.
         #
-        # @prarm [Exception] reason The reason for the disconnect
+        # @param [Exception] reason The reason for the disconnect
         # @return [Orocos::TaskContext,nil,Utilrb::EventLoop::Event]
         def unreachable!(options = Hash.new)
             options = Kernel.validate_options options, :error
@@ -205,12 +249,12 @@ module Orocos::Async
         # all non-async objects must provide a #to_async call to create a
         # corresponding asynchronous-access object.
         #
-        # @arg [Symbol] method_name the method that should be called
-        # @arg [Proc,nil] user_callback the user-provided callback if there is
+        # @param [Symbol] method_name the method that should be called
+        # @param [Proc,nil] user_callback the user-provided callback if there is
         #   one
-        # @arg [Hash] to_async_options the options that should be passed to
+        # @param [Hash] to_async_options the options that should be passed to
         #   to_async
-        # @arg [Array] the arguments that should be forwarded to the underlying
+        # @param [Array] the arguments that should be forwarded to the underlying
         #   method
         #
         # @return [Object] in the synchronous case, the method returns the
@@ -295,7 +339,7 @@ module Orocos::Async
 
         private
         # add methods which forward the call to the underlying task context
-        forward_to :task_context,:@event_loop, :known_errors => [Orocos::ComError,Orocos::NotFound],:on_error => :emit_error do
+        forward_to :task_context,:@event_loop, :known_errors => [Orocos::ComError,Orocos::NotFound,Orocos::TypekitTypeNotFound],:on_error => :emit_error do
             thread_safe do
                 def_delegator :ping,:known_errors => nil  #raise if there is an error in the communication
                 methods = [:has_operation?, :has_port?,:property_names,:attribute_names,:port_names,:rtt_state]
@@ -334,11 +378,11 @@ module Orocos::Async
             deleted_ports = @port_names - port_names
             deleted_ports.each do |name|
                 @port_names.delete name
-                event :port_unreachable, name
+                process_event :port_unreachable, name
             end
             added_ports.each do |name|
                 @port_names << name
-                event :port_reachable, name
+                process_event :port_reachable, name
             end
         end
 
@@ -352,7 +396,7 @@ module Orocos::Async
             end
             added_properties.each do |name|
                 @property_names << name
-                event :property_reachable, name
+                process_event :property_reachable, name
             end
         end
 
@@ -362,17 +406,18 @@ module Orocos::Async
             deleted_properties = @attribute_names - attribute_names
             deleted_properties.each do |name|
                 @attribute_names.delete name
-                event :attribute_unreachable, name
+                process_event :attribute_unreachable, name
             end
             added_properties.each do |name|
                 @attribute_names << name
-                event :attribute_reachable, name
+                process_event :attribute_reachable, name
             end
         end
 
         # Returns the designated object and an error object.
         # This must be thread safe as it is called from the worker threads!
-        # @delegator_obj must not be directly accessed without synchronize.
+        # the @delegator_obj instance variable must not be directly accessed
+        # without proper synchronization.
         def task_context
             @mutex.synchronize do
                 begin

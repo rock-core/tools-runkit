@@ -29,6 +29,10 @@ rescue LoadError
     Orocos::HAS_POCOLOG = false
 end
 
+module Orocos
+    OROCOSRB_LIB_DIR = File.expand_path('orocos', File.dirname(__FILE__))
+end
+
 require 'orocos/namespace'
 require 'orocos/logging'
 require 'orocos/version'

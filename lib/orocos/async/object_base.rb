@@ -2,6 +2,7 @@ module Orocos::Async
 
     class EventListener
         attr_reader :event
+        attr_reader :last_args
 
         def initialize(obj,event,use_last_value=true,&block)
             @block = block
@@ -11,6 +12,7 @@ module Orocos::Async
             @obj = obj
             @event = event
             @use_last_value = use_last_value
+            @last_args
         end
 
         # returns true if the listener shall be called
@@ -25,12 +27,14 @@ module Orocos::Async
 
         # stop listing to the event
         def stop
+            @last_args = nil
             @obj.remove_listener(self)
             self
         end
 
         # start listing  to the event
-        def start
+        def start(use_last_value = @use_last_value)
+            @use_last_value = use_last_value
             @obj.add_listener(self)
             self
         end
@@ -43,6 +47,7 @@ module Orocos::Async
 
         # calls the callback
         def call(*args)
+            @last_args = args
             @block.call *args
         end
     end
@@ -150,9 +155,9 @@ module Orocos::Async
         end
 
         attr_reader :event_loop
-        attr_reader :name
         attr_reader :options
         attr_accessor :emitting
+        attr_accessor :name
         define_events :error,:reachable,:unreachable
 
         # Queue of listener that are going to be added by callbacks registered
@@ -245,7 +250,7 @@ module Orocos::Async
                 if existing = @proxy_listeners[obj].delete(e)
                     existing.stop
                 end
-                l = @proxy_listeners[obj][e] = EventListener.new(obj,e) do |*val|
+                l = @proxy_listeners[obj][e] = EventListener.new(obj,e,true) do |*val|
                     process_event e,*val
                 end
                 l.start if number_of_listeners(e) > 0
@@ -269,7 +274,7 @@ module Orocos::Async
 
         def add_listener(listener)
             event = validate_event listener.event
-
+            return listener if pending_adds.include? listener
             pending_adds << listener
             event_loop.once do
                 expected = pending_adds.shift
@@ -288,24 +293,22 @@ module Orocos::Async
         def really_add_listener(listener)
             if listener.use_last_value?
                 if listener.event == :reachable
-                    if valid_delegator?
-                        listener.call
-                    end
+                    listener.call if valid_delegator?
                 elsif listener.event == :unreachable
-                    if !valid_delegator?
-                        listener.call
-                    end
+                    listener.call if !valid_delegator?
                 end
             end
-
-            @listeners[listener.event] << listener
-            if number_of_listeners(listener.event) == 1
-                @proxy_listeners.each do |obj,listeners|
-                    if l = listeners[listener.event]
-                        obj.add_listener(l)
+            @proxy_listeners.each do |obj,listeners|
+                if l = listeners[listener.event]
+                    if listener.use_last_value? && !listener.last_args
+                        # replay last value if requested
+                        obj.really_add_listener(listener)
+                        obj.remove_listener(listener)
                     end
+                    l.start(false) unless l.listening?
                 end
             end
+            @listeners[listener.event] << listener unless @listeners[listener.event].include?(listener)
             listener
         end
 
@@ -385,7 +388,9 @@ module Orocos::Async
         # calls all listener which are registered for the given event
         def process_event(event_name,*args)
             event = validate_event event_name
-            @listeners[event_name].each do |listener|
+            #@listeners have to be cloned because it might get modified 
+            #by listener.call
+            @listeners[event_name].clone.each do |listener|
                 listener.call *args
             end
             self

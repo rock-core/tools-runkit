@@ -23,6 +23,9 @@ module Orocos
                 rescue ArgumentError => e
                     Orocos::ROS.warn e
                     next
+		rescue Utilrb::PkgConfig::NotFound => e
+		    Orocos::ROS.warn e
+		    next
                 end
             end.compact
             rosmaps << Orocos::TypekitMarshallers::ROS::DEFAULT_TYPE_TO_MSG

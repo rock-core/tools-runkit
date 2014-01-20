@@ -79,6 +79,11 @@ module Orocos
                 end
             end
 
+            def raw_read(sample)
+                sample = read(sample)
+                Typelib::from_ruby(sample,type) if sample
+            end
+
             def type_name
                 @port.type_name
             end
@@ -255,7 +260,9 @@ module Orocos
             #task => simulated task for which the port shall be created
             #stream => stream from which the port shall be created 
             def initialize(task,stream)
-                raise "Cannot create OutputPort out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
+                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
+                    raise "Cannot create OutputPort out of #{stream.class}"
+                end
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
 		if @name == nil
@@ -298,6 +305,11 @@ module Orocos
                 raise "Port #{@name} is not replayed. Set tracked to true or use a port reader!" unless used? 
                 return yield @current_data if block_given?
                 return @current_data
+            end
+
+            def raw_read()
+                sample = read()
+                Typelib::from_ruby(sample,type) if sample
             end
 
             #If set to true the port is replayed.  
@@ -400,7 +412,7 @@ module Orocos
         #It is automatically replayed if at least one OutputPort of the task is replayed
         class Property
             #true -->  this property shall be replayed
-            attr_accessor :tracked         
+            attr_accessor :tracked
             # The underlying TaskContext instance
             attr_reader :task
             # The property/attribute name
@@ -408,11 +420,13 @@ module Orocos
             # The attribute type, as a subclass of Typelib::Type
             attr_reader :type
             #dedicated stream for simulating the port
-            attr_reader :stream         
-            attr_reader :type_name         
+            attr_reader :stream
+            attr_reader :type_name
 
             def initialize(task, stream)
-                raise "Cannot create Property out of #{stream.class}" if !stream.instance_of?(Pocolog::DataStream)
+                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
+                    raise "Cannot create Property out of #{stream.class}"
+                end
                 @stream = stream
                 @name = stream.name.to_s.match(/\.(.*$)/)
                 raise 'Stream name does not follow the convention TASKNAME.PROPERTYNAME' if @name == nil
@@ -442,6 +456,11 @@ module Orocos
             # Read the current value of the property/attribute
             def read
                 @current_value
+            end
+
+            def raw_read()
+                sample = read()
+                Typelib::from_ruby(sample,type) if sample
             end
 
             # Sets a new value for the property/attribute
@@ -521,11 +540,38 @@ module Orocos
                 @file_path_config = nil
                 @file_path_config_reg = file_path_config
                 @rtt_state = :RUNNING
+                @port_reachable_blocks = Array.new
+                @property_reachable_blocks = Array.new
+                @state_change_blocks = Array.new
+            end
+
+            def current_state=(val)
+                @current_state=val
+                @state_change_blocks.each do |b|
+                    b.call val
+                end
+            end
+
+            def on_state_change(&block)
+                @state_change_blocks << block
+            end
+
+            def to_s
+                "#<Orocos::Log::TaskContext: #{name}>"
             end
 
             def rename(name)
                 @name = name
             end
+
+            def on_port_reachable(&block)
+                @port_reachable_blocks << block
+            end
+
+            def on_property_reachable(&block)
+                @property_reachable_blocks << block
+            end
+
 
             # Returns the array of the names of available properties on this task
             # context
@@ -614,6 +660,7 @@ module Orocos
                 log_property = Property.new(self,stream)
                 raise ArgumentError, "The log file #{file_path} is already loaded" if @properties.has_key?(log_property.name)
                 @properties[log_property.name] = log_property
+                @property_reachable_blocks.each{|b|b.call(log_property.name)}
                 return log_property
             end
 
@@ -639,6 +686,7 @@ module Orocos
                     log_port = OutputPort.new(self,stream)
                     raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
                     @ports[log_port.name] = log_port
+                    @port_reachable_blocks.each{|b|b.call(log_port.name)}
                 rescue InitializePortError => error
                     @invalid_ports[error.port_name] = error.message
                     raise error
@@ -728,6 +776,22 @@ module Orocos
                 end
             end
 
+            def start(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
+            def configure(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
+            def stop(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
+            def cleanup(*args)
+                raise "Task #{name} does not support this operation"
+            end
+
             #This is used to allow the following syntax
             #task.port_name.connect_to(other_port)
             def method_missing(m, *args,&block) #:nodoc:
@@ -759,7 +823,7 @@ module Orocos
                             Log.error "  #{property.name}"
                         end
                     end
-                    raise e 
+                    raise e
                 end
             end
         end

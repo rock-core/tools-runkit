@@ -5,8 +5,8 @@ module Orocos::Async::CORBA
         extend Orocos::Async::ObjectBase::Periodic::ClassMethods
         include Orocos::Async::ObjectBase::Periodic
 
-        define_event :change
-        attr_reader :last_sample
+        define_events :change,:raw_change
+        attr_reader :raw_last_sample
 
         def initialize(async_task,attribute,options=Hash.new)
             super(attribute.name,async_task.event_loop)
@@ -17,7 +17,7 @@ module Orocos::Async::CORBA
             disable_emitting do
                 reachable!(attribute)
             end
-            @poll_timer = @event_loop.async_every(method(:read), {:period => period, :start => false,
+            @poll_timer = @event_loop.async_every(method(:raw_read), {:period => period, :start => false,
                                                   :known_errors => [Orocos::NotFound,Orocos::ComError,Orocos::TypekitTypeNotFound]}) do |data,error|
                 if error
                     @poll_timer.cancel
@@ -27,9 +27,10 @@ module Orocos::Async::CORBA
                     end
                 else
                     if data
-                        if @last_sample != data
-                            @last_sample = data
-                            event :change,data
+                        if @raw_last_sample != data
+                            @raw_last_sample = data
+                            event :raw_change,data
+                            event :change,Typelib.to_ruby(data)
                         end
                     end
                 end
@@ -42,19 +43,25 @@ module Orocos::Async::CORBA
             emit_error e
         end
 
+        def last_sample
+            if @raw_last_sample
+                Typelib.to_ruby(@raw_last_sample)
+            end
+        end
+
         def unreachable!(options = Hash.new)
             super
-            @last_sample = nil
+            @raw_last_sample = nil
             @poll_timer.cancel
         end
 
         def reachable!(attribute,options = Hash.new)
             super
-            @last_sample = nil
+            @raw_last_sample = nil
         end
 
         def reachable?
-            super && @last_sample
+            super && @raw_last_sample
         end
 
         def period=(period)
@@ -62,13 +69,38 @@ module Orocos::Async::CORBA
             @poll_timer.period = self.period
         end
 
+        # waits until object gets reachable raises Orocos::NotFound if the
+        # object was not reachable after the given time spawn
+        def wait(timeout = 5.0)
+            # make sure the poll timer is running otherwise wait
+            # will always fail
+            poll_timer_running  = @poll_timer.running?
+            @poll_timer.start(0.01) unless poll_timer_running
+            time = Time.now
+            @event_loop.wait_for do
+                if timeout && timeout <= Time.now-time
+                    Utilrb::EventLoop.cleanup_backtrace do
+                        raise Orocos::NotFound,"#{self.class}: #{respond_to?(:full_name) ? full_name : name} is not reachable after #{timeout} seconds"
+                    end
+                end
+                reachable?
+            end
+            @poll_timer.stop unless poll_timer_running
+            self
+        end
+
         def really_add_listener(listener)
             super
-            if listener.event == :change
+            if listener.event == :raw_change
                 if !@poll_timer.running?
-                    @poll_timer.start(period) 
+                    @poll_timer.start(period)
                 end
-                listener.call(@last_sample) if @last_sample && listener.use_last_value?
+                listener.call(@raw_last_sample) if @raw_last_sample && listener.use_last_value?
+            elsif listener.event == :change
+                if !@poll_timer.running?
+                    @poll_timer.start(period)
+                end
+                listener.call(Typelib.to_ruby(@raw_last_sample)) if @raw_last_sample && listener.use_last_value?
             end
         end
 
@@ -80,6 +112,22 @@ module Orocos::Async::CORBA
                 end
                 @policy = nil
             end
+        end
+
+        def on_raw_change(policy = Hash.new,&block)
+            @policy = if policy.empty?
+                           options
+                       elsif !@policy
+                           policy
+                       elsif @policy == policy
+                           @policy
+                       else
+                           Orocos.warn "Property #{full_name} cannot emit :raw_change with different policies."
+                           Orocos.warn "The current policy is: #{@policy}."
+                           Orocos.warn "Ignoring policy: #{policy}."
+                           @policy
+                       end
+            on_event :raw_change,&block
         end
 
         def on_change(policy = Hash.new,&block)

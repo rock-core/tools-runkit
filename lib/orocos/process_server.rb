@@ -293,9 +293,12 @@ module Orocos
                         p.kill(false)
                         socket.write("Y")
                     rescue Exception => e
+                        Orocos.warn "exception raised while calling #{p}#kill(false)"
+                        Orocos.log_pp(:warn, e)
                         socket.write("N")
                     end
                 else
+                    Orocos.warn "no process named #{name} to end"
                     socket.write("N")
                 end
             end
@@ -365,6 +368,9 @@ module Orocos
         attr_reader :server_pid
         # A string that allows to uniquely identify this process server
         attr_reader :host_id
+        # The name service object that allows to resolve tasks from this process
+        # server
+        attr_reader :name_service
 
         def to_s
             "#<Orocos::ProcessServer #{host}:#{port}>"
@@ -372,7 +378,11 @@ module Orocos
         def inspect; to_s end
 
         # Connects to the process server at +host+:+port+
-        def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT)
+        #
+        # @option options [Orocos::NameService] :name_service
+        #   (Orocos.name_service). The name service object that should be used
+        #   to resolve tasks started by this process server
+        def initialize(host = 'localhost', port = ProcessServer::DEFAULT_PORT, options = Hash.new)
             @host = host
             @port = port
             @socket =
@@ -392,6 +402,10 @@ module Orocos
                    rescue EOFError
                        raise StartupFailed, "process server failed at '#{host}:#{port}'"
                    end
+
+            options = Kernel.validate_options options,
+                :name_service => Orocos.name_service
+            @name_service = options[:name_service]
 
             @available_projects    = info[0]
             @available_deployments = info[1]
@@ -586,8 +600,6 @@ module Orocos
 
     # Representation of a remote process started with ProcessClient#start
     class RemoteProcess < ProcessBase
-        # The deployment name
-        attr_reader :name
         # The ProcessClient instance that gives us access to the remote process
         # server
         attr_reader :process_client
@@ -616,7 +628,7 @@ module Orocos
         # Returns the task context object for the process' task that has this
         # name
         def task(task_name)
-            Orocos.name_service.get(task_name)
+            process_client.name_service.get(task_name)
         end
 
         # Stops the process

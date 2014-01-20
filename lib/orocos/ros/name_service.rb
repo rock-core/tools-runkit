@@ -253,7 +253,7 @@ module Orocos
 
             # Wait for the ROS graph to be updated at least once
             #
-            # @arg [Time,nil] if given, the new graph should be newer than
+            # @param [Time,nil] if given, the new graph should be newer than
             #   this time. Otherwise, we simply wait for any update
             # @yield in a context where it is safe to access the ROS graph
             #   object. The block is optional

@@ -18,7 +18,23 @@ module Orocos
         #   struct.an_array.each do |element|
         #   end
         def read(sample = nil)
-            if value = read_helper(sample, true)
+            if value = read_raw(sample)
+                Typelib.to_ruby(value)
+            end
+        end
+
+        # @deprecated use {raw_read} instead
+        def read_raw(sample = nil)
+            raw_read(sample)
+        end
+
+        # Reads a sample on this input port
+        #
+        # Unlike #read, it will always return a typelib type even for simple types.
+        #
+        # Raises CORBA::ComError if the communication is broken.
+        def raw_read(sample = nil)
+            if value = read_helper(sample,true)
                 value[0]
             end
         end
@@ -45,10 +61,30 @@ module Orocos
         #   
         # Raises CORBA::ComError if the communication is broken.
         def read_new(sample = nil)
+            if value = read_raw_new(sample)
+                Typelib.to_ruby(value)
+            end
+        end
+
+        # @deprecated use {raw_read_new} instead
+        def read_raw_new(sample = nil)
+            raw_read_new(sample)
+        end
+
+        # Reads a new sample on the associated output port.
+        #
+        # Unlike #raw_read, it will return a non-nil value only if it it different
+        # from the last time #read or #read_new has been called
+        #
+        # Unlike #read_new, it will always return a typelib type even for simple types.
+        #
+        # Raises CORBA::ComError if the communication is broken.
+        def raw_read_new(sample = nil)
             if value = read_helper(sample, false)
                 value[0] if value[1] == NEW_DATA
             end
         end
+
 
         # Clears the channel, i.e. "forget" that this port ever got written to
         def clear
@@ -57,7 +93,8 @@ module Orocos
 
         private
 
-        # Helper method for #read and #read_new
+        # Helper method for #read, #raw_read, #read_new and #raw_read_new
+        # always returns a Typelib Type or nil even for simple types
         def read_helper(sample, copy_old_data) # :nodoc:
             if sample
                 if sample.class != type
@@ -71,11 +108,11 @@ module Orocos
             result = value.allocating_operation do
                 do_read(orocos_type_name, value, copy_old_data)
             end
-            if result == 1 || (result == 0 && copy_old_data)
+            if result == NEW_DATA || (result == OLD_DATA && copy_old_data)
                 if sample
                     sample.invalidate_changes_from_converted_types
                 end
-                return [Typelib.to_ruby(value), result]
+                return [value, result]
             end
         end
 
@@ -202,14 +239,16 @@ module Orocos
         end
 
         # Creates a new local task context that fits the given oroGen model
+        #
+        # @return [RubyTaskContext]
         def self.from_orogen_model(name, orogen_model)
             new(name, :model => orogen_model)
         end
 
-        # Creates a new local taks context with the given name
+        # Creates a new ruby task context with the given name
         #
         # @param [String] name the task name
-        # @return [LocalTaskContext]
+        # @return [RubyTaskContext]
         def self.new(name, options = Hash.new, &block)
             options, _ = Kernel.filter_options options, :model
 
@@ -279,7 +318,7 @@ module Orocos
 
         # Remove the given port from this task's interface
         #
-        # @param [LocalInputPort,LocalOutputPort] the port to be removed
+        # @param [LocalInputPort,LocalOutputPort] port the port to be removed
         # @return [void]
         def remove_port(port)
             @local_ports.delete(port.name)
@@ -299,15 +338,23 @@ module Orocos
         # Creates a new property on this task context
         #
         # @param [String] name the property name
-        # @param [String] orocos_type_name the type name as known by RTT. It is
-        #   usually the typelib type name
+        # @param [Model<Typelib::Type>,String] type the type or type name
+        # @option options [Boolean] :init (true) if true, the new property will
+        #   be initialized with a fresh sample. Otherwise, it is left alone. This
+        #   is mostly to avoid crashes / misbehaviours in case smart pointers are
+        #   used
         # @return [Property] the property object
-        def create_property(name, type)
+        def create_property(name, type, options = Hash.new)
+            options = Kernel.validate_options options, :init => true
+
             orocos_type_name = find_orocos_type_name_by_type(type)
             Orocos.load_typekit_for orocos_type_name
             local_property = @local_task.do_create_property(Property, name, orocos_type_name)
             @local_properties[local_property.name] = local_property
             @properties[local_property.name] = local_property
+            if options[:init]
+                local_property.write(local_property.new_sample)
+            end
             local_property
         end
 

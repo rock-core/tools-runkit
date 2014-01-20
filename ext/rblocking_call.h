@@ -10,11 +10,15 @@
 #include <stdarg.h>
 
 #define EXCEPTION_HANDLERS \
-    catch(std::runtime_error &e) { BlockingFunctionBase::raise(rb_eRuntimeError, e.what());}\
-    catch(std::exception& e) { BlockingFunctionBase::raise(rb_eException,e.what()); }
+    catch(std::runtime_error &e) { this->rb_raise(rb_eRuntimeError, "%s", e.what());}\
+    catch(std::exception& e) { this->rb_raise(rb_eException, "%s", e.what()); }
 
 class BlockingFunctionBase
 {
+    public:
+        VALUE exception_class;               //stores the exception class
+        std::string exception_message;       //stores the message of the exeption
+
     protected:
         virtual void processing() = 0;
         virtual void abort() = 0;
@@ -28,13 +32,18 @@ class BlockingFunctionBase
 #else
             callProcessing(this);
 #endif
-            if (RTEST(exception_class))
-            {
-                rb_raise(exception_class, "%s",exception_message.c_str());
-            }
+            // do NOT raise the pending exceptions here, otherwise this object
+            // will not be destroyed properly
         }
 
-        void raise(VALUE exception_class, const char* format, ...)
+        void rb_raise(VALUE exception_class)
+        {
+            this->exception_class = exception_class;
+            this->exception_message.clear();
+        }
+
+
+        void rb_raise(VALUE exception_class, const char* format, ...)
         {
             char buffer[256];
             va_list args;
@@ -46,7 +55,7 @@ class BlockingFunctionBase
             this->exception_message = buffer;
         }
 
-        void raise(VALUE exception_class, std::string const& message)
+        void rb_raise(VALUE exception_class, std::string const& message)
         {
             this->exception_class = exception_class;
             this->exception_message = message;
@@ -59,6 +68,31 @@ class BlockingFunctionBase
         {
         }
 
+        /** Generic implementation of blocking function call mechanisms
+         *
+         * The main problem this deals with is that the Ruby exceptions must be
+         * raised after all stack-based C++ objects are deleted
+         */
+        template<typename ResultT, typename BlockingFunctionT, typename F, typename A>
+        static ResultT doCall(F processing, A abort)
+        {
+            VALUE exception_class;
+            std::string exception_message;
+            {
+                BlockingFunctionT bf(processing, abort);
+                bf.blockingCall();
+                if (RTEST(bf.exception_class))
+                {
+                    exception_class   = bf.exception_class;
+                    exception_message = bf.exception_message;
+                }
+                else return bf.ret();
+            }
+            // This is reached only if there is an exception
+            ::rb_raise(exception_class, "%s", exception_message.c_str());
+        }
+
+
     private:
         static VALUE callProcessing(void* ptr)
         {
@@ -70,9 +104,6 @@ class BlockingFunctionBase
         {
             reinterpret_cast<BlockingFunctionBase*>(ptr)->abort();
         }
-
-        VALUE exception_class;               //stores the exception class
-        std::string exception_message;       //stores the message of the exeption
 };
 
 template<typename F, typename A = boost::function<void()> >
@@ -81,14 +112,11 @@ class BlockingFunction : public BlockingFunctionBase
     public:
         static void call(F processing, A abort = &BlockingFunction::abort_default)
         {
-            BlockingFunction<F, A> bf(processing, abort);
-            bf.blockingCall();
+            return BlockingFunctionBase::doCall< void, BlockingFunction<F, A> >(processing, abort);
         }
 
-    protected:
         BlockingFunction(F processing, A abort)
-            :processing_fct(processing),abort_fct(abort)
-        { }
+            : processing_fct(processing),abort_fct(abort) { }
 
         virtual void processing()
         {
@@ -104,33 +132,32 @@ class BlockingFunction : public BlockingFunctionBase
 
         F processing_fct;
         A abort_fct;
+
+        void ret() {};
 };
 
 template<typename F, typename A = boost::function<void()> >
 class BlockingFunctionWithResult : public BlockingFunction<F, A>
 {
-    public:
         typedef typename F::result_type result_t;
+
+    public:
         static result_t call(F processing, A abort = &BlockingFunctionBase::abort_default)
         {
-            BlockingFunctionWithResult<F, A> bf(processing, abort);
-            bf.blockingCall();
-            return bf.return_val;
+            return BlockingFunctionBase::doCall< result_t, BlockingFunctionWithResult<F,A> >(processing, abort);
         }
 
-    protected:
         BlockingFunctionWithResult(F processing, A abort):
-            BlockingFunction<F, A>::BlockingFunction(processing, abort)
-    { }
+            BlockingFunction<F,A>(processing, abort) {} 
 
         virtual void processing()
         {
-            try{ return_val = BlockingFunction<F,A>::processing_fct();}
+            try{ return_val = this->processing_fct(); }
             EXCEPTION_HANDLERS
         }
 
-    protected:
         result_t return_val;
+        result_t ret() { return return_val; }
 };
 
 // template functions can automatically pick up their template paramters

@@ -29,6 +29,27 @@ module Orocos
         @default_working_directory = value
     end
 
+    # The default commandline arguments that will be passed by default in Orocos.run
+    def self.default_cmdline_arguments
+	@default_cmdline_arguments || {}
+    end
+
+    # Resets the default arguments that should be used by default in Orocos.run
+    # which is the default setting of the underlying oroGen components
+    def self.reset_default_cmdline_arguments
+	@default_cmdline_arguments = {}
+    end
+
+    # Sets the default commandline arguments that will be passed by default in Orocos.run
+    #
+    # Use #reset_default_arguments to use the default of the underlying oroGen components
+    def self.default_cmdline_arguments=(value)
+	if not default_cmdline_arguments.kind_of?(Hash)
+	    raise ArgumentError, "Orocos::default_cmdline_arguments expects to be set as hash"
+	end
+	@default_cmdline_arguments = value
+    end
+
     # call-seq:
     #   Orocos.run('mod1', 'mod2')
     #   Orocos.run('mod1', 'mod2', :wait => false, :output => '%m-%p.log')
@@ -400,7 +421,7 @@ module Orocos
                 :wait => nil, :output => nil, :working_directory => Orocos.default_working_directory,
                 :gdb => false, :gdb_options => [],
                 :valgrind => false, :valgrind_options => [],
-                :cmdline_args => Hash.new,
+                :cmdline_args => Orocos.default_cmdline_arguments,
                 :oro_logfile => nil
 
             deployments, models = Hash.new, Hash.new

@@ -208,7 +208,12 @@ module Orocos
             AUTOLOADED_TRANSPORTS.each do |transport_name, required|
                 plugin_name = transport_library_name(name, transport_name, Orocos.orocos_target)
                 begin
-                    plugins[plugin_name] = [Utilrb::PkgConfig.new(plugin_name), required]
+                    pkg = Utilrb::PkgConfig.new(plugin_name)
+                    if pkg.disabled != "true"
+                        plugins[plugin_name] = [pkg, required]
+                    elsif required
+                        raise NotFound, "the '#{name}' typekit has a #{transport_name} transport installed, but it is disabled"
+                    end
                 rescue Utilrb::PkgConfig::NotFound => e
                     if required
                         raise NotFound, "the '#{name}' typekit has no #{transport_name} transport: could not find pkg-config package #{e.name} in #{ENV['PKG_CONFIG_PATH']}"
@@ -225,8 +230,9 @@ module Orocos
                 else
                     Orocos.warn "plugin #{file} is registered through pkg-config, but the library cannot be found in #{pkg.library_dirs.join(", ")}"
                 end
+            else
+                libs << [lib, required]
             end
-            libs << [lib, required]
         end
         libs
     end
@@ -343,7 +349,7 @@ module Orocos
 
     # Finds the C++ type that maps to the given typelib type name
     #
-    # @param [String] typelib_type_name
+    # @param [Typelib::Type,String] typelib_type
     def self.orocos_type_for(typelib_type)
         master_project.find_opaque_for_intermediate(typelib_type) || typelib_type
     end

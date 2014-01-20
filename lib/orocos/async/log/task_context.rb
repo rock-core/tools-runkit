@@ -28,9 +28,28 @@ module Orocos::Async
                 disable_emitting do 
                     reachable!(log_task)
                 end
+                log_task.on_port_reachable do |name|
+                    emit_port_reachable name
+                end
+                log_task.on_property_reachable do |name|
+                    emit_property_reachable name
+                end
+                log_task.on_state_change do |val|
+                    emit_state_change val
+                end
             end
 
-            def add_listener(listener)
+            # writes all ports and properties to a
+            # RubyTaskContext
+            def to_ruby
+                @ruby_task_context ||= TaskContextBase::to_ruby(self)
+            end
+
+            def ruby_task_context?
+                !!@ruby_task_context
+            end
+
+            def really_add_listener(listener)
                 return super unless listener.use_last_value?
 
                 # call new listeners with the current value
@@ -40,7 +59,7 @@ module Orocos::Async
                     state = @delegator_obj.current_state
                     event_loop.once{listener.call state} if state
                 elsif listener.event == :port_reachable
-                    event_loop.once do 
+                    event_loop.once do
                         port_names.each do |name|
                             listener.call name if @delegator_obj.port(name).used?
                         end
@@ -61,37 +80,7 @@ module Orocos::Async
                 super
             end
 
-            def ruby_task_context?
-                !!@ruby_task_context
-            end
-
-            # writes all ports and properties to a
-            # RubyTaskContext
-            def to_ruby_task_context
-                if @ruby_task_context
-                    return @ruby_task_context
-                end
-
-                task = Orocos::RubyTaskContext.new(basename)
-                each_port do |port|
-                    p = task.create_output_port(port.name,port.type)
-                    port.on_data do |data|
-                        p.write data
-                    end
-                end
-                each_property do |prop|
-                    p = task.create_property(prop.name,prop.type)
-                    p.write p.new_sample.zero!
-                    prop.on_change do |data|
-                        p.write data
-                    end
-                end
-                task.start
-                task
-            end
-
-
-            def attribute(name,&block)
+            def attribute(name,options={},&block)
                 if block
                     orig_attribute(name) do |attr|
                         block.call Attribute.new(self,attr)
@@ -101,7 +90,7 @@ module Orocos::Async
                 end
             end
 
-            def property(name,&block)
+            def property(name,options={},&block)
                 if block
                     orig_property(name) do |prop|
                         block.call Property.new(self,prop)

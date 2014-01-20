@@ -12,9 +12,9 @@ module Orocos
                     Orocos.initialize
                 end
 
-                self.class.run_specs.each do |name, run_spec|
-                    task = start(*run_spec)
-                    instance_variable_set("@#{name}", task)
+                self.class.run_specs.each do |name, task_name, run_spec|
+                    start(run_spec)
+                    instance_variable_set("@#{name}", Orocos.name_service.get(task_name))
                 end
 
                 self.class.reader_specs.each do |task_name, port_name, reader_name, policy|
@@ -97,26 +97,20 @@ module Orocos
             #
             # For instance:
             #
-            #   class TC_Component < Test::Unit::TestCase
+            #   describe 'xsens_imu::Task' do
             #       include Orocos::Test::Component
             #
-            #       def test_configure_fails_if_no_device_is_present
-            #         task = run 'xsens_imu::Task', 'task'
+            #       it "should fail to configure if no device is present" do
+            #         start 'xsens_imu::Task' => 'task'
+            #         task = Orocos.name_service.get 'task'
             #         task.device = ""
             #         assert_raises(Orocos::StateTransitionFailed) { task.configure }
             #       end
             #   end
             #
-            def start(model_or_deployment, task_name, prefix = nil)
-                begin Orocos::TaskContext.get(task_name)
-                rescue Orocos::NotFound
-                    if model_or_deployment =~ /::/
-                        processes.concat(Orocos.run(model_or_deployment => task_name))
-                    else
-                        processes.concat(Orocos.run(model_or_deployment => prefix))
-                    end
-                end
-                return Orocos::TaskContext.get(task_name)
+            def start(*args)
+                processes.concat(Orocos.run(*args))
+                nil
             end
 
             # Gets the data reader for this port. It gets disconnected on
@@ -141,41 +135,50 @@ module Orocos
                 attribute(:reader_specs) { Array.new }
                 attribute(:writer_specs) { Array.new }
 
-                # call-seq:
-                #   start 'attribute_name', 'model_name'[, 'task_name']
-                #   start 'attribute_name', 'deployment_name', 'task_name'[, 'prefix']
+                # Starts a new task context on test setup and assigns it to a local variable
+                #
+                # @overload start(attr_name, task_name, run_spec)
+                #   @param [String,Symbol] attr_name the attribute name
+                #   @param [String] task_name the name of the orocos task that
+                #     should be assigned to 
+                #   @param [Hash] run_spec arguments that should be passed to
+                #     {Orocos.run}. Once Orocos.run is called, there should
+                #     exists a task called task_name
+                #
+                # @overload start(attr_name, run_spec)
+                #   @param [String,Symbol] attr_name the attribute name as well
+                #     as the orocos task name. See above.
+                #   @param [Hash] run_spec arguments that should be passed to
+                #     {Orocos.run}. Once Orocos.run is called, there should
+                #     exists a task called attr_name
                 #
                 # Requires the unit test to start a deployment/task at startup
                 # and shut it down during teardown. In test methods, the task
-                # object is made accessible with the 'attribute_name' attribute
+                # object can be accessed as the attr_name attribute
                 #
-                # In the first form, the task is given through its model. The
-                # global task name is registered with 'task_name', which defaults
-                # to 'attribute_name'
+                # @example start a task context and tests that configuration fails
                 #
-                # In the second form, the task is given through a deployment
-                # name / task name pair. If a prefix is given, task_name must
-                # include the prefix as well, i.e.:
+                #   require 'minitest/spec'
+                #   require 'orocos/test/component'
+                #   describe 'xsens_imu::Task' do
+                #     include Orocos::Test::Component
+                #     start 'task', 'xsens_imu::Task' => 'task'
                 #
-                #   start 'task', 'rock_logger', 'source_logger', 'source'
-                #
-                # where 'logger' is a task of the 'rock_logger' deployment.
-                #
-                # For instance:
-                #
-                #   class TC_Component < Test::Unit::TestCase
-                #       include Orocos::Test::Component
-                #       run 'task', 'xsens_imu::Task'
-                #
-                #       def test_configure_fails_if_no_device_is_present
-                #         task.device = ""
-                #         assert_raises(Orocos::StateTransitionFailed) { task.configure }
-                #       end
+                #     def test_configure_fails_if_no_device_is_present
+                #       task.device = ""
+                #       assert_raises(Orocos::StateTransitionFailed) { task.configure }
+                #     end
                 #   end
                 #
-                def start(task_name, name0, name1 = task_name)
-                    attr_reader task_name
-                    run_specs << [task_name, [name0, name1]]
+                def start(attr_name, *options)
+                    attr_reader attr_name
+                    if options.size == 2
+                        run_specs << [attr_name, *options]
+                    elsif options.size == 1
+                        run_specs << [attr_name, attr_name, *options]
+                    else
+                        raise ArgumentError, "expected two or three arguments, got #{options.size}"
+                    end
                 end
 
                 def reader(name, port_name, options = Hash.new)

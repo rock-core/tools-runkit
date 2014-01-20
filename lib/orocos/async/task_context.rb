@@ -44,7 +44,7 @@ module Orocos::Async::CORBA
             @ior = ior.to_str
         end
 
-        def add_listener(listener)
+        def really_add_listener(listener)
             super
 
             # call new listeners with the current value

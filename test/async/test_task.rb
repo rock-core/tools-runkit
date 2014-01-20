@@ -8,6 +8,7 @@ TEST_DIR = File.expand_path('..', File.dirname(__FILE__))
 DATA_DIR = File.join(TEST_DIR, 'data')
 WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
+MiniTest::Unit.autorun
 
 # helper for generating an ior from a name
 def ior(name)
@@ -124,20 +125,17 @@ describe Orocos::Async::CORBA::TaskContext do
             t1 = nil
             Orocos.run('process') do
                 t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'),:period => 0.1,:watchdog => true)
-                t1.on_reachable do 
+                t1.on_reachable do
                     connect = true
                 end
-                t1.on_unreachable do 
+                t1.on_unreachable do
                     disconnect = true
                 end
+                Orocos::Async.steps
+                assert connect
             end
             sleep 0.11
-            Orocos::Async.step # here we queue the next task for checking
-            sleep 0.11
-            Orocos::Async.step # here we find out that the task is not reachable
-            sleep 0.11
-            Orocos::Async.step # here we find out that the task is not reachable
-            assert connect
+            Orocos::Async.steps
             assert disconnect
         end
 
@@ -158,7 +156,7 @@ describe Orocos::Async::CORBA::TaskContext do
                 t1.on_port_reachable do |name|
                     ports << name
                 end
-                Orocos::Async.step
+                Orocos::Async.steps
                 assert_equal ["cycle", "cycle_struct", "out0", "out1", "out2", "out3", "state"],ports.sort
             end
         end
@@ -268,13 +266,12 @@ describe Orocos::Async::CORBA::TaskContext do
                     state = val
                 end
                 sleep 0.11
-                Orocos::Async.step
+                Orocos::Async.steps
                 assert_equal :RUNNING, state
                 t1.stop
+                Orocos::Async.steps
                 sleep 0.2
-                Orocos::Async.step
-                sleep 0.2
-                Orocos::Async.step
+                Orocos::Async.steps
                 assert_equal :STOPPED, state
             end
         end

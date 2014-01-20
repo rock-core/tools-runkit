@@ -59,7 +59,7 @@ module Orocos
         name_service.cleanup
     end
 
-    #(see NameService#get)
+    # (see NameService#get)
     def self.get(*args)
         Orocos.name_service.get(*args)
     end
@@ -69,6 +69,7 @@ module Orocos
     #
     # @author Alexander Duda
     class NameServiceBase
+        attr_accessor :name
 
         # Checks if a {TaskContext} with the given name is reachable.
         #
@@ -98,7 +99,7 @@ module Orocos
 
         # return [String] the name of the name service
         def name
-            self.class.name
+            @name || self.class.name
         end
 
         # Gets the IOR for the given Orocos Task having the given name.
@@ -269,7 +270,7 @@ module Orocos
 
         # Remove a name service from the set of resolvants
         #
-        # @param [NameServiceBase] the name service object
+        # @param [NameServiceBase] name_service the name service object
         # @return [true,false] true if the name service was registered, false
         #   otherwise
         def remove(name_service)

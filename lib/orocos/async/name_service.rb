@@ -16,6 +16,7 @@ module Orocos::Async
         extend Utilrb::EventLoop::Forwardable
         extend Orocos::Async::ObjectBase::Periodic::ClassMethods
         include Orocos::Async::ObjectBase::Periodic
+        include Orocos::Namespace
 
         define_events :task_added, :task_removed
 
@@ -72,10 +73,12 @@ module Orocos::Async
         def proxy(name,options = Hash.new)
             options[:event_loop] ||= @event_loop
             options[:name_service] ||= self
+            ns,base_name = split_name(name)
+            ns ||= ""
             task = @task_context_proxies.find do |t|
-                        t.name == name &&
-                        t.event_loop == options[:event_loop] &&
-                        t.name_service == options[:name_service]
+                ns2,base_name2= split_name(t.name)
+                ns2 ||= ""
+                ns == ns2 && base_name == base_name2 && t.event_loop == options[:event_loop] && t.name_service == options[:name_service]
             end
             if task
                 options.each_pair do |key,value|
@@ -225,6 +228,7 @@ module Orocos::Async
             @reconnect = options.delete(:reconnect)
             options[:known_errors].concat([Orocos::ComError,Orocos::NotFound])
             super(name_service,options)
+            @namespace = name_service.namespace
         end
 
         # True if this name service should automatically reconnect
