@@ -208,10 +208,15 @@ static VALUE name_service_reset(VALUE self,VALUE ip, VALUE port)
     return self;
 }
 
-static VALUE name_service_task_context_names(VALUE self)
+void corba_must_be_initialized()
 {
     if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
         rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+}
+
+static VALUE name_service_task_context_names(VALUE self)
+{
+    corba_must_be_initialized();
 
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
     std::vector<std::string> names;
@@ -228,9 +233,8 @@ static VALUE name_service_task_context_names(VALUE self)
 
 static VALUE name_service_unbind(VALUE self,VALUE task_name)
 {
-    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
-    
+    corba_must_be_initialized();
+
     std::string name = StringValueCStr(task_name);
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
     bool result = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::unbind,&name_service,name));
@@ -239,8 +243,8 @@ static VALUE name_service_unbind(VALUE self,VALUE task_name)
 
 static VALUE name_service_validate(VALUE self)
 {
-    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    corba_must_be_initialized();
+
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
     corba_blocking_fct_call(boost::bind(&NameServiceClient::validate,&name_service));
     return Qnil;
@@ -248,8 +252,7 @@ static VALUE name_service_validate(VALUE self)
 
 static VALUE name_service_bind(VALUE self,VALUE task,VALUE task_name)
 {
-    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    corba_must_be_initialized();
     
     std::string name = StringValueCStr(task_name);
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
@@ -261,13 +264,11 @@ static VALUE name_service_bind(VALUE self,VALUE task,VALUE task_name)
 
 static VALUE name_service_ior(VALUE self,VALUE task_name)
 {
-    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    corba_must_be_initialized();
 
-    std::string ior;
     std::string name = StringValueCStr(task_name);
     NameServiceClient& name_service = get_wrapped<NameServiceClient>(self);
-    ior = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::getIOR,&name_service,name));
+    std::string ior = corba_blocking_fct_call_with_result(boost::bind(&NameServiceClient::getIOR,&name_service,name));
     return rb_str_new2(ior.c_str());
 }
 

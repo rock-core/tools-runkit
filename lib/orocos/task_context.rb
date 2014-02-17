@@ -14,7 +14,7 @@ module Orocos
 
         def initialize(task, name, orocos_type_name)
             super
-            if task.has_operation?(opname = "set#{name.capitalize}")
+            if task.has_operation?(opname = "__orogen_set#{name.capitalize}")
                 @dynamic_operation = task.operation(opname)
             end
         end

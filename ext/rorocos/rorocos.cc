@@ -118,8 +118,7 @@ tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 ///
 VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
 {
-    if(!CorbaAccess::instance())
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    corba_must_be_initialized();
 
     // all parametes are forwarded to ruby initialize
     if(argc < 1)
@@ -404,6 +403,8 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
         result.lock_policy = RTT::corba::CLocked;
     else if (lock_type == rb_intern("lock_free"))
         result.lock_policy = RTT::corba::CLockFree;
+    else if (lock_type == rb_intern("unsync"))
+        result.lock_policy = RTT::corba::CUnsync;
     else
     {
         VALUE obj_as_str = rb_funcall(lock_type, rb_intern("to_s"), 0);
