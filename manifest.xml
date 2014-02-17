@@ -9,7 +9,7 @@
         Sylvain Joyeux/sylvain.joyeux@m4x.org
     </copyright>
     <license>GPL v2 or later</license>
-    <url>http://orocos.org/dfki</url>
+    <url>https://gitorious.org/rock-toolchain/orocos-rb.git</url>
 
     <depend package="cmake" />
     <depend package="orogen" />

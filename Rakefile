@@ -10,7 +10,7 @@ begin
 
         self.summary = 'Controlling Orocos modules from Ruby'
         self.description = paragraphs_of('README.markdown', 3..5).join("\n\n")
-        self.urls = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
+        self.urls = ["https://gitorious.org/rock-toolchain/orocos-rb.git"]
         self.changes = ""
         licenses << "GPL v2 or later"
 
