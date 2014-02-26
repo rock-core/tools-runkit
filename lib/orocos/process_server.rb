@@ -641,6 +641,11 @@ module Orocos
             process_client.stop(name)
         end
 
+        # Retunging the Process name of the remote process
+        def process
+            self
+        end
+
         # Wait for the 
         def join
             raise NotImplementedError, "RemoteProcess#join is not implemented"
