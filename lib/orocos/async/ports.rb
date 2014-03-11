@@ -131,7 +131,7 @@ module Orocos::Async::CORBA
         end
 
         def unreachable!(options = Hash.new)
-            @delegator_obj.disconnect if validate_options?
+            @delegator_obj.disconnect if valid_delegator?
             super
         end
 
@@ -397,7 +397,7 @@ module Orocos::Async::CORBA
 
         def reachable!(port,options = Hash.new)
             super
-            #TODO we have to call reachable on all wwriter
+            #TODO we have to call reachable on all writer
             if @global_writer
                 orig_writer(@global_writer.policy) do |writer,error|
                     unless error
