@@ -1,9 +1,14 @@
 module Orocos::Async
 
+    # Returns the global async name service abstracting all underlying name services.
+    # This should be the default way to acquire an handle to an Orocos Task by
+    # its name. If the IOR of the task is already known {Async::TaskContext} should
+    # directly be used.
     def self.name_service
         @name_service ||= Orocos::Async::NameService.new()
     end
 
+    # (see NameService#get)
     def self.get(name,options =Hash.new)
         name_service.get(name,options)
     end
