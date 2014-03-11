@@ -206,7 +206,7 @@ module Orocos
 
         # Write data on the associated input port
         #
-        # @raise [CORBA::ComError] if the remote process is known to be dead.
+        # @raise [CORBA::ComError] if the remote process is known to be dead or was disconnected.
         # This is only possible if the remote deployment has been started by
         # this Ruby instance
         def write(data)
@@ -216,7 +216,11 @@ module Orocos
 		    raise CORBA::ComError, "remote end is dead"
 		end
 	    end
-            super
+            raise CORBA::ComError, "remote end was disconnected" if !super
+            # backward compatibility:
+            # write was returning true in the case that someone was listening
+            # otherwise false
+            true
         end
     end
 
