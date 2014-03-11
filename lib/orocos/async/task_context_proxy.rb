@@ -309,10 +309,9 @@ module Orocos::Async
                        elsif @options == policy
                            @options
                        else
-                           Orocos.warn "ProxyPort #{full_name} cannot emit :raw_data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
-                           @options
+                           Orocos.warn "Changing global reader policy for #{full_name} from #{@options} to #{policy}"
+                           @delegator_obj.options = policy
+                           policy
                        end
             on_event :raw_data,&block
         end

@@ -146,6 +146,7 @@ module Orocos::Async::CORBA
 
     class Port < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        attr_accessor :options
 
         def task
             @task
@@ -224,6 +225,11 @@ module Orocos::Async::CORBA
             @global_reader.raw_last_sample if @global_reader
         end
 
+        def options=(options)
+            super
+            @global_reader = nil
+        end
+
         def reader(options = Hash.new,&block)
             options, policy = Kernel.filter_options options, :period => nil
             policy[:init] = true unless policy.has_key?(:init)
@@ -255,9 +261,8 @@ module Orocos::Async::CORBA
                        elsif @options == policy
                            @options
                        else
-                           Orocos.warn "OutputPort #{full_name} cannot emit :data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
+                           Orocos.warn "Changing global reader policy for #{full_name} from #{@options} to #{policy}"
+                           self.options = @options
                            @options
                        end
             on_event :data,&block
@@ -271,9 +276,8 @@ module Orocos::Async::CORBA
                        elsif @options == policy
                            @options
                        else
-                           Orocos.warn "OutputPort #{full_name} cannot emit :data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
+                           Orocos.warn "Changing global reader policy for #{full_name} from #{@options} to #{policy}"
+                           self.options = @options
                            @options
                        end
             on_event :raw_data,&block
@@ -407,7 +411,16 @@ module Orocos::Async::CORBA
             end
         end
 
-        def write(sample,&block)
+        def options=(options)
+            super
+            @global_writer = nil
+        end
+
+        def write(sample,options=@options,&block)
+            if @options != options
+                Orocos.warn "Changing global writer policy for #{full_name} from #{@options} to #{options}" unless @options.empty?
+                self.options = options
+            end
             if block
                 if @global_writer.respond_to? :write
                     @global_writer.write(sample) do |result,error|
