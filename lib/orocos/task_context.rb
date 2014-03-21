@@ -96,6 +96,8 @@ module Orocos
                         reason =
                             if current_state == :EXCEPTION
                                 ". The task is in an exception state. You must call #reset_exception before trying again"
+                            elsif current_state == :PRE_OPERATIONAL && '#{m}' == 'start'
+                                ". The Task must be configured before it could started. Did you forgot to call configure on the task?"
                             elsif current_state != :#{expected_state}
                                 ". Tasks must be in #{expected_state} state before calling #{m}, but was in \#{current_state}"
                             end
