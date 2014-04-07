@@ -117,7 +117,9 @@ begin
 
     task :test => 'setup:test'
     task :doc => :yard
+    task :docs => :yard
     task :redoc => :yard
+    task :redocs => :yard
 
     # Add removal of by-products of test setup to the clean task
     CLEAN.include("test/working_copy")
