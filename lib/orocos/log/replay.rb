@@ -355,6 +355,12 @@ module Orocos
                 end
             end
 
+            #returns true if a task with the given name exists
+            def task?(name)
+                name = map_to_namespace name
+                @tasks.has_key?(name)
+            end
+
             #Returns the simulated task with the given namen. 
             def task(name)
                 name = map_to_namespace name
