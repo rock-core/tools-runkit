@@ -18,7 +18,7 @@ module Orocos::Async::CORBA
                 reachable!(attribute)
             end
             @poll_timer = @event_loop.async_every(method(:raw_read), {:period => period, :start => false,
-                                                  :known_errors => [Orocos::NotFound,Orocos::ComError,Orocos::TypekitTypeNotFound]}) do |data,error|
+                                                  :known_errors => Orocos::Async::KNOWN_ERRORS}) do |data,error|
                 if error
                     @poll_timer.cancel
                     self.period = @poll_timer.period
@@ -147,7 +147,7 @@ module Orocos::Async::CORBA
         end
 
         private
-        forward_to :attribute,:@event_loop,:known_errors => [Orocos::CORBAError,Orocos::CORBA::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
+        forward_to :attribute,:@event_loop,:known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :connection_error  do
             methods = Orocos::AttributeBase.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::AttributeBase.instance_methods
             methods << :type

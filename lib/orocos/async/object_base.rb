@@ -68,7 +68,7 @@ module Orocos::Async
             if !block
                 raise error
             else
-                @event_loop.defer :on_error => @parent.method(:emit_error),:callback => block,:known_errors => [Orocos::NotFound] do
+                @event_loop.defer :on_error => @parent.method(:emit_error),:callback => block,:known_errors => Orocos::Async::KNOWN_ERRORS do
                     raise error
                 end
             end

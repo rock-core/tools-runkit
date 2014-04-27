@@ -496,7 +496,7 @@ module Orocos::Async
                     if !task_context.respond_to?(:event_loop)
                         raise "TaskProxy is using a name service#{@name_service} which is returning #{task_context.class} but Async::TaskContext was expected."
                     end
-                    @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::ComError},task_context) do |val,error|
+                    @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::Async::KNOWN_ERRORS},task_context) do |val,error|
                         if error
                             @resolve_timer.start
                             :ignore_error
@@ -508,7 +508,10 @@ module Orocos::Async
             on_port_reachable(false) do |name|
                 p = @ports[name]
                 if p && !p.reachable?
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    error_callback = Proc.new do |error|
+                        p.emit_error(error)
+                    end
+                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
                         connect_port(p)
                     end
                 end
@@ -516,7 +519,10 @@ module Orocos::Async
             on_property_reachable(false) do |name|
                 p = @properties[name]
                 if(p && !p.reachable?)
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    error_callback = Proc.new do |error|
+                        p.emit_error(error)
+                    end
+                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
                         connect_property(p)
                     end
                 end
@@ -524,7 +530,10 @@ module Orocos::Async
             on_attribute_reachable(false) do |name|
                 a = @attributes[name]
                 if(a && !a.reachable?)
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    error_callback = Proc.new do |error|
+                        a.emit_error(error)
+                    end
+                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
                         connect_attribute(a)
                     end
                 end
@@ -585,7 +594,7 @@ module Orocos::Async
                 connect_property(p)
                 p.wait
             else
-                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS do
                     connect_property(p)
                 end
             end
@@ -613,7 +622,7 @@ module Orocos::Async
                 connect_attribute(a)
                 a.wait
             else
-                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS do
                     connect_attribute(a)
                 end
             end
@@ -658,7 +667,7 @@ module Orocos::Async
                     connect_port(p)
                     p.wait
                 else
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    @event_loop.defer :known_errors => KNOWN_ERRORS do
                         connect_port(p)
                     end
                 end

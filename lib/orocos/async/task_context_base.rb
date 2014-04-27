@@ -73,7 +73,7 @@ module Orocos::Async
                                                       :default => [[],[],[],[]],
                                                       :start => false,
                                                       :sync_key => nil, #is blocked by the methods call ping, states, etc
-                                                      :known_errors => [Orocos::ComError,Orocos::NotFound]}) do |data,error|
+                                                      :known_errors => Orocos::Async::KNOWN_ERRORS}) do |data,error|
                                                             process_states(data[0])
                                                             process_port_names(data[1])
                                                             process_property_names(data[2])
@@ -339,7 +339,7 @@ module Orocos::Async
 
         private
         # add methods which forward the call to the underlying task context
-        forward_to :task_context,:@event_loop, :known_errors => [Orocos::ComError,Orocos::NotFound,Orocos::TypekitTypeNotFound],:on_error => :emit_error do
+        forward_to :task_context,:@event_loop, :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :emit_error do
             thread_safe do
                 def_delegator :ping,:known_errors => nil  #raise if there is an error in the communication
                 methods = [:has_operation?, :has_port?,:property_names,:attribute_names,:port_names,:rtt_state]

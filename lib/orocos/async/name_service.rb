@@ -30,7 +30,7 @@ module Orocos::Async
         self.default_period = 1.0
 
         def initialize(name_service,options = Hash.new)
-            @options ||= Kernel.validate_options options,:period => default_period,:start => false,:sync_key => nil,:known_errors => Orocos::NotFound,:event_loop => Orocos::Async.event_loop
+            @options ||= Kernel.validate_options options,:period => default_period,:start => false,:sync_key => nil,:known_errors => Orocos::Async::KNOWN_ERRORS,:event_loop => Orocos::Async.event_loop
             @stored_names ||= Set.new
             _,options_async = Kernel.filter_options @options,:event_loop=>nil
             super(name_service.name,@options[:event_loop])
@@ -171,7 +171,7 @@ module Orocos::Async
 
         private
         # add methods which forward the call to the underlying name service
-        forward_to :@delegator_obj,:@event_loop, :known_errors => [Orocos::NotFound] do
+        forward_to :@delegator_obj,:@event_loop, :known_errors => Orocos::Async::KNOWN_ERRORS do
             methods = Orocos::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::NameService.instance_methods + [:method_missing]
             def_delegator :add,:alias => :orig_add
@@ -211,7 +211,7 @@ module Orocos::Async
 
             private
             # add methods which forward the call to the underlying name service
-            forward_to :@delegator_obj,:@event_loop,:known_errors=>[Orocos::NotFound] do
+            forward_to :@delegator_obj,:@event_loop,:known_errors=> Orocos::Async::KNOWN_ERRORS do
                 methods = Orocos::Local::NameService.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
                 methods -= Orocos::Async::Local::NameService.instance_methods + [:method_missing]
                 def_delegators methods
