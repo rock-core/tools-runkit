@@ -121,6 +121,14 @@ module Orocos::Async
             orig_clear
         end
 
+        def proxy(name,options = Hash.new)
+            if(name_services.empty?)
+                Vizkit.error "Orocos is not initialized!" unless Orocos.initialized?
+                raise "No name service available."
+            end
+            super
+        end
+
         # Overloaded to emit the name_service_added event for already registered
         # name services
         def add_listener(listener)
