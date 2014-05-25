@@ -4,6 +4,11 @@ PROJECT(corba)
 SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 INCLUDE(RubyExtensions)
 
+IF(APPLE)
+  set(CMAKE_SHARED_MODULE_SUFFIX ".bundle")
+  set(CMAKE_MACOSX_RPATH 1)
+ENDIF(APPLE)
+
 ADD_DEFINITIONS(-D_REENTRANT)
 MACRO(CMAKE_USE_FULL_RPATH install_rpath)
     # use, i.e. don't skip the full RPATH for the build tree
