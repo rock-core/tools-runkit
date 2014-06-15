@@ -54,8 +54,8 @@ require 'orocos/mqueue'
 
 # Updated file layout for ruby tasks
 require 'orocos/ruby_tasks'
-require 'orocos/input_reader'
-require 'orocos/output_writer'
+require 'orocos/input_writer'
+require 'orocos/output_reader'
 # This backward-compatibility code !
 require 'orocos/ruby_task_context'
 
