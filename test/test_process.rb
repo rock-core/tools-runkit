@@ -31,7 +31,7 @@ describe Orocos::Process do
     end
 
     it "raises NotFound when the deployment name does not exist" do
-        assert_raises(OroGen::NotFound) { Orocos::Process.new("does_not_exist") }
+        assert_raises(OroGen::DeploymentModelNotFound) { Orocos::Process.new("does_not_exist") }
     end
 
     it "can spawn a new process and waits for it" do
