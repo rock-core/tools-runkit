@@ -262,7 +262,7 @@ module Orocos
                 Orocos::Async.name_service.add(ns)
             end
         end
-        Orocos.load_typekit 'std'
+        load_typekit 'std'
         @ruby_task = RubyTasks::TaskContext.new(name)
     end
 
