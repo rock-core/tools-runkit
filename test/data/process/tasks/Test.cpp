@@ -19,7 +19,8 @@ Test::Test(std::string const& name, TaskCore::TaskState initial_state)
 
 bool Test::setDynamic_prop(::std::string const & value)
 {
-    return(process::TestBase::setDynamic_prop(value+"dyn"));
+    _dynamic_prop_setter_called.set(true);
+    return (value == "12345");
 }
 
 /// The following lines are template definitions for the various state machine

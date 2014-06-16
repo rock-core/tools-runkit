@@ -9,11 +9,17 @@ task_context 'Test' do
     property "prop1", "/process/Simple"
     property "prop2", "int"
     property 'prop3', 'string'
+
     property('dynamic_prop', 'string').dynamic
+    # Set to true by the dynamic property's setter method to reflect that it has
+    # been called
+    property('dynamic_prop_setter_called', 'bool', false)
 
     attribute "att1", "/process/Simple"
     attribute "att2", "int"
     attribute 'att3', 'string'
+
+    periodic 0.1
 end
 
 deployment "process" do

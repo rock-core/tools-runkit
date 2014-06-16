@@ -67,12 +67,31 @@ describe "reading and writing properties on TaskContext" do
         end
     end
 
-    it "should call the setter operation in the case of dynamic properties" do
-        Orocos.run('process') do |process|
-            prop = process.task('Test').property('dynamic_prop')
-            prop.write("12345")
-            assert_equal('12345dyn', prop.read)
+    it "should not call the setter operation of a dynamic property if the task is not configured" do
+        start 'process::Test' => 'test'
+        task = get 'test'
+        task.cleanup
+        task.dynamic_prop = '12345'
+        refute task.dynamic_prop_setter_called
+    end
+
+    it "should call the setter operation of a dynamic property if the task is configured" do
+        start 'process::Test' => 'test'
+        task = get 'test'
+        task.configure
+        task.dynamic_prop = '12345'
+        assert task.dynamic_prop_setter_called
+    end
+
+    it "should raise PropertyChangeRejected if the setter operation returned false" do
+        start 'process::Test' => 'test'
+        task = get 'test'
+        task.configure
+        assert_raises(Orocos::PropertyChangeRejected) do
+            task.dynamic_prop = ''
         end
+        assert_equal '', task.dynamic_prop
+        assert task.dynamic_prop_setter_called
     end
 end
 
