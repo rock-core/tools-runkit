@@ -1,20 +1,8 @@
-require 'minitest/spec'
-require 'orocos'
-require 'orocos/uri'
 require 'orocos/test'
 require 'orocos/async'
-
-Orocos::CORBA.name_service.ip = "127.0.0.1"
-
-MiniTest::Unit.autorun
-
-TEST_DIR = File.expand_path(File.dirname(__FILE__))
-DATA_DIR = File.join(TEST_DIR, 'data')
-WORK_DIR = File.join(TEST_DIR, 'working_copy')
+require 'orocos/uri'
 
 describe URI::Orocos do 
-    include Orocos::Spec
-
     describe "form_port_proxy" do 
         it "can be created from port" do
             Orocos.run('simple_source') do

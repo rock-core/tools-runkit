@@ -1,23 +1,14 @@
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
-require 'minitest/spec'
-require 'orocos'
 require 'orocos/test'
 
-TEST_DIR = File.expand_path('..', File.dirname(__FILE__))
-DATA_DIR = File.join(TEST_DIR, 'data')
-WORK_DIR = File.join(TEST_DIR, 'working_copy')
-
-include Test::Unit::Assertions
-
 describe Orocos::ROS::ProcessManager do
-    include Orocos
-    include Orocos::Spec
+    attr_reader :loader
+    before do
+        @loader = OroGen::ROS::DefaultLoader.new
+        loader.search_path << File.join(data_dir,"ros_test","specs")
+    end
 
-    describe "loading" do
-        Orocos.initialize
-        Orocos::ROS.load(File.join(DATA_DIR,"ros_test","specs"))
-
-        process_server = Orocos::ROS::ProcessManager.new
+    it "should be able to start a node" do
+        process_server = Orocos::ROS::ProcessManager.new(loader)
         launcher = process_server.load_orogen_deployment('test')
         assert_equal launcher.name, 'test'
 
@@ -32,16 +23,15 @@ describe Orocos::ROS::ProcessManager do
 end
 
 describe Orocos::ROS::LauncherProcess do
-    include Orocos
-    include Orocos::Spec
+    attr_reader :loader
+    before do
+        @loader = OroGen::ROS::DefaultLoader.new
+        loader.search_path << File.join(data_dir,"ros_test","specs")
+    end
 
-    describe "spawn_and_kill" do 
-        Orocos.initialize
-        Orocos::ROS.load(File.join(DATA_DIR,"ros_test","specs"))
-
-        _,path = Orocos::ROS.available_projects['manipulator_config']
-        p = Orocos::ROS::Generation::Project.load(path)
-        model = p.ros_launchers[0]
+    it "should be able to spawn and kill a node" do
+        project = loader.load_project_from_name('manipulator_config')
+        model = project.ros_launchers[0]
 
         launcher = Orocos::ROS::LauncherProcess.new(nil, "test", model)
         assert launcher.spawn

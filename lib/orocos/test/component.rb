@@ -1,6 +1,6 @@
 require 'orocos'
 require 'utilrb/module/include'
-require 'test/unit'
+
 module Orocos
     module Test
         module Component

@@ -1,16 +1,4 @@
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
-require 'minitest/spec'
-require 'orocos'
 require 'orocos/test'
-
-MiniTest::Unit.autorun
-
-Orocos::CORBA.call_timeout = 10000
-Orocos::CORBA.connect_timeout = 10000
-
-TEST_DIR = File.expand_path(File.dirname(__FILE__))
-DATA_DIR = File.join(TEST_DIR, 'data')
-WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
 DATAFLOW_STRESS_TEST =
     if ENV['DATAFLOW_STRESS_TEST']
@@ -217,7 +205,7 @@ describe Orocos::OutputPort do
         end
     end
 
-    if Orocos::Test::USE_MQUEUE
+    if Orocos::SelfTest::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
             begin
                 Orocos::MQueue.validate_sizes = false
@@ -500,7 +488,7 @@ describe Orocos::OutputReader do
         end
     end
 
-    if Orocos::Test::USE_MQUEUE
+    if Orocos::SelfTest::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
             begin
                 Orocos::MQueue.validate_sizes = false
@@ -608,7 +596,7 @@ describe Orocos::InputWriter do
         end
     end
 
-    if Orocos::Test::USE_MQUEUE
+    if Orocos::SelfTest::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
             begin
                 Orocos::MQueue.validate_sizes = false

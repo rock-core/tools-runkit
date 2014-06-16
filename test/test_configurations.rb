@@ -1,14 +1,5 @@
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
-require 'minitest/spec'
-require 'orocos'
 require 'orocos/test'
 require 'fakefs/safe'
-
-MiniTest::Unit.autorun
-
-TEST_DIR = File.expand_path(File.dirname(__FILE__))
-DATA_DIR = File.join(TEST_DIR, 'data')
-WORK_DIR = File.join(TEST_DIR, 'working_copy')
 
 describe Orocos::TaskConfigurations do
     include Orocos::Spec
@@ -95,7 +86,7 @@ describe Orocos::TaskConfigurations do
     end
 
     it "should be able to load simple configuration structures" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'base_config.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'base_config.yml'))
         assert_equal %w{compound default simple_container}, conf.sections.keys.sort
 
         verify_loaded_conf conf, 'default' do
@@ -127,7 +118,7 @@ describe Orocos::TaskConfigurations do
     end
 
     it "should be able to load dynamic configuration structures" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'dynamic_config.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'dynamic_config.yml'))
         assert_equal %w{compound default simple_container}, conf.sections.keys.sort
 
         verify_loaded_conf conf, 'default' do
@@ -160,7 +151,7 @@ describe Orocos::TaskConfigurations do
     end
 
     it "should be able to load complex structures" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'complex_config.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'complex_config.yml'))
 
         verify_loaded_conf conf, 'compound_in_compound', 'compound', 'compound' do
             assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :Third
@@ -219,7 +210,7 @@ describe Orocos::TaskConfigurations do
     end
 
     it "should be able to merge configuration structures" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'merge.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
         result = conf.conf(['default', 'add'], false)
         verify_loaded_conf result do
             assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
@@ -242,21 +233,21 @@ describe Orocos::TaskConfigurations do
     end
 
     it "merge without overrides should have the same result than with if no conflicts exist" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'merge.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
         result = conf.conf(['default', 'add'], false)
         result_with_override = conf.conf(['default', 'add'], true)
         assert_equal result, result_with_override
     end
 
     it "should be able to detect invalid overridden values" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'merge.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
         # Make sure that nothing is raised if override is false
         conf.conf(['default', 'override'], true)
         assert_raises(ArgumentError) { conf.conf(['default', 'override'], false) }
     end
 
     it "should be able to merge with overrides" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'merge.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
         result = conf.conf(['default', 'override'], true)
 
         verify_loaded_conf result do
@@ -279,7 +270,7 @@ describe Orocos::TaskConfigurations do
     end
 
     it "should be able to apply simple configurations on the task" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'base_config.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'base_config.yml'))
         Orocos.run "configurations_test" do
             task = Orocos::TaskContext.get "configurations"
 
@@ -329,7 +320,7 @@ describe Orocos::TaskConfigurations do
     end
 
     it "should be able to apply complex configuration on the task" do
-        conf.load_from_yaml(File.join(DATA_DIR, 'configurations', 'complex_config.yml'))
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'complex_config.yml'))
 
         Orocos.run "configurations_test" do
             task = Orocos::TaskContext.get "configurations"
@@ -393,7 +384,7 @@ describe Orocos::TaskConfigurations do
 
     it "should be able to load a configuration directory, register configurations on a per-model basis, and report what changed" do
         manager = Orocos::ConfigurationManager.new
-        manager.load_dir(File.join(DATA_DIR, 'configurations', 'dir'))
+        manager.load_dir(File.join(data_dir, 'configurations', 'dir'))
         result = manager.conf['configurations::Task'].conf(['default', 'add'], false)
 
         verify_loaded_conf result do
@@ -415,8 +406,8 @@ describe Orocos::TaskConfigurations do
             assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
         end
 
-        assert_equal(Hash.new, manager.load_dir(File.join(DATA_DIR, 'configurations', 'dir')))
-        assert_equal({'configurations::Task' => ['default']}, manager.load_dir(File.join(DATA_DIR, 'configurations', 'dir_changed')))
+        assert_equal(Hash.new, manager.load_dir(File.join(data_dir, 'configurations', 'dir')))
+        assert_equal({'configurations::Task' => ['default']}, manager.load_dir(File.join(data_dir, 'configurations', 'dir_changed')))
         result = manager.conf['configurations::Task'].conf(['default', 'add'], false)
 
         verify_loaded_conf result do
@@ -559,7 +550,7 @@ describe Orocos::TaskConfigurations do
     end
 end
 
-class TC_Orocos_Configurations < Test::Unit::TestCase
+class TC_Orocos_Configurations < Minitest::Test
     include Orocos::Test
 
     def setup

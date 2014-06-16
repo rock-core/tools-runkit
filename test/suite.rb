@@ -1,7 +1,5 @@
-require './test/test_helper'
-start_simple_cov("suite")
+require 'orocos/test'
 
-require 'orocos'
 Orocos.warn_for_missing_default_loggers = false
 ENV['ORO_LOGLEVEL'] = '3'
 require './test/test_base'

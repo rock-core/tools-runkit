@@ -1,18 +1,7 @@
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", '..', "lib")
-require 'minitest/spec'
-require 'orocos'
 require 'orocos/test'
 require 'orocos/async'
 
-MiniTest::Unit.autorun
-
-TEST_DIR = File.expand_path('..', File.dirname(__FILE__))
-DATA_DIR = File.join(TEST_DIR, 'data')
-WORK_DIR = File.join(TEST_DIR, 'working_copy')
-
 describe Orocos::Async::PortProxy do 
-    include Orocos::Spec
-
     describe "when not connected" do 
         it "should be an input and output port at the same time because the exact type is unknown" do 
             t1 = Orocos::Async.proxy("process_Test")

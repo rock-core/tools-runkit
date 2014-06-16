@@ -1,5 +1,4 @@
-require './test_helper'
-start_simple_cov("suite")
+require 'orocos/test'
 
 ENV['ORO_LOGLEVEL'] = '3'
 require './ros/test_async'

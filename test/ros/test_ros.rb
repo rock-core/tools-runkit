@@ -1,16 +1,6 @@
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
-require 'minitest/spec'
-require 'orocos'
 require 'orocos/test'
 
-TEST_DIR = File.expand_path('..', File.dirname(__FILE__))
-DATA_DIR = File.join(TEST_DIR, 'data')
-WORK_DIR = File.join(TEST_DIR, 'working_copy')
-
 describe Orocos::ROS do
-    include Orocos
-    include Orocos::Spec
-
     attr_reader :name_service
     before do
         @name_service = Orocos::ROS::NameService.new

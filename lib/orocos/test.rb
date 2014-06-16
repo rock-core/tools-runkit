@@ -1,8 +1,31 @@
-require 'fileutils'
-require 'typelib'
-require 'orogen'
+require 'minitest/autorun'
+require 'minitest/spec'
 require 'flexmock/test_unit'
-require 'orocos/rake'
+
+# simplecov must be loaded FIRST. Only the files required after it gets loaded
+# will be profiled !!!
+if ENV['TEST_ENABLE_COVERAGE'] == '1'
+    begin
+        require 'simplecov'
+        SimpleCov.start
+    rescue LoadError
+        require 'orocos'
+        Orocos.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
+    rescue Exception => e
+        require 'orocos'
+        Orocos.warn "coverage is disabled: #{e.message}"
+    end
+elsif ENV['TEST_ENABLE_PRY'] != '0'
+    begin
+        require 'pry'
+        if ENV['TEST_DEBUG'] == '1'
+            require 'pry-rescue/minitest'
+        end
+    rescue Exception
+        require 'orocos'
+        Orocos.warn "debugging is disabled because the 'pry' gem cannot be loaded"
+    end
+end
 
 if ENV['TEST_ENABLE_PRY'] != '0'
     begin
@@ -12,82 +35,96 @@ if ENV['TEST_ENABLE_PRY'] != '0'
     end
 end
 
+require 'orocos'
+require 'orocos/rake'
+require 'orocos/test/mocks'
+
 module Orocos
-    OROCOS_TEST_MODES = (ENV['OROCOS_TEST_MODES'] || "").split(',')
-    TEST_MODEL_LESS = OROCOS_TEST_MODES.include?('no_model')
-    TEST_MISSING_MODELS = OROCOS_TEST_MODES.include?('missing_model')
-    module Test
-        module Mocks
-            class FakeTaskContext
-            end
+    module SelfTest
+        include Test::Mocks
 
-            def mock_task_context_model(&block)
-                project = OroGen::Spec::Project.new(Orocos.default_loader)
-                interface = OroGen::Spec::TaskContext.new(project)
-                interface.instance_eval(&block)
-                flexmock(interface)
-            end
-
-            def mock_input_port(port_model)
-                port = flexmock("mock for #{port_model}")
-                port.should_receive(:model).and_return(port_model)
-                port_writer = flexmock("mock for input writer to #{port_model}")
-                port_writer.should_receive(:connected?).and_return(false)
-                port.should_receive(:writer).and_return(port_writer).by_default
-                port
-            end
-
-            def mock_output_port(port_model)
-                port = flexmock("mock for #{port_model}")
-                port.should_receive(:model).and_return(port_model)
-                port.should_receive(:connected?).and_return(false)
-                port_reader = flexmock("mock for output reader from #{port_model}")
-                port_reader.should_receive(:connected?).and_return(false)
-                port.should_receive(:reader).and_return(port_reader).by_default
-                port
-            end
-
-            def mock_task_context(orogen_model)
-                mock = flexmock(FakeTaskContext.new)
-                mock.should_receive(:model).and_return(orogen_model)
-                mock.should_receive(:port_names).and_return(orogen_model.each_input_port.map(&:name).to_a + orogen_model.each_output_port.map(&:name))
-                orogen_model.each_input_port do |port_model|
-                    port = mock_input_port(port_model)
-                    mock.should_receive(:port).with(port_model.name).and_return(port)
-                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
-                end
-                orogen_model.each_output_port do |port_model|
-                    port = mock_output_port(port_model)
-                    mock.should_receive(:port).with(port_model.name).and_return(port)
-                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
-                end
-                mock
-            end
-        end
-
-        include Mocks
-
+        # A set of "modes" that can be used to control how the tests will be
+        # performed
+        TEST_MODES = (ENV['OROCOS_TEST_MODES'] || "").split(',')
+        # Test without models
+        TEST_MODEL_LESS = TEST_MODES.include?('no_model')
+        # Test with models that cannot be loaded
+        TEST_MISSING_MODELS = TEST_MODES.include?('missing_model')
+        # Whether we should enable MQ support during tests
         USE_MQUEUE = Orocos::Rake::USE_MQUEUE
 
-        attr_reader :processes
+        if defined? FlexMock
+            include FlexMock::ArgumentTypes
+            include FlexMock::MockContainer
+        end
+
+        def work_dir; File.join(@test_dir, 'working_copy') end
+        def data_dir; File.join(@test_dir, 'data') end
 
         def setup
+            @old_pkg_config_path = ENV['PKG_CONFIG_PATH'].dup
+            Orocos::MQueue.auto = USE_MQUEUE
+
+            @test_dir = File.expand_path(File.join("..", "..", 'test'), File.dirname(__FILE__))
+
             # Since we are loading typekits over and over again, we need to
             # disable type export
             Orocos.export_types = false
-            if File.directory?(WORK_DIR)
-                Orocos.default_working_directory = WORK_DIR
+            if File.directory?(work_dir)
+                Orocos.default_working_directory = work_dir
+                ENV['PKG_CONFIG_PATH'] += ":#{File.join(work_dir, "prefix", 'lib', 'pkgconfig')}"
+                Orocos.default_pkgconfig_loader.update
             end
+
+            if defined?(Orocos::Async)
+                Orocos::Async::NameServiceBase.default_period = 0
+                Orocos::Async::TaskContextBase.default_period = 0
+                Orocos::Async::CORBA::Attribute.default_period = 0
+                Orocos::Async::CORBA::Property.default_period = 0
+                Orocos::Async::CORBA::OutputReader.default_period = 0
+            end
+
             @processes = Array.new
-            super if defined? super
+            @allocated_task_contexts = Array.new
+
+            Orocos.initialize
+            @__orocos_corba_timeouts = [Orocos::CORBA.call_timeout, Orocos::CORBA.connect_timeout]
+            Orocos::CORBA.call_timeout = 10000
+            Orocos::CORBA.connect_timeout = 10000
+
+	    if TEST_MODEL_LESS
+		flexmock(Orocos::TaskContext).new_instances(:get_from_ior).should_receive('model').and_return(nil)
+		flexmock(Orocos::TaskContext).new_instances(:do_get).should_receive('model').and_return(nil)
+	    elsif TEST_MISSING_MODELS
+		flexmock(Orocos).should_receive(:task_model_from_name).and_raise(Orocos::NotFound)
+	    end
+            super
         end
 
         def teardown
-            processes.each { |p| p.kill }
+            if defined? FlexMock
+                flexmock_teardown
+            end
+            processes.each do |p|
+                begin p.kill
+                rescue Exception => e
+                    Orocos.warn "failed, in teardown, to stop process #{p}: #{e}"
+                end
+            end
             processes.clear
-            super if defined? super
+            @allocated_task_contexts.each(&:dispose)
+            super
+            if @__orocos_corba_timeouts # can be nil if setup failed
+                Orocos::CORBA.call_timeout, Orocos::CORBA.connect_timeout = *@__orocos_corba_timeouts
+            end
+            if @old_pkg_config_path # can be nil if setup failed
+                ENV['PKG_CONFIG_PATH'] = @old_pkg_config_path
+            end
+            Orocos::CORBA.instance_variable_set :@loaded_typekits, []
             Orocos.clear
         end
+
+        attr_reader :processes
 
         def start(*spec)
             processes.concat Orocos.run(*spec)
@@ -105,53 +142,6 @@ module Orocos
 
             processes << process
             Orocos::TaskContext.get "#{component}.#{task}"
-        end
-    end
-
-    module Spec
-        include FlexMock::ArgumentTypes
-        include FlexMock::MockContainer
-
-        attr_reader :processes
-
-        def setup
-            @processes = Array.new
-            @allocated_task_contexts = Array.new
-            @old_timeout = Orocos::CORBA.connect_timeout
-            if defined?(Orocos::Async)
-                Orocos::Async::NameServiceBase.default_period = 0
-                Orocos::Async::TaskContextBase.default_period = 0
-                Orocos::Async::CORBA::Attribute.default_period = 0
-                Orocos::Async::CORBA::Property.default_period = 0
-                Orocos::Async::CORBA::OutputReader.default_period = 0
-            end
-
-            Orocos::MQueue.auto = Test::USE_MQUEUE
-            @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
-
-            if defined?(WORK_DIR) && File.directory?(WORK_DIR)
-                Orocos.default_working_directory = WORK_DIR
-                ENV['PKG_CONFIG_PATH'] += ":#{File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')}"
-            end
-            Orocos.initialize
-
-	    if TEST_MODEL_LESS
-		flexmock(Orocos::TaskContext).new_instances(:get_from_ior).should_receive('model').and_return(nil)
-		flexmock(Orocos::TaskContext).new_instances(:do_get).should_receive('model').and_return(nil)
-	    elsif TEST_MISSING_MODELS
-		flexmock(Orocos).should_receive(:task_model_from_name).and_raise(Orocos::NotFound)
-	    end
-
-            Orocos::CORBA.connect_timeout = 50
-            super
-        end
-
-        def start(*spec)
-            processes.concat Orocos.run(*spec)
-        end
-
-        def name_service
-            Orocos.name_service
         end
 
         def read_one_sample(reader, timeout = 1)
@@ -181,23 +171,6 @@ module Orocos
             flunk("#{task} was expected to be in state #{state} but is in #{task.state}")
         end
 
-        def teardown
-	    flexmock_teardown
-            processes.each do |p|
-                begin p.kill
-                rescue Exception => e
-                    Orocos.warn "failed, in teardown, to stop process #{p}: #{e}"
-                end
-            end
-            processes.clear
-            @allocated_task_contexts.each(&:dispose)
-            super
-            Orocos::CORBA.connect_timeout = @old_timeout if @old_timeout
-            Orocos::CORBA.instance_variable_set :@loaded_typekits, []
-            ENV['PKG_CONFIG_PATH'] = @old_pkg_config
-            Orocos.clear
-        end
-
         def new_ruby_task_context(name, options = Hash.new, &block)
             task = Orocos::RubyTasks::TaskContext.new(name, options, &block)
             @allocated_task_contexts << task
@@ -207,6 +180,35 @@ module Orocos
         def wait_for(timeout = 5, &block)
             Orocos::Async.wait_for(0.005, timeout, &block)
         end
+
+        def name_service
+            Orocos.name_service
+        end
+
+        # helper for generating an ior from a name
+        def ior(name)
+            name_service.ior(name)
+        rescue Orocos::NotFound
+            "IOR:010000001f00000049444c3a5254542f636f7262612f435461736b436f6e746578743a312e300000010000000000000064000000010102000d00000031302e3235302e332e31363000002bc80e000000fe8a95a65000004d25000000000000000200000000000000080000000100000000545441010000001c00000001000000010001000100000001000105090101000100000009010100"
+        end
+    end
+end
+
+# Workaround a problem with flexmock and minitest not being compatible with each
+# other (currently). See github.com/jimweirich/flexmock/issues/15.
+if defined?(FlexMock) && !FlexMock::TestUnitFrameworkAdapter.method_defined?(:assertions)
+    class FlexMock::TestUnitFrameworkAdapter
+        attr_accessor :assertions
+    end
+    FlexMock.framework_adapter.assertions = 0
+end
+
+module Minitest
+    class Spec
+        include Orocos::SelfTest
+    end
+    class Test
+        include Orocos::SelfTest
     end
 end
 

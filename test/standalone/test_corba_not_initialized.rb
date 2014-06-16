@@ -1,7 +1,6 @@
-require 'orocos'
-require 'test/unit'
+require 'orocos/test'
 
-class TC_CORBA_Standalone < Test::Unit::TestCase
+class TC_CORBA_Standalone < Minitest::Test
     def test_taskcontext_get_fails_if_corba_is_not_initialized
         assert_raises(Orocos::NotInitialized) { Orocos::TaskContext.get 'bla' }
         assert_raises(Orocos::NotInitialized) { Orocos::TaskContext.do_get 'bla' }

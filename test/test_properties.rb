@@ -1,17 +1,6 @@
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "..", "lib")
-require 'minitest/spec'
-require 'orocos'
 require 'orocos/test'
 
-MiniTest::Unit.autorun
-
-TEST_DIR = File.expand_path(File.dirname(__FILE__))
-DATA_DIR = File.join(TEST_DIR, 'data')
-WORK_DIR = File.join(TEST_DIR, 'working_copy')
-
 describe "reading and writing properties on TaskContext" do
-    include Orocos::Spec
-
     it "should be able to enumerate its properties" do
         Orocos.run('process') do |process|
             t = process.task('Test')
