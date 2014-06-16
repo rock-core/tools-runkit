@@ -130,6 +130,10 @@ module Orocos
             processes.concat Orocos.run(*spec)
         end
 
+        def get(name)
+            Orocos.get name
+        end
+
         def spawn_and_get(component, task = component)
             begin
                 process = Orocos::Process.new component
