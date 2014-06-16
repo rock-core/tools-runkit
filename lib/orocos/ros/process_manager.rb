@@ -34,10 +34,10 @@ module Orocos
             attr_writer :name_service
 
             # Initialize process server
-            def initialize
+            def initialize(loader = Orocos::ROS.default_loader)
                 @launcher_processes = Hash.new
                 @dying_launcher_processes = Array.new
-                @loader = Orocos::ROS.default_loader
+                @loader = loader
             end 
 
             def disconnect
