@@ -651,7 +651,9 @@ module Orocos
         # @raise ArgumentError if the file does not exist
         # @raise Orocos::NotFound if the task model cannot be found
         def load_file(file, model = nil)
-            return if !File.file?(file)
+            if !File.file?(file)
+                raise ArgumentError, "#{file} does not exist or is not a file"
+            end
 
             if !model || model.respond_to?(:to_str)
                 model_name = model || File.basename(file, '.yml')
