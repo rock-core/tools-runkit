@@ -178,6 +178,10 @@ module Orocos
     end
 
     def self.clear
+        if !keep_orocos_logfile? && orocos_logfile
+            FileUtils.rm_f orocos_logfile
+        end
+
         @ruby_task.dispose if @ruby_task
         default_loader.clear
         known_orogen_extensions.clear
