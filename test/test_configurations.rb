@@ -540,9 +540,9 @@ describe Orocos::TaskConfigurations do
             flexmock(Orocos).should_receive(:task_model_from_name).with("task::Model").
                 pass_thru
         end
-        it "should raise Orocos::NotFound if the model does not exist" do
+        it "should raise OroGen::TaskModelNotFound if the model does not exist" do
             File.open("/conf/first.yml", 'w').close
-            assert_raises(Orocos::NotFound) { conf.load_file "/conf/first.yml", "does_not::Exist" }
+            assert_raises(OroGen::TaskModelNotFound) { conf.load_file "/conf/first.yml", "does_not::Exist" }
         end
         it "should return false if no sections got added or modified" do
             File.open("/conf/configurations::Task.yml", 'w').close

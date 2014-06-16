@@ -649,7 +649,7 @@ module Orocos
         #   changed or got added, the method returns a mapping from the task model
         #   name to the list of modified sections. Otherwise, it returns false
         # @raise ArgumentError if the file does not exist
-        # @raise Orocos::NotFound if the task model cannot be found
+        # @raise OroGen::TaskModelNotFound if the task model cannot be found
         def load_file(file, model = nil)
             if !File.file?(file)
                 raise ArgumentError, "#{file} does not exist or is not a file"
