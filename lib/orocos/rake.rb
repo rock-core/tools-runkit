@@ -25,8 +25,8 @@ module Orocos
         # +prefix+
         def self.generate_and_build(src, work_basedir, options = Hash.new)
             require 'orogen/gen'
-            options = Kernel.validate_options options, :keep_wc => false, :transports => nil
-            keep_wc, transports = *options.values_at(:keep_wc, :transports)
+            options = Kernel.validate_options options, :keep_wc => false, :transports => nil, :update => true
+            keep_wc, transports, update = *options.values_at(:keep_wc, :transports, :update)
 
             if !transports
                 transports = %w{corba typelib}
@@ -43,7 +43,9 @@ module Orocos
 
             FileUtils.mkdir_p work_basedir
             work_dir = File.join(work_basedir, src_name)
-            if !keep_wc || !File.directory?(work_dir)
+            if !update && File.directory?(work_dir)
+                return
+            elsif !keep_wc || !File.directory?(work_dir)
                 FileUtils.rm_rf work_dir
                 FileUtils.cp_r  src_dir, work_dir
             end

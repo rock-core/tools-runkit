@@ -26,6 +26,20 @@ begin
 
     def build_orogen(name, options = Hash.new)
         require './lib/orocos/rake'
+        # Process the rake options to make it programmatic options
+        options = Kernel.validate_options options, :keep_wc => '0', :transports => nil, :update => '1'
+        options[:keep_wc] = (options[:keep_wc] != '0')
+        options[:update]  = (options[:update] != '0')
+        if transports = options[:transports]
+            if transports.empty?
+                options[:transports] = nil
+            elsif transports == 'none'
+                options[:transports] = []
+            else
+                options[:transports] = transports.split(',')
+            end
+        end
+
         work_dir = File.expand_path(File.join('test', 'working_copy'))
         data_dir = File.expand_path(File.join('test', 'data'))
     
@@ -61,7 +75,7 @@ begin
 
     namespace :setup do
         desc "builds the oroGen modules that are needed by the tests"
-        task :orogen_all, [:keep_wc,:transports] do |_, args|
+        task :orogen_all, [:keep_wc,:transports,:update] do |_, args|
             build_orogen 'process', args
             build_orogen 'simple_sink', args
             build_orogen 'simple_source', args
@@ -74,28 +88,28 @@ begin
         end
 
         desc "builds the test 'process' module"
-        task :orogen_process, [:keep_wc,:transports] do |_, args| build_orogen 'process', args end
+        task :orogen_process, [:keep_wc,:transports,:update] do |_, args| build_orogen 'process', args end
         desc "builds the test 'simple_sink' module"
-        task :orogen_sink, [:keep_wc,:transports]    do |_, args| build_orogen 'simple_sink', args end
+        task :orogen_sink, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'simple_sink', args end
         desc "builds the test 'simple_source' module"
-        task :orogen_source, [:keep_wc,:transports]  do |_, args| build_orogen 'simple_source', args end
+        task :orogen_source, [:keep_wc,:transports,:update]  do |_, args| build_orogen 'simple_source', args end
         desc "builds the test 'echo' module"
-        task :orogen_echo, [:keep_wc,:transports]    do |_, args| build_orogen 'echo', args end
+        task :orogen_echo, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'echo', args end
         desc "builds the test 'states' module"
-        task :orogen_states, [:keep_wc,:transports]    do |_, args| build_orogen 'states', args end
+        task :orogen_states, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'states', args end
         desc "builds the test 'uncaught' module"
-        task :orogen_uncaught, [:keep_wc,:transports]    do |_, args| build_orogen 'uncaught', args end
+        task :orogen_uncaught, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'uncaught', args end
         desc "builds the test 'system' module"
-        task :orogen_system, [:keep_wc,:transports]    do |_, args| build_orogen 'system', args end
+        task :orogen_system, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'system', args end
         desc "builds the test 'operations' module"
-        task :orogen_operations, [:keep_wc,:transports]    do |_, args| build_orogen 'operations', args end
+        task :orogen_operations, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'operations', args end
         desc "builds the test 'configurations' module"
-        task :orogen_configurations, [:keep_wc,:transports]    do |_, args| build_orogen 'configurations', args end
+        task :orogen_configurations, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'configurations', args end
         desc "builds the test 'ros_test' module"
-        task :orogen_ros_test, [:keep_wc,:transports]    do |_, args| build_orogen 'ros_test', args end
+        task :orogen_ros_test, [:keep_wc,:transports,:update]    do |_, args| build_orogen 'ros_test', args end
 
-        task :test do
-            Rake::Task['setup:orogen_all'].invoke(true, nil)
+        task :test do |t, args|
+            Rake::Task['setup:orogen_all'].invoke('1', '', '1')
         end
 
         UIFILES = %w{}
