@@ -240,7 +240,15 @@ static VALUE local_task_context_create_port(VALUE _task, VALUE _is_output, VALUE
 static VALUE local_task_context_remove_port(VALUE obj, VALUE _port_name)
 {
     std::string port_name = StringValuePtr(_port_name);
-    local_task_context(obj).ports()->removePort(port_name);
+    LocalTaskContext& task(local_task_context(obj));
+    RTT::DataFlowInterface& di(*task.ports());
+    RTT::base::PortInterface* port = di.getPort(port_name);
+    if (!port)
+        rb_raise(rb_eArgError, "task %s has no port named %s", task.getName().c_str(), port_name.c_str());
+
+    // Workaround a bug in RTT. The port's data flow interface is not reset
+    port->setInterface(0);
+    di.removePort(port_name);
     return Qnil;
 }
 
