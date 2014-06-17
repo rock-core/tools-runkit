@@ -132,7 +132,7 @@ LocalTaskContext& local_task_context(VALUE obj)
     return *tc;
 }
 
-static void delete_local_task_context(RLocalTaskContext* rtask)
+static void local_task_context_dispose(RLocalTaskContext* rtask)
 {
     if (!rtask->tc)
         return;
@@ -152,6 +152,13 @@ static void delete_local_task_context(RLocalTaskContext* rtask)
     }
     RTT::corba::TaskContextServer::CleanupServer(task);
     delete task;
+    rtask->tc = 0;
+}
+
+static void delete_local_task_context(RLocalTaskContext* rtask)
+{
+    std::auto_ptr<RLocalTaskContext> guard(rtask);
+    local_task_context_dispose(rtask);
 }
 
 static VALUE local_task_context_new(VALUE klass, VALUE _name)
@@ -170,11 +177,7 @@ static VALUE local_task_context_new(VALUE klass, VALUE _name)
 static VALUE local_task_context_dispose(VALUE obj)
 {
     RLocalTaskContext& task = get_wrapped<RLocalTaskContext>(obj);
-    if (!task.tc)
-        return Qnil;
-
-    delete_local_task_context(&task);
-    task.tc = 0;
+    local_task_context_dispose(&task);
     return Qnil;
 }
 
@@ -372,7 +375,7 @@ void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOut
     cRubyTaskContext = rb_define_class_under(mRubyTasks, "TaskContext", cTaskContext);
     cLocalTaskContext = rb_define_class_under(cRubyTaskContext, "LocalTaskContext", rb_cObject);
     rb_define_singleton_method(cLocalTaskContext, "new", RUBY_METHOD_FUNC(local_task_context_new), 1);
-    rb_define_method(cLocalTaskContext, "dispose", RUBY_METHOD_FUNC(local_task_context_dispose), 0);
+    rb_define_method(cLocalTaskContext, "dispose", RUBY_METHOD_FUNC(static_cast<VALUE(*)(VALUE)>(local_task_context_dispose)), 0);
     rb_define_method(cLocalTaskContext, "ior", RUBY_METHOD_FUNC(local_task_context_ior), 0);
     rb_define_method(cLocalTaskContext, "model_name=", RUBY_METHOD_FUNC(local_task_context_set_model_name), 1);
     rb_define_method(cLocalTaskContext, "do_create_port", RUBY_METHOD_FUNC(local_task_context_create_port), 4);
