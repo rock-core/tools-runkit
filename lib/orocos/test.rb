@@ -63,6 +63,8 @@ module Orocos
 
         def setup
             @old_pkg_config_path = ENV['PKG_CONFIG_PATH'].dup
+            @__warn_for_missing_default_loggers = Orocos.warn_for_missing_default_loggers?
+            Orocos.warn_for_missing_default_loggers = false
             Orocos::MQueue.auto = USE_MQUEUE
 
             @test_dir = File.expand_path(File.join("..", "..", 'test'), File.dirname(__FILE__))
@@ -122,6 +124,7 @@ module Orocos
             end
             Orocos::CORBA.instance_variable_set :@loaded_typekits, []
             Orocos.clear
+            Orocos.warn_for_missing_default_loggers = @__warn_for_missing_default_loggers
         end
 
         attr_reader :processes
