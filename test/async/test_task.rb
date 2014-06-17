@@ -163,25 +163,25 @@ describe Orocos::Async::CORBA::TaskContext do
         end
 
         it "should call on_property_reachable" do 
-            Orocos.run('process') do
-                t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'),:period => 0.1,:watchdog => true)
-                properties = []
-                t1.on_property_reachable do |name|
-                    properties << name
-                end
-                t1.wait(0.2)
-                Orocos::Async.steps
-                assert_equal ["dynamic_prop","prop1", "prop2", "prop3"],properties
-                properties.clear
+            process = start('process::Test' => 'process_Test')
 
-                #should be called even if the task is already reachable
-                t1.on_property_reachable do |name|
-                    properties << name
-                end
-
-                Orocos::Async.steps
-                assert_equal ["dynamic_prop","prop1", "prop2", "prop3"],properties
+            t1 = Orocos::Async::CORBA::TaskContext.new(ior('process_Test'),:period => 0.1,:watchdog => true)
+            properties = []
+            t1.on_property_reachable do |name|
+                properties << name
             end
+            t1.wait(0.2)
+            Orocos::Async.steps
+            assert_equal ["dynamic_prop","prop1", "prop2", "prop3"],properties
+            properties.clear
+
+            #should be called even if the task is already reachable
+            t1.on_property_reachable do |name|
+                properties << name
+            end
+
+            Orocos::Async.steps
+            assert_equal ["dynamic_prop","prop1", "prop2", "prop3"],properties
         end
 
         it "should call on_port_reachable if a port was dynamically added" do 

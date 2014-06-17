@@ -2,13 +2,12 @@ require 'orocos/test'
 
 describe "reading and writing properties on TaskContext" do
     it "should be able to enumerate its properties" do
-        Orocos.run('process') do |process|
-            t = process.task('Test')
-            assert_equal %w{dynamic_prop prop1 prop2 prop3}, t.property_names.sort
-            assert_equal %w{dynamic_prop prop1 prop2 prop3}, t.each_property.map(&:name).sort
-            %w{dynamic_prop prop1 prop2 prop3}.each do |name|
-                t.has_property?(name)
-            end
+        start 'process::Test' => 'test'
+        t = get 'test'
+        assert_equal %w{dynamic_prop dynamic_prop_setter_called prop1 prop2 prop3}, t.property_names.sort
+        assert_equal %w{dynamic_prop dynamic_prop_setter_called prop1 prop2 prop3}, t.each_property.map(&:name).sort
+        %w{dynamic_prop prop1 prop2 prop3}.each do |name|
+            t.has_property?(name)
         end
     end
 

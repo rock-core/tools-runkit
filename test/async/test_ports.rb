@@ -28,24 +28,23 @@ describe Orocos::Async::CORBA::OutputPort do
             end
         end
         it "must call on_data if new data are available and a block is registered" do 
-            Orocos.run('simple_source') do
-                t1 = Orocos::Async::CORBA::TaskContext.new(ior('simple_source_source'))
-                port = t1.port("cycle")
-                data = []
-                s = port.on_data :period => 0.05 do |d|
-                    data << d
-                end
-                t1.configure
-                t1.start
-                1.upto(10) do
-                    Orocos::Async.step
-                    sleep 0.05
-                end
-                t1.stop
-                assert !data.empty?
-                data.each_with_index do |v,i|
-                    assert_equal i+1,v
-                end
+            start 'simple_source::source' => 'source'
+            t1 = Orocos::Async::CORBA::TaskContext.new(ior('source'))
+            port = t1.port("cycle")
+            data = []
+            port.on_data :period => 0.05 do |d|
+                data << d
+            end
+            t1.configure
+            t1.start
+            1.upto(10) do
+                Orocos::Async.step
+                sleep 0.05
+            end
+            t1.stop
+            assert !data.empty?
+            data.each_with_index do |v,i|
+                assert_equal i+1,v
             end
         end
     end
