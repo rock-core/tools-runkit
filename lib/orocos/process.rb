@@ -315,13 +315,56 @@ module Orocos
         # The component process ID
         attr_reader :pid
 
+        # Returns the process that has the given PID
+        #
+        # @param [Integer] pid the PID whose process we are looking for
+        # @return [nil,Process] the process object whose PID matches, or nil
 	def self.from_pid(pid)
-	    if result = ObjectSpace.enum_for(:each_object, Orocos::Process).find { |mod| mod.pid == pid }
+	    if result = registered_processes[pid]
                 return result
-            elsif defined? Orocos::ROS::Node
-                ObjectSpace.enum_for(:each_object, Orocos::ROS::Node).find { |mod| mod.pid == pid }
             end
 	end
+
+        class << self
+            # A map of existing running processes
+            #
+            # @return [{Integer=>Process}] a map from process IDs to the
+            #   corresponding Process object
+            attr_accessor :registered_processes
+        end
+        @registered_processes = Hash.new
+
+        # Registers a PID-to-process mapping.
+        #
+        # This can be called only for running processes
+        #
+        # @param [Process] process the process that should be registered
+        # @return [void]
+        # @see deregister each
+        def self.register(process)
+            if !process.alive?
+                raise ArgumentError, "cannot register a non-running process"
+            end
+            registered_processes[process.pid] = process
+            nil
+        end
+
+        # Deregisters a process object that was registered with {register}
+        #
+        # @param [Integer] pid the process PID
+        def self.deregister(pid)
+            if process = registered_processes.delete(pid)
+                process
+            else raise ArgumentError, "no process registered for PID #{pid}"
+            end
+        end
+
+        # Enumerates all registered processes
+        #
+        # @yieldparam [Process] process the process object
+        def self.each(&block)
+            registered_processes.each_value(&block)
+        end
 
         # A string describing the host. It can be used to check if two processes
         # are running on the same host
@@ -386,7 +429,8 @@ module Orocos
                 Orocos.warn "deployment #{name} terminated with code #{exit_status.to_i}"
             end
 
-	    @pid = nil 
+            pid, @pid = @pid, nil
+            Process.deregister(pid)
 
             # Force unregistering the task contexts from CORBA naming
             # service
@@ -796,6 +840,7 @@ module Orocos
                     write.write("FAILED")
                 end
 	    end
+            Process.register(self)
 
 	    write.close
 	    if read.read == "FAILED"
@@ -985,14 +1030,8 @@ module Orocos
 
     # Enumerates the Orocos::Process objects that are currently available in
     # this Ruby instance
-    def self.each_process
-        if !block_given?
-            return enum_for(:each_process)
-        end
-
-        ObjectSpace.each_object(Orocos::Process) do |p|
-            yield(p) if p.alive?
-        end
+    def self.each_process(&block)
+        Process.each(&block)
     end
 
     # call-seq:
@@ -1017,11 +1056,11 @@ module Orocos
         end
 
         if processes.empty?
-            processes ||= ObjectSpace.enum_for(:each_object, Orocos::Process)
+            processes = each_process.to_a
         end
         if !tasks.empty?
             processes.each do |p|
-                tasks -= p.enum_for(:each_task).to_a
+                tasks -= p.each_task.to_a
             end
         end
 
