@@ -118,8 +118,7 @@ tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 ///
 VALUE task_context_create(int argc, VALUE *argv,VALUE klass)
 {
-    if(!CorbaAccess::instance())
-        rb_raise(eNotInitialized,"Corba is not initialized. Call Orocos.initialize first.");
+    corba_must_be_initialized();
 
     // all parametes are forwarded to ruby initialize
     if(argc < 1)
@@ -379,14 +378,15 @@ static VALUE port_connected_p(VALUE self)
 static RTT::corba::CConnPolicy policyFromHash(VALUE options)
 {
     RTT::corba::CConnPolicy result;
-    VALUE conn_type = SYM2ID(rb_hash_aref(options, ID2SYM(rb_intern("type"))));
+    VALUE conn_type_value = rb_hash_aref(options, ID2SYM(rb_intern("type")));
+    VALUE conn_type = SYM2ID(conn_type_value);
     if (conn_type == rb_intern("data"))
         result.type = RTT::corba::CData;
     else if (conn_type == rb_intern("buffer"))
         result.type = RTT::corba::CBuffer;
     else
     {
-        VALUE obj_as_str = rb_funcall(conn_type, rb_intern("inspect"), 0);
+        VALUE obj_as_str = rb_funcall(conn_type_value, rb_intern("inspect"), 0);
         rb_raise(rb_eArgError, "invalid connection type %s", StringValuePtr(obj_as_str));
     }
 
@@ -403,6 +403,8 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
         result.lock_policy = RTT::corba::CLocked;
     else if (lock_type == rb_intern("lock_free"))
         result.lock_policy = RTT::corba::CLockFree;
+    else if (lock_type == rb_intern("unsync"))
+        result.lock_policy = RTT::corba::CUnsync;
     else
     {
         VALUE obj_as_str = rb_funcall(lock_type, rb_intern("to_s"), 0);
@@ -575,7 +577,7 @@ static VALUE mqueue_transportable_type_names(VALUE mod)
 }
 #endif
 
-extern "C" void Init_rorocos_ext()
+extern "C" void Init_rorocos()
 {
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");

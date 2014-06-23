@@ -9,9 +9,9 @@ rescue LoadError
 end
 
 begin
-    require 'rorocos_ext'
-rescue LoadError
-    STDERR.puts "Cannot require orocos.rb's Ruby/C extension"
+    require 'orocos/rorocos'
+rescue LoadError => e
+    STDERR.puts "Cannot require orocos.rb's Ruby/C extension #{e}"
     STDERR.puts "If you are using Rock, this should have been done automatically."
     STDERR.puts "Run"
     STDERR.puts "  amake orocos.rb"

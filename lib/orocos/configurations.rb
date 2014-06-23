@@ -510,7 +510,8 @@ module Orocos
         # @param [String] file either a file or a directory. If it is a
         #   directory, the generated file will be named based on the task's
         #   model name
-        # @param [String] name the name of the new sectin in the file
+        # @param [String,nil] name the name of the new section. If nil is given,
+        #   defaults to task.name 
         # @return [Hash] the task configuration in YAML representation, as
         #   returned by {.config_as_hash}
         # @see TaskConfigurations#save
@@ -600,40 +601,55 @@ module Orocos
         #   orogen_project::TaskName.yml
         #
         # each file being a YAML file that follows the format described in
-        # the documentation of TaskConfigurations.
+        # the documentation of {TaskConfigurations}. It will ignore files that
+        # do not match this pattern, as well as file that refer to task models
+        # that cannot be found.
         #
-        # Returns the set of changed configurations, as an oroGen task model to
-        # the list of configuration sections that have changed for this model
+        # @param [String] dir the path to the directory
+        # @return [{String=>Array<String>}] a mapping from the task model
+        #   name to the list of configuration sections that got modified or added.
+        #   Note that the set of sections is guaranteed to not be empty
         def load_dir(dir)
+            if !File.directory?(dir)
+                raise ArgumentError, "#{dir} is not a directory"
+            end
+
             changed = Hash.new
             Dir.glob(File.join(dir, '*.yml')) do |file|
-                if changed_configurations = load_file(file)
+                next if !File.file?(file)
+
+                changed_configurations =
+                    begin load_file(file)
+                    rescue Orocos::NotFound
+                        ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
+                        next
+                    end
+
+                if changed_configurations
                     changed.merge!(changed_configurations) do |model_name, old, new|
                         old.concat(new).uniq
                     end
 
-                    ConfigurationManager.info do
-                        changed_configurations.each do |model_name, conf|
-                            ConfigurationManager.info "  configuration #{conf} of #{model_name} changed"
-                        end
-                        break
+                    changed_configurations.each do |model_name, conf|
+                        ConfigurationManager.info "  configuration #{conf} of #{model_name} changed"
                     end
                 end
             end
             changed
         end
 
-        # Loads the configuration from the given yml file
+        # Loads configuration from a YAML file
         #
-        # The file is assumed to be named of the form
-        #
+        # @param [String] file the path to the file
+        # @param [String,OroGen::Spec] model it is either an oroGen task context
+        #   model or the name of such a model If nil, the model is inferred from
+        #   the file name, which is expected to be of the form
         #   orogen_project::TaskName.yml
-        #
-        # or a the task_model name has to be provided
-        #
-        # returns false if nothing was loaded or if the configuration was already loaded 
-        # Otherwise, it returns a mapping from task model names to the list of
-        # configuration sections that have changed for this particular model
+        # @return [{String=>Array<String>},nil] if some configuration sections
+        #   changed or got added, the method returns a mapping from the task model
+        #   name to the list of modified sections. Otherwise, it returns false
+        # @raise ArgumentError if the file does not exist
+        # @raise Orocos::NotFound if the task model cannot be found
         def load_file(file, model = nil)
             return if !File.file?(file)
 
@@ -653,7 +669,7 @@ module Orocos
             changed_configurations = conf[model.name].load_from_yaml(file)
             ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(", ")}"
             if changed_configurations.empty?
-                false
+                return false
             else
                 Hash[model.name => changed_configurations]
             end
@@ -714,16 +730,27 @@ module Orocos
             end
         end
 
-        # Dumps the configuration of +task+ on the specified path
+        # Saves the configuration for a task and dumps it to a YAML file
         #
-        # If +path+ is a directory, the configuration is saved in
-        # a file called project_name::TaskName.yml. Otherwise, it is saved in
-        # the file
+        # This method adds the current configuration of the given task to the
+        # existing configuration(s) for the task's model, and saves all of them
+        # in a YAML file.
         #
-        # If +name+ is given, it is used as the new configuration name.
-        # Otherwise, the task's name is used
+        # @param [TaskContext] task the task whose configuration should be saved
+        # @param [String] path the file or directory it should be saved to.
+        #   If it is a directory, the configuration is saved in a file whose name
+        #   is based on the task's model name (project_name::TaskName.yml).
+        #   Otherwise, it is saved in the file. The directories leading to the
+        #   file must exist.
+        # @option options :model (task.model) the oroGen model used to dump the
+        #   configuration
+        # @option options :name (task.name) the name of the section that should
+        #   be created
+        #
+        # @overload save(task, path, name)
+        #   @deprecated old signature. One should use the option hash now.
         def save(task, path, options = Hash.new)
-            if options.respond_to?(:to_str) # for backward compatibility
+            if options.respond_to?(:to_str) || !options # for backward compatibility
                 options = Hash[:name => options]
             end
             options, find_options = Kernel.filter_options options,
@@ -735,7 +762,7 @@ module Orocos
             if !task_conf
                 task_conf = conf[model_name] = TaskConfigurations.new(options[:model])
             end
-            task_conf.save(task, path, name)
+            task_conf.save(task, path, options[:name])
         end
 
         # Returns a resolved configuration value for a task model name

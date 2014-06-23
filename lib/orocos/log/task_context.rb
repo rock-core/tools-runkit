@@ -264,13 +264,24 @@ module Orocos
                     raise "Cannot create OutputPort out of #{stream.class}"
                 end
                 @stream = stream
-                @name = stream.name.to_s.match(/\.(.*$)/)
-		if @name == nil
-		    @name = "#{stream.name.to_s}"
-		    Log.warn "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME, assuming as PORTNAME \"#{@name}\""
-		else	
-		    @name = @name[1]
-		end
+                @name = if stream.metadata.has_key? "rock_task_object_name"
+                            name = stream.metadata["rock_task_object_name"]
+                            if !name || name.empty?
+                                name = "#{stream.name.to_s}"
+                                Log.warn "Stream name (#{stream.name}) has empty meta data assuming as PORTNAME \"#{name}\""
+                            end
+                            name
+                        else
+                            # backward compatibility
+                            name = stream.name.to_s.match(/\.(.*$)/)
+                            if name == nil
+                                name = "#{stream.name.to_s}"
+                                Log.warn "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME, assuming as PORTNAME \"#{name}\""
+                                name
+                            else
+                                name[1]
+                            end
+                        end
 		begin
 		    @type = stream.type
 		rescue Exception => e
@@ -554,6 +565,10 @@ module Orocos
 
             def on_state_change(&block)
                 @state_change_blocks << block
+            end
+
+            def to_s
+                "#<Orocos::Log::TaskContext: #{name}>"
             end
 
             def rename(name)

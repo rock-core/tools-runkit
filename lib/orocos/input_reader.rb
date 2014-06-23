@@ -24,7 +24,10 @@ module Orocos
 		    raise CORBA::ComError, "remote end is dead"
 		end
 	    end
-            super
+            if !super
+                raise CORBA::ComError, "remote end was disconnected"
+            else true
+            end
         end
     end
 end

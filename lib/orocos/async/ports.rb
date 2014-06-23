@@ -27,7 +27,7 @@ module Orocos::Async::CORBA
             proxy_event @port,:unreachable
             
             @poll_timer = @event_loop.async_every(method(:raw_read_new), {:period => period, :start => false,
-                                                  :known_errors => [Orocos::NotFound,Orocos::ComError]}) do |data,error|
+                                                  :known_errors => Orocos::Async::KNOWN_ERRORS}) do |data,error|
                 if error
                     @poll_timer.cancel
                     self.period = @poll_timer.period
@@ -37,6 +37,8 @@ module Orocos::Async::CORBA
                 elsif data
                     @raw_last_sample = data
                     event :raw_data, data
+                    # TODO just emit raw_data and convert it to ruby
+                    # if someone is listening to (see PortProxy)
                     event :data, Typelib.to_ruby(data)
                 end
             end
@@ -109,7 +111,7 @@ module Orocos::Async::CORBA
         end
 
         private
-        forward_to :@delegator_obj,:@event_loop,:known_errors => [Orocos::ComError],:on_error => :emit_error  do
+        forward_to :@delegator_obj,:@event_loop,:known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :emit_error  do
             methods = Orocos::OutputReader.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::OutputReader.instance_methods
             methods << :type
@@ -129,12 +131,12 @@ module Orocos::Async::CORBA
         end
 
         def unreachable!(options = Hash.new)
-            @delegator_obj.disconnect if validate_options?
+            @delegator_obj.disconnect if valid_delegator?
             super
         end
 
         private
-        forward_to :@delegator_obj,:@event_loop,:known_errors => [Orocos::ComError,Typelib::NotFound],:on_error => :emit_error  do
+        forward_to :@delegator_obj,:@event_loop,:known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :emit_error  do
             methods = Orocos::InputWriter.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::InputWriter.instance_methods
             methods << :type
@@ -144,6 +146,7 @@ module Orocos::Async::CORBA
 
     class Port < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
+        attr_accessor :options
 
         def task
             @task
@@ -222,8 +225,14 @@ module Orocos::Async::CORBA
             @global_reader.raw_last_sample if @global_reader
         end
 
+        def options=(options)
+            super
+            @global_reader = nil
+        end
+
         def reader(options = Hash.new,&block)
             options, policy = Kernel.filter_options options, :period => nil
+            policy[:init] = true unless policy.has_key?(:init)
             policy[:pull] = true unless policy.has_key?(:pull)
             if block
                 orig_reader(policy) do |reader,error|
@@ -252,9 +261,8 @@ module Orocos::Async::CORBA
                        elsif @options == policy
                            @options
                        else
-                           Orocos.warn "OutputPort #{full_name} cannot emit :data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
+                           Orocos.warn "Changing global reader policy for #{full_name} from #{@options} to #{policy}"
+                           self.options = @options
                            @options
                        end
             on_event :data,&block
@@ -268,9 +276,8 @@ module Orocos::Async::CORBA
                        elsif @options == policy
                            @options
                        else
-                           Orocos.warn "OutputPort #{full_name} cannot emit :data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
+                           Orocos.warn "Changing global reader policy for #{full_name} from #{@options} to #{policy}"
+                           self.options = @options
                            @options
                        end
             on_event :raw_data,&block
@@ -331,7 +338,7 @@ module Orocos::Async::CORBA
 
         def remove_listener(listener)
             super
-            if number_of_listeners(:data) == 0 && @global_reader
+            if number_of_listeners(:data) == 0  && number_of_listeners(:raw_data) == 0 && @global_reader
                 remove_proxy_event(@global_reader)
                 @global_reader.disconnect{} # call it asynchron
                 @global_reader = nil
@@ -356,7 +363,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        forward_to :port,:@event_loop,:known_errors => [Orocos::NotFound,Orocos::ComError,Orocos::TypekitTypeNotFound,Typelib::NotFound],:on_error => :connection_error do
+        forward_to :port,:@event_loop,:known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :connection_error do
             methods = Orocos::OutputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::OutputPort.instance_methods
             methods << :type
@@ -394,7 +401,7 @@ module Orocos::Async::CORBA
 
         def reachable!(port,options = Hash.new)
             super
-            #TODO we have to call reachable on all wwriter
+            #TODO we have to call reachable on all writer
             if @global_writer
                 orig_writer(@global_writer.policy) do |writer,error|
                     unless error
@@ -404,7 +411,16 @@ module Orocos::Async::CORBA
             end
         end
 
-        def write(sample,&block)
+        def options=(options)
+            super
+            @global_writer = nil
+        end
+
+        def write(sample,options=@options,&block)
+            if @options != options
+                Orocos.warn "Changing global writer policy for #{full_name} from #{@options} to #{options}" unless @options.empty?
+                self.options = options
+            end
             if block
                 if @global_writer.respond_to? :write
                     @global_writer.write(sample) do |result,error|
@@ -440,7 +456,7 @@ module Orocos::Async::CORBA
             end
         end
 
-        forward_to :port,:@event_loop,:known_errors => [Orocos::NotFound,Orocos::ComError,Orocos::TypekitTypeNotFound],:on_error => :connection_error  do
+        forward_to :port,:@event_loop,:known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :connection_error  do
             methods = Orocos::InputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::InputPort.instance_methods
             methods << :type

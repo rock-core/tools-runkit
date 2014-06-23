@@ -50,6 +50,18 @@ module Orocos
 	@default_cmdline_arguments = value
     end
 
+    def self.tracing?
+        !!@tracing_enabled
+    end
+
+    def self.tracing=(flag)
+        @tracing_enabled = flag
+    end
+
+    def self.tracing_library_path
+        File.join(Utilrb::PkgConfig.new("orocos-rtt-#{Orocos.orocos_target}").libdir, "liborocos-rtt-traces-#{Orocos.orocos_target}.so")
+    end
+
     # call-seq:
     #   Orocos.run('mod1', 'mod2')
     #   Orocos.run('mod1', 'mod2', :wait => false, :output => '%m-%p.log')
@@ -217,7 +229,7 @@ module Orocos
             if !(logger = self.default_logger)
                 return
             end
-            log_file_name = logger.name[/.*(?=_[L|l]ogger)/] || logger.name
+            log_file_name = logger.basename[/.*(?=_[L|l]ogger)/] || logger.basename
 
             index = 0
             if options[:remote]
@@ -424,7 +436,7 @@ module Orocos
                 :gdb => false, :gdb_options => [],
                 :valgrind => false, :valgrind_options => [],
                 :cmdline_args => Orocos.default_cmdline_arguments,
-                :oro_logfile => nil
+                :oro_logfile => nil, :tracing => Orocos.tracing?
 
             deployments, models = Hash.new, Hash.new
             names.each { |n| mapped_names[n] = nil }
@@ -645,7 +657,7 @@ module Orocos
                 :working_directory => nil,
                 :cmdline_args => Hash.new, :wait => nil,
                 :oro_logfile => "orocos.%m-%p.txt",
-                :prefix => nil
+                :prefix => nil, :tracing => Orocos.tracing?
 
             # Setup mapping for prefixed tasks in Process class
             prefix_mappings, options = ProcessBase.resolve_prefix_option(options, model)
@@ -711,6 +723,10 @@ module Orocos
 		    
 	    read, write = IO.pipe
 	    @pid = fork do 
+                if options[:tracing]
+                    ENV['LD_PRELOAD'] = Orocos.tracing_library_path
+                end
+
                 pid = ::Process.pid
                 real_name = get_mapped_name(name)
 

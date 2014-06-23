@@ -75,7 +75,7 @@ module Orocos::Async
                                                       :default => [[],[],[],[]],
                                                       :start => false,
                                                       :sync_key => nil, #is blocked by the methods call ping, states, etc
-                                                      :known_errors => [Orocos::ComError,Orocos::NotFound]}) do |data,error|
+                                                      :known_errors => Orocos::Async::KNOWN_ERRORS}) do |data,error|
                                                             process_states(data[0])
                                                             process_port_names(data[1])
                                                             process_property_names(data[2])
@@ -341,7 +341,7 @@ module Orocos::Async
 
         private
         # add methods which forward the call to the underlying task context
-        forward_to :task_context,:@event_loop, :known_errors => [Orocos::ComError,Orocos::NotFound,Orocos::TypekitTypeNotFound],:on_error => :emit_error do
+        forward_to :task_context,:@event_loop, :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :emit_error do
             thread_safe do
                 def_delegator :ping,:known_errors => nil  #raise if there is an error in the communication
                 methods = [:has_operation?, :has_port?,:property_names,:attribute_names,:port_names,:rtt_state]
@@ -380,11 +380,11 @@ module Orocos::Async
             deleted_ports = @port_names - port_names
             deleted_ports.each do |name|
                 @port_names.delete name
-                event :port_unreachable, name
+                process_event :port_unreachable, name
             end
             added_ports.each do |name|
                 @port_names << name
-                event :port_reachable, name
+                process_event :port_reachable, name
             end
         end
 
@@ -398,7 +398,7 @@ module Orocos::Async
             end
             added_properties.each do |name|
                 @property_names << name
-                event :property_reachable, name
+                process_event :property_reachable, name
             end
         end
 
@@ -408,11 +408,11 @@ module Orocos::Async
             deleted_properties = @attribute_names - attribute_names
             deleted_properties.each do |name|
                 @attribute_names.delete name
-                event :attribute_unreachable, name
+                process_event :attribute_unreachable, name
             end
             added_properties.each do |name|
                 @attribute_names << name
-                event :attribute_reachable, name
+                process_event :attribute_reachable, name
             end
         end
 

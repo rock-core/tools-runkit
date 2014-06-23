@@ -22,6 +22,11 @@ module Orocos
             super(name, model)
         end
 
+        # Retunging the Process name of the remote process
+        def process
+            self
+        end
+
         # Called to announce that this process has quit
         def dead!
             @alive = false

@@ -126,6 +126,11 @@ module Orocos
             #array of stream annotations
             attr_reader :annotations
 
+            # The streams that are actually replayed
+            #
+            # @return [Array<Pocolog::DataStream>]
+            attr_reader :used_streams
+
             # The current annotations
             #
             # This is an aggregated version of #annotations, where the value for
@@ -350,6 +355,12 @@ module Orocos
                 end
             end
 
+            #returns true if a task with the given name exists
+            def task?(name)
+                name = map_to_namespace name
+                @tasks.has_key?(name)
+            end
+
             #Returns the simulated task with the given namen. 
             def task(name)
                 name = map_to_namespace name
@@ -485,6 +496,19 @@ module Orocos
                 return @stream != nil
             end
 
+            # The total duration of the replayed data, in seconds
+            #
+            # @return [Float]
+            def duration
+                intervals = used_streams.map { |s| s.info.interval_lg }
+                min = intervals.map(&:first).min
+                max = intervals.map(&:last).max
+                if min && max
+                    max - min
+                else 0
+                end
+            end
+
             #Resets the simulated time.
             #This should be called after the replay was paused.
             def reset_time_sync
@@ -528,6 +552,15 @@ module Orocos
                     false
                 else
                     true
+                end
+            end
+
+            def current_time
+                _, time, data = @current_sample
+                return if !time
+                if getter = (timestamps[data.class.name] || default_timestamp)
+                    getter[data]
+                else time
                 end
             end
 
@@ -929,10 +962,19 @@ module Orocos
                         all_files = Dir.enum_for(:glob, File.join(path, '*.*.log'))
                         by_basename = all_files.inject(Hash.new) do |h, path|
                             split = path.match(/^(.*)\.(\d+)\.log$/)
-                            basename, number = split[1], Integer(split[2])
-                            h[basename] ||= Array.new
-                            h[basename][number] = path
-                            h
+                            if split
+                                basename, number = split[1], Integer(split[2])
+                                h[basename] ||= Array.new
+                                h[basename][number] = path
+                                h
+                            else
+                                Orocos.warn "invalid log file name #{path}. Expecting: /^(.*)\.(\d+)\.log$/"
+                                h
+                            end
+                        end
+                        if by_basename.empty?
+                            Orocos.warn "empty directory: #{path}"
+                            next
                         end
 
                         by_basename.each_value do |files|

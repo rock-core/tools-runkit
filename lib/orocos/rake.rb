@@ -23,33 +23,35 @@ module Orocos
         # Generates, builds and installs the orogen component defined by the
         # orogen description file +src+. The compiled package is installed in
         # +prefix+
-        def self.generate_and_build(src, work_basedir, transports = nil)
+        def self.generate_and_build(src, work_basedir, options = Hash.new)
             require 'orogen/gen'
+            options = Kernel.validate_options options, :keep_wc => false, :transports => nil
+            keep_wc, transports = *options.values_at(:keep_wc, :transports)
+
+            if !transports
+                transports = %w{corba typelib}
+                if USE_MQUEUE
+                    transports << 'mqueue'
+                end
+                if USE_ROS
+                    transports << 'ros'
+                end
+            end
 
             src_dir  = File.dirname(src)
             src_name = File.basename(src_dir)
 
             FileUtils.mkdir_p work_basedir
             work_dir = File.join(work_basedir, src_name)
-            if (ENV['TEST_KEEP_WC'] != "1") || !File.directory?(work_dir)
+            if !keep_wc || !File.directory?(work_dir)
                 FileUtils.rm_rf work_dir
                 FileUtils.cp_r  src_dir, work_dir
             end
 
-            prefix   = File.join(work_basedir, "prefix")
+            prefix     = File.join(work_basedir, "prefix")
             ruby_bin   = RbConfig::CONFIG['RUBY_INSTALL_NAME']
             orogen_bin = File.expand_path('../bin/orogen', Orocos::Generation.base_dir)
             Dir.chdir(work_dir) do
-                if !transports
-                    transports = %w{corba typelib}
-                    if USE_MQUEUE
-                        transports << 'mqueue'
-                    end
-                    if USE_ROS
-                        transports << 'ros'
-                    end
-                end
-
                 if !system(ruby_bin, orogen_bin, '--corba', '--no-rtt-scripting', "--transports=#{transports.join(",")}", File.basename(src))
                     raise "failed to build #{src} in #{work_basedir}"
                 end

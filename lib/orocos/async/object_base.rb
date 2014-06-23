@@ -68,7 +68,7 @@ module Orocos::Async
             if !block
                 raise error
             else
-                @event_loop.defer :on_error => @parent.method(:emit_error),:callback => block,:known_errors => [Orocos::NotFound] do
+                @event_loop.defer :on_error => @parent.method(:emit_error),:callback => block,:known_errors => Orocos::Async::KNOWN_ERRORS do
                     raise error
                 end
             end
@@ -388,7 +388,9 @@ module Orocos::Async
         # calls all listener which are registered for the given event
         def process_event(event_name,*args)
             event = validate_event event_name
-            @listeners[event_name].each do |listener|
+            #@listeners have to be cloned because it might get modified 
+            #by listener.call
+            @listeners[event_name].clone.each do |listener|
                 listener.call *args
             end
             self

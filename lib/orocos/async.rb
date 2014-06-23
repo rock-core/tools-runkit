@@ -4,8 +4,8 @@ if Orocos.initialized?
     exit 1
 end
 require 'orocos/log'
-require 'orocos/async/object_base'
 require 'orocos/async/async'
+require 'orocos/async/object_base'
 require 'orocos/async/ports'
 require 'orocos/async/attributes'
 require 'orocos/async/task_context_base'

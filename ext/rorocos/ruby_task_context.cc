@@ -5,6 +5,7 @@
 #include <rtt/types/TypekitRepository.hpp>
 #include <rtt/base/PortInterface.hpp>
 #include <rtt/transports/corba/TransportPlugin.hpp>
+#include <rtt/internal/ConnFactory.hpp>
 
 #include <rtt/OutputPort.hpp>
 #include <rtt/base/InputPortInterface.hpp>

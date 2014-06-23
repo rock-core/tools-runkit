@@ -19,8 +19,8 @@ module Orocos
         #   struct.an_array.each do |element|
         #   end
         def read(sample = nil)
-            if value = read_helper(sample, true)
-                return Typelib.to_ruby(value[0])
+            if value = raw_read(sample)
+                return Typelib.to_ruby(value)
             end
         end
 
@@ -34,6 +34,17 @@ module Orocos
                 value[0]
             end
         end
+
+        # @deprecated use {raw_read} instead
+        def read_raw(sample)
+            raw_read(sample)
+        end
+
+        # @deprecated use {raw_read_new} instead
+        def read_new_raw(sample)
+            raw_read_new(sample)
+        end
+
 
         OLD_DATA = 0
         NEW_DATA = 1
@@ -57,8 +68,8 @@ module Orocos
         #   
         # Raises CORBA::ComError if the communication is broken.
         def read_new(sample = nil)
-            if value = read_helper(sample, false)
-                return Typelib.to_ruby(value[0]) if value[1] == NEW_DATA
+            if value = raw_read_new(sample)
+                return Typelib.to_ruby(value)
             end
         end
 
@@ -98,7 +109,7 @@ module Orocos
             result = value.allocating_operation do
                 do_read(orocos_type_name, value, copy_old_data)
             end
-            if result == 1 || (result == 0 && copy_old_data)
+            if result == NEW_DATA || (result == OLD_DATA && copy_old_data)
                 if sample
                     sample.invalidate_changes_from_converted_types
                 end

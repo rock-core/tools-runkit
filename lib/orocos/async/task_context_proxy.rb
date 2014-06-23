@@ -162,6 +162,10 @@ module Orocos::Async
             @raw_last_sample = nil
         end
 
+        def to_s
+            "#<Orocos::Async::PortProxy #{full_name}[#{type.name}]>"
+        end
+
         def type_name
             type.name
         end
@@ -275,15 +279,13 @@ module Orocos::Async
             return super unless listener.use_last_value?
 
             if listener.event == :data
-                sample = raw_last_sample
-                if sample
+                if sample = last_sample
                     event_loop.once do
-                        listener.call Typelib.to_ruby(sample)
+                        listener.call sample
                     end
                 end
             elsif listener.event == :raw_data
-                sample = last_sample
-                if sample
+                if sample = raw_last_sample
                     event_loop.once do
                         listener.call sample
                     end
@@ -293,20 +295,9 @@ module Orocos::Async
         end
 
         def on_data(policy = Hash.new,&block)
-            raise RuntimeError , "Port #{name} is not an output port" if !output?
-            @options = if policy.empty?
-                           @options
-                       elsif @options.empty? && !valid_delegator?
-                           policy
-                       elsif @options == policy
-                           @options
-                       else
-                           Orocos.warn "ProxyPort #{full_name} cannot emit :data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
-                           @options
-                       end
-            on_event :data,&block
+            on_raw_data policy do |sample|
+                yield Typelib::to_ruby(sample,type)
+            end
         end
 
         def on_raw_data(policy = Hash.new,&block)
@@ -318,10 +309,9 @@ module Orocos::Async
                        elsif @options == policy
                            @options
                        else
-                           Orocos.warn "ProxyPort #{full_name} cannot emit :raw_data with different policies."
-                           Orocos.warn "The current policy is: #{@options}."
-                           Orocos.warn "Ignoring policy: #{policy}."
-                           @options
+                           Orocos.warn "Changing global reader policy for #{full_name} from #{@options} to #{policy}"
+                           @delegator_obj.options = policy
+                           policy
                        end
             on_event :raw_data,&block
         end
@@ -497,7 +487,7 @@ module Orocos::Async
                     if !task_context.respond_to?(:event_loop)
                         raise "TaskProxy is using a name service#{@name_service} which is returning #{task_context.class} but Async::TaskContext was expected."
                     end
-                    @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::ComError},task_context) do |val,error|
+                    @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::Async::KNOWN_ERRORS},task_context) do |val,error|
                         if error
                             @resolve_timer.start
                             :ignore_error
@@ -509,7 +499,10 @@ module Orocos::Async
             on_port_reachable(false) do |name|
                 p = @ports[name]
                 if p && !p.reachable?
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    error_callback = Proc.new do |error|
+                        p.emit_error(error)
+                    end
+                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
                         connect_port(p)
                     end
                 end
@@ -517,7 +510,10 @@ module Orocos::Async
             on_property_reachable(false) do |name|
                 p = @properties[name]
                 if(p && !p.reachable?)
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    error_callback = Proc.new do |error|
+                        p.emit_error(error)
+                    end
+                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
                         connect_property(p)
                     end
                 end
@@ -525,7 +521,10 @@ module Orocos::Async
             on_attribute_reachable(false) do |name|
                 a = @attributes[name]
                 if(a && !a.reachable?)
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    error_callback = Proc.new do |error|
+                        a.emit_error(error)
+                    end
+                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
                         connect_attribute(a)
                     end
                 end
@@ -586,7 +585,7 @@ module Orocos::Async
                 connect_property(p)
                 p.wait
             else
-                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS do
                     connect_property(p)
                 end
             end
@@ -614,7 +613,7 @@ module Orocos::Async
                 connect_attribute(a)
                 a.wait
             else
-                @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS do
                     connect_attribute(a)
                 end
             end
@@ -659,7 +658,7 @@ module Orocos::Async
                     connect_port(p)
                     p.wait
                 else
-                    @event_loop.defer :known_errors => [Orocos::ComError,Orocos::NotFound] do
+                    @event_loop.defer :known_errors => KNOWN_ERRORS do
                         connect_port(p)
                     end
                 end

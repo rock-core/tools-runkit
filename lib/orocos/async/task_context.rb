@@ -109,7 +109,7 @@ module Orocos::Async::CORBA
         end
 
         # add methods which forward the call to the underlying task context
-        forward_to :task_context,:@event_loop, :known_errors => [Orocos::ComError,Orocos::NotFound,Orocos::StateTransitionFailed],:on_error => :emit_error do
+        forward_to :task_context,:@event_loop, :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :emit_error do
             methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::TaskContext.instance_methods + [:method_missing]
             def_delegators methods

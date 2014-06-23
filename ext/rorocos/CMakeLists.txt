@@ -118,19 +118,20 @@ ENDMACRO(OMNIORB)
 link_directories(${RTT_ROS_LIBRARY_DIRS})
 
 OMNIORB()
-ADD_RUBY_EXTENSION(rorocos_ext 
+SET(EXTENSION_NAME rorocos)
+ADD_RUBY_EXTENSION(${EXTENSION_NAME}
     ruby_task_context.cc rorocos.cc corba.cc datahandling.cc operations.cc
     lib/corba_name_service_client.cc ${ORB_IDL_FILES} ${ROS_FILES})
-target_link_libraries(rorocos_ext ${ORB_LIBRARIES} ${RTT_LIBRARIES}
+target_link_libraries(${EXTENSION_NAME} ${ORB_LIBRARIES} ${RTT_LIBRARIES}
     ${RTT_CORBA_LIBRARIES} ${TYPELIB_LIBRARIES}
     ${RTT_PLUGIN_rtt-typekit_LIBRARY}
     ${RTT_PLUGIN_rtt-transport-corba_LIBRARY}
     ${RTT_Typelib_LIBRARIES}
     ${RTT_ROS_LIBRARIES})
 if (RTT_MQUEUE_FOUND)
-    target_link_libraries(rorocos_ext
+    target_link_libraries(${EXTENSION_NAME}
         ${RTT_PLUGIN_rtt-transport-mqueue_LIBRARY})
 endif()
 
-INSTALL(TARGETS rorocos_ext LIBRARY DESTINATION ".")
+INSTALL(TARGETS ${EXTENSION_NAME} LIBRARY DESTINATION ".")
 

@@ -140,6 +140,10 @@ module Orocos
         #
         # Raises Failed if the server reports a startup failure
         def start(process_name, deployment_name, name_mappings = Hash.new, options = Hash.new)
+            if processes[process_name]
+                raise ArgumentError, "this client already started a process called #{process_name}"
+            end
+
             deployment_model = load_orogen_deployment(deployment_name)
 
             prefix_mappings, options =

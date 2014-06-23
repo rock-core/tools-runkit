@@ -14,7 +14,7 @@ module Orocos
 
         def initialize(task, name, orocos_type_name)
             super
-            if task.has_operation?(opname = "set#{name.capitalize}")
+            if task.has_operation?(opname = "__orogen_set#{name.capitalize}")
                 @dynamic_operation = task.operation(opname)
             end
         end
@@ -96,6 +96,8 @@ module Orocos
                         reason =
                             if current_state == :EXCEPTION
                                 ". The task is in an exception state. You must call #reset_exception before trying again"
+                            elsif current_state == :PRE_OPERATIONAL && '#{m}' == 'start'
+                                ". The Task must be configured before it could started. Did you forgot to call configure on the task?"
                             elsif current_state != :#{expected_state}
                                 ". Tasks must be in #{expected_state} state before calling #{m}, but was in \#{current_state}"
                             end
