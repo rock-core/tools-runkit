@@ -381,9 +381,21 @@ module Orocos
         # Creates a new Process instance which will be able to
         # start and supervise the execution of the given Orocos
         # component
-        def initialize(name, model_name = name)
-            @model = Orocos.default_loader.deployment_model_from_name(model_name)
-            @pkg = Orocos.default_pkgconfig_loader.available_deployments[model_name]
+        #
+        # @param [String] name the process name
+        # @param [OroGen::Spec::Deployment] model the process deployment'
+        #
+        # @overload initialize(name, model_name = name)
+        #   deprecated form
+        #   @param [String] name the process name
+        #   @param [String] model_name the name of the deployment model
+        #
+        def initialize(name, model = name)
+            model = if model.respond_to?(:to_str)
+                        Orocos.default_loader.deployment_model_from_name(model)
+                    else model
+                    end
+            @pkg = Orocos.default_pkgconfig_loader.available_deployments[model.name]
             super(name, model)
         end
 
