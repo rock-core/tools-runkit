@@ -492,8 +492,10 @@ module Orocos
                 :gdb => false, :gdb_options => [],
                 :valgrind => false, :valgrind_options => [],
                 :cmdline_args => Orocos.default_cmdline_arguments,
-                :oro_logfile => nil, :tracing => Orocos.tracing?
+                :oro_logfile => nil, :tracing => Orocos.tracing?,
+                :loader => Orocos.default_loader
 
+            loader = options[:loader]
             deployments, models = Hash.new, Hash.new
             names.each { |n| mapped_names[n] = nil }
             mapped_names.each do |object, new_name|
@@ -502,10 +504,10 @@ module Orocos
                 if object.respond_to?(:to_str) || object.respond_to?(:to_sym)
                     object = object.to_s
                     begin
-                        object = Orocos.default_loader.task_model_from_name(object)
+                        object = loader.task_model_from_name(object)
                     rescue OroGen::NotFound
                         begin
-                            object = Orocos.default_loader.deployment_model_from_name(object)
+                            object = loader.deployment_model_from_name(object)
                         rescue OroGen::NotFound
                             raise ArgumentError, "#{object} is neither a task model nor a deployment name"
                         end
