@@ -139,25 +139,28 @@ module Orocos
         # remote side.
         #
         # Raises Failed if the server reports a startup failure
-        def start(process_name, deployment_name, name_mappings = Hash.new, options = Hash.new)
+        def start(process_name, deployment, name_mappings = Hash.new, options = Hash.new)
             if processes[process_name]
                 raise ArgumentError, "this client already started a process called #{process_name}"
             end
 
-            deployment_model = load_orogen_deployment(deployment_name)
+            deployment_model = if deployment.respond_to?(:to_str)
+                                   loader.deployment_model_from_name(deployment)
+                               else deployment
+                               end
 
             prefix_mappings, options =
                 Orocos::ProcessBase.resolve_prefix_option(options, deployment_model)
             name_mappings = prefix_mappings.merge(name_mappings)
 
             socket.write(COMMAND_START)
-            Marshal.dump([process_name, deployment_name, name_mappings, options], socket)
+            Marshal.dump([process_name, deployment_model.name, name_mappings, options], socket)
             wait_for_answer do |pid_s|
                 if pid_s == "N"
-                    raise Failed, "failed to start #{deployment_name}"
+                    raise Failed, "failed to start #{deployment_model.name}"
                 elsif pid_s == "P"
                     pid = Marshal.load(socket)
-                    process = Process.new(process_name, deployment_name, self, pid)
+                    process = Process.new(process_name, deployment_model.name, self, pid)
                     process.name_mappings = name_mappings
                     processes[process_name] = process
                     return process

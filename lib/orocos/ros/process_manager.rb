@@ -45,12 +45,16 @@ module Orocos
 
             # Start a launcher process under the given process_name
             # @return [Orocos::ROS::LauncherProcess] The launcher process which started by the process manager
-            def start(process_name, launcher_name, name_mappings = Hash.new, options = Hash.new)
-                ProcessManager.debug "launcher: '#{launcher_name}' with processname '#{process_name}'"
-                launcher_model = load_ros_launcher(launcher_name)
+            def start(process_name, launcher, name_mappings = Hash.new, options = Hash.new)
+                launcher_model = if launcher.respond_to?(:to_str)
+                                     loader.deployment_model_from_name(launcher)
+                                 else launcher
+                                 end
+
+                ProcessManager.debug "launcher: '#{launcher_model.name}' with processname '#{process_name}'"
                 launcher_processes.each do |process_name, l| 
-                    if l.name == launcher_name
-                        raise ArgumentError, "launcher #{launcher_name} is already started with processname #{process_name} in #{self}"
+                    if l.name == launcher_model.name
+                        raise ArgumentError, "launcher #{launcher_model.name} is already started with processname #{process_name} in #{self}"
                     end
                 end
 
