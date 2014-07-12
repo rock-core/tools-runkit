@@ -53,6 +53,9 @@ module Orocos
         # @option options [Orocos::NameService] :name_service
         #   (Orocos.name_service). The name service object that should be used
         #   to resolve tasks started by this process server
+        # @option options [OroGen::Loaders::Base] :root_loader
+        #   (Orocos.default_loader). The loader object that should be used as
+        #   root for this client's loader
         def initialize(host = 'localhost', port = DEFAULT_PORT, options = Hash.new)
             @host = host
             @port = port
