@@ -25,9 +25,8 @@ module Orocos
         attr_reader :terminated_deployments
 
         def initialize(loader = Orocos.default_loader)
+            @loader = loader
             @deployments = Hash.new
-            @loader = OroGen::Loaders::Aggregate.new
-            self.loader.add loader
             @terminated_deployments = Hash.new
         end
 
@@ -35,7 +34,7 @@ module Orocos
         end
 
         def register_deployment_model(model)
-            loader.loaded_deployment_models[model.name] = model
+            loader.register_deployment_model(model)
         end
 
         def start(name, deployment_name, name_mappings, options)
