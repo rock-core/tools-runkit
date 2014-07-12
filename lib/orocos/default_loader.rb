@@ -2,7 +2,7 @@ module Orocos
     class DefaultLoader < OroGen::Loaders::Aggregate
         # @return [Boolean] whether the types that get registered on {registry}
         #   should be exported as Ruby constants
-        attr_predicate :export_types?, true
+        attr_predicate :export_types?
 
         # The namespace in which the types should be exported if
         # {export_types?} returns true. It defaults to Types
@@ -16,9 +16,19 @@ module Orocos
             super
         end
 
+        def export_types=(flag)
+            if !export_types? && flag
+                export_registry_to_ruby
+                @export_types = true
+            elsif export_types? && !flag
+                clear_export_namespace
+                @export_types = false
+            end
+        end
+
         def clear
             if export_types? && registry
-                registry.clear_exports(type_export_namespace)
+                clear_export_namespace
             end
             super
             OroGen::Loaders::RTT.setup_loader(self)
@@ -38,6 +48,10 @@ module Orocos
             if export_types?
                 export_registry_to_ruby
             end
+        end
+
+        def clear_export_namespace
+            registry.clear_exports(type_export_namespace)
         end
 
         def export_registry_to_ruby
