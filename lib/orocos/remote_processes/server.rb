@@ -88,11 +88,25 @@ module Orocos
         # A mapping from the deployment names to the corresponding Process
         # object.
         attr_reader :processes
+        # The object we use to load oroGen models
+        #
+        # It is commonly an [OroGen::Loaders::PkgConfig] loader object
+        # @return [OroGen::Loaders::Base]
+        attr_reader :loader
 
-        def initialize(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
+        def self.create_pkgconfig_loader
+            OroGen::Loaders::PkgConfig.new(Orocos.orocos_target)
+        end
+
+        def initialize(default_start_options = DEFAULT_OPTIONS,
+                       port = DEFAULT_PORT,
+                       loader = self.class.create_pkgconfig_loader)
+
             @default_start_options = Kernel.validate_options default_start_options,
                 :wait => false,
                 :output => '%m-%p.txt'
+
+            @loader = loader
             @required_port = port
             @port = nil
             @processes = Hash.new
@@ -218,14 +232,14 @@ module Orocos
                 available_projects = Hash.new
                 available_typekits = Hash.new
                 available_deployments = Hash.new
-                Orocos.default_pkgconfig_loader.available_projects.each do |name, project|
-                    available_projects[name] = File.read(project.orogen_path)
+                loader.each_available_project_name do |name|
+                    available_projects[name] = loader.project_model_text_from_name(name)
                 end
-                Orocos.default_pkgconfig_loader.available_typekits.each do |name, typekit|
-                    available_typekits[name] = Orocos.default_pkgconfig_loader.typekit_model_text_from_name(name)
+                loader.each_available_typekit_name do |name|
+                    available_typekits[name] = loader.typekit_model_text_from_name(name)
                 end
-                Orocos.default_pkgconfig_loader.available_deployments.each do |name, pkg|
-                    available_deployments[name] = pkg.project_name
+                loader.each_available_deployment_name do |name|
+                    available_deployments[name] = loader.find_project_from_deployment_name(name)
                 end
                 Marshal.dump([available_projects, available_deployments, available_typekits], socket)
             elsif cmd_code == COMMAND_MOVE_LOG
