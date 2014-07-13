@@ -14,6 +14,7 @@ require './test/test_ruby_task_context'
 require './test/test_task'
 require './test/test_uri'
 require './test/test_namespace'
+require './test/test_remote_processes'
 require './test/suite_async'
 if Orocos::ROS.enabled?
 require './test/suite_ros'
