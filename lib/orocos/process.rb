@@ -716,7 +716,10 @@ module Orocos
                 :working_directory => nil,
                 :cmdline_args => Hash.new, :wait => nil,
                 :oro_logfile => "orocos.%m-%p.txt",
-                :prefix => nil, :tracing => Orocos.tracing?
+                :prefix => nil, :tracing => Orocos.tracing?,
+                :name_service => Orocos::CORBA.name_service
+
+            name_service = options[:name_service]
 
             # Setup mapping for prefixed tasks in Process class
             prefix_mappings, options = ProcessBase.resolve_prefix_option(options, model)
@@ -726,7 +729,7 @@ module Orocos
             # If possible, check that we won't clash with an already running
             # process
             task_names.each do |name|
-                if Orocos::CORBA.name_service.task_reachable?(name)
+                if name_service.task_reachable?(name)
                     raise ArgumentError, "there is already a running task called #{name}, are you starting the same component twice ?"
                 end
             end
@@ -872,7 +875,7 @@ module Orocos
                           elsif options[:wait]
                               Float::INFINITY
                           end
-                wait_running(timeout)
+                wait_running(timeout, name_service)
             end
         end
 
@@ -881,7 +884,7 @@ module Orocos
 	# process object as argument
 	# If no block is given the default implementation applies which relies on
 	# TaskContext#reachable?
-	def self.wait_running(process, timeout = nil, &block)
+        def self.wait_running(process, timeout = nil, name_service = Orocos::CORBA.name_service, &block)
 	    if timeout == 0
 		return nil if !process.alive?
 
@@ -892,7 +895,7 @@ module Orocos
                     # Get any task name from that specific deployment, and check we
                     # can access it. If there is none
                     all_reachable = process.task_names.all? do |task_name|
-                        if TaskContext.reachable?(task_name)
+                        if name_service.task_reachable?(task_name)
                             Orocos.debug "#{task_name} is reachable"
                             true
                         else
@@ -909,7 +912,7 @@ module Orocos
                 start_time = Time.now
                 got_alive = process.alive?
                 while true
-		    if wait_running(process, 0, &block)
+		    if wait_running(process, 0, name_service, &block)
 			break
                     elsif not timeout
                         break
@@ -940,8 +943,8 @@ module Orocos
         # started within that time.
         #
         # If timeout is nil, the method will wait indefinitely
-	def wait_running(timeout = nil)
-            Process.wait_running(self, timeout)
+        def wait_running(timeout = nil, name_service = Orocos::CORBA.name_service)
+            Process.wait_running(self, timeout, name_service)
 	end
 
         SIGNAL_NUMBERS = {
