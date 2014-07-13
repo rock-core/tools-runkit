@@ -78,11 +78,11 @@ module Orocos
     # @see default_loader
     def self.default_loader
         if !@default_loader
-            loader = DefaultLoader.new
-            @default_loader = loader
-            loader.add default_pkgconfig_loader
-            loader.add default_file_loader
-            loader.add ROS.default_loader
+            @default_loader = DefaultLoader.new
+            # Instanciate all the sub-loaders 
+            default_pkgconfig_loader
+            default_file_loader
+            ROS.default_loader
         end
         @default_loader
     end
@@ -91,10 +91,9 @@ module Orocos
     #
     # @return [OroGen::Loaders::Files]
     def self.default_file_loader
+        Orocos.default_loader
         @default_file_loader ||= OroGen::Loaders::Files.new(default_loader)
     end
-
-
 
     # The loader object that should be used to load installed oroGen typekits
     # and projects
@@ -102,12 +101,8 @@ module Orocos
     # @return [OroGen::Loaders::PkgConfig]
     # @see default_loader
     def self.default_pkgconfig_loader
-        if !@default_pkgconfig_loader
-            loader = OroGen::Loaders::PkgConfig.new(orocos_target, default_loader)
-            OroGen::Loaders::RTT.setup_loader(loader)
-            @default_pkgconfig_loader = loader
-        end
-        @default_pkgconfig_loader
+        Orocos.default_loader
+        @default_pkgconfig_loader ||= OroGen::Loaders::PkgConfig.new(orocos_target, default_loader)
     end
 
     def self.orocos_target

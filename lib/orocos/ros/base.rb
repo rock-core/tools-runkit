@@ -14,11 +14,12 @@ module Orocos
                 if !search_path.include?(OroGen::ROS::OROGEN_ROS_LIB_DIR)
                     search_path << OroGen::ROS::OROGEN_ROS_LIB_DIR
                 end
-                project_model_from_name 'ros'
+                root_loader.project_model_from_name 'ros'
             end
         end
 
         def self.default_loader
+            Orocos.default_loader
             @default_loader ||= DefaultLoader.new(Orocos.default_loader)
         end
 
