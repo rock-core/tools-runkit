@@ -242,13 +242,27 @@ module Orocos
         #
         # The call does not block until the process has quit. You will have to
         # call #wait_termination to wait for the process end.
-        def stop(deployment_name)
+        def stop(deployment_name, wait)
             socket.write(COMMAND_END)
             Marshal.dump(deployment_name, socket)
-
             if !wait_for_ack
                 raise Failed, "failed to quit #{deployment_name}"
             end
+
+            if wait
+                join(deployment_name)
+            end
+        end
+
+        def join(deployment_name)
+            process = processes[deployment_name]
+            return if !process
+
+            while true
+                result = wait_termination(nil)
+                return if result[process]
+            end
+        end
         end
     end
     end

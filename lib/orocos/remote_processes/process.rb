@@ -39,13 +39,12 @@ module Orocos
 
         # Stops the process
         def kill(wait = true)
-            raise ArgumentError, "cannot call RemoteProcess#kill(true)" if wait
-            process_client.stop(name)
+            process_client.stop(name, wait)
         end
 
         # Wait for the 
         def join
-            raise NotImplementedError, "RemoteProcess#join is not implemented"
+            process_client.join(name)
         end
 
         # True if the process is running. This is an alias for running?
