@@ -249,6 +249,14 @@ describe Orocos::CORBA::NameService do
                 Orocos::CORBA.name_service.register task
             end
         end
+
+        it "can get a reference on a deployed task context by class" do
+            Orocos.run('process') do |process|
+                assert(direct   = Orocos::TaskContext.get(:provides => "process::Test"))
+                assert(indirect = process.task("Test"))
+                assert_equal(direct, indirect)
+            end
+        end
     end
 
     describe Orocos::Avahi::NameService do

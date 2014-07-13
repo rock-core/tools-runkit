@@ -647,6 +647,7 @@ module Orocos
                 if options[:wait]
                     timeout = if options[:wait].kind_of?(Numeric)
                                   options[:wait]
+                              else Float::INFINITY
                               end
                     processes.each { |p| p.wait_running(timeout) }
                 end
@@ -868,6 +869,8 @@ module Orocos
             if options[:wait]
                 timeout = if options[:wait].kind_of?(Numeric)
                               options[:wait]
+                          elsif options[:wait]
+                              Float::INFINITY
                           end
                 wait_running(timeout)
             end

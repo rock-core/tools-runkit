@@ -33,82 +33,97 @@ describe Orocos::Process do
     it "raises NotFound when the deployment name does not exist" do
         assert_raises(OroGen::DeploymentModelNotFound) { Orocos::Process.new("does_not_exist") }
     end
-
-    it "can spawn a new process and waits for it" do
-        process = nil
-	process = Orocos::Process.new('process')
-        begin
-            process.spawn
-            process.wait_running(10)
+    
+    describe "#spawn" do
+        it "starts a new process and waits for it with a timeout" do
+            process = Orocos::Process.new('process')
+            # To ensure that the test teardown will kill it
+            processes << process
+            process.spawn :wait => 10
+            Orocos.get "process_Test"
             assert(process.alive?)
             assert(process.running?)
-	ensure
-	    process.kill if process.running?
+        end
+
+        it "starts a new process and waits for it without a timeout" do
+            process = Orocos::Process.new('process')
+            # To ensure that the test teardown will kill it
+            processes << process
+            process.spawn :wait => true
+            Orocos.get "process_Test"
+            assert(process.alive?)
+            assert(process.running?)
+        end
+
+        it "can automatically add prefixes to tasks" do
+            process = Orocos::Process.new 'process'
+            begin
+                process.spawn :prefix => 'prefix'
+                assert_equal Hash["process_Test" => "prefixprocess_Test"], process.name_mappings
+                assert Orocos.name_service.get('prefixprocess_Test')
+            ensure
+                process.kill
+            end
+        end
+
+        it "can rename single tasks" do
+            process = Orocos::Process.new 'process'
+            begin
+                process.map_name "process_Test", "prefixprocess_Test"
+                process.spawn
+                assert Orocos.name_service.get('prefixprocess_Test')
+            ensure
+                process.kill
+            end
         end
     end
 
-    it "can stop a running process and clean up the name server" do
-        Orocos.run('process') do |process|
-            assert( Orocos.task_names.find { |name| name == '/process_Test' } )
-            process.kill
-            assert(!process.alive?, "process has been killed but alive? returns true")
-            assert( !Orocos.task_names.find { |name| name == 'process_Test' } )
+    describe "#kill" do
+        it "stops a running process and clean up the name server" do
+            Orocos.run('process') do |process|
+                assert( Orocos.task_names.find { |name| name == '/process_Test' } )
+                process.kill
+                assert(!process.alive?, "process has been killed but alive? returns true")
+                assert( !Orocos.task_names.find { |name| name == 'process_Test' } )
+            end
         end
     end
 
-    it "can start a process with a prefix" do
-        Orocos.run('process' => 'prefix') do |process|
-            assert(Orocos::TaskContext.get('prefixprocess_Test'))
+    describe "#task" do
+        it "can get a reference on a deployed task context by name" do
+            Orocos.run('process') do |process|
+                assert(direct   = Orocos::TaskContext.get('process_Test'))
+                assert(indirect = process.task("Test"))
+                assert_equal(direct, indirect)
+            end
+        end
+
+        it "throws NotFound on an unknown task context name" do
+            Orocos.run('process') do |process|
+                assert_raises(Orocos::NotFound) { process.task("Bla") }
+            end
         end
     end
 
-    it "can get a reference on a deployed task context by name" do
-        Orocos.run('process') do |process|
-            assert(direct   = Orocos::TaskContext.get('process_Test'))
-            assert(indirect = process.task("Test"))
-            assert_equal(direct, indirect)
+    describe "#task_names" do
+        it "enumerates the process own deployed task contexts" do
+            Orocos.run('process') do |process|
+                process.task_names.must_equal %w{process_Test}
+            end
         end
     end
 
-    it "can get a reference on a deployed task context by class" do
-        Orocos.run('process') do |process|
-            assert(direct   = Orocos::TaskContext.get(:provides => "process::Test"))
-            assert(indirect = process.task("Test"))
-            assert_equal(direct, indirect)
+    describe "run" do
+        it "can start a process with a prefix" do
+            Orocos.run('process' => 'prefix') do |process|
+                assert(Orocos::TaskContext.get('prefixprocess_Test'))
+            end
         end
-    end
 
-    it "throws NotFound on an unknown task context name" do
-        Orocos.run('process') do |process|
-            assert_raises(Orocos::NotFound) { process.task("Bla") }
-        end
-    end
-
-    it "can enumerate its own deployed task contexts" do
-        Orocos.run('process') do |process|
-            process.task_names.must_equal %w{process_Test}
-        end
-    end
-
-    it "can automatically add prefixes to tasks" do
-        process = Orocos::Process.new 'process'
-        begin
-            process.spawn :prefix => 'prefix'
-            assert_equal Hash["process_Test" => "prefixprocess_Test"], process.name_mappings
-            assert Orocos.name_service.get('prefixprocess_Test')
-        ensure
-            process.kill
-        end
-    end
-
-    it "can rename single tasks" do
-        process = Orocos::Process.new 'process'
-        begin
-            process.map_name "process_Test", "prefixprocess_Test"
-            process.spawn
-            assert Orocos.name_service.get('prefixprocess_Test')
-        ensure
-            process.kill
+        it "can wait for the process to be running without a timeout" do
+            Orocos.run 'process', :wait => true do
+                Orocos.get 'process_Test'
+            end
         end
     end
 end
