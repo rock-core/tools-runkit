@@ -15,6 +15,9 @@ module Orocos
         # The loader object that allows to access models from the remote server
         # @return [Loader]
         attr_reader :loader
+        # The root loader object
+        # @return [OroGen::Loaders::Base]
+        attr_reader :root_loader
 
         # Mapping from orogen project names to the corresponding content of the
         # orogen files. These projects are the ones available to the remote
@@ -81,6 +84,10 @@ module Orocos
             end
 
             @loader = Loader.new(self, options[:root_loader])
+            @root_loader = loader.root_loader
+            if root_loader != loader
+                root_loader.add loader
+            end
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"
@@ -147,10 +154,13 @@ module Orocos
                 raise ArgumentError, "this client already started a process called #{process_name}"
             end
 
-            deployment_model = if deployment.respond_to?(:to_str)
-                                   loader.deployment_model_from_name(deployment)
-                               else deployment
-                               end
+            if deployment.respond_to?(:to_str)
+                deployment_model = loader.root_loader.deployment_model_from_name(deployment)
+                if !loader.has_deployment?(deployment)
+                    raise OroGen::DeploymentModelNotFound, "deployment #{deployment} exists locally but not on the remote process server #{self}"
+                end
+            else deployment_model = deployment
+            end
 
             prefix_mappings, options =
                 Orocos::ProcessBase.resolve_prefix_option(options, deployment_model)

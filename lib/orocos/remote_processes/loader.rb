@@ -62,6 +62,13 @@ module Orocos
                 available_typekits.has_key?(name)
             end
 
+            # Tests if a deployment with that name exists
+            #
+            # @param [String] name the deployment name
+            # @return [Boolean]
+            def has_deployment?(name)
+                available_deployments.has_key?(name)
+            end
             # Returns the project that defines the given deployment
             #
             # @param [String] deployment_name the deployment we are looking for
@@ -70,7 +77,7 @@ module Orocos
                 if project_name = available_deployments[name]
                     return project_name
                 else 
-                    raise OroGen::NotFound, "#{client} has no deployment called #{name}"
+                    raise OroGen::DeploymentModelNotFound, "#{client} has no deployment called #{name}"
                 end
             end
 
