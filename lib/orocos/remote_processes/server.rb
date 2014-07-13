@@ -181,7 +181,6 @@ module Orocos
             each_client do |socket|
                 socket.close
             end
-            exit(0)
         end
 
         # Helper method that deals with one client request
