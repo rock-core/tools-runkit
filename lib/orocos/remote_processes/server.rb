@@ -120,12 +120,16 @@ module Orocos
             end
         end
 
-        # Main server loop. This will block and only return when CTRL+C is hit.
-        #
-        # All started processes are stopped when the server quits
         def exec
-            Server.info "starting on port #{port}"
-            server = TCPServer.new(nil, port)
+            open
+            listen
+        end
+
+        INTERNAL_SIGCHLD_TRIGGERED = "S"
+
+        def open
+            Server.info "starting on port #{required_port}"
+            server = TCPServer.new(nil, required_port)
             server.fcntl(Fcntl::FD_CLOEXEC, 1)
             @port = server.addr[1]
 
@@ -134,49 +138,35 @@ module Orocos
             @all_ios << server << com_r
 
             trap 'SIGCHLD' do
-                begin
-                    while dead = ::Process.wait(-1, ::Process::WNOHANG)
-                        Marshal.dump([dead, $?], com_w)
-                    end
-                rescue Errno::ECHILD
-                end
+                com_w.write INTERNAL_SIGCHLD_TRIGGERED
             end
+        end
 
+        # Main server loop. This will block and only return when CTRL+C is hit.
+        #
+        # All started processes are stopped when the server quits
+        def listen
             Server.info "process server listening on port #{port}"
+            server_io, com_r = *@all_ios[0, 2]
 
             while true
                 readable_sockets, _ = select(@all_ios, nil, nil)
-                if readable_sockets.include?(server)
-                    readable_sockets.delete(server)
-                    socket = server.accept
-                    socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
-                    socket.fcntl(Fcntl::FD_CLOEXEC, 1)
-                    Server.debug "new connection: #{socket}"
-                    @all_ios << socket
+                if readable_sockets.include?(server_io)
+                    readable_sockets.delete(server_io)
+                    client_socket = server_io.accept
+                    client_socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
+                    client_socket.fcntl(Fcntl::FD_CLOEXEC, 1)
+                    Server.debug "new connection: #{client_socket}"
+                    @all_ios << client_socket
                 end
 
                 if readable_sockets.include?(com_r)
                     readable_sockets.delete(com_r)
-                    pid, exit_status =
-                        begin Marshal.load(com_r)
-                        rescue TypeError
-                        end
-
-                    process = processes.find { |_, p| p.pid == pid }
-                    if process
-                        process_name, process = *process
-                        process.dead!(exit_status)
-                        processes.delete(process_name)
-                        Server.debug "announcing death: #{process_name}"
-                        each_client do |socket|
-                            begin
-                                Server.debug "  announcing to #{socket}"
-                                socket.write("D")
-                                Marshal.dump([process_name, exit_status], socket)
-                            rescue IOError
-                                Server.debug "  #{socket}: IOError"
-                            end
-                        end
+                    cmd = com_r.read(1)
+                    if cmd == INTERNAL_SIGCHLD_TRIGGERED
+                        process_dead_processes
+                    elsif cmd
+                        Server.warn "unknown internal communication code #{cmd.inspect}"
                     end
                 end
 
@@ -203,6 +193,28 @@ module Orocos
 
         ensure
             quit_and_join
+        end
+
+        def process_dead_processes
+            while exited = ::Process.wait2(-1, ::Process::WNOHANG)
+                pid, exit_status = *exited
+                process_name, process = processes.find { |_, p| p.pid == pid }
+                next if !process_name
+
+                process.dead!(exit_status)
+                processes.delete(process_name)
+                Server.debug "announcing death: #{process_name}"
+                each_client do |socket|
+                    begin
+                        Server.debug "  announcing to #{socket}"
+                        socket.write(EVENT_DEAD_PROCESS)
+                        Marshal.dump([process_name, exit_status], socket)
+                    rescue IOError
+                        Server.debug "  #{socket}: IOError"
+                    end
+                end
+            end
+        rescue Errno::ECHILD
         end
 
         # Helper method that stops all running processes
@@ -279,7 +291,7 @@ module Orocos
             elsif cmd_code == COMMAND_START
                 name, deployment_name, name_mappings, options = Marshal.load(socket)
                 options ||= Hash.new
-                Server.debug "#{socket} requested startup of #{name} with #{options}"
+                Server.debug "#{socket} requested startup of #{name} with #{options} and mappings #{name_mappings}"
                 begin
                     p = Orocos::Process.new(name, deployment_name)
                     p.name_mappings = name_mappings
@@ -289,8 +301,8 @@ module Orocos
                     socket.write(RET_STARTED_PROCESS)
                     Marshal.dump(p.pid, socket)
                 rescue Exception => e
-                    Server.debug "failed to start #{name}: #{e.message}"
-                    Server.debug "  " + e.backtrace.join("\n  ")
+                    Server.warn "failed to start #{name}: #{e.message}"
+                    Server.warn "  " + e.backtrace.join("\n  ")
                     socket.write(RET_NO)
                 end
             elsif cmd_code == COMMAND_END
