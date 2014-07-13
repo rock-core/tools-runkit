@@ -115,7 +115,7 @@ module Orocos
                 reply = socket.read(1)
                 if !reply
                     raise Orocos::ComError, "failed to read from process server #{self}"
-                elsif reply == "D"
+                elsif reply == EVENT_DEAD_PROCESS
                     queue_death_announcement
                 else
                     yield(reply)
@@ -125,9 +125,9 @@ module Orocos
 
         def wait_for_ack
             wait_for_answer do |reply|
-                if reply == "Y"
+                if reply == RET_YES
                     return true
-                elsif reply == "N"
+                elsif reply == RET_NO
                     return false
                 else
                     raise InternalError, "unexpected reply #{reply}"
@@ -159,9 +159,9 @@ module Orocos
             socket.write(COMMAND_START)
             Marshal.dump([process_name, deployment_model.name, name_mappings, options], socket)
             wait_for_answer do |pid_s|
-                if pid_s == "N"
+                if pid_s == RET_NO
                     raise Failed, "failed to start #{deployment_model.name}"
-                elsif pid_s == "P"
+                elsif pid_s == RET_STARTED_PROCESS
                     pid = Marshal.load(socket)
                     process = Process.new(process_name, deployment_model.name, self, pid)
                     process.name_mappings = name_mappings
@@ -207,7 +207,7 @@ module Orocos
                     data = socket.read(1)
                     if !data
                         return Hash.new
-                    elsif data != "D"
+                    elsif data != EVENT_DEAD_PROCESS
                         raise "unexpected message #{data} from process server"
                     end
                     queue_death_announcement

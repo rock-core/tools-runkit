@@ -251,12 +251,12 @@ module Orocos
                     p.spawn(self.options.merge(options))
                     Server.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
                     processes[name] = p
-                    socket.write("P")
+                    socket.write(RET_STARTED_PROCESS)
                     Marshal.dump(p.pid, socket)
                 rescue Exception => e
                     Server.debug "failed to start #{name}: #{e.message}"
                     Server.debug "  " + e.backtrace.join("\n  ")
-                    socket.write("N")
+                    socket.write(RET_NO)
                 end
             elsif cmd_code == COMMAND_END
                 name = Marshal.load(socket)
@@ -265,15 +265,15 @@ module Orocos
                 if p
                     begin
                         p.kill(false)
-                        socket.write("Y")
+                        socket.write(RET_YES)
                     rescue Exception => e
                         Server.warn "exception raised while calling #{p}#kill(false)"
                         Server.log_pp(:warn, e)
-                        socket.write("N")
+                        socket.write(RET_NO)
                     end
                 else
                     Server.warn "no process named #{name} to end"
-                    socket.write("N")
+                    socket.write(RET_NO)
                 end
             end
 
