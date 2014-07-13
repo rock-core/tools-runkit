@@ -8,6 +8,12 @@ if ENV['TEST_ENABLE_COVERAGE'] == '1'
     begin
         require 'simplecov'
         SimpleCov.start
+        pid = Process.pid
+        SimpleCov.at_exit do
+        end
+        Minitest.after_run do
+            SimpleCov.result.format!
+        end
     rescue LoadError
         require 'orocos'
         Orocos.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
