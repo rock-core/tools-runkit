@@ -66,6 +66,7 @@ module Orocos
         end
 
         # The startup options to be passed to Orocos.run
+        attr_reader :default_start_options
         # The TCP port we are required to bind to
         #
         # It is the port given to {initialize}. In general, it is equal to {port}.
@@ -83,14 +84,15 @@ module Orocos
         # It is nil until the server socket is created
         #
         # @return [Integer,nil]
-        attr_reader :options
         attr_reader :port
         # A mapping from the deployment names to the corresponding Process
         # object.
         attr_reader :processes
 
         def initialize(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
-            @options = options
+            @default_start_options = Kernel.validate_options default_start_options,
+                :wait => false,
+                :output => '%m-%p.txt'
             @required_port = port
             @port = nil
             @processes = Hash.new
@@ -267,7 +269,7 @@ module Orocos
                 begin
                     p = Orocos::Process.new(name, deployment_name)
                     p.name_mappings = name_mappings
-                    p.spawn(self.options.merge(options))
+                    p.spawn(self.default_start_options.merge(options))
                     Server.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
                     processes[name] = p
                     socket.write(RET_STARTED_PROCESS)
