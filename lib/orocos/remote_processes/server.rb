@@ -66,8 +66,24 @@ module Orocos
         end
 
         # The startup options to be passed to Orocos.run
+        # The TCP port we are required to bind to
+        #
+        # It is the port given to {initialize}. In general, it is equal to {port}.
+        # Only if it is equal to zero will {port} contain the actual used port
+        # as allocated by the operating system
+        #
+        # @return [Integer]
+        attr_reader :required_port
+        # The TCP port we are listening to
+        #
+        # In general, it is equal to {required_port}.  Only if {required_port}
+        # is equal to zero will {port} contain the actual used port as allocated
+        # by the operating system
+        #
+        # It is nil until the server socket is created
+        #
+        # @return [Integer,nil]
         attr_reader :options
-        # The TCP port we should listen to
         attr_reader :port
         # A mapping from the deployment names to the corresponding Process
         # object.
@@ -75,7 +91,8 @@ module Orocos
 
         def initialize(options = DEFAULT_OPTIONS, port = DEFAULT_PORT)
             @options = options
-            @port = port
+            @required_port = port
+            @port = nil
             @processes = Hash.new
             @all_ios = Array.new
         end
@@ -94,6 +111,8 @@ module Orocos
             Server.info "starting on port #{port}"
             server = TCPServer.new(nil, port)
             server.fcntl(Fcntl::FD_CLOEXEC, 1)
+            @port = server.addr[1]
+
             com_r, com_w = IO.pipe
             @all_ios.clear
             @all_ios << server << com_r
