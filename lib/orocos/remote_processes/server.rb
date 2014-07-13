@@ -322,6 +322,8 @@ module Orocos
                     Server.warn "no process named #{name} to end"
                     socket.write(RET_NO)
                 end
+            elsif cmd_code == COMMAND_QUIT
+                raise Interrupt
             end
 
             true

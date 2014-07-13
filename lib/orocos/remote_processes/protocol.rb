@@ -8,6 +8,7 @@ module Orocos
         COMMAND_CREATE_LOG = "C"
         COMMAND_START      = "S"
         COMMAND_END        = "E"
+        COMMAND_QUIT       = "Q"
 
         EVENT_DEAD_PROCESS = "D"
         RET_STARTED_PROCESS = "P"

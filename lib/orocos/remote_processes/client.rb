@@ -263,6 +263,9 @@ module Orocos
                 return if result[process]
             end
         end
+
+        def quit_server
+            socket.write(COMMAND_QUIT)
         end
     end
     end
