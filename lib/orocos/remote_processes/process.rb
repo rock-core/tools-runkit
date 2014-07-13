@@ -14,12 +14,11 @@ module Orocos
         # The process ID of this process on the machine of the process server
         attr_reader :pid
 
-        def initialize(name, deployment_name, process_client, pid)
+        def initialize(name, deployment_model, process_client, pid)
             @process_client = process_client
             @pid = pid
             @alive = true
-            model = process_client.load_orogen_deployment(deployment_name)
-            super(name, model)
+            super(name, deployment_model)
         end
 
         # Retunging the Process name of the remote process

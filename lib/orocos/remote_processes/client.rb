@@ -163,7 +163,7 @@ module Orocos
                     raise Failed, "failed to start #{deployment_model.name}"
                 elsif pid_s == RET_STARTED_PROCESS
                     pid = Marshal.load(socket)
-                    process = Process.new(process_name, deployment_model.name, self, pid)
+                    process = Process.new(process_name, deployment_model, self, pid)
                     process.name_mappings = name_mappings
                     processes[process_name] = process
                     return process
@@ -171,9 +171,7 @@ module Orocos
                     raise InternalError, "unexpected reply #{pid_s} to the start command"
                 end
             end
-
         end
-
 
         # Requests that the process server moves the log directory at +log_dir+
         # to +results_dir+
