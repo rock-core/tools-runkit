@@ -85,9 +85,6 @@ module Orocos
 
             @loader = Loader.new(self, options[:root_loader])
             @root_loader = loader.root_loader
-            if root_loader != loader
-                root_loader.add loader
-            end
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"

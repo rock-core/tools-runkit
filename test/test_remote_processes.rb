@@ -46,6 +46,19 @@ describe Orocos::RemoteProcesses do
         end
     end
 
+    describe "#initialize" do
+        it "registers the loader exactly once on the provided root loader" do
+            start_server
+            root_loader = OroGen::Loaders::Aggregate.new
+            OroGen::Loaders::RTT.setup_loader(root_loader)
+            client = Orocos::RemoteProcesses::Client.new(
+                'localhost',
+                server.port,
+                :root_loader => root_loader)
+            assert_equal [client.loader], root_loader.loaders
+        end
+    end
+
     describe "#pid" do
         before do
             start_and_connect_to_server
