@@ -21,7 +21,7 @@ if remaining.size > 1
    exit 1
 end
 if ns = remaining.shift
-   Orocos::CORBA.name_service = ns
+   Orocos::CORBA.name_service.ip = ns
 end
 
 Orocos::RemoteProcesses::Server.run(Orocos::RemoteProcesses::Server::DEFAULT_OPTIONS, server_port)
