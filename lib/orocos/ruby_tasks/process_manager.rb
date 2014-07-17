@@ -1,4 +1,4 @@
-require 'orocos/ruby_tasks/deployment'
+require 'orocos/ruby_tasks/process'
 
 module Orocos
     module RubyTasks
