@@ -93,12 +93,20 @@ module Orocos::Async
             Orocos::Async.proxy(name,options)
         end
 
-        # writes all ports and properties to a
-        # RubyTaskContext
+        # Create a ruby task on which all received data is mirrored
+        #
+        # This task context is unique, i.e. the same object will be returned by
+        # subsequent calls to this method.
+        #
+        # @return [RubyTasks::TaskContext]
         def to_ruby
             @ruby_task_context ||= TaskContextBase.to_ruby(self)
         end
 
+        # Tests whether a mirroring task has been created with
+        # {ruby_task_context}
+        #
+        # @return [Boolean]
         def ruby_task_context?
             !!@ruby_task_context
         end

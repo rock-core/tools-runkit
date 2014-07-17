@@ -113,8 +113,7 @@ module Orocos
         run(*args, &block)
     end
 
-    # Base class for deployment representation objects (Process, RubyDeployment
-    # and RemoteProcess)
+    # Base class for process representation objects
     class ProcessBase
         # The process name
         # @return [String]

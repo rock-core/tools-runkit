@@ -114,7 +114,7 @@ module Orocos
             end
         end
 
-        # Corresponding to RemoteProcess / RubyDeployment
+        # Management of a roslaunch process and its underlying launch file
         class LauncherProcess < ProcessBase
             extend Logger::Root("Orocos::ROS::LauncherProcess", Logger::INFO)
 
