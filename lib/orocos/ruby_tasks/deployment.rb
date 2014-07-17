@@ -46,7 +46,9 @@ module Orocos
 
         def dead!(status = ProcessManager::Status.new(:exit_code => 0))
             @alive = false
-            ruby_process_server.dead_deployment(name, status)
+            if ruby_process_server
+                ruby_process_server.dead_deployment(name, status)
+            end
         end
 
         def join
