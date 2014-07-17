@@ -1,6 +1,6 @@
 require 'orocos/test'
 
-describe Orocos::RubyTaskContext do
+describe Orocos::RubyTasks::TaskContext do
     it "should be registered on the name server" do
         task = new_ruby_task_context("task")
         assert Orocos.name_service.get("task")

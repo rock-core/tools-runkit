@@ -185,7 +185,7 @@ describe Orocos::Async::CORBA::TaskContext do
         end
 
         it "should call on_port_reachable if a port was dynamically added" do 
-            task = Orocos::RubyTaskContext.new("test")
+            task = Orocos::RubyTasks::TaskContext.new("test")
             t1 = Orocos::Async::CORBA::TaskContext.new(ior('test'),:period => 0.1,:watchdog => true)
             ports = []
             t1.on_port_reachable do |name|
@@ -205,7 +205,7 @@ describe Orocos::Async::CORBA::TaskContext do
         end
 
         it "should call on_port_unreachable if a port was dynamically removed" do 
-            task = Orocos::RubyTaskContext.new("test")
+            task = Orocos::RubyTasks::TaskContext.new("test")
             t1 = Orocos::Async::CORBA::TaskContext.new(ior('test'),:period => 0.1,:watchdog => true)
             port = task.create_output_port("frame","string")
 

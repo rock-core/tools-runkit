@@ -1,6 +1,4 @@
-require 'orocos/ruby_tasks'
-
 module Orocos
-    RubyProcessServer = RubyTasks::ProcessManager
-    RubyDeployment = RubyTasks::Process
+    autoload :RubyProcessServer, 'orocos/ruby_tasks/deprecated'
+    autoload :RubyDeployment, 'orocos/ruby_tasks/deprecated'
 end

@@ -52,7 +52,7 @@ module Orocos
                 Orocos::ProcessBase.resolve_prefix_option(options, model)
             name_mappings = prefix_mappings.merge(name_mappings)
 
-            ruby_deployment = RubyDeployment.new(self, name, model)
+            ruby_deployment = Process.new(self, name, model)
             ruby_deployment.name_mappings = name_mappings
             ruby_deployment.spawn
             deployments[name] = ruby_deployment

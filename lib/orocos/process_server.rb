@@ -1,7 +1,6 @@
-require 'orocos/remote_processes'
-
 module Orocos
-    ProcessClient = RemoteProcesses::Client
-    RemoteProcess = RemoteProcesses::Process
+    autoload :ProcessClient, 'orocos/remote_processes/deprecated'
+    autoload :ProcessServer, 'orocos/remote_processes/deprecated'
+    autoload :RemoteProcess, 'orocos/remote_processes/deprecated'
 end
 

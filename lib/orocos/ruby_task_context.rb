@@ -1,5 +1,5 @@
 module Orocos
-    RubyTaskContext = RubyTasks::TaskContext
-    LocalInputPort  = RubyTasks::LocalInputPort
-    LocalOutputPort = RubyTasks::LocalOutputPort
+    autoload :RubyTaskContext, 'orocos/ruby_tasks/deprecated'
+    autoload :LocalInputPort, 'orocos/ruby_tasks/deprecated'
+    autoload :LocalOutputPort, 'orocos/ruby_tasks/deprecated'
 end
