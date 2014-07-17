@@ -56,7 +56,7 @@ module Orocos
             end
             remote_task
         rescue ::Exception
-            local_task.dispose
+            local_task.dispose if local_task
             raise
         end
 
