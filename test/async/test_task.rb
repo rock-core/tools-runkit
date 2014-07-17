@@ -12,6 +12,8 @@ describe Orocos::Async::CORBA::TaskContext do
         end
 
         it "should raise ComError if remote task is not reachable and :raise is set to true" do
+            
+            Orocos::CORBA.connect_timeout = 50
             t1 = Orocos::Async::CORBA::TaskContext.new(:ior => ior("bla"),:raise => true)
             sleep 0.1
             assert_raises(Orocos::CORBA::ComError) do
@@ -172,7 +174,7 @@ describe Orocos::Async::CORBA::TaskContext do
             end
             t1.wait(0.2)
             Orocos::Async.steps
-            assert_equal ["dynamic_prop","prop1", "prop2", "prop3"],properties
+            assert_equal ["dynamic_prop","dynamic_prop_setter_called","prop1", "prop2", "prop3"],properties
             properties.clear
 
             #should be called even if the task is already reachable
@@ -191,17 +193,12 @@ describe Orocos::Async::CORBA::TaskContext do
             t1.on_port_reachable do |name|
                 ports << name
             end
-            assert_equal [],ports
-            t1.wait(0.2)
-
-            port = task.create_output_port("frame","string")
-            port = task.create_output_port("frame2","string")
+            task.create_output_port("frame","string")
+            task.create_output_port("frame2","string")
 
             sleep 0.1
             Orocos::Async.steps
-            sleep 0.1
-            Orocos::Async.steps
-            assert_equal ["frame","frame2"], ports
+            assert_equal ['state', "frame","frame2"], ports
         end
 
         it "should call on_port_unreachable if a port was dynamically removed" do 
