@@ -8,5 +8,3 @@ end
 
 require 'orocos/ruby_tasks/task_context'
 require 'orocos/ruby_tasks/ports'
-require 'orocos/ruby_tasks/deployment'
-require 'orocos/ruby_tasks/process_manager'

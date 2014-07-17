@@ -1,3 +1,5 @@
+require 'orocos/ruby_tasks/deployment'
+
 module Orocos
     module RubyTasks
     # This is a drop-in replacement for ProcessClient. It creates Ruby tasks in
