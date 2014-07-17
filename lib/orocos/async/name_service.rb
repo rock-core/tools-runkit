@@ -198,13 +198,21 @@ module Orocos::Async
             extend Utilrb::EventLoop::Forwardable
 
             def initialize(options = Hash.new)
-                options,other_options = Kernel.filter_options options,{:tasks => Array.new}
+                options,other_options = Kernel.filter_options options,
+                    :tasks => Array.new
+
                 name_service = Orocos::Local::NameService.new options[:tasks]
                 super(name_service,other_options)
             end
 
             def get(name,options=Hash.new,&block)
-                async_options,other_options = Kernel.filter_options options, {:sync_key => nil,:raise => nil,:event_loop => @event_loop,:period => nil,:wait => nil}
+                async_options,other_options = Kernel.filter_options options,
+                    :sync_key => nil,
+                    :raise => nil,
+                    :event_loop => @event_loop,
+                    :period => nil,
+                    :wait => nil
+
                 if block
                     p = proc do |task,error|
                         task = task.to_async(async_options) unless error
