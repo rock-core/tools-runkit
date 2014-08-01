@@ -63,6 +63,7 @@ directory.
     end
 end
 
+
 Rock::Bundles.public_logs = false
 Rock::Bundles.initialize
 if Rock::Bundles.has_selected_bundle?
@@ -96,7 +97,7 @@ when "extract"
     if !model_name
         STDERR.puts "missing a model name as argument"
     end
-    if !Orocos.available_task_models[model_name]
+    if !Orocos.default_loader.find_task_library_from_task_model_name(model_name)
         STDERR.puts "#{model_name} is not a known model name"
     end
 
