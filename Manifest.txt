@@ -83,7 +83,7 @@ lib/orocos/ros/topic.rb
 lib/orocos/ruby_process_server.rb
 lib/orocos/ruby_task_context.rb
 lib/orocos/ruby_tasks.rb
-lib/orocos/ruby_tasks/deployment.rb
+lib/orocos/ruby_tasks/process.rb
 lib/orocos/ruby_tasks/ports.rb
 lib/orocos/ruby_tasks/process_manager.rb
 lib/orocos/ruby_tasks/task_context.rb
