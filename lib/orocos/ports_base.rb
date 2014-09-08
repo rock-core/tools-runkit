@@ -14,7 +14,7 @@ module Orocos
         attr_reader :type
         # The port's model as either a Orocos::Generation::InputPort or
         # Orocos::Generation::OutputPort
-        attr_accessor :model
+        attr_reader :model
 
         def initialize(task, name, orocos_type_name, model)
             @task = task
