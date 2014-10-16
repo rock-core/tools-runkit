@@ -120,10 +120,12 @@ module Orocos
             #
             # The task name takes precedence on the model
             attr_reader :conf_setup
+            attr_reader :conf_default
             # Options that should be passed to Orocos.run
             attr_reader :run_options
         end
         @conf_setup = Hash.new
+        @conf_default = ['default']
         @run_options = Hash.new
 
         def self.common_optparse_setup(optparse)
@@ -157,7 +159,11 @@ module Orocos
                 if conf_sections.empty?
                     conf_sections = ['default']
                 end
-                @conf_setup[task] = [file, conf_sections]
+                if !task
+                    @conf_default = conf_sections
+                else
+                    @conf_setup[task] = [file, conf_sections]
+                end
             end
             optparse.on '--gdbserver', 'start the component(s) with gdb' do
                 run_options[:gdb] = true
@@ -172,13 +178,13 @@ module Orocos
         end
 
         def self.conf(task)
-            file, sections = @conf_setup[task.name] || @conf_setup[task.model.name]
-            sections ||= ['default']
+            file, sections = conf_setup[task.name] || conf_setup[task.model.name]
+            sections ||= conf_default
 
             if file
-                Orocos.apply_conf(task, file, sections)
+                Orocos.apply_conf(task, file, sections, true)
             else
-                Orocos.conf.apply(task, sections)
+                Orocos.conf.apply(task, sections, true)
             end
         end
 
