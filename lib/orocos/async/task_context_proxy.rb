@@ -343,13 +343,11 @@ module Orocos::Async
             self
         end
 
-        def on_data(policy = Hash.new,&block)
-            p = proc do |sample|
-                s = subfield(sample,@subfield)
-                s = s.to_ruby if s
-                block.call s
+        def on_data(policy = Hash.new)
+            on_raw_data(policy) do |sample|
+                sample = Typelib.to_ruby(sample) if sample 
+                yield(sample)
             end
-            super(policy,&p)
         end
 
         def on_raw_data(policy = Hash.new,&block)

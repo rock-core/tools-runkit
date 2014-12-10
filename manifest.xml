@@ -11,6 +11,7 @@
     <license>GPL v2 or later</license>
     <url>https://gitorious.org/rock-toolchain/orocos-rb.git</url>
 
+    <depend package="base/orogen/std" />
     <depend package="cmake" />
     <depend package="orogen" />
     <depend package="tools/pocolog" optional="1"/>

@@ -65,6 +65,7 @@ lib/orocos/process_server.rb
 lib/orocos/rake.rb
 lib/orocos/remote_processes.rb
 lib/orocos/remote_processes/client.rb
+lib/orocos/remote_processes/deprecated.rb
 lib/orocos/remote_processes/loader.rb
 lib/orocos/remote_processes/process.rb
 lib/orocos/remote_processes/protocol.rb
@@ -83,8 +84,9 @@ lib/orocos/ros/topic.rb
 lib/orocos/ruby_process_server.rb
 lib/orocos/ruby_task_context.rb
 lib/orocos/ruby_tasks.rb
-lib/orocos/ruby_tasks/process.rb
+lib/orocos/ruby_tasks/deprecated.rb
 lib/orocos/ruby_tasks/ports.rb
+lib/orocos/ruby_tasks/process.rb
 lib/orocos/ruby_tasks/process_manager.rb
 lib/orocos/ruby_tasks/task_context.rb
 lib/orocos/scripts.rb
@@ -92,6 +94,7 @@ lib/orocos/task_context.rb
 lib/orocos/task_context_base.rb
 lib/orocos/test.rb
 lib/orocos/test/component.rb
+lib/orocos/test/mocks.rb
 lib/orocos/typekits.rb
 lib/orocos/uri.rb
 lib/orocos/version.rb
@@ -186,6 +189,7 @@ test/test_operations.rb
 test/test_ports.rb
 test/test_process.rb
 test/test_properties.rb
+test/test_remote_processes.rb
 test/test_ruby_task_context.rb
 test/test_task.rb
 test/test_uri.rb

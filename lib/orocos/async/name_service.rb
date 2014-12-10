@@ -80,6 +80,11 @@ module Orocos::Async
         end
 
         def proxy(name,options = Hash.new)
+            name = if name.respond_to?(:name)
+                       name.name
+                   else
+                       name
+                   end
             options[:event_loop] ||= @event_loop
             options[:name_service] ||= self
             ns,base_name = split_name(name)

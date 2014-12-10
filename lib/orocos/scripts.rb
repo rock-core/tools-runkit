@@ -152,6 +152,7 @@ module Orocos
                     if !File.file?(file)
                         raise ArgumentError, "no such file #{file}"
                     end
+                else file = nil
                 end
                 if conf_sections.empty?
                     conf_sections = ['default']
