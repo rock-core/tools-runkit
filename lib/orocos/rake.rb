@@ -32,10 +32,7 @@ module Orocos
                 *options.values_at(:keep_wc, :transports, :make_options)
 
             if !transports
-                transports = %w{corba typelib}
-                if USE_MQUEUE
-                    transports << 'mqueue'
-                end
+                transports = %w{corba typelib mqueue}
                 if USE_ROS
                     transports << 'ros'
                 end
