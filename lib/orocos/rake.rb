@@ -43,9 +43,11 @@ module Orocos
 
             FileUtils.mkdir_p work_basedir
             work_dir = File.join(work_basedir, src_name)
-            if !keep_wc || !File.directory?(work_dir)
+            if !keep_wc
                 FileUtils.rm_rf work_dir
-                FileUtils.cp_r  src_dir, work_dir
+            end
+            FileUtils.cp_r  src_dir, work_dir, preserve: true, remove_destination: true
+
             redirect_options = Hash.new
             if make_jobserver = make_options.find { |opt| opt =~ /^--jobserver-fds=\d+,\d+$/ }
                 make_jobserver =~ /^--jobserver-fds=(\d+),(\d+)$/
