@@ -26,10 +26,18 @@ begin
 
     def build_orogen(name, options = Hash.new)
         require './lib/orocos/rake'
+        parsed_options = Hash.new
+        parsed_options[:keep_wc] =
+            if ['1', 'true'].include?(options[:keep_wc]) then true
+            else false
+            end
+        parsed_options[:transports] = (options[:transports] || "corba typelib mqueue").split(" ")
         work_dir = File.expand_path(File.join('test', 'working_copy'))
         data_dir = File.expand_path(File.join('test', 'data'))
     
-        Orocos::Rake.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir, options
+        Orocos::Rake.generate_and_build \
+            File.join(data_dir, name, "#{name}.orogen"),
+            work_dir, parsed_options
     end
 
     # Making sure that native extension will be build with gem
