@@ -24,8 +24,12 @@ module Orocos
         # orogen description file +src+. The compiled package is installed in
         # +prefix+
         def self.generate_and_build(src, work_basedir, options = Hash.new)
-            options = Kernel.validate_options options, :keep_wc => false, :transports => nil
-            keep_wc, transports = *options.values_at(:keep_wc, :transports)
+            options = Kernel.validate_options options,
+                keep_wc: false,
+                transports: false,
+                make_options: []
+            keep_wc, transports, make_options =
+                *options.values_at(:keep_wc, :transports, :make_options)
 
             if !transports
                 transports = %w{corba typelib}
@@ -45,6 +49,12 @@ module Orocos
             if !keep_wc || !File.directory?(work_dir)
                 FileUtils.rm_rf work_dir
                 FileUtils.cp_r  src_dir, work_dir
+            redirect_options = Hash.new
+            if make_jobserver = make_options.find { |opt| opt =~ /^--jobserver-fds=\d+,\d+$/ }
+                make_jobserver =~ /^--jobserver-fds=(\d+),(\d+)$/
+                fd0, fd1 = [$1, $2]
+                redirect_options[Integer(fd0)] = Integer(fd0)
+                redirect_options[Integer(fd1)] = Integer(fd1)
             end
 
             prefix     = File.join(work_basedir, "prefix")

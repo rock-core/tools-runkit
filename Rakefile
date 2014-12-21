@@ -26,12 +26,15 @@ begin
 
     def build_orogen(name, options = Hash.new)
         require './lib/orocos/rake'
+
         parsed_options = Hash.new
         parsed_options[:keep_wc] =
             if ['1', 'true'].include?(options[:keep_wc]) then true
             else false
             end
         parsed_options[:transports] = (options[:transports] || "corba typelib mqueue").split(" ")
+        parsed_options[:make_options] = Shellwords.split(options[:make_options] || "").
+            map { |opt| opt.gsub(';', ',') }
         work_dir = File.expand_path(File.join('test', 'working_copy'))
         data_dir = File.expand_path(File.join('test', 'data'))
     
@@ -69,7 +72,7 @@ begin
 
     namespace :setup do
         desc "builds the oroGen modules that are needed by the tests"
-        task :orogen_all, [:keep_wc,:transports] do |_, args|
+        task :orogen_all, [:keep_wc,:transports,:make_options] do |_, args|
             build_orogen 'process', args
             build_orogen 'simple_sink', args
             build_orogen 'simple_source', args
