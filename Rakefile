@@ -26,24 +26,27 @@ begin
 
     def build_orogen(name, options = Hash.new)
         require './lib/orocos/rake'
-        # Process the rake options to make it programmatic options
-        options = Kernel.validate_options options, :keep_wc => '0', :transports => nil, :update => '1'
-        options[:keep_wc] = (options[:keep_wc] != '0')
-        options[:update]  = (options[:update] != '0')
-        if transports = options[:transports]
-            if transports.empty?
-                options[:transports] = nil
-            elsif transports == 'none'
-                options[:transports] = []
-            else
-                options[:transports] = transports.split(',')
+
+        parsed_options = Hash.new
+        parsed_options[:keep_wc] =
+            if ['1', 'true'].include?(options[:keep_wc]) then true
+            else false
             end
+        parsed_options[:transports] = (options[:transports] || "corba typelib mqueue").split(" ")
+        if parsed_options[:transports].empty?
+            parsed_options[:transports] = nil
+        elsif parsed_options[:transports] == 'none'
+            parsed_options[:transports] = []
         end
 
+        parsed_options[:make_options] = Shellwords.split(options[:make_options] || "").
+            map { |opt| opt.gsub(';', ',') }
         work_dir = File.expand_path(File.join('test', 'working_copy'))
         data_dir = File.expand_path(File.join('test', 'data'))
     
-        Orocos::Rake.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir, options
+        Orocos::Rake.generate_and_build \
+            File.join(data_dir, name, "#{name}.orogen"),
+            work_dir, parsed_options
     end
 
     # Making sure that native extension will be build with gem
@@ -75,7 +78,7 @@ begin
 
     namespace :setup do
         desc "builds the oroGen modules that are needed by the tests"
-        task :orogen_all, [:keep_wc,:transports,:update] do |_, args|
+        task :orogen_all, [:keep_wc,:transports,:make_options] do |_, args|
             build_orogen 'process', args
             build_orogen 'simple_sink', args
             build_orogen 'simple_source', args
