@@ -73,12 +73,15 @@ module Orocos::Async::Log
             disable_emitting do 
                 reachable! port
             end
-            port.on_data do |sample,_|
-                emit_raw_data raw_read
-                # TODO just emit raw_data and convert it to ruby
-                # if someone is listening to (see PortProxy)
+            @on_raw_data = port.on_raw_data do |sample, _|
+                emit_raw_data sample
+            end
+            @on_raw_data.disable
+
+            @on_data = port.on_data do |sample, _|
                 emit_data sample
             end
+            @on_data.disable
         end
 
         def type?
@@ -111,6 +114,7 @@ module Orocos::Async::Log
                         listener.call sample
                     end
                 end
+                @on_data.enable
             elsif listener.event == :raw_data
                 sample = raw_last_sample
                 if sample
@@ -118,6 +122,7 @@ module Orocos::Async::Log
                         listener.call sample
                     end
                 end
+                @on_raw_data.enable
             end
             super
         end

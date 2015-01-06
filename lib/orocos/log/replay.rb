@@ -556,19 +556,19 @@ module Orocos
             end
 
             def current_time
-                _, time, data = @current_sample
+                stream_idx, time, sample_info = @current_sample
                 return if !time
-                if getter = (timestamps[data.class.name] || default_timestamp)
+
+                stream_type = @stream.stream_by_index(stream_idx).type
+                if getter = (timestamps[stream_type.name] || default_timestamp)
+                    data = sample_info[0].read_one_raw_data_sample(sample_info[1])
                     getter[data]
                 else time
                 end
             end
 
-            def calc_statistics
-                index, time, data = @current_sample
-                if getter = (timestamps[data.class.name] || default_timestamp)
-                    time = getter[data]
-                end
+            def calc_statistics(time = current_time)
+                time = current_time
 
                 @base_time ||= time
                 @start_time ||= Time.now
@@ -597,13 +597,17 @@ module Orocos
                 if @stream == nil
                     return align
                 end
-                @current_sample = @stream.step
-                return if !@current_sample
-                index, time, data = @current_sample
-                calc_statistics
+                stream_idx, time = @stream.advance
+                if !stream_idx
+                    @current_sample = nil
+                    return
+                end
+                sample_info = @stream.sample_info(stream_idx)
+                @current_sample = [stream_idx, time, sample_info]
+                calc_statistics(time)
 
                 #wait if replay is faster than the desired speed and time_sync is set to true
-                if time_sync &&  @out_of_sync_delta > 0.001
+                if time_sync && @out_of_sync_delta > 0.001
                     if @process_qt_events == true
                         start_wait = Time.now
                         while true
@@ -617,36 +621,39 @@ module Orocos
                             else
                                 break
                             end
-                            calc_statistics
+                            calc_statistics(time)
                         end
                     else
                         sleep(@out_of_sync_delta)
                     end
                 end
 
+                push_sample(stream_idx, sample_info)
+            end
+
+            def push_sample(stream_idx, sample_info)
                 #write sample to simulated ports or properties
-                @replayed_objects[index].write(data)
-                yield(@replayed_objects[index],data) if block_given?
-                @current_sample
+                log_output = @replayed_objects[stream_idx]
+                log_output.update(sample_info)
+                if block_given?
+                    data = sample_info[0].read_one_raw_data_sample(sample_info[1])
+                    yield(log_output,Typelib.to_ruby(data))
+                end
+                return *@current_sample[0, 2]
             end
 
             #Gets the previous sample and writes it to the ports which are connected
             #to the OutputPort and updated its readers (see step).
             def step_back(time_sync=false,&block)
                 #check if stream was generated otherwise call start
-
-                if @stream == nil
-                    start
+                if !@stream
+                    align
                     return
                 end
                 @current_sample = @stream.step_back
-                return nil if @current_sample == nil
-                index, time, data = @current_sample
-
-                #write sample to connected ports
-                @replayed_objects[index].write(data)
-                yield(@replayed_objects[index],data) if block_given?
-                return @current_sample
+                return if !@current_sample
+                @current_sample[2] = @stream.sample_info(@current_sample[0])
+                push_sample(@current_sample[0], @current_sample[2])
             end
 
             #Rewinds all streams and replays the first sample.
@@ -658,16 +665,16 @@ module Orocos
             #returns the last port which recieved data
             def current_port
                 if @current_sample
-                    index,_,_ = @current_sample
-                    replayed_ports[index]
+                    stream_idx = @current_sample[0]
+                    replayed_ports[stream_idx]
                 end
             end
 
             #returns the current data of the current sample
             def current_sample_data
                 if @current_sample
-                    _,_,data = @current_sample
-                    data
+                    sample_info = @current_data[2]
+                    sample_info[0].read_one_raw_data_sample(sample_info[1])
                 end
             end
 
@@ -857,20 +864,23 @@ module Orocos
                 #check if stream was generated otherwise call align
                 align if @stream == nil
                 @current_sample = @stream.seek(pos)
+                if !@current_sample
+                    return
+                end
+                @current_sample[2] = @stream.sample_info(@current_sample[0])
+
                 #write all data to the ports
-                0.upto(@stream.streams.length-1) do |index|
-                    data = @stream.single_data(index)
-                    #only write samples if they are available
-                    if(data)
-                        @replayed_objects[index].write(data)
+                @stream.streams.length.times do |stream_idx|
+                    if info = @stream.sample_info(stream_idx)
+                        @replayed_objects[stream_idx].update(info)
                     end
                 end
             end
 
             #replays the last sample to the log port
             def refresh
-                index, time, data = @current_sample
-                @replayed_objects[index].write(data)
+                index, _, sample_info = @current_sample
+                @replayed_objects[index].update(sample_info)
             end
 
             def load_task_from_stream(stream,path)

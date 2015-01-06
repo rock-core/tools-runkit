@@ -43,10 +43,15 @@ module Orocos
             end
 
             #This method is called each time new data are availabe.
-            def update(data) 
+            def update(raw_data) 
                 if @policy_type == :buffer
-                    @buffer.shift if @buffer.size == @buffer_size
-                    @buffer << data
+                    if @buffer.size != @buffer_size
+                        @buffer << raw_data
+                    end
+                elsif @policy_type == :data
+                    @buffer = [raw_data]
+                else
+                    raise "port policy #{@policy_type} is not supported by #{self.class}"
                 end
             end
 
@@ -55,46 +60,49 @@ module Orocos
                 @buffer.clear
             end
 
+            def clear
+                @buffer.clear
+            end
+
             def connected?
                 true
             end
 
-            #Reads data from the associated port.
-            def read(sample =nil)
-                if @policy_type == :data
-                  @last_update = port.last_update
-                  return @filter.call(port.read) if @filter
-                  return port.read
-                elsif @policy_type == :buffer
-                  sample = @buffer.shift
-                  if sample
-                    return @filter.call(sample) if @filter
+            def raw_read_new(sample = nil)
+                if sample = @buffer.shift
+                    sample =
+                        if @filter
+                            @filter.call(sample)
+                        else sample
+                        end
+                    @raw_last_sample = sample
                     return sample
-                  else
-                    @last_update = port.last_update
-                    return nil
-                  end
-                else
-                    raise "Port policy #{@policy_type} is not supported."
                 end
             end
 
-            def raw_read(sample)
-                sample = read(sample)
-                Typelib::from_ruby(sample,type) if sample
+            def read_new(sample = nil)
+                if sample = raw_read_new(sample)
+                    return Typelib.to_ruby(sample)
+                end
+            end
+
+            def raw_read(sample = nil)
+                if new_sample = raw_read_new(sample)
+                    return new_sample
+                else @raw_last_sample
+                end
+            end
+
+            def read(sample = nil)
+                if sample = raw_read(sample)
+                    return Typelib.to_ruby(sample)
+                end
             end
 
             def type_name
                 @port.type_name
             end
            
-            #Reads data from the associated port.
-            #Return nil if no new data are available
-            def read_new(sample = nil)
-              return nil if @last_update == port.last_update 
-              read
-            end
-
             def new_sample
                 @port.new_sample
             end
@@ -154,8 +162,9 @@ module Orocos
 
             #Defines a connection which is set through connect_to
             class Connection #:nodoc:
-                attr_accessor :port,:writer,:filter
-                def initialize(port,policy=Hash.new)
+                attr_accessor :log_port,:port,:writer,:filter
+                def initialize(log_port,port,policy=Hash.new)
+                    @log_port = log_port
                     @port = port
                     policy =  OutputPort::default_policy if !policy
                     @filter, policy = Kernel.filter_options(policy,[:filter])
@@ -163,23 +172,51 @@ module Orocos
                     @writer = port.writer(policy)
                 end
 
-                def update(data)
-                  if @filter 
-                    @writer.write(@filter.call data)
-                  else
-                    @writer.write(data)
-                  end
+                def update
+                    data = log_port.raw_read
+                    if @filter 
+                        @writer.write(@filter.call data)
+                    else
+                        @writer.write(data)
+                    end
                 end
             end
             
             #Defines a connection which is set through connect_to
             class CodeBlockConnection #:nodoc:
-                def initialize(port_name,code_block)
-                    @code_block = code_block
-                    @port_name = port_name
+                attr_reader :port
+
+                def port_name
+                    port.name
                 end
-                def update(data)
-                    @code_block.call data,@port_name
+
+                def initialize(port,code_block)
+                    @code_block = code_block
+                    @port = port
+                end
+
+                def enabled?
+                    port.has_connection?(self)
+                end
+
+                def enable
+                    port.add_connection(self)
+                end
+
+                def disable
+                    port.remove_connection(self)
+                end
+
+                class OnData < CodeBlockConnection
+                    def update
+                        @code_block.call(port.read, port_name)
+                    end
+                end
+
+                class OnRawData < CodeBlockConnection
+                    def update
+                        @code_block.call(port.raw_read, port_name)
+                    end
                 end
             end
 
@@ -289,7 +326,7 @@ module Orocos
 		end
                 @type_name = stream.typename
                 @task = task
-                @connections = Array.new
+                @connections = Set.new
                 @current_data = nil
                 @tracked = false
                 @readers = Array.new
@@ -312,15 +349,36 @@ module Orocos
             end
 
             #Returns the current sample data.
-            def read()
-                raise "Port #{@name} is not replayed. Set tracked to true or use a port reader!" unless used? 
-                return yield @current_data if block_given?
-                return @current_data
+            def read
+                if sample = raw_read
+                    return Typelib.to_ruby(sample)
+                end
             end
 
-            def raw_read()
-                sample = read()
-                Typelib::from_ruby(sample,type) if sample
+            def raw_read
+                if !used?
+                    raise "port #{full_name} is not replayed. Set tracked to true or use a port reader!"
+                end
+                if @sample_info && !@current_data
+                    stream, position = *@sample_info
+                    data = stream.read_one_raw_data_sample(position)
+                    if @filter
+                        filtered_data = @filter.call(data)
+
+                        if data.class != filtered_data.class 
+                            Log.error "Filter block for port #{full_name} returned #{@current_data.class.name} but #{data.class.name} was expected."
+                            Log.error "If a statement like #{name} do |sample,port| or #{name}.connect_to(port) do |sample,port| is used, the code block always needs to return 'sample'!"
+                            Log.error "Disabling Filter for port #{full_name}"
+                            @filter = nil
+                            @current_data = data
+                        else
+                            @current_data = filtered_data
+                        end
+                    else
+                        @current_data = data
+                    end
+                end
+                @current_data
             end
 
             #If set to true the port is replayed.  
@@ -331,8 +389,29 @@ module Orocos
 
             # Calls the provided block when data is replayed into this port
             def on_data(&block)
+                connection = CodeBlockConnection::OnData.new(self,block)
+                add_connection(connection)
+                connection
+            end
+
+            # Calls the provided block when data is replayed into this port
+            def on_raw_data(&block)
+                connection = CodeBlockConnection::OnRawData.new(self,block)
+                add_connection(connection)
+                connection
+            end
+            
+            def has_connection?(connection)
+                @connections.include?(connection)
+            end
+
+            def add_connection(connection)
                 self.tracked = true
-                @connections << CodeBlockConnection.new(@name,block)
+                @connections << connection
+            end
+
+            def remove_connection(connection)
+                @connections.delete connection
             end
 
             #Register InputPort which is updated each time write is called
@@ -355,30 +434,27 @@ module Orocos
                 policy[:filter] = block if block
                 if !port 
                   raise "Cannot set up connection no code block or port is given" unless block
-                  @connections << CodeBlockConnection.new(@name,block)
+                  @connections << CodeBlockConnection::OnData.new(self,block)
                 else
                   raise "Cannot connect to #{port.class}" if(!port.instance_of?(Orocos::InputPort))
-                  @connections << Connection.new(port,policy)
+                  @connections << Connection.new(self,port,policy)
                   Log.info "setting connection: #{task.name}.#{name} --> #{port.task.name}.#{port.name}"
                 end
             end
 
-            #Feeds data to the connected ports and readers
-            def write(data)
+            def update(sample_info)
                 @last_update = Time.now
-                @current_data = @filter ? @filter.call(data) : data
-                if @filter && data.class != @current_data.class 
-                    Log.error "Filter block for port #{full_name} returned #{@current_data.class.name} but #{data.class.name} was expected."
-                    Log.error "If a statement like #{name} do |sample,port| or #{name}.connect_to(port) do |sample,port| is used, the code block always needs to return 'sample'!"
-                    Log.error "Disabling Filter for port #{full_name}"
-                    @filter = nil
-                    @current_data = data
-                end
+                @current_data = nil
+                @sample_info = sample_info
+
                 @connections.each do |connection|
-                    connection.update(@current_data)
+                    connection.update
                 end
-                @readers.each do |reader|
-                    reader.update(@current_data)
+                if !@readers.empty?
+                    sample = raw_read
+                    @readers.each do |reader|
+                        reader.update(sample)
+                    end
                 end
             end
 
@@ -444,7 +520,7 @@ module Orocos
                 @name = @name[1]
                 @type = stream.type
                 @task = task
-                @current_value = nil
+                @current_data = nil
                 @type_name = stream.typename
                 @notify_blocks =[]
             end
@@ -464,20 +540,24 @@ module Orocos
                 false
             end
 
+            def update(sample_info)
+                @current_data = nil
+                @sample_info = sample_info
+            end
+
             # Read the current value of the property/attribute
             def read
-                @current_value
+                if sample = raw_read
+                    Typelib.to_ruby(sample)
+                end
             end
 
-            def raw_read()
-                sample = read()
-                Typelib::from_ruby(sample,type) if sample
-            end
-
-            # Sets a new value for the property/attribute
-            def write(value)
-                @current_value = value
-                @notify_blocks.each &:call
+            def raw_read
+                if @sample_info && !@current_data
+                    stream, position = *@sample_info
+                    @current_data = stream.read_one_raw_data_sample(position)
+                end
+                @current_data
             end
 
             # registers a code block which will be called 
