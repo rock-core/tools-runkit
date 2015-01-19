@@ -529,6 +529,10 @@ module Orocos
             return deployments, models, options
         end
 
+        #
+        # parse the options passed to run, 
+        # and return a list of processes and their individual runtime options.
+        #
         def self.parse_run_options(*names)
             deployments, models, options = partition_run_options(*names)
             options, process_options = Kernel.filter_options options, :wait => nil
@@ -572,8 +576,6 @@ module Orocos
                 return Hash.new
             end
 
-            # Check if the valgrind option is specified, no matter if 
-            # set to true or false
             if !system("which #{cmd}")
                 raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed"
             end
@@ -619,9 +621,9 @@ module Orocos
             processes
         end
         
-        # Deprecated
+        # Do not call directly
+        # Use Orocos.run instead
         #
-        # Use Orocos.run directly instead
         def self.run(*names)
             if !Orocos.initialized?
                 #try to initialize orocos before bothering the user
