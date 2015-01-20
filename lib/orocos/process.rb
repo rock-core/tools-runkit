@@ -804,6 +804,16 @@ module Orocos
                 module_bin = "#{pkg.exec_prefix}/bin/#{name}"
             end
             cmdline = [module_bin]
+
+            # check arguments for log_level
+            log_level = nil
+            if options[:log_level]
+                if [:debug, :info, :warn, :error, :fatal, :disable].include? options[:log_level]
+                    log_level = options[:log_level].to_s.upcase
+                else
+                    raise ArgumentError, "'#{options[:log_level]}' is not a valid log level."
+                end
+            end
 		    
 	    read, write = IO.pipe
 	    @pid = fork do 
@@ -811,16 +821,10 @@ module Orocos
                     ENV['LD_PRELOAD'] = Orocos.tracing_library_path
                 end
 
-                if options[:log_level]
-                    if [:debug, :info, :warn, :error, :fatal].include? options[:log_level]
-                        ENV['BASE_LOG_LEVEL'] = options[:log_level].to_s.upcase
-                    else
-                        Orocos.warn "'#{options[:log_level]}' is not a valid log level."
-                    end
-                end
-
                 pid = ::Process.pid
                 real_name = get_mapped_name(name)
+
+                ENV['BASE_LOG_LEVEL'] = log_level if log_level
 
 		if output && output.respond_to?(:to_str)
 		    output_file_name = output.
