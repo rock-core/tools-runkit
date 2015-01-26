@@ -808,10 +808,12 @@ module Orocos
             # check arguments for log_level
             log_level = nil
             if options[:log_level]
-                if [:debug, :info, :warn, :error, :fatal, :disable].include? options[:log_level]
+                valid_levels = [:debug, :info, :warn, :error, :fatal, :disable]
+                if valid_levels.include? options[:log_level]
                     log_level = options[:log_level].to_s.upcase
                 else
-                    raise ArgumentError, "'#{options[:log_level]}' is not a valid log level."
+                    raise ArgumentError, "'#{options[:log_level]}' is not a valid log level." +
+                        " Valid options are #{valid_levels}."
                 end
             end
 		    
