@@ -13,6 +13,8 @@ module Orocos
         def initialize
             @export_types = true
             @type_export_namespace = ::Types
+            # We need recursive access lock
+            @load_access_lock = Monitor.new
             super
         end
 
@@ -63,6 +65,12 @@ module Orocos
                 elsif m_type?(base_type) # just ignore, they are registered as the opaque
                 else exported_type
                 end
+            end
+        end
+
+        def task_model_from_name(name)
+            @load_access_lock.synchronize do
+                super
             end
         end
     end
