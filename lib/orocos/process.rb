@@ -494,7 +494,8 @@ module Orocos
                 :valgrind => false, :valgrind_options => [],
                 :cmdline_args => Orocos.default_cmdline_arguments,
                 :oro_logfile => nil, :tracing => Orocos.tracing?,
-                :loader => Orocos.default_loader
+                :loader => Orocos.default_loader,
+                :log_level => nil
 
             loader = options[:loader]
             deployments, models = Hash.new, Hash.new
@@ -529,6 +530,10 @@ module Orocos
             return deployments, models, options
         end
 
+        #
+        # parse the options passed to run, 
+        # and return a list of processes and their individual runtime options.
+        #
         def self.parse_run_options(*names)
             deployments, models, options = partition_run_options(*names)
             options, process_options = Kernel.filter_options options, :wait => nil
@@ -541,12 +546,16 @@ module Orocos
                     end
             end
 
+            all_deployments = deployments.keys.map(&:name) + models.values
             valgrind = parse_cmdline_wrapper_option(
                 'valgrind', process_options[:valgrind], process_options[:valgrind_options],
-                deployments.keys.map(&:name) + models.values)
+                all_deployments)
             gdb = parse_cmdline_wrapper_option(
                 'gdbserver', process_options[:gdb], process_options[:gdb_options],
-                deployments.keys.map(&:name) + models.values)
+                all_deployments)
+            log_level = parse_log_level_option(
+                process_options[:log_level], 
+                all_deployments)
 
             name_mappings = resolve_name_mappings(deployments, models)
             processes = name_mappings.map do |deployment_name, mappings, name|
@@ -561,10 +570,23 @@ module Orocos
                     :gdb => gdb[name],
                     :cmdline_args => process_options[:cmdline_args],
                     :wait => false,
+                    :log_level => log_level[name],
                     :oro_logfile => process_options[:oro_logfile]]
                 [deployment_name, mappings, name, spawn_options]
             end
             return processes, options
+        end
+
+        #
+        # log level options can either be a hash specifying an option
+        # per deployment, or providing one log_level for all deployments
+        #
+        def self.parse_log_level_option( options, all_deployments )
+            if !options.respond_to?(:to_hash)
+                all_deployments.inject(Hash.new) { |h, name| h[name] = options; h }
+            else
+                options
+            end
         end
 
         def self.parse_cmdline_wrapper_option(cmd, deployments, options, all_deployments)
@@ -572,8 +594,6 @@ module Orocos
                 return Hash.new
             end
 
-            # Check if the valgrind option is specified, no matter if 
-            # set to true or false
             if !system("which #{cmd}")
                 raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed"
             end
@@ -619,9 +639,9 @@ module Orocos
             processes
         end
         
-        # Deprecated
+        # Do not call directly
+        # Use Orocos.run instead
         #
-        # Use Orocos.run directly instead
         def self.run(*names)
             if !Orocos.initialized?
                 #try to initialize orocos before bothering the user
@@ -714,6 +734,7 @@ module Orocos
 
             options = Kernel.validate_options options, :output => nil,
                 :gdb => nil, :valgrind => nil,
+                :log_level => nil,
                 :working_directory => nil,
                 :cmdline_args => Hash.new, :wait => nil,
                 :oro_logfile => "orocos.%m-%p.txt",
@@ -783,6 +804,18 @@ module Orocos
                 module_bin = "#{pkg.exec_prefix}/bin/#{name}"
             end
             cmdline = [module_bin]
+
+            # check arguments for log_level
+            log_level = nil
+            if options[:log_level]
+                valid_levels = [:debug, :info, :warn, :error, :fatal, :disable]
+                if valid_levels.include? options[:log_level]
+                    log_level = options[:log_level].to_s.upcase
+                else
+                    raise ArgumentError, "'#{options[:log_level]}' is not a valid log level." +
+                        " Valid options are #{valid_levels}."
+                end
+            end
 		    
 	    read, write = IO.pipe
 	    @pid = fork do 
@@ -792,6 +825,8 @@ module Orocos
 
                 pid = ::Process.pid
                 real_name = get_mapped_name(name)
+
+                ENV['BASE_LOG_LEVEL'] = log_level if log_level
 
 		if output && output.respond_to?(:to_str)
 		    output_file_name = output.
