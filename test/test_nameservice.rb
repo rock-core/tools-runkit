@@ -257,6 +257,15 @@ describe Orocos::CORBA::NameService do
                 assert_equal(direct, indirect)
             end
         end
+
+        describe "#bind" do
+            it "registers an existing task under an arbitrary name" do
+                name_service = Orocos::CORBA::NameService.new 'localhost'
+                task = new_ruby_task_context "test"
+                name_service.bind(task, "alias")
+                assert_equal task, name_service.get("alias")
+            end
+        end
     end
 
     describe Orocos::Avahi::NameService do

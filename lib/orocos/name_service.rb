@@ -585,6 +585,14 @@ module Orocos
                 do_port
             end
 
+            # Bind an existing task under an alternative name
+            #
+            # @param [TaskContext] task the task context
+            # @param [String] name the name
+            def bind(task, name)
+                do_bind(task, name)
+            end
+
             # The async-access object for this name service
             # @param (see Orocos::Async::CORBA::NameService#initialize)
             # @return [Orocos::Async::CORBA::NameService]
