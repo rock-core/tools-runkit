@@ -673,7 +673,7 @@ module Orocos
             #returns the current data of the current sample
             def current_sample_data
                 if @current_sample
-                    sample_info = @current_data[2]
+                    sample_info = @current_sample[2]
                     sample_info[0].read_one_raw_data_sample(sample_info[1])
                 end
             end
