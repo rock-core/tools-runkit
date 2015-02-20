@@ -1,31 +1,8 @@
 module Orocos
-    # call-seq:
-    #   Orocos.watch task1, task2, port, :sleep => 0.2, :display => false
-    #   Orocos.watch(task1, task2, port, :sleep => 0.2, :display => false) { |updated_tasks, updated_ports| ... }
-    #
-    # Watch for a set of tasks, ports or port readers and display information
-    # about them during execution
-    #
-    # This method will display:
-    #
-    # * the current state of all the listed tasks. This display is updated only
-    #   when the state of one of the tasks changed
-    # * whether new data arrived on one of the ports. By default, the new
-    #   samples are pretty-printed. This can be changed by setting the :display
-    #   option to false
-    #
-    # The update period can be changed with the :sleep option. It defaults to
-    # 0.1. Note that all state changes are displayed regardless of the period
-    # chosen.
-    #
-    # If a task is given to the :main option, the loop will automatically quit
-    # if that task has finished execution.
-    #
-    # If a block is given, it is called at each loop with the set of tasks whose
-    # state changed and the set of ports which got new data (either or both can
-    # be empty). This block should return true if the loop should quit and false
-    # otherwise.
-    def self.watch(*objects)
+    # @deprecated renamed to Orocos::Scripts.watch
+    #--
+    # TODO move the code and test
+    def self.watch(*objects, &block)
         options = Hash.new
         if objects.last.kind_of?(Hash)
             options = objects.pop
@@ -106,6 +83,50 @@ module Orocos
         end
     end
 
+    # Common command-line option handling for Ruby scripts
+    #
+    # Its main functionality is to allow the override of run configuration with
+    # command line options, such as running under gdb or valgrind
+    #
+    # The following command-line options are implemented:
+    #
+    # --host=HOSTNAME[:IP] sets the hostname and IP of the CORBA name server to
+    #   connect to
+    #
+    # --attach do not start deployment processes given to {Scripts.run} if it
+    #   appears that they are already running
+    #
+    # --conf-dir=DIR loads the given configuration directory
+    #
+    #
+    # --conf=TASKNAME[:FILE],conf0,conf1 apply the configuration [conf0, conf1]
+    #   to the task whose name or model name is TASKNAME. This option is handled
+    #   when {Scripts.conf} is called. If TASKNAME is omitted, the configuration
+    #   becomes the default for all tasks.
+    #
+    # --gdbserver make {Scripts.run} start everything under gdb
+    #
+    # --valgrind make {Scripts.run} start everything under valgrind
+    #
+    # @example
+    #   require 'orocos'
+    #   require 'orocos/scripts'
+    #   options = OptionParser.new do |opt|
+    #       opt.banner = "myscript [options]"
+    #       Orocos::Scripts.common_optparse_setup(opt)
+    #   end
+    #   arguments = options.parse(ARGV)
+    #   ...
+    #   Orocos::Scripts.run 'my::Task' => 'task' do
+    #       task = Orocos.get 'task'
+    #
+    #       # Replaces Orocos.apply_conf, taking into account the command
+    #       # line options
+    #       Orocos::Scripts.conf(task)
+    #
+    #       Orocos::Scripts.watch(task)
+    #   end
+    #   
     module Scripts
         class << self
             # If true, the script should try to attach to running tasks instead of
@@ -120,10 +141,12 @@ module Orocos
             #
             # The task name takes precedence on the model
             attr_reader :conf_setup
+            attr_reader :conf_default
             # Options that should be passed to Orocos.run
             attr_reader :run_options
         end
         @conf_setup = Hash.new
+        @conf_default = ['default']
         @run_options = Hash.new
 
         def self.common_optparse_setup(optparse)
@@ -157,7 +180,11 @@ module Orocos
                 if conf_sections.empty?
                     conf_sections = ['default']
                 end
-                @conf_setup[task] = [file, conf_sections]
+                if !task
+                    @conf_default = conf_sections
+                else
+                    @conf_setup[task] = [file, conf_sections]
+                end
             end
             optparse.on '--gdbserver', 'start the component(s) with gdb' do
                 run_options[:gdb] = true
@@ -172,13 +199,13 @@ module Orocos
         end
 
         def self.conf(task)
-            file, sections = @conf_setup[task.name] || @conf_setup[task.model.name]
-            sections ||= ['default']
+            file, sections = conf_setup[task.name] || conf_setup[task.model.name]
+            sections ||= conf_default
 
             if file
-                Orocos.apply_conf(task, file, sections)
+                Orocos.apply_conf(task, file, sections, true)
             else
-                Orocos.conf.apply(task, sections)
+                Orocos.conf.apply(task, sections, true)
             end
         end
 
@@ -212,6 +239,40 @@ module Orocos
             else
                 Orocos.run(deployments.merge(models).merge(options).merge(run_options), &block)
             end
+        end
+
+        # Watch for a set of tasks, ports or port readers and display information
+        # about them during execution
+        #
+        # This method will display:
+        #
+        # * the current state of all the listed tasks. This display is updated only
+        #   when the state of one of the tasks changed
+        # * whether new data arrived on one of the ports. By default, the new
+        #   samples are pretty-printed. This can be changed by setting the :display
+        #   option to false
+        #
+        #
+        # @option [Array<Port,TaskContext,Hash>] objects a list of objects to
+        #   watch. The option hash, if present, needs to be put at the end of
+        #   the method call, e.g.
+        #
+        #       Orocos::Scripts.watch(task, sleep: 0.1)
+        #
+        # The update period can be changed with the :sleep option. It defaults to
+        # 0.1. Note that all state changes are displayed regardless of the period
+        # chosen.
+        #
+        # If a task is given to the :main option, the loop will automatically quit
+        # if that task has finished execution.
+        #
+        # If a block is given, it is called at each loop with the set of tasks whose
+        # state changed and the set of ports which got new data (either or both can
+        # be empty). This block should return true if the loop should quit and false
+        # otherwise.
+        def self.watch(*objects, &block)
+            # TODO: move the code here and truly deprecate Orocos.watch
+            Orocos.watch(*objects, &block)
         end
     end
 end
