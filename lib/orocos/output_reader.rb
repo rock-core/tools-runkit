@@ -47,7 +47,7 @@ module Orocos
 
         # Disconnects this port from the port it is reading
         def disconnect
-            port.disconnect_from(self)
+            port.disconnect_all
         end
     end
 end
