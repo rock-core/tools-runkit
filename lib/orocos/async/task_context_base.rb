@@ -46,6 +46,7 @@ module Orocos::Async
                     p.write data
                 end
             end
+            t.configure
             t.start
             t
         end

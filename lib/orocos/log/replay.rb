@@ -28,7 +28,9 @@ module Orocos
                 end
             end
 
-            def write(sample)
+            def update(info)
+                stream, position = *info
+                sample = stream.read_one_raw_data_sample(position)
                 current_state[sample.key] = sample.value
             end
 

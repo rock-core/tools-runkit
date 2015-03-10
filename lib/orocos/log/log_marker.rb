@@ -12,7 +12,7 @@ module Orocos
                     type = if(sample.key =~ /log_marker_(.*)$/)
                                $1.to_sym
                            else
-                               :unknown
+                               sample.key
                            end
                     index, comment = if(sample.value =~ /^<(.*)>;(.*)$/)
                                          i = if $1 && !$1.empty?
@@ -24,20 +24,8 @@ module Orocos
                                      else
                                          [nil,sample.value]
                                      end
-                    
-                    if(index)
-                        if [:start,:stop,:abort].include?(type)
-                            markers << LogMarker.new(sample.time,type,index,comment)
-                        else
-                            Log.warn "Syntax Error for LogMarker: key: #{sample.key} value: #{sample.value}"
-                        end
-                    else
-                        if [:abort_all,:stop_all,:event].include?(type)
-                            markers << LogMarker.new(sample.time,type,-1,comment)
-                        else
-                            Log.warn "Syntax Error for LogMarker: key: #{sample.key} value: #{sample.value}"
-                        end
-                    end
+
+                    markers << LogMarker.new(sample.time,type,index||-1,comment)
                 end
                 markers 
             end
