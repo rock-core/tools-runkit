@@ -488,6 +488,30 @@ describe Orocos::OutputReader do
         end
     end
 
+    describe "#disconnect" do
+        it "disconnects from the port" do
+            task = new_ruby_task_context 'test' do
+                output_port 'out', '/double'
+            end
+            reader = task.out.reader
+            reader.disconnect
+            assert !reader.connected?
+            assert !task.out.connected?
+        end
+
+        it "does not affect the port's other connections" do
+            task = new_ruby_task_context 'test' do
+                output_port 'out', '/double'
+            end
+            reader0 = task.out.reader
+            reader1 = task.out.reader
+            reader0.disconnect
+            assert !reader0.connected?
+            assert reader1.connected?
+            assert task.out.connected?
+        end
+    end
+
     if Orocos::SelfTest::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
             begin
