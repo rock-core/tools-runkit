@@ -1,3 +1,5 @@
+require 'orocos/remote_processes/loader'
+
 module Orocos
     module RemoteProcesses
     # Client-side API to a {Server} instance
