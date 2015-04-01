@@ -729,7 +729,7 @@ module Orocos
                     raise ArgumentError, "no configuration available for #{model_name}"
                 end
             end
-            
+
             # If no names are given try to figure them out 
             if !names || names.empty?
                 if(task_conf.sections.size == 1)
@@ -737,7 +737,7 @@ module Orocos
                 else
                     ["default"]
                 end
-            else names
+            else Array(names)
             end
         end
 
