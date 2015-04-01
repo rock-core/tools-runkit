@@ -631,6 +631,58 @@ describe Orocos::TaskConfigurations do
             assert_kind_of type, result
             assert_equal 42, Typelib.to_ruby(result)
         end
+
+        describe "conversion error handling" do
+            attr_reader :type
+
+            before do
+                registry = Typelib::CXXRegistry.new
+                inner_compound_t = registry.create_compound '/Test' do |c|
+                    c.add 'in_f', '/std/string'
+                end
+                array_t = registry.create_array inner_compound_t, 2
+                @type = registry.create_compound '/OuterTest' do |c|
+                    c.add 'out_f', array_t
+                end
+            end
+
+            it "reports the exact point at which a conversion error occurs" do
+                bad_value = Hash[
+                    'out_f' => Array[
+                        Hash['in_f' => 'string'], Hash['in_f' => 10]
+                    ]
+                ]
+                e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
+                    conf.yaml_value_to_typelib(bad_value, type)
+                end
+                assert_equal %w{.out_f [1] .in_f}, e.full_path
+                assert(/\.out_f\[1\]\.in_f/ === e.message)
+            end
+            it "reports the exact point at which an unknown field has been found" do
+                bad_value = Hash[
+                    'out_f' => Array[
+                        Hash['in_f' => 'string'], Hash['f' => 10]
+                    ]
+                ]
+                e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
+                    conf.yaml_value_to_typelib(bad_value, type)
+                end
+                assert_equal %w{.out_f [1]}, e.full_path
+                assert(/\.out_f\[1\]/ === e.message)
+            end
+            it "validates array sizes" do
+                bad_value = Hash[
+                    'out_f' => Array[
+                        Hash['in_f' => 'string'], Hash['in_f' => 'blo'], Hash['in_f' => 'bla']
+                    ]
+                ]
+                e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
+                    conf.yaml_value_to_typelib(bad_value, type)
+                end
+                assert_equal %w{.out_f}, e.full_path
+                assert(/\.out_f/ === e.message)
+            end
+        end
     end
 end
 

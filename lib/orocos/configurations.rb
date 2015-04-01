@@ -250,15 +250,35 @@ module Orocos
             changed
         end
 
+        # Exception raised when a field in a configuration field cannot be
+        # converted to the requested path
+        class ConversionFailed < ArgumentError
+            # Path to the configuration parameter
+            attr_reader :full_path
+            # The original error
+            attr_reader :original_error
+
+            def initialize(original_error = nil)
+                super()
+                @original_error = original_error
+                @full_path = Array.new
+            end
+        end
+
         def yaml_value_to_typelib(value, value_t)
             if value.kind_of?(Hash)
                 config_from_hash(value, value_t)
             elsif value.respond_to?(:to_ary)
                 config_from_array(value, value_t)
-            elsif value_t <= Typelib::NumericType
-                Typelib.from_ruby(evaluate_numeric_field(value, value_t), value_t)
             else
-                Typelib.from_ruby(value, value_t)
+                begin
+                    if value_t <= Typelib::NumericType
+                        value = TaskConfigurations.evaluate_numeric_field(value, value_t)
+                    end
+                    Typelib.from_ruby(value, value_t)
+                rescue ArgumentError => e
+                    raise ConversionFailed.new(e), e.message, e.backtrace
+                end
             end
         end
 
@@ -271,9 +291,18 @@ module Orocos
         # @return [Object] a properly formatted configuration value based on the
         #   input array
         def config_from_array(array, value_t)
+            if value_t.respond_to?(:length) && value_t.length < array.size
+                raise ConversionFailed, "array too big (got #{array.size} for a maximum of #{value_t.length}"
+            end
+
             element_t = value_t.deference
-            array.map do |value|
-                yaml_value_to_typelib(value, element_t)
+            array.each_with_index.map do |value, i|
+                begin
+                    yaml_value_to_typelib(value, element_t)
+                rescue ConversionFailed => e
+                    e.full_path.unshift "[#{i}]"
+                    raise e, "failed to convert configuration value for #{e.full_path.join("")}", e.backtrace
+                end
             end
         end
 
@@ -291,19 +320,29 @@ module Orocos
             result = Hash.new
             hash.each do |key, value|
                 if base
-                    value_t = base[key]
+                    begin
+                        value_t = base[key]
+                    rescue ArgumentError => e
+                        raise ConversionFailed.new(e), e.message, e.backtrace
+                    end
                 else
                     prop = model.find_property(key)
                     if !prop
-                        raise ArgumentError, "#{key} is not a property of #{model.name}"
+                        raise ConversionFailed, "#{key} is not a property of #{model.name}"
                     end
                     value_t = Orocos.typelib_type_for(prop.type)
                 end
 
+
                 begin
                     result[key] = yaml_value_to_typelib(value, value_t)
-                rescue Exception => e 
-                    raise e, "could not convert value for #{key}: #{e}", e.backtrace
+                rescue ConversionFailed => e
+                    if base
+                        e.full_path.unshift ".#{key}"
+                    else
+                        e.full_path.unshift "#{key}"
+                    end
+                    raise e, "failed to convert configuration value for #{e.full_path.join("")}", e.backtrace
                 end
             end
             result
