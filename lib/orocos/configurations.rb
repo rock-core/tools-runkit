@@ -167,6 +167,64 @@ module Orocos
             raise e, "error loading #{file}: #{e.message}", e.backtrace
         end
 
+        UNITS = Hash[
+            'm' => 1,
+            'N' => 1,
+            'deg' => Math::PI / 180,
+            's' => 1,
+            'g' => 1e-3,
+            'Pa' => 1,
+            'bar' => 100_000]
+        SCALES = Hash[
+            'M' => 1e6,
+            'k' => 1e3,
+            'd' => 1e-1,
+            'c' => 1e-2,
+            'm' => 1e-3,
+            'mu' => 1e-6,
+            'n' => 1e-9,
+            'p' => 1e-12]
+
+        def self.convert_unit_to_SI(expr)
+            unit, power = expr.split('^')
+            power = Integer(power || '1')
+            if unit_to_si = UNITS[unit]
+                return unit_to_si ** power
+            end
+
+            SCALES.each do |prefix, scale|
+                if unit.start_with?(prefix)
+                    if unit_to_si = UNITS[unit[prefix.size..-1]]
+                        return (unit_to_si*scale) ** power
+                    end
+                end
+            end
+            raise ArgumentError, "does not know how to convert #{expr} to SI"
+        end
+
+        def self.evaluate_numeric_field(field, field_type)
+            if field.respond_to?(:to_str)
+                # Extract the value first
+                if field =~ /^([+-]?\d+(?:\.\d+)?(?:e[+-]\d+)?)(.*)/
+                    value, unit = Float($1), $2
+                else
+                    raise ArgumentError, "#{field} does not look like a numeric field"
+                end
+
+                unit = unit.scan(/\.\w+(?:\^-?\d+)?/).inject(1) do |u, unit_expr|
+                    u * convert_unit_to_SI(unit_expr[1..-1])
+                end
+                value = value * unit
+            else
+                value = field
+            end
+
+            if field_type.integer? && value.respond_to?(:round)
+                value.round
+            else value
+            end
+        end
+
         # Add a new configuration section to the configuration set
         #
         # @param [String] name the configuration section name
@@ -192,6 +250,18 @@ module Orocos
             changed
         end
 
+        def yaml_value_to_typelib(value, value_t)
+            if value.kind_of?(Hash)
+                config_from_hash(value, value_t)
+            elsif value.respond_to?(:to_ary)
+                config_from_array(value, value_t)
+            elsif value_t <= Typelib::NumericType
+                Typelib.from_ruby(evaluate_numeric_field(value, value_t), value_t)
+            else
+                Typelib.from_ruby(value, value_t)
+            end
+        end
+
         # Converts an array to a properly formatted configuration value
         #
         # See {#sections} for a description of configuration value formatting
@@ -203,13 +273,7 @@ module Orocos
         def config_from_array(array, value_t)
             element_t = value_t.deference
             array.map do |value|
-                if value.kind_of?(Hash)
-                    config_from_hash(value, element_t)
-                elsif value.respond_to?(:to_ary)
-                    config_from_array(value, element_t)
-                else
-                    Typelib.from_ruby(value, element_t)
-                end
+                yaml_value_to_typelib(value, element_t)
             end
         end
 
@@ -236,20 +300,11 @@ module Orocos
                     value_t = Orocos.typelib_type_for(prop.type)
                 end
 
-                value =
-                    if value.kind_of?(Hash)
-                        config_from_hash(value, value_t)
-                    elsif value.respond_to?(:to_ary)
-                        config_from_array(value, value_t)
-                    else
-			begin
-			    Typelib.from_ruby(value, value_t)
-			rescue Exception => e 
-			    raise ArgumentError, "could not convert value for #{key}. #{e}"
-			end
-                    end
-
-                result[key] = value
+                begin
+                    result[key] = yaml_value_to_typelib(value, value_t)
+                rescue Exception => e 
+                    raise e, "could not convert value for #{key}: #{e}", e.backtrace
+                end
             end
             result
         end

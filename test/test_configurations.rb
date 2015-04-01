@@ -548,6 +548,90 @@ describe Orocos::TaskConfigurations do
                 conf.load_file("/conf/file.yml", "configurations::Task")
         end
     end
+
+    describe "evaluate_numeric_field" do
+        attr_reader :float_t, :int_t
+        before do
+            registry = Typelib::CXXRegistry.new
+            @float_t = registry.get '/float'
+            @int_t   = registry.get '/int'
+        end
+
+        describe "plain values" do
+            it "leaves integer values as-is" do
+                assert_equal 10, TaskConfigurations.evaluate_numeric_field(10, int_t)
+            end
+            it "rounds for integer types" do
+                assert_equal 9, TaskConfigurations.evaluate_numeric_field(9.2, int_t)
+            end
+            it "leaves floating-point values as-is" do
+                assert_in_delta 9.2, TaskConfigurations.evaluate_numeric_field(9.2, float_t), 0.000001
+            end
+        end
+
+        describe "plain values represented as strings" do
+            it "leaves integer values as-is" do
+                assert_equal 10, TaskConfigurations.evaluate_numeric_field('10', int_t)
+            end
+            it "rounds for integer types" do
+                assert_equal 9, TaskConfigurations.evaluate_numeric_field('9.2', int_t)
+            end
+            it "leaves floating-point values as-is" do
+                assert_in_delta 9.2, TaskConfigurations.evaluate_numeric_field('9.2', float_t), 0.000001
+            end
+            it "handles exponent specifications in floating-point values" do
+                assert_in_delta 9.2e-3, TaskConfigurations.evaluate_numeric_field('9.2e-3', float_t), 0.000001
+            end
+        end
+
+        describe "values with units" do
+            it "converts a plain unit to the corresponding SI representation" do
+                assert_in_delta 10 * Math::PI / 180, TaskConfigurations.
+                    evaluate_numeric_field("10.deg", float_t), 0.0001
+            end
+            it "handles power-of-units" do
+                assert_in_delta 10 * (Math::PI / 180) ** 2, TaskConfigurations.
+                    evaluate_numeric_field("10.deg^2", float_t), 0.0001
+            end
+            it "handles unit scales" do
+                assert_in_delta 10 * 0.001 * (Math::PI / 180), TaskConfigurations.
+                    evaluate_numeric_field("10.mdeg", float_t), 0.0001
+            end
+            it "handles full specifications" do
+                assert_in_delta 10 / (0.001 * Math::PI / 180) ** 2 * 0.01 ** 3, TaskConfigurations.
+                    evaluate_numeric_field("10.mdeg^-2.cm^3", float_t), 0.0001
+            end
+        end
+    end
+
+    describe "yaml_value_to_typelib" do
+        it "maps arrays passing on the deference'd type" do
+            type = Orocos.registry.build('/int[5]')
+            result = conf.yaml_value_to_typelib([1, 2, 3, 4, 5], type)
+            result.each do |v|
+                assert_kind_of type.deference, v
+            end
+            assert_equal [1, 2, 3, 4, 5], Typelib.to_ruby(result)
+        end
+        it "maps hashes passing on the field types" do
+            type = Orocos.registry.create_compound '/Test' do |c|
+                c.add 'f0', '/int'
+                c.add 'f1', '/string'
+            end
+            result = conf.yaml_value_to_typelib(Hash['f0' => 1, 'f1' => 'a_string'], type)
+            result.each do |k, v|
+                assert_kind_of type[k], v
+            end
+            assert_equal Hash['f0' => 1, 'f1' => 'a_string'], Typelib.to_ruby(result)
+        end
+        it "converts numerical values using evaluate_numeric_field" do
+            type = Orocos.registry.get '/int'
+            flexmock(Orocos::TaskConfigurations).should_receive(:evaluate_numeric_field).with('42', type).and_return(42).once
+            result = conf.yaml_value_to_typelib('42', type)
+            assert_kind_of type, result
+            assert_equal 42, Typelib.to_ruby(result)
+        end
+    end
 end
 
 class TC_Orocos_Configurations < Minitest::Test
