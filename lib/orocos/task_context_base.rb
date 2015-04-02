@@ -215,6 +215,7 @@ module Orocos
                 options = Kernel.validate_options options, :provides => nil
                 return Orocos.name_service.get_provides(options[:provides].to_str)
             else
+                raise ArgumentError, 'no task name' if options.nil?
                 name = options.to_str
             end
             result = Orocos.name_service.get(name,{:process => process})
