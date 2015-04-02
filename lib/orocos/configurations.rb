@@ -65,6 +65,7 @@ module Orocos
             @model = task_model
             @sections = Hash.new
             @merged_conf = Hash.new
+            @context = Array.new
         end
 
         # Retrieves the configuration for the given section name 
@@ -155,7 +156,11 @@ module Orocos
 
                 conf_options = options[idx].first
                 name = conf_options.delete('name')
-                if add(name, result || Hash.new, conf_options)
+                changed = in_context("while loading section #{name} of #{file}") do
+                    add(name, result || Hash.new, conf_options)
+                end
+
+                if changed
                     changed_sections << name
                 end
             end
@@ -202,25 +207,42 @@ module Orocos
             raise ArgumentError, "does not know how to convert #{expr} to SI"
         end
 
-        def self.evaluate_numeric_field(field, field_type)
+        ROUNDING_MODES = ['ceil', 'floor', 'round']
+
+        def evaluate_numeric_field(field, field_type)
+            rounding_mode = nil
             if field.respond_to?(:to_str)
                 # Extract the value first
-                if field =~ /^([+-]?\d+(?:\.\d+)?(?:e[+-]\d+)?)(.*)/
+                if field =~ /^([+-]?\d+)$/
+                    # This is a plain integer, don't bother and don't annoy the
+                    # user with a float-to-integer rounding mode warning
+                    return Integer(field)
+                elsif field =~ /^([+-]?\d+(?:\.\d+)?(?:e[+-]\d+)?)(.*)/
                     value, unit = Float($1), $2
                 else
                     raise ArgumentError, "#{field} does not look like a numeric field"
                 end
 
                 unit = unit.scan(/\.\w+(?:\^-?\d+)?/).inject(1) do |u, unit_expr|
-                    u * convert_unit_to_SI(unit_expr[1..-1])
+                    unit_name = unit_expr[1..-1]
+                    if ROUNDING_MODES.include?(unit_name)
+                        rounding_mode = unit_name
+                        u
+                    else
+                        u * TaskConfigurations.convert_unit_to_SI(unit_name)
+                    end
                 end
                 value = value * unit
             else
                 value = field
             end
 
-            if field_type.integer? && value.respond_to?(:round)
-                value.round
+            if value.kind_of?(Float) && field_type.integer?
+                if !rounding_mode
+                    ConfigurationManager.warn "#{current_context} #{field} used for an integer field, but no rounding mode specified. Append one of .round, .floor or .ceil. This defaults to .floor"
+                    rounding_mode = :floor
+                end
+                value.send(rounding_mode)
             else value
             end
         end
@@ -273,7 +295,7 @@ module Orocos
             else
                 begin
                     if value_t <= Typelib::NumericType
-                        value = TaskConfigurations.evaluate_numeric_field(value, value_t)
+                        value = evaluate_numeric_field(value, value_t)
                     end
                     Typelib.from_ruby(value, value_t)
                 rescue ArgumentError => e
@@ -594,6 +616,31 @@ module Orocos
             current_config
         end
 
+        # Specifies a string that describes in which context we are currently
+        # loading, for the benefit of warning and error messages.
+        #
+        # @yield within this block, {#current_context} will return the message
+        #   string
+        #
+        # @param [String] msg the context string
+        # @return [Object] the block's return value
+        def in_context(msg)
+            @context << msg
+            yield
+        ensure
+            @context.pop
+        end
+
+        # Returns a string that describes in which context we are currently
+        # loading, for the benefit of warning and error messages
+        #
+        # @see in_context
+        # @return [String] the current context, or an empty string if none has
+        #   been specified with {#in_context}
+        def current_context
+            @context.last || ''
+        end
+
         # Saves the current configuration of task in a file and updates the
         # section in this object
         #
@@ -601,7 +648,9 @@ module Orocos
         # @return (see TaskConfigurations.save)
         def save(task, file, name)
             config_hash = self.class.save(task, file, name)
-            sections[name] = config_from_hash(config_hash)
+            in_context("while saving section #{name} in #{file} from task #{task.name}(#{task.model.name})") do
+                sections[name] = config_from_hash(config_hash)
+            end
         end
 
         # Saves the current configuration of task in a file
@@ -623,7 +672,10 @@ module Orocos
             end
             name ||= task.name
 
-            current_config = config_as_hash(task)
+            current_config = 
+                in_context("while saving section #{name} in #{file} from task #{task.name}(#{task.model.name})") do
+                    config_as_hash(task)
+                end
 
             parts = []
             current_config.keys.sort.each do |property_name|

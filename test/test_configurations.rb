@@ -559,47 +559,54 @@ describe Orocos::TaskConfigurations do
 
         describe "plain values" do
             it "leaves integer values as-is" do
-                assert_equal 10, TaskConfigurations.evaluate_numeric_field(10, int_t)
+                assert_equal 10, conf.evaluate_numeric_field(10, int_t)
             end
-            it "rounds for integer types" do
-                assert_equal 9, TaskConfigurations.evaluate_numeric_field(9.2, int_t)
+            it "floors integer types, but issues a warning" do
+                flexmock(Orocos::ConfigurationManager).should_receive(:warn).once
+                assert_equal 9, conf.evaluate_numeric_field(9.7, int_t)
             end
             it "leaves floating-point values as-is" do
-                assert_in_delta 9.2, TaskConfigurations.evaluate_numeric_field(9.2, float_t), 0.000001
+                assert_in_delta 9.2, conf.evaluate_numeric_field(9.2, float_t), 0.000001
             end
         end
 
         describe "plain values represented as strings" do
             it "leaves integer values as-is" do
-                assert_equal 10, TaskConfigurations.evaluate_numeric_field('10', int_t)
+                assert_equal 10, conf.evaluate_numeric_field('10', int_t)
             end
-            it "rounds for integer types" do
-                assert_equal 9, TaskConfigurations.evaluate_numeric_field('9.2', int_t)
+            it "floors by default for integer types, but emits a warning" do
+                flexmock(Orocos::ConfigurationManager).should_receive(:warn).once
+                assert_equal 9, conf.evaluate_numeric_field('9.7', int_t)
+            end
+            it "allows to specify the rounding mode for integer types" do
+                assert_equal 9, conf.evaluate_numeric_field('9.7.floor', int_t)
+                assert_equal 10, conf.evaluate_numeric_field('9.2.ceil', int_t)
+                assert_equal 10, conf.evaluate_numeric_field('9.7.round', int_t)
             end
             it "leaves floating-point values as-is" do
-                assert_in_delta 9.2, TaskConfigurations.evaluate_numeric_field('9.2', float_t), 0.000001
+                assert_in_delta 9.2, conf.evaluate_numeric_field('9.2', float_t), 0.000001
             end
             it "handles exponent specifications in floating-point values" do
-                assert_in_delta 9.2e-3, TaskConfigurations.evaluate_numeric_field('9.2e-3', float_t), 0.000001
+                assert_in_delta 9.2e-3, conf.evaluate_numeric_field('9.2e-3', float_t), 0.000001
             end
         end
 
         describe "values with units" do
             it "converts a plain unit to the corresponding SI representation" do
-                assert_in_delta 10 * Math::PI / 180, TaskConfigurations.
-                    evaluate_numeric_field("10.deg", float_t), 0.0001
+                assert_in_delta 10 * Math::PI / 180,
+                    conf.evaluate_numeric_field("10.deg", float_t), 0.0001
             end
             it "handles power-of-units" do
-                assert_in_delta 10 * (Math::PI / 180) ** 2, TaskConfigurations.
-                    evaluate_numeric_field("10.deg^2", float_t), 0.0001
+                assert_in_delta 10 * (Math::PI / 180) ** 2,
+                    conf.evaluate_numeric_field("10.deg^2", float_t), 0.0001
             end
             it "handles unit scales" do
-                assert_in_delta 10 * 0.001 * (Math::PI / 180), TaskConfigurations.
-                    evaluate_numeric_field("10.mdeg", float_t), 0.0001
+                assert_in_delta 10 * 0.001 * (Math::PI / 180),
+                    conf.evaluate_numeric_field("10.mdeg", float_t), 0.0001
             end
             it "handles full specifications" do
-                assert_in_delta 10 / (0.001 * Math::PI / 180) ** 2 * 0.01 ** 3, TaskConfigurations.
-                    evaluate_numeric_field("10.mdeg^-2.cm^3", float_t), 0.0001
+                assert_in_delta 10 / (0.001 * Math::PI / 180) ** 2 * 0.01 ** 3,
+                    conf.evaluate_numeric_field("10.mdeg^-2.cm^3", float_t), 0.0001
             end
         end
     end
@@ -626,7 +633,7 @@ describe Orocos::TaskConfigurations do
         end
         it "converts numerical values using evaluate_numeric_field" do
             type = Orocos.registry.get '/int'
-            flexmock(Orocos::TaskConfigurations).should_receive(:evaluate_numeric_field).with('42', type).and_return(42).once
+            flexmock(conf).should_receive(:evaluate_numeric_field).with('42', type).and_return(42).once
             result = conf.yaml_value_to_typelib('42', type)
             assert_kind_of type, result
             assert_equal 42, Typelib.to_ruby(result)
