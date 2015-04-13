@@ -854,6 +854,9 @@ module Orocos
             options, find_options = Kernel.filter_options options, :override => false, :model_name => task.model.name
 
             model_name = options[:model_name]
+            if model_name.nil?
+                raise ArgumentError, "applying configuration on #{task.name} failed. #{task.class} has no model name."
+            end
             task_conf = find_task_configuration_object(task, find_options.merge(:model_name => model_name))
             if names = resolve_requested_configuration_names(model_name, task_conf, names)
                 ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{model_name}"
@@ -872,7 +875,7 @@ module Orocos
                     raise ArgumentError, "no configuration available for #{model_name}"
                 end
             end
-            
+
             # If no names are given try to figure them out 
             if !names || names.empty?
                 if(task_conf.sections.size == 1)
@@ -880,7 +883,7 @@ module Orocos
                 else
                     ["default"]
                 end
-            else names
+            else Array(names)
             end
         end
 
