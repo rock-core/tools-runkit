@@ -433,6 +433,13 @@ module Orocos
             sections.has_key?(name)
         end
 
+        def each_resolved_conf
+            return enum_for(__method__) if !block_given?
+            sections.each_key do |conf_name|
+                yield(conf_name, conf([conf_name]))
+            end
+        end
+
         # Returns the task configuration that is the combination of the
         # named configuration sections
         #
