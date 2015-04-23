@@ -352,7 +352,7 @@ module Orocos
                     if !prop
                         raise ConversionFailed, "#{key} is not a property of #{model.name}"
                     end
-                    value_t = Orocos.typelib_type_for(prop.type)
+                    value_t = model.loader.typelib_type_for(prop.type)
                 end
 
 
@@ -751,8 +751,9 @@ module Orocos
         # @return [{String=>TaskConfigurations}]
         attr_reader :conf
 
-        def initialize
-            @conf = Hash.new
+        def initialize(loader = Orocos.default_loader)
+            @loader = loader
+            @conf   = Hash.new
         end
 
         # Loads all configuration files present in the given directory
@@ -818,7 +819,7 @@ module Orocos
 
             if !model || model.respond_to?(:to_str)
                 model_name = model || File.basename(file, '.yml')
-                model = Orocos.default_loader.task_model_from_name(model_name)
+                model = loader.task_model_from_name(model_name)
             end
 
             ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
