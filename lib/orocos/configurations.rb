@@ -428,6 +428,11 @@ module Orocos
             result
         end
 
+        # Tests whether the given section exists
+        def has_section?(name)
+            sections.has_key?(name)
+        end
+
         # Returns the task configuration that is the combination of the
         # named configuration sections
         #
@@ -672,10 +677,7 @@ module Orocos
             end
             name ||= task.name
 
-            current_config = 
-                in_context("while saving section #{name} in #{file} from task #{task.name}(#{task.model.name})") do
-                    config_as_hash(task)
-                end
+            current_config = config_as_hash(task)
 
             parts = []
             current_config.keys.sort.each do |property_name|

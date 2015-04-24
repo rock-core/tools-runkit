@@ -3,8 +3,6 @@ require 'fakefs/safe'
 
 describe Orocos::TaskConfigurations do
     include Orocos::Spec
-    include Orocos::Test::Mocks
-    TaskConfigurations = Orocos::TaskConfigurations
 
     attr_reader :conf
     attr_reader :model
@@ -12,7 +10,7 @@ describe Orocos::TaskConfigurations do
     def setup
         super
         @model = Orocos.default_loader.task_model_from_name('configurations::Task')
-        @conf  = TaskConfigurations.new(model)
+        @conf  = Orocos::TaskConfigurations.new(model)
     end
 
     def verify_loaded_conf(conf, name = nil, *base_path)
@@ -691,10 +689,58 @@ describe Orocos::TaskConfigurations do
             end
         end
     end
+
+    describe ".save" do
+        attr_reader :task
+        before do
+            model = Orocos.default_loader.task_model_from_name('configurations::Task')
+            start 'configurations::Task' => 'task'
+            @task = Orocos.get 'task'
+            # We must load all properties before we activate FakeFS
+            task.each_property do |p|
+                v = p.new_sample
+                v.zero!
+                p.write v
+            end
+            FakeFS.activate!
+        end
+        after do
+            FakeFS.deactivate!
+            FakeFS::FileSystem.clear
+        end
+
+        it "saves the task's configuration file into the specified file and section" do
+            Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec')
+            conf.load_from_yaml '/conf.yml'
+            c = conf.conf(['sec'])
+            task.each_property do |p|
+                expected = p.raw_read
+                value = Typelib.from_ruby(c[p.name], p.type)
+                if expected != value
+                    type_diff(expected, value)
+                end
+                assert(expected == value, "mismatch for #{p.name} (#{p.type.name})")
+            end
+        end
+        it "adds the property's documentation to the saved file" do
+            task.model.find_property('enm').doc('this is a documentation string')
+            Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec')
+            data = File.readlines('/conf.yml')
+            _, idx = data.each_with_index.find { |line| line.strip == "# this is a documentation string" }
+            assert_equal "enm:", data[idx + 1].strip
+        end
+        it "appends the documentation to an existing file" do
+            Orocos::TaskConfigurations.save(task, '/conf.yml', 'first')
+            Orocos::TaskConfigurations.save(task, '/conf.yml', 'second')
+            conf.load_from_yaml '/conf.yml'
+            assert conf.has_section?('first')
+            assert conf.has_section?('second')
+        end
+    end
 end
 
 class TC_Orocos_Configurations < Minitest::Test
-    include Orocos::Test
+    TaskConfigurations = Orocos::TaskConfigurations
 
     def setup
         super
