@@ -1,5 +1,7 @@
 require 'stringio'
 require 'yaml'
+require 'utilrb/hash/map_key'
+
 module Orocos
     # Class handling multiple possible configuration for a single task
     #
@@ -127,14 +129,21 @@ module Orocos
                         raise ArgumentError, "#{file}:#{line_number}: wrong format #{opt}, expected option_name:value, where 'value' has no spaces"
                     end
                 end
-                line_options['merge'] = (line_options['merge'] == 'true')
-                line_options['chain'] = (line_options['chain'] || '').split(',')
-                [line_options, line_number]
+
+                section_options = Hash[
+                    name: line_options.delete('name'),
+                    merge: (line_options.delete('merge') == 'true'),
+                    chain: (line_options.delete('chain') || '').split(',')]
+                if !line_options.empty?
+                    ConfigurationManager.warn "unrecognized options #{line_options.keys.sort.join(", ")} in #{file}"
+                end
+                    
+                [section_options, line_number]
             end
-            options[0][0]['name'] ||= 'default'
+            options[0][0][:name] ||= 'default'
 
             options.each do |line_options, line_number|
-                if !line_options['name']
+                if !line_options[:name]
                     raise ArgumentError, "#{file}:#{line_number}: missing a 'name' option"
                 end
             end
@@ -152,12 +161,13 @@ module Orocos
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
-                result = YAML.load(StringIO.new(doc))
-
+                result = config_from_hash(YAML.load(StringIO.new(doc)) || Hash.new)
                 conf_options = options[idx].first
-                name = conf_options.delete('name')
+                name  = conf_options.delete(:name)
+                chain = conf(conf_options.delete(:chain), true)
+                result = Orocos::TaskConfigurations.merge_conf(result, chain, true)
                 changed = in_context("while loading section #{name} of #{file}") do
-                    add(name, result || Hash.new, conf_options)
+                    add(name, result, **conf_options)
                 end
 
                 if changed
@@ -250,27 +260,48 @@ module Orocos
         # Add a new configuration section to the configuration set
         #
         # @param [String] name the configuration section name
-        # @param [Object] conf the configuration data. See {#sections} for a
-        #   description of its formatting
-        # @param [Hash] options the options of this configuration section
-        def add(name, conf, options = Hash.new)
-            options = Kernel.validate_options options,
-                :merge => true, :chain => nil
-
+        # @param [{String=>Object}] conf the configuration data, as either a
+        #   mapping from property names to property values, or property names to
+        #   plain Ruby objects. It gets passed to {config_from_hash}.
+        # @param [Boolean] merge if true, the configuration will be merged with
+        #   an existing section that has the same name (if there is one)
+        # @return [Boolean] true if the configuration changed, and false
+        #   otherwise
+        # @see extract
+        def add(name, conf, merge: true)
             conf = config_from_hash(conf)
 
             changed = false
             if self.sections[name]
-                if options[:merge]
+                if merge
                     conf = TaskConfigurations.merge_conf(self.sections[name], conf, true)
                 end
-                changed = changed || self.sections[name] != conf
+                changed = self.sections[name] != conf
             else
                 changed = true
             end
             self.sections[name] = conf
             changed
         end
+
+        # Extract configuration from a task object and save it as a section in self
+        #
+        # @param [#each_property] task the task. #each_property must yield
+        #   objects which respond to #raw_read, this method returning a Typelib
+        #   value.
+        # @param [String] section_name the section name. If one already exists
+        #   with that name it is overriden
+        # @param [Boolean] merge if true, the configuration will be merged with
+        #   an existing section that has the same name (if there is one)
+        # @return [Boolean] true if the configuration changed, and false
+        #   otherwise
+        # @see add
+        def extract(name, task, merge: true)
+            in_context("while saving section #{name} from task #{task.name}(#{task.model.name})") do
+                add(name, config_from_hash(TaskConfigurations.config_as_hash(task)), merge: merge)
+            end
+        end
+
 
         # Exception raised when a field in a configuration field cannot be
         # converted to the requested path
@@ -481,7 +512,9 @@ module Orocos
         # returns { 'threshold' => 20, 'speed' => 1 }
         def conf(names, override = false)
             names = Array(names)
-            if names.size == 1
+            if names.empty?
+                return Hash.new
+            elsif names.size == 1
                 return sections[names.first]
             elsif cached = @merged_conf[[names, override]]
                 return cached
@@ -654,16 +687,31 @@ module Orocos
             @context.last || ''
         end
 
-        # Saves the current configuration of task in a file and updates the
-        # section in this object
+        # Save a configuration section to disk
         #
-        # @param (see TaskConfigurations.save)
-        # @return (see TaskConfigurations.save)
-        def save(task, file, name)
-            config_hash = self.class.save(task, file, name)
-            in_context("while saving section #{name} in #{file} from task #{task.name}(#{task.model.name})") do
-                sections[name] = config_from_hash(config_hash)
+        # @overload save(section_name, file)
+        #   @param [String] section_name the section name
+        #   @param [String] file either a file, or a directory. In the latter
+        #     case, the file will be #{conf_dir}/#{model.name}.yml
+        #   @return [Hash] the configuration section that just got saved
+        #
+        # @overload save(task, file, section_name)
+        #   @deprecated use {#extract} and {#save} instead
+        #
+        def save(*args)
+            if !args.first.respond_to?(:to_str)
+                Orocos.warn "save(task, file, name) is deprecated, use a combination of #extract and #save(name, file) instead"
+                task, file, name = *args
+                extract(name, task)
+                return save(name, file, task_model: task.model)
             end
+
+            section_name, file, options = *args
+            options ||= Hash.new
+            task_model = options[:task_model] || self.model
+            conf = conf(section_name)
+            self.class.save(conf, file, section_name, task_model: task_model)
+            conf
         end
 
         # Saves the current configuration of task in a file
@@ -677,26 +725,39 @@ module Orocos
         # @return [Hash] the task configuration in YAML representation, as
         #   returned by {.config_as_hash}
         # @see TaskConfigurations#save
-        def self.save(task, file, name)
-            if File.directory?(file)
-                file = File.join(file, "#{task.model.name}.yml")
+        def self.save(task, file, name, task_model: nil)
+            if task.respond_to?(:each_property)
+                task_model ||= task.model
+                name ||= task.name
+                current_config = config_as_hash(task)
             else
-                FileUtils.mkdir_p(File.dirname(file))
+                current_config = task.to_hash
+                task_model ||= OroGen::Spec::TaskContext.blank
             end
-            name ||= task.name
+            save_config_as_hash(current_config.to_hash, file, name, task_model: task_model)
+            current_config
+        end
 
-            current_config = config_as_hash(task)
+        # @api private
+        #
+        # Helper for {.save}
+        def self.save_config_as_hash(config, file, name, task_model: OroGen::Spec::TaskContext.blank)
+            if File.directory?(file)
+                if !task_model.name
+                    raise ArgumentError, "#{file} is a directory and the given model has no name"
+                end
+                file = File.join(file, "#{task_model.name}.yml")
+            end
 
             parts = []
-            current_config.keys.sort.each do |property_name|
-                doc = task.model.find_property(property_name).doc
-                if doc
+            config.keys.sort.each do |property_name|
+                if (p = task_model.find_property(property_name)) && (doc = p.doc)
                     parts << doc.split("\n").map { |s| "# #{s}" }.join("\n")
                 else
                     parts << "# no documentation available for this property"
                 end
 
-                property_hash = { property_name => current_config[property_name] }
+                property_hash = { property_name => config[property_name] }
                 yaml = YAML.dump(property_hash)
                 parts << yaml.split("\n")[1..-1].join("\n")
             end
@@ -706,7 +767,6 @@ module Orocos
                 io.write(parts.join("\n"))
                 io.puts
             end
-            current_config
         end
     end
 

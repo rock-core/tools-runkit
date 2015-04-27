@@ -690,51 +690,159 @@ describe Orocos::TaskConfigurations do
         end
     end
 
-    describe ".save" do
-        attr_reader :task
-        before do
-            model = Orocos.default_loader.task_model_from_name('configurations::Task')
-            start 'configurations::Task' => 'task'
-            @task = Orocos.get 'task'
-            # We must load all properties before we activate FakeFS
-            task.each_property do |p|
-                v = p.new_sample
-                v.zero!
-                p.write v
+    describe "#save" do
+        describe "#save(task)" do
+            attr_reader :task
+            before do
+                start 'configurations::Task' => 'task'
+                @task = Orocos.get 'task'
+                # We must load all properties before we activate FakeFS
+                task.each_property do |p|
+                    v = p.new_sample
+                    v.zero!
+                    p.write v
+                end
+                flexmock(conf).should_receive(:save).
+                    with(task, FlexMock.any, FlexMock.any).
+                    pass_thru
             end
-            FakeFS.activate!
+
+            it "warns about deprecation" do
+                flexmock(Orocos).should_receive(:warn).once
+                flexmock(conf).should_receive(:save).
+                    with('sec', FlexMock.any, FlexMock.any).
+                    once
+                conf.save(task, '/conf.yml', 'sec')
+            end
+
+            it "extracts the task's configuration and saves it to disk" do
+                flexmock(Orocos).should_receive(:warn)
+                expected_conf = conf.config_from_hash(Orocos::TaskConfigurations.config_as_hash(task))
+                flexmock(conf).should_receive(:save).
+                    with('sec', '/conf.yml', task_model: task.model).
+                    once.
+                    and_return(ret = flexmock)
+                assert_same ret, conf.save(task, '/conf.yml', 'sec')
+                assert_equal expected_conf, conf.conf('sec')
+            end
         end
-        after do
-            FakeFS.deactivate!
-            FakeFS::FileSystem.clear
+        
+        describe "#save(name, file)" do
+            attr_reader :section
+            before do
+                @section = Hash['enm' => 'First']
+                conf.add 'sec', section
+            end
+            it "saves the named configuration to disk" do
+                flexmock(Orocos::TaskConfigurations).should_receive(:save).
+                    with(conf.conf('sec'), '/conf.yml', 'sec', task_model: conf.model).
+                    once
+                conf.save('sec', '/conf.yml')
+            end
+            it "allows to override the model" do
+                task_model = flexmock
+                flexmock(Orocos::TaskConfigurations).should_receive(:save).
+                    with(conf.conf('sec'), '/conf.yml', 'sec', task_model: task_model).
+                    once
+                conf.save('sec', '/conf.yml', task_model: task_model)
+            end
+        end
+    end
+
+    describe ".save" do
+        describe ".save(task)" do
+            attr_reader :task
+            before do
+                start 'configurations::Task' => 'task'
+                @task = Orocos.get 'task'
+                # We must load all properties before we activate FakeFS
+                task.each_property do |p|
+                    v = p.new_sample
+                    v.zero!
+                    p.write v
+                end
+            end
+
+            it "extracts the configuration from the task and saves it" do
+                expected = Orocos::TaskConfigurations.config_as_hash(task)
+                flexmock(Orocos::TaskConfigurations).
+                    should_receive(:save_config_as_hash).once.
+                    with(expected, '/conf.yml', 'sec', task_model: task.model)
+                Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec', task_model: task.model)
+            end
+            it "allows to override the task's model" do
+                expected = Orocos::TaskConfigurations.config_as_hash(task)
+                model = flexmock
+                flexmock(Orocos::TaskConfigurations).
+                    should_receive(:save_config_as_hash).once.
+                    with(expected, '/conf.yml', 'sec', task_model: model)
+                Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec', task_model: model)
+            end
+            it "uses the model's name as default file name" do
+                expected = Orocos::TaskConfigurations.config_as_hash(task)
+                conf_dir = File.expand_path(File.join('conf', 'dir'))
+                expected_filename = File.join(conf_dir, "#{task.model.name}.yml")
+
+                flexmock(Orocos::TaskConfigurations).
+                    should_receive(:save_config_as_hash).once.
+                    with(expected, expected_filename, 'sec', task_model: model)
+
+                begin
+                    FakeFS.activate!
+                    FileUtils.mkdir_p conf_dir
+                    Orocos::TaskConfigurations.save(task, expected_filename, 'sec', task_model: model)
+                ensure
+                    FakeFS.deactivate!
+                    FakeFS::FileSystem.clear
+                end
+            end
         end
 
-        it "saves the task's configuration file into the specified file and section" do
-            Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec')
-            conf.load_from_yaml '/conf.yml'
-            c = conf.conf(['sec'])
-            task.each_property do |p|
-                expected = p.raw_read
-                value = Typelib.from_ruby(c[p.name], p.type)
-                if expected != value
-                    type_diff(expected, value)
-                end
-                assert(expected == value, "mismatch for #{p.name} (#{p.type.name})")
+        describe ".save(config)" do
+            before do
+                FakeFS.activate!
             end
-        end
-        it "adds the property's documentation to the saved file" do
-            task.model.find_property('enm').doc('this is a documentation string')
-            Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec')
-            data = File.readlines('/conf.yml')
-            _, idx = data.each_with_index.find { |line| line.strip == "# this is a documentation string" }
-            assert_equal "enm:", data[idx + 1].strip
-        end
-        it "appends the documentation to an existing file" do
-            Orocos::TaskConfigurations.save(task, '/conf.yml', 'first')
-            Orocos::TaskConfigurations.save(task, '/conf.yml', 'second')
-            conf.load_from_yaml '/conf.yml'
-            assert conf.has_section?('first')
-            assert conf.has_section?('second')
+            after do
+                FakeFS.deactivate!
+                FakeFS::FileSystem.clear
+            end
+
+            it "saves the task's configuration file into the specified file and section" do
+                config = Hash['enm' => 'First']
+                Orocos::TaskConfigurations.save(config, '/conf.yml', 'sec')
+                conf.load_from_yaml '/conf.yml'
+                c = conf.conf(['sec'])
+                assert(c.keys == ['enm'])
+                assert(:First == Typelib.to_ruby(c['enm']), "mismatch: #{config} != #{c}")
+            end
+            it "adds the property's documentation to the saved file" do
+                model.find_property('enm').doc('this is a documentation string')
+                config = Hash['enm' => 'First']
+                Orocos::TaskConfigurations.save(config, '/conf.yml', 'sec', task_model: model)
+                data = File.readlines('/conf.yml')
+                _, idx = data.each_with_index.find { |line, idx| line.strip == "# this is a documentation string" }
+                assert data[idx + 1].strip =~ /^enm:/
+            end
+            it "appends the documentation to an existing file" do
+                config = Hash['enm' => 'First']
+                Orocos::TaskConfigurations.save(config, '/conf.yml', 'first')
+                Orocos::TaskConfigurations.save(config, '/conf.yml', 'second')
+                conf.load_from_yaml '/conf.yml'
+                assert conf.has_section?('first')
+                assert conf.has_section?('second')
+            end
+            it "uses the model's name as default file name" do
+                config = Hash['enm' => :First]
+                conf_dir = File.expand_path(File.join('conf', 'dir'))
+                model = OroGen::Spec::TaskContext.blank('model::Name')
+                expected_filename = File.join(conf_dir, "#{model.name}.yml")
+
+                FileUtils.mkdir_p conf_dir
+                Orocos::TaskConfigurations.save(config, expected_filename, 'sec', task_model: model)
+                conf.load_from_yaml expected_filename
+                enm = Typelib.to_ruby(conf.conf('sec')['enm'])
+                assert(Typelib.to_ruby(enm) == :First)
+            end
         end
     end
 end
