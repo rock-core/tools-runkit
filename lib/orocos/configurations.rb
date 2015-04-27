@@ -714,34 +714,58 @@ module Orocos
             conf
         end
 
-        # Saves the current configuration of task in a file
+        # Converts a hash of property names to typelib values to a hash that can
+        # be marshalled in YAML
         #
-        # @param [TaskContext] task the task whose configuration is to be saved
-        # @param [String] file either a file or a directory. If it is a
-        #   directory, the generated file will be named based on the task's
-        #   model name
-        # @param [String,nil] name the name of the new section. If nil is given,
-        #   defaults to task.name 
-        # @return [Hash] the task configuration in YAML representation, as
-        #   returned by {.config_as_hash}
-        # @see TaskConfigurations#save
-        def self.save(task, file, name, task_model: nil)
-            if task.respond_to?(:each_property)
-                task_model ||= task.model
-                name ||= task.name
-                current_config = config_as_hash(task)
+        # @param [Hash] config the configuration
+        # @return [Hash]
+        def self.config_to_yaml(config)
+            config.map_value do |_, v|
+                typelib_to_yaml_value(v)
+            end
+        end
+
+        # Saves a configuration section to a file
+        #
+        # @overload save(conf, file, name)
+        #   @param [Hash] config the configuration section that should be saved,
+        #     either as a hash of plain Ruby objects, or as a mapping from
+        #     property names to typelib values
+        #   @param [String] file either a file or a directory. If it is a
+        #     directory, the generated file will be named based on the task's
+        #     model name
+        #   @param [String,nil] name the name of the new section
+        #   @param [TaskContext] task_model if given, the property's
+        #     documentation stored in this model are added before each property
+        #   @return [Hash] the task configuration in YAML representation, as
+        #     returned by {.config_as_hash}
+        #
+        # @overload save(task, file, name)
+        #   @param [TaskContext] task the task whose configuration is to be saved
+        #   @param [String] file either a file or a directory. If it is a
+        #     directory, the generated file will be named based on the task's
+        #     model name
+        #   @param [String,nil] name the name of the new section. If nil is given,
+        #     defaults to task.name 
+        #   @return [Hash] the task configuration in YAML representation, as
+        #     returned by {.config_as_hash}
+        def self.save(config, file, name, task_model: nil)
+            if config.respond_to?(:each_property)
+                task_model ||= config.model
+                name ||= config.name
+                config = config_as_hash(config)
             else
-                current_config = task.to_hash
                 task_model ||= OroGen::Spec::TaskContext.blank
             end
-            save_config_as_hash(current_config.to_hash, file, name, task_model: task_model)
-            current_config
+            save_config_as_hash(config, file, name, task_model: task_model)
         end
 
         # @api private
         #
         # Helper for {.save}
         def self.save_config_as_hash(config, file, name, task_model: OroGen::Spec::TaskContext.blank)
+            config = config_to_yaml(config)
+
             if File.directory?(file)
                 if !task_model.name
                     raise ArgumentError, "#{file} is a directory and the given model has no name"
@@ -769,6 +793,7 @@ module Orocos
                 io.write(parts.join("\n"))
                 io.puts
             end
+            config
         end
     end
 

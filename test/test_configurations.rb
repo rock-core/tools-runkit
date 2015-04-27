@@ -812,6 +812,14 @@ describe Orocos::TaskConfigurations do
                 Orocos::TaskConfigurations.save(config, '/config/conf.yml', 'sec')
                 assert File.directory?('/config')
             end
+            it "sanitizes the configuration using config_to_yaml" do
+                config = flexmock
+                actual_config = Hash['enm' => 'First']
+                flexmock(Orocos::TaskConfigurations).should_receive(:config_to_yaml).
+                    with(config).and_return(actual_config)
+                Orocos::TaskConfigurations.save(config, '/config/conf.yml', 'sec')
+                assert_equal actual_config, YAML.load(File.readlines('/config/conf.yml')[1..-1].join("\n"))
+            end
             it "saves the task's configuration file into the specified file and section" do
                 config = Hash['enm' => 'First']
                 Orocos::TaskConfigurations.save(config, '/conf.yml', 'sec')
