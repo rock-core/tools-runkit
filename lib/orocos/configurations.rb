@@ -480,6 +480,7 @@ module Orocos
         #
         # returns { 'threshold' => 20, 'speed' => 1 }
         def conf(names, override = false)
+            names = Array(names)
             if names.size == 1
                 return sections[names.first]
             elsif cached = @merged_conf[[names, override]]
