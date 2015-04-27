@@ -746,6 +746,8 @@ module Orocos
         extend Logger::Forward
         extend Logger::Hierarchy
 
+        attr_reader :loader
+
         # A mapping from the task model names to the corresponding
         # {TaskConfigurations} object
         #
