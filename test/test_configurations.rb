@@ -807,6 +807,11 @@ describe Orocos::TaskConfigurations do
                 FakeFS::FileSystem.clear
             end
 
+            it "creates the target directory" do
+                config = Hash['enm' => 'First']
+                Orocos::TaskConfigurations.save(config, '/config/conf.yml', 'sec')
+                assert File.directory?('/config')
+            end
             it "saves the task's configuration file into the specified file and section" do
                 config = Hash['enm' => 'First']
                 Orocos::TaskConfigurations.save(config, '/conf.yml', 'sec')

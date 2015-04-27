@@ -747,6 +747,8 @@ module Orocos
                     raise ArgumentError, "#{file} is a directory and the given model has no name"
                 end
                 file = File.join(file, "#{task_model.name}.yml")
+            else
+                FileUtils.mkdir_p(File.dirname(file))
             end
 
             parts = []
