@@ -207,112 +207,132 @@ describe Orocos::TaskConfigurations do
         end
     end
 
-    it "should be able to merge configuration structures" do
-        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
-        result = conf.conf(['default', 'add'], false)
-        verify_loaded_conf result do
-            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
-            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
+    describe "#conf" do
+        it "merges configuration structures" do
+            conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
+            result = conf.conf(['default', 'add'], false)
+            verify_loaded_conf result do
+                assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
+            end
+            verify_loaded_conf result, 'compound' do
+                assert_conf_value 'compound', 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 'compound', 'intg', "/int32_t", Typelib::NumericType, 30
+                assert_conf_value 'vector_of_compound', 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 'vector_of_compound', 0, 'intg', "/int32_t", Typelib::NumericType, 10
+                assert_conf_value 'vector_of_compound', 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 'array_of_vector_of_compound', 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 'array_of_vector_of_compound', 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
+                assert_conf_value 'array_of_vector_of_compound', 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 'array_of_vector_of_compound', 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 'array_of_vector_of_compound', 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 'array_of_vector_of_compound', 1, 0, 'intg', "/int32_t", Typelib::NumericType, 12
+                assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
+            end
         end
-        verify_loaded_conf result, 'compound' do
-            assert_conf_value 'compound', 'enm', "/Enumeration", Typelib::EnumType, :Third
-            assert_conf_value 'compound', 'intg', "/int32_t", Typelib::NumericType, 30
-            assert_conf_value 'vector_of_compound', 0, 'enm', "/Enumeration", Typelib::EnumType, :First
-            assert_conf_value 'vector_of_compound', 0, 'intg', "/int32_t", Typelib::NumericType, 10
-            assert_conf_value 'vector_of_compound', 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
-            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
-            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
-            assert_conf_value 'array_of_vector_of_compound', 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
-            assert_conf_value 'array_of_vector_of_compound', 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
-            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
-            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'intg', "/int32_t", Typelib::NumericType, 12
-            assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
+
+        it "merge without overrides should have the same result than with if no conflicts exist" do
+            conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
+            result = conf.conf(['default', 'add'], false)
+            result_with_override = conf.conf(['default', 'add'], true)
+            assert_equal result, result_with_override
+        end
+
+        it "raises ArgumentError if conflicts exist and override is false" do
+            conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
+            # Make sure that nothing is raised if override is false
+            conf.conf(['default', 'override'], true)
+            assert_raises(ArgumentError) { conf.conf(['default', 'override'], false) }
+        end
+
+        it "takes values from the last section if conflicts exist and override is true" do
+            conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
+            result = conf.conf(['default', 'override'], true)
+
+            verify_loaded_conf result do
+                assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 25
+            end
+            verify_loaded_conf result, 'compound' do
+                assert_conf_value 'compound', 'intg', "/int32_t", Typelib::NumericType, 30
+                assert_conf_value 'vector_of_compound', 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 'vector_of_compound', 0, 'intg', "/int32_t", Typelib::NumericType, 42
+                assert_conf_value 'vector_of_compound', 1, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 'vector_of_compound', 1, 'intg', "/int32_t", Typelib::NumericType, 22
+                assert_conf_value 'array_of_vector_of_compound', 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 'array_of_vector_of_compound', 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
+                assert_conf_value 'array_of_vector_of_compound', 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 'array_of_vector_of_compound', 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
+                assert_conf_value 'array_of_vector_of_compound', 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 'array_of_vector_of_compound', 1, 0, 'intg', "/int32_t", Typelib::NumericType, 11
+                assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
+            end
         end
     end
 
-    it "merge without overrides should have the same result than with if no conflicts exist" do
-        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
-        result = conf.conf(['default', 'add'], false)
-        result_with_override = conf.conf(['default', 'add'], true)
-        assert_equal result, result_with_override
-    end
-
-    it "should be able to detect invalid overridden values" do
-        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
-        # Make sure that nothing is raised if override is false
-        conf.conf(['default', 'override'], true)
-        assert_raises(ArgumentError) { conf.conf(['default', 'override'], false) }
-    end
-
-    it "should be able to merge with overrides" do
-        conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
-        result = conf.conf(['default', 'override'], true)
-
-        verify_loaded_conf result do
-            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 25
-        end
-        verify_loaded_conf result, 'compound' do
-            assert_conf_value 'compound', 'intg', "/int32_t", Typelib::NumericType, 30
-            assert_conf_value 'vector_of_compound', 0, 'enm', "/Enumeration", Typelib::EnumType, :First
-            assert_conf_value 'vector_of_compound', 0, 'intg', "/int32_t", Typelib::NumericType, 42
-            assert_conf_value 'vector_of_compound', 1, 'enm', "/Enumeration", Typelib::EnumType, :Third
-            assert_conf_value 'vector_of_compound', 1, 'intg', "/int32_t", Typelib::NumericType, 22
-            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
-            assert_conf_value 'array_of_vector_of_compound', 0, 0, 'intg', "/int32_t", Typelib::NumericType, 10
-            assert_conf_value 'array_of_vector_of_compound', 0, 1, 'enm', "/Enumeration", Typelib::EnumType, :Second
-            assert_conf_value 'array_of_vector_of_compound', 0, 2, 'enm', "/Enumeration", Typelib::EnumType, :Third
-            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'enm', "/Enumeration", Typelib::EnumType, :First
-            assert_conf_value 'array_of_vector_of_compound', 1, 0, 'intg', "/int32_t", Typelib::NumericType, 11
-            assert_conf_value 'array_of_vector_of_compound', 2, 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
+    describe "#conf_as_ruby" do
+        it "converts the configuration to a name-to-ruby value mapping" do
+            conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
+            result = conf.conf_as_ruby(['default', 'add'], override: false)
+            assert_same :First, result['enm']
         end
     end
+
+    describe "#conf_as_typelib" do
+        it "converts the configuration to a name-to-typelib value mapping" do
+            conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
+            result = conf.conf_as_typelib(['default', 'add'], override: false)
+            assert_equal '/Enumeration', result['enm'].class.name
+            assert_equal :First, Typelib.to_ruby(result['enm'])
+        end
+    end
+
 
     it "should be able to apply simple configurations on the task" do
         conf.load_from_yaml(File.join(data_dir, 'configurations', 'base_config.yml'))
-        Orocos.run "configurations_test" do
-            task = Orocos::TaskContext.get "configurations"
 
-            assert_equal (0...10).to_a, task.simple_container.to_a
-            assert_equal :First, task.compound.enm
-            simple_array = task.compound.simple_array.to_a
-            simple_container = task.simple_container.to_a
+        start 'configurations::Task' => 'configurations'
+        task = Orocos.get "configurations"
 
-            conf.apply(task, 'default')
+        assert_equal (0...10).to_a, task.simple_container.to_a
+        assert_equal :First, task.compound.enm
+        simple_array = task.compound.simple_array.to_a
+        simple_container = task.simple_container.to_a
 
-            assert_equal (0...10).to_a, task.simple_container.to_a
-            assert_equal :First, task.compound.enm
-            verify_applied_conf task do
-                assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
-                assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
-                assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test"
-                assert_conf_value 'fp', '/double', Typelib::NumericType, 0.1
+        conf.apply(task, 'default')
+
+        assert_equal (0...10).to_a, task.simple_container.to_a
+        assert_equal :First, task.compound.enm
+        verify_applied_conf task do
+            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
+            assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test"
+            assert_conf_value 'fp', '/double', Typelib::NumericType, 0.1
+        end
+
+
+        conf.apply(task, ['default', 'compound'])
+        verify_applied_conf task do
+            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
+            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
+            assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test"
+            assert_conf_value 'fp', '/double', Typelib::NumericType, 0.1
+        end
+        simple_array[0, 3] = [1, 2, 3]
+        verify_applied_conf task, 'compound' do
+            assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :Second
+            assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 30
+            assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test2"
+            assert_conf_value 'fp', '/double', Typelib::NumericType, 0.2
+            assert_conf_value 'simple_array', '/int32_t[10]', Typelib::ArrayType, simple_array do |v|
+                v.to_a
             end
+        end
 
-
-            conf.apply(task, ['default', 'compound'])
-            verify_applied_conf task do
-                assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :First
-                assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 20
-                assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test"
-                assert_conf_value 'fp', '/double', Typelib::NumericType, 0.1
-            end
-            simple_array[0, 3] = [1, 2, 3]
-            verify_applied_conf task, 'compound' do
-                assert_conf_value 'enm', "/Enumeration", Typelib::EnumType, :Second
-                assert_conf_value 'intg', "/int32_t", Typelib::NumericType, 30
-                assert_conf_value 'str', "/std/string", Typelib::ContainerType, "test2"
-                assert_conf_value 'fp', '/double', Typelib::NumericType, 0.2
-                assert_conf_value 'simple_array', '/int32_t[10]', Typelib::ArrayType, simple_array do |v|
-                    v.to_a
-                end
-            end
-
-            conf.apply(task, ['default', 'compound', 'simple_container'])
-            simple_container[0, 3] = [10, 20, 30]
-            verify_applied_conf task do
-                assert_conf_value 'simple_container', '/std/vector</int32_t>', Typelib::ContainerType, simple_container do |v|
-                    v.to_a
-                end
+        conf.apply(task, ['default', 'compound', 'simple_container'])
+        simple_container[0, 3] = [10, 20, 30]
+        verify_applied_conf task do
+            assert_conf_value 'simple_container', '/std/vector</int32_t>', Typelib::ContainerType, simple_container do |v|
+                v.to_a
             end
         end
     end
@@ -428,7 +448,7 @@ describe Orocos::TaskConfigurations do
         end
     end
 
-    describe "typelib_from_yaml_array" do
+    describe "apply_conf_on_typelib_value" do
         attr_reader :array_t, :vector_t
         before do
             registry = Typelib::CXXRegistry.new
@@ -438,7 +458,7 @@ describe Orocos::TaskConfigurations do
 
         it "should resize a smaller container" do
             vector = vector_t.new
-            Orocos::TaskConfigurations.typelib_from_yaml_array(vector, [1, 2, 3])
+            Orocos::TaskConfigurations.apply_conf_on_typelib_value(vector, [1, 2, 3])
             assert_equal 3, vector.size
             assert_equal 1, vector[0]
             assert_equal 2, vector[1]
@@ -446,21 +466,21 @@ describe Orocos::TaskConfigurations do
         end
         it "should keep a bigger container to its current size" do
             vector = Typelib.from_ruby([1, 2], vector_t)
-            Orocos::TaskConfigurations.typelib_from_yaml_array(vector, [-1])
+            Orocos::TaskConfigurations.apply_conf_on_typelib_value(vector, [-1])
             assert_equal 2, vector.size
             assert_equal -1, vector[0]
             assert_equal 2, vector[1]
         end
         it "should only set the relevant values on a bigger array" do
             array = Typelib.from_ruby([1, 2], array_t)
-            Orocos::TaskConfigurations.typelib_from_yaml_array(array, [-1])
+            Orocos::TaskConfigurations.apply_conf_on_typelib_value(array, [-1])
             assert_equal -1, array[0]
             assert_equal 2, array[1]
         end
         it "should raise ArgumentError if the array is too small" do
             array = Typelib.from_ruby([1, 2], array_t)
             assert_raises(ArgumentError) do
-                Orocos::TaskConfigurations.typelib_from_yaml_array(array, [0, 1, 2])
+                Orocos::TaskConfigurations.apply_conf_on_typelib_value(array, [0, 1, 2])
             end
         end
     end
@@ -609,30 +629,35 @@ describe Orocos::TaskConfigurations do
         end
     end
 
-    describe "yaml_value_to_typelib" do
+    describe "normalize_conf_value" do
+        attr_reader :registry
+        before do
+            @registry = Typelib::CXXRegistry.new
+        end
+
         it "maps arrays passing on the deference'd type" do
-            type = Orocos.registry.build('/int[5]')
-            result = conf.yaml_value_to_typelib([1, 2, 3, 4, 5], type)
+            type = registry.build('/int[5]')
+            result = conf.normalize_conf_value([1, 2, 3, 4, 5], type)
             result.each do |v|
                 assert_kind_of type.deference, v
             end
             assert_equal [1, 2, 3, 4, 5], Typelib.to_ruby(result)
         end
         it "maps hashes passing on the field types" do
-            type = Orocos.registry.create_compound '/Test' do |c|
+            type = registry.create_compound '/Test' do |c|
                 c.add 'f0', '/int'
-                c.add 'f1', '/string'
+                c.add 'f1', '/std/string'
             end
-            result = conf.yaml_value_to_typelib(Hash['f0' => 1, 'f1' => 'a_string'], type)
+            result = conf.normalize_conf_value(Hash['f0' => 1, 'f1' => 'a_string'], type)
             result.each do |k, v|
                 assert_kind_of type[k], v
             end
             assert_equal Hash['f0' => 1, 'f1' => 'a_string'], Typelib.to_ruby(result)
         end
         it "converts numerical values using evaluate_numeric_field" do
-            type = Orocos.registry.get '/int'
+            type = registry.get '/int'
             flexmock(conf).should_receive(:evaluate_numeric_field).with('42', type).and_return(42).once
-            result = conf.yaml_value_to_typelib('42', type)
+            result = conf.normalize_conf_value('42', type)
             assert_kind_of type, result
             assert_equal 42, Typelib.to_ruby(result)
         end
@@ -658,7 +683,7 @@ describe Orocos::TaskConfigurations do
                     ]
                 ]
                 e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
-                    conf.yaml_value_to_typelib(bad_value, type)
+                    conf.normalize_conf_value(bad_value, type)
                 end
                 assert_equal %w{.out_f [1] .in_f}, e.full_path
                 assert(/\.out_f\[1\]\.in_f/ === e.message)
@@ -670,7 +695,7 @@ describe Orocos::TaskConfigurations do
                     ]
                 ]
                 e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
-                    conf.yaml_value_to_typelib(bad_value, type)
+                    conf.normalize_conf_value(bad_value, type)
                 end
                 assert_equal %w{.out_f [1]}, e.full_path
                 assert(/\.out_f\[1\]/ === e.message)
@@ -682,7 +707,7 @@ describe Orocos::TaskConfigurations do
                     ]
                 ]
                 e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
-                    conf.yaml_value_to_typelib(bad_value, type)
+                    conf.normalize_conf_value(bad_value, type)
                 end
                 assert_equal %w{.out_f}, e.full_path
                 assert(/\.out_f/ === e.message)
@@ -717,7 +742,7 @@ describe Orocos::TaskConfigurations do
 
             it "extracts the task's configuration and saves it to disk" do
                 flexmock(Orocos).should_receive(:warn)
-                expected_conf = conf.config_from_hash(Orocos::TaskConfigurations.config_as_hash(task))
+                expected_conf = conf.normalize_conf(Orocos::TaskConfigurations.read_task_conf(task))
                 flexmock(conf).should_receive(:save).
                     with('sec', '/conf.yml', task_model: task.model).
                     once.
@@ -751,7 +776,7 @@ describe Orocos::TaskConfigurations do
 
     describe ".save" do
         describe ".save(task)" do
-            attr_reader :task
+            attr_reader :task, :expected
             before do
                 start 'configurations::Task' => 'task'
                 @task = Orocos.get 'task'
@@ -761,40 +786,18 @@ describe Orocos::TaskConfigurations do
                     v.zero!
                     p.write v
                 end
+                conf = Orocos::TaskConfigurations.new(task.model)
+                @expected = conf.normalize_conf(Orocos::TaskConfigurations.read_task_conf(task))
             end
 
             it "extracts the configuration from the task and saves it" do
-                expected = Orocos::TaskConfigurations.config_as_hash(task)
                 flexmock(Orocos::TaskConfigurations).
-                    should_receive(:save_config_as_hash).once.
+                    should_receive(:save).once.
+                    with(task, '/conf.yml', 'sec', task_model: task.model).pass_thru
+                flexmock(Orocos::TaskConfigurations).
+                    should_receive(:save).once.
                     with(expected, '/conf.yml', 'sec', task_model: task.model)
                 Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec', task_model: task.model)
-            end
-            it "allows to override the task's model" do
-                expected = Orocos::TaskConfigurations.config_as_hash(task)
-                model = flexmock
-                flexmock(Orocos::TaskConfigurations).
-                    should_receive(:save_config_as_hash).once.
-                    with(expected, '/conf.yml', 'sec', task_model: model)
-                Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec', task_model: model)
-            end
-            it "uses the model's name as default file name" do
-                expected = Orocos::TaskConfigurations.config_as_hash(task)
-                conf_dir = File.expand_path(File.join('conf', 'dir'))
-                expected_filename = File.join(conf_dir, "#{task.model.name}.yml")
-
-                flexmock(Orocos::TaskConfigurations).
-                    should_receive(:save_config_as_hash).once.
-                    with(expected, expected_filename, 'sec', task_model: model)
-
-                begin
-                    FakeFS.activate!
-                    FileUtils.mkdir_p conf_dir
-                    Orocos::TaskConfigurations.save(task, expected_filename, 'sec', task_model: model)
-                ensure
-                    FakeFS.deactivate!
-                    FakeFS::FileSystem.clear
-                end
             end
         end
 
@@ -811,14 +814,6 @@ describe Orocos::TaskConfigurations do
                 config = Hash['enm' => 'First']
                 Orocos::TaskConfigurations.save(config, '/config/conf.yml', 'sec')
                 assert File.directory?('/config')
-            end
-            it "sanitizes the configuration using config_to_yaml" do
-                config = flexmock
-                actual_config = Hash['enm' => 'First']
-                flexmock(Orocos::TaskConfigurations).should_receive(:config_to_yaml).
-                    with(config).and_return(actual_config)
-                Orocos::TaskConfigurations.save(config, '/config/conf.yml', 'sec')
-                assert_equal actual_config, YAML.load(File.readlines('/config/conf.yml')[1..-1].join("\n"))
             end
             it "saves the task's configuration file into the specified file and section" do
                 config = Hash['enm' => 'First']
