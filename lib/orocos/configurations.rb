@@ -370,20 +370,35 @@ module Orocos
         # @param [Typelib::Type] value_t the type we are validating against
         # @return [Object] a normalized configuration value
         def normalize_conf_value(value, value_t)
-            if value.kind_of?(Typelib::Type)
-                value = Typelib.to_ruby(value)
-            end
-
-            if value.kind_of?(Hash)
+            case value
+            when Typelib::ContainerType, Typelib::ArrayType
+                element_t = value_t.deference
+                value.raw_each.map { |v| normalize_conf_value(v, element_t) }
+            when Typelib::CompoundType
+                result = Hash.new
+                value.raw_each_field do |field_name, field_value|
+                    result[field_name] = normalize_conf_value(field_value, value_t[field_name])
+                end
+                result
+            when Hash
                 normalize_conf_hash(value, value_t)
-            elsif value.respond_to?(:to_ary)
+            when Array
                 normalize_conf_array(value, value_t)
             else
                 begin
                     if value_t <= Typelib::NumericType
-                        value = evaluate_numeric_field(value, value_t)
+                        converted_value = evaluate_numeric_field(Typelib.to_ruby(value), value_t)
+                        typelib_value = Typelib.from_ruby(converted_value, value_t)
+                    else
+                        typelib_value = Typelib.from_ruby(value, value_t)
                     end
-                    Typelib.from_ruby(value, value_t)
+
+                    if typelib_value.class != value.class
+                        return normalize_conf_value(typelib_value, value_t)
+                    else
+                        typelib_value
+                    end
+
                 rescue ArgumentError => e
                     raise ConversionFailed.new(e), e.message, e.backtrace
                 end

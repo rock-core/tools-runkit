@@ -661,6 +661,40 @@ describe Orocos::TaskConfigurations do
             assert_kind_of type, result
             assert_equal 42, Typelib.to_ruby(result)
         end
+        it "converts typelib compound values to hashes" do
+            compound_t = registry.create_compound('/S') { |c| c.add 'a', '/int' }
+            compound = compound_t.new(a: 10)
+            normalized = conf.normalize_conf_value(compound, compound_t)
+            assert_kind_of Hash, normalized
+            assert_kind_of compound_t['a'], normalized['a']
+            assert_equal 10, normalized['a']
+        end
+        it "converts typelib container values to arrays" do
+            container_t = registry.create_container('/std/vector', '/int')
+            container = container_t.new
+            container << 0
+            normalized = conf.normalize_conf_value(container, container_t)
+            assert_kind_of Array, normalized
+            normalized.each { |v| assert_kind_of(container_t.deference, v) }
+            normalized.each_with_index { |v, i| assert_equal(container[i], v) }
+        end
+        it "converts typelib array values to arrays" do
+            array_t = registry.create_array('/int', 3)
+            array = array_t.new
+            normalized = conf.normalize_conf_value(array, array_t)
+            assert_kind_of Array, normalized
+            normalized.each { |v| assert_kind_of(array_t.deference, v) }
+            normalized.each_with_index { |v, i| assert_equal(array[i], v) }
+        end
+        it "properly handles Ruby objects that are converted from a complex Typelib type" do
+            klass = Class.new
+            compound_t = registry.create_compound('/S') { |c| c.add 'a', '/int' }
+            compound_t.convert_from_ruby(klass) { |v| compound_t.new(a: 10) }
+            normalized = conf.normalize_conf_value(klass.new, compound_t)
+            assert_kind_of Hash, normalized
+            assert_kind_of compound_t['a'], normalized['a']
+            assert_equal 10, normalized['a']
+        end
 
         describe "conversion error handling" do
             attr_reader :type
