@@ -841,6 +841,7 @@ module Orocos
             end
 
             task_model ||= OroGen::Spec::TaskContext.blank
+            config = to_yaml(config)
 
             if File.directory?(file)
                 if !task_model.name
