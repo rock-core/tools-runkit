@@ -37,8 +37,12 @@ module Orocos
             type.name
         end
 
+        def ==(other)
+            name == other.name && task == other.task
+        end
+
         def log_metadata
-            Hash['rock_task_model' => task.model.name,
+            Hash['rock_task_model' => (task.model.name || ''),
                 'rock_task_name' => task.name,
                 'rock_task_object_name' => name,
                 'rock_orocos_type_name' => orocos_type_name]
