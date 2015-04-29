@@ -370,6 +370,10 @@ module Orocos
         # @param [Typelib::Type] value_t the type we are validating against
         # @return [Object] a normalized configuration value
         def normalize_conf_value(value, value_t)
+            if value.respond_to?(:to_str)
+                return value
+            end
+
             case value
             when Typelib::ContainerType, Typelib::ArrayType
                 element_t = value_t.deference
