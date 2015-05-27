@@ -105,6 +105,23 @@ module Orocos
         @default_pkgconfig_loader ||= OroGen::Loaders::PkgConfig.new(orocos_target, default_loader)
     end
 
+    @macos =  RbConfig::CONFIG["host_os"] =~%r!([Dd]arwin)!
+    def self.macos?
+        @macos
+    end
+
+    @windows = RbConfig::CONFIG["host_os"] =~%r!(msdos|mswin|djgpp|mingw|[Ww]indows)!
+    def self.windows?
+        @windows
+    end
+
+    def self.shared_library_suffix
+        if macos? then 'dylib'
+        elsif windows? then 'dll'
+        else 'so'
+        end
+    end
+
     def self.orocos_target
         if ENV['OROCOS_TARGET']
             ENV['OROCOS_TARGET']
