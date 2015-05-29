@@ -28,7 +28,7 @@ module Orocos
     # full path to the library
     def self.find_plugin_library(pkg, libname)
         pkg.library_dirs.find do |dir|
-            full_path = File.join(dir, "lib#{libname}.so")
+            full_path = File.join(dir, "lib#{libname}.#{Orocos.shared_library_suffix}")
             break(full_path) if File.file?(full_path)
         end
     end
