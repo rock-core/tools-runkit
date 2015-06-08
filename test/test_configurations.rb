@@ -245,8 +245,16 @@ describe Orocos::TaskConfigurations do
             assert_raises(ArgumentError) { conf.conf(['default', 'override'], false) }
         end
 
+        it "raises SectionNotFound if given an unknown section" do
+            assert_raises(Orocos::TaskConfigurations::SectionNotFound) { conf.conf(['default', 'does_not_exist'], false) }
+        end
+
         it "accepts a 'default' section even if it does not exist" do
             assert_equal Hash.new, conf.conf(['default'], false)
+        end
+
+        it "accepts a single string as section name" do
+            assert_equal Hash.new, conf.conf('default', false)
         end
 
         it "takes values from the last section if conflicts exist and override is true" do

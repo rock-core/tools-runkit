@@ -36,6 +36,15 @@ module Orocos
     #   the specified order. Otherwise, it is added at the end.
     # 
     class TaskConfigurations
+        # Exception raised when the user asks for a non-existent configuration
+        class SectionNotFound < ArgumentError
+            attr_reader :section_name
+
+            def initialize(section_name)
+                @section_name = section_name
+            end
+        end
+
         # The known configuration sections for this task context model
         #
         # Configuration sections are formatted as follows:
@@ -577,21 +586,23 @@ module Orocos
         #   configuration(['default', 'fast', 'slow'], true)
         #
         # returns { 'threshold' => 20, 'speed' => 1 }
+        #
+        # @raises [SectionNotFound] if one of the required
+        #   configuration sections do not exist
         def conf(names, override = false)
             names = Array(names)
             if names.empty?
                 return Hash.new
-            elsif names.size == 1
-                return sections[names.first]
             elsif cached = @merged_conf[[names, override]]
                 return cached
             else
-                if !sections[names.last]
-                    raise ArgumentError, "#{names.last} is not a known configuration section"
+                config = names.inject(Hash.new) do |c, section_name|
+                    section = sections[section_name]
+                    if !section
+                        raise SectionNotFound.new(section_name), "#{section_name} is not a known configuration section"
+                    end
+                    TaskConfigurations.merge_conf(c, section, override)
                 end
-                config = conf(names[0..-2], override)
-                config = TaskConfigurations.merge_conf(config, sections[names.last], override)
-
                 @merged_conf[[names, override]] = config
                 return config
             end
