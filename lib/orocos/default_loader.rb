@@ -25,7 +25,7 @@ module Orocos
                     elsif type <= Typelib::NumericType # using numeric is transparent in Typelib/Ruby
                     elsif type.contains_opaques? # register the intermediate instead
                         intermediate_type_for(type)
-                    elsif m_type?(base_type) # just ignore, they are registered as the opaque
+                    elsif m_type?(type) # just ignore, they are registered as the opaque
                     else exported_type
                     end
                 end
