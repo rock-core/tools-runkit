@@ -758,7 +758,7 @@ module Orocos
                 value.map_value do |_, v|
                     to_yaml(v)
                 end
-            when Numeric, String
+            when Numeric, String, Symbol
                 value
             else
                 raise ArgumentError, "invalid object #{value} of type #{value.class} found while converting typelib values to their YAML representation"
