@@ -661,12 +661,11 @@ describe Orocos::TaskConfigurations do
             assert_kind_of type, result
             assert_equal 42, Typelib.to_ruby(result)
         end
-        it "converts typelib types that are valid string representations alone" do
-            compound_t = registry.create_compound('/S') { |c| c.add 'a', '/int' }
-            compound = compound_t.new(a: 10)
-            def compound.to_str; end
-            normalized = conf.normalize_conf_value(compound, compound_t)
-            assert_same normalized, compound
+        it "converts /std/string as a final value instead of a container" do
+            string_t = registry.get '/std/string'
+            normalized = conf.normalize_conf_value("bla", string_t)
+            assert_kind_of string_t, normalized
+            assert_equal "bla", Typelib.to_ruby(normalized)
         end
         it "converts typelib compound values to hashes" do
             compound_t = registry.create_compound('/S') { |c| c.add 'a', '/int' }

@@ -370,8 +370,8 @@ module Orocos
         # @param [Typelib::Type] value_t the type we are validating against
         # @return [Object] a normalized configuration value
         def normalize_conf_value(value, value_t)
-            if value.respond_to?(:to_str)
-                return value
+            if value_t.method_defined?(:to_str)
+                return normalize_conf_terminal_value(value, value_t)
             end
 
             case value
@@ -389,24 +389,35 @@ module Orocos
             when Array
                 normalize_conf_array(value, value_t)
             else
-                begin
-                    if value_t <= Typelib::NumericType
-                        converted_value = evaluate_numeric_field(Typelib.to_ruby(value), value_t)
-                        typelib_value = Typelib.from_ruby(converted_value, value_t)
-                    else
-                        typelib_value = Typelib.from_ruby(value, value_t)
-                    end
-
-                    if typelib_value.class != value.class
-                        return normalize_conf_value(typelib_value, value_t)
-                    else
-                        typelib_value
-                    end
-
-                rescue ArgumentError => e
-                    raise ConversionFailed.new(e), e.message, e.backtrace
-                end
+                normalize_conf_terminal_value(value, value_t)
             end
+        end
+
+        # @api private
+        #
+        # Helper for {#normalize_conf_value} to normalize values that are
+        # terminal, i.e. that should be converted to a typelib value
+        def normalize_conf_terminal_value(value, value_t)
+            if value_t <= Typelib::NumericType
+                ruby_value = Typelib.to_ruby(value)
+                if ruby_value.respond_to?(:to_str)
+                    converted_value = evaluate_numeric_field(ruby_value, value_t)
+                else
+                    converted_value = value
+                end
+                typelib_value = Typelib.from_ruby(converted_value, value_t)
+            else
+                typelib_value = Typelib.from_ruby(value, value_t)
+            end
+
+            if typelib_value.class != value.class
+                return normalize_conf_value(typelib_value, value_t)
+            else
+                typelib_value
+            end
+
+        rescue ArgumentError => e
+            raise ConversionFailed.new(e), e.message, e.backtrace
         end
 
         # @api private
