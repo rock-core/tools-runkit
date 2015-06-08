@@ -245,6 +245,10 @@ describe Orocos::TaskConfigurations do
             assert_raises(ArgumentError) { conf.conf(['default', 'override'], false) }
         end
 
+        it "accepts a 'default' section even if it does not exist" do
+            assert_equal Hash.new, conf.conf(['default'], false)
+        end
+
         it "takes values from the last section if conflicts exist and override is true" do
             conf.load_from_yaml(File.join(data_dir, 'configurations', 'merge.yml'))
             result = conf.conf(['default', 'override'], true)

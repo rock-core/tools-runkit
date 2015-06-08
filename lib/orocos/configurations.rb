@@ -71,7 +71,7 @@ module Orocos
 
         def initialize(task_model)
             @model = task_model
-            @sections = Hash.new
+            @sections = Hash['default' => Hash.new]
             @merged_conf = Hash.new
             @context = Array.new
         end
