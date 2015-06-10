@@ -4,6 +4,7 @@ require './lib/orocos/version'
 begin
     require 'hoe'
     Hoe::plugin :yard
+    Hoe::RUBY_FLAGS.gsub!(/-w/, '')
 
     hoe_spec = Hoe.spec('orocos.rb') do |p|
         self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
@@ -23,6 +24,7 @@ begin
     end
 
     hoe_spec.spec.extensions = FileList["ext/**/extconf.rb"]
+    hoe_spec.test_globs = ['test/suite.rb']
 
     def build_orogen(name, options = Hash.new)
         require './lib/orocos/rake'
@@ -135,7 +137,7 @@ begin
         end
     end
 
-    task :test => 'setup:test'
+    task :test
     task :doc => :yard
     task :docs => :yard
     task :redoc => :yard
