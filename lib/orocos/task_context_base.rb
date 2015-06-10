@@ -612,6 +612,12 @@ module Orocos
             "#<TaskContextBase: #{self.class.name}/#{name}>"
         end
 
+        def inspect
+            "#<#{self.class}: #{self.class.name}/#{name} state=#{state}>"
+        rescue Orocos::ComError
+            "#<#{self.class}: #{self.class.name}/#{name} state=UNREACHABLE>"
+        end
+
         # @return [Symbol] the toplevel state that corresponds to +state+, i.e.
         #   the value returned by #rtt_state when #state returns 'state'
         def toplevel_state(state)

@@ -1,5 +1,7 @@
 require 'stringio'
 require 'yaml'
+require 'utilrb/hash/map_key'
+
 module Orocos
     # Class handling multiple possible configuration for a single task
     #
@@ -34,6 +36,15 @@ module Orocos
     #   the specified order. Otherwise, it is added at the end.
     # 
     class TaskConfigurations
+        # Exception raised when the user asks for a non-existent configuration
+        class SectionNotFound < ArgumentError
+            attr_reader :section_name
+
+            def initialize(section_name)
+                @section_name = section_name
+            end
+        end
+
         # The known configuration sections for this task context model
         #
         # Configuration sections are formatted as follows:
@@ -61,9 +72,15 @@ module Orocos
         #   configurations
         attr_reader :model
 
+        # @return [OroGen::Loaders::Base] a loader object that allows to access
+        #   the underlying oroGen models
+        def loader
+            model.loader
+        end
+
         def initialize(task_model)
             @model = task_model
-            @sections = Hash.new
+            @sections = Hash['default' => Hash.new]
             @merged_conf = Hash.new
             @context = Array.new
         end
@@ -76,6 +93,8 @@ module Orocos
             sections[section_name]
         end
 
+        # @api private
+        # 
         # Evaluate ruby content that has been embedded into the configuration file
         # inbetween <%= ... %>
         def evaluate_dynamic_content(filename, value)
@@ -127,14 +146,21 @@ module Orocos
                         raise ArgumentError, "#{file}:#{line_number}: wrong format #{opt}, expected option_name:value, where 'value' has no spaces"
                     end
                 end
-                line_options['merge'] = (line_options['merge'] == 'true')
-                line_options['chain'] = (line_options['chain'] || '').split(',')
-                [line_options, line_number]
+
+                section_options = Hash[
+                    name: line_options.delete('name'),
+                    merge: (line_options.delete('merge') == 'true'),
+                    chain: (line_options.delete('chain') || '').split(',')]
+                if !line_options.empty?
+                    ConfigurationManager.warn "unrecognized options #{line_options.keys.sort.join(", ")} in #{file}"
+                end
+                    
+                [section_options, line_number]
             end
-            options[0][0]['name'] ||= 'default'
+            options[0][0][:name] ||= 'default'
 
             options.each do |line_options, line_number|
-                if !line_options['name']
+                if !line_options[:name]
                     raise ArgumentError, "#{file}:#{line_number}: missing a 'name' option"
                 end
             end
@@ -152,12 +178,13 @@ module Orocos
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
-                result = YAML.load(StringIO.new(doc))
-
+                result = normalize_conf(YAML.load(StringIO.new(doc)) || Hash.new)
                 conf_options = options[idx].first
-                name = conf_options.delete('name')
+                name  = conf_options.delete(:name)
+                chain = conf(conf_options.delete(:chain), true)
+                result = Orocos::TaskConfigurations.merge_conf(result, chain, true)
                 changed = in_context("while loading section #{name} of #{file}") do
-                    add(name, result || Hash.new, conf_options)
+                    add(name, result, **conf_options)
                 end
 
                 if changed
@@ -250,27 +277,48 @@ module Orocos
         # Add a new configuration section to the configuration set
         #
         # @param [String] name the configuration section name
-        # @param [Object] conf the configuration data. See {#sections} for a
-        #   description of its formatting
-        # @param [Hash] options the options of this configuration section
-        def add(name, conf, options = Hash.new)
-            options = Kernel.validate_options options,
-                :merge => true, :chain => nil
-
-            conf = config_from_hash(conf)
+        # @param [{String=>Object}] conf the configuration data, as either a
+        #   mapping from property names to property values, or property names to
+        #   plain Ruby objects. It gets passed to {#normalize_conf}.
+        # @param [Boolean] merge if true, the configuration will be merged with
+        #   an existing section that has the same name (if there is one)
+        # @return [Boolean] true if the configuration changed, and false
+        #   otherwise
+        # @see extract
+        def add(name, conf, merge: true)
+            conf = normalize_conf(conf)
 
             changed = false
             if self.sections[name]
-                if options[:merge]
+                if merge
                     conf = TaskConfigurations.merge_conf(self.sections[name], conf, true)
                 end
-                changed = changed || self.sections[name] != conf
+                changed = self.sections[name] != conf
             else
                 changed = true
             end
             self.sections[name] = conf
             changed
         end
+
+        # Extract configuration from a task object and save it as a section in self
+        #
+        # @param [#each_property] task the task. #each_property must yield
+        #   objects which respond to #raw_read, this method returning a Typelib
+        #   value.
+        # @param [String] section_name the section name. If one already exists
+        #   with that name it is overriden
+        # @param [Boolean] merge if true, the configuration will be merged with
+        #   an existing section that has the same name (if there is one)
+        # @return [Boolean] true if the configuration changed, and false
+        #   otherwise
+        # @see add
+        def extract(name, task, merge: true)
+            in_context("while saving section #{name} from task #{task.name}(#{task.model.name})") do
+                add(name, TaskConfigurations.read_task_conf(task), merge: merge)
+            end
+        end
+
 
         # Exception raised when a field in a configuration field cannot be
         # converted to the requested path
@@ -287,32 +335,104 @@ module Orocos
             end
         end
 
-        def yaml_value_to_typelib(value, value_t)
-            if value.kind_of?(Hash)
-                config_from_hash(value, value_t)
-            elsif value.respond_to?(:to_ary)
-                config_from_array(value, value_t)
-            else
-                begin
-                    if value_t <= Typelib::NumericType
-                        value = evaluate_numeric_field(value, value_t)
-                    end
-                    Typelib.from_ruby(value, value_t)
-                rescue ArgumentError => e
-                    raise ConversionFailed.new(e), e.message, e.backtrace
+        # Converts a representation of a task configuration
+        #
+        # @param [{String=>Object}] conf a mapping from property name to value.
+        #   See {#normalize_conf_value} for a description of the value's
+        #   formatting
+        # @return [Object] a normalized configuration hash
+        def normalize_conf(conf)
+            property_types = Hash.new
+            conf.each do |k, v|
+                if p = model.find_property(k)
+                    property_types[k] = model.loader.typelib_type_for(p.type)
+                else
+                    raise ConversionFailed, "#{key} is not a property of #{model.name}"
                 end
+            end
+
+            return normalize_conf_hash(conf, property_types)
+        end
+
+        # Converts a value into a normalized representation suitable to be
+        # stored in self
+        #
+        # {TaskConfigurations} stores configuration as a combination of
+        # hashes (for structs), arrays (for arrays and containers) and typelib
+        # values.
+        #
+        # Hashes and arrays are used to represent partial values. When applying
+        # the configuration, they are applied to the existing objects without
+        # erasing other existing data (e.g. with a hash, only the fields whose
+        # keys are present will be applied to the value).
+        #
+        # Typelib values are final, i.e. they erase the complete part of the
+        # configuration they represent
+        #
+        # This method iterates over the existing value, validates field names
+        # and types, and converts leaves (e.g. numeric fields) to their typelib
+        # representations once and for all.
+        #
+        # @param [Object] value a value that is a mix of hash, arrays and
+        #   either nuermic/string values or typelib values. See description
+        #   above for more details.
+        # @param [Typelib::Type] value_t the type we are validating against
+        # @return [Object] a normalized configuration value
+        def normalize_conf_value(value, value_t)
+            if value_t.method_defined?(:to_str)
+                return normalize_conf_terminal_value(value, value_t)
+            end
+
+            case value
+            when Typelib::ContainerType, Typelib::ArrayType
+                element_t = value_t.deference
+                value.raw_each.map { |v| normalize_conf_value(v, element_t) }
+            when Typelib::CompoundType
+                result = Hash.new
+                value.raw_each_field do |field_name, field_value|
+                    result[field_name] = normalize_conf_value(field_value, value_t[field_name])
+                end
+                result
+            when Hash
+                normalize_conf_hash(value, value_t)
+            when Array
+                normalize_conf_array(value, value_t)
+            else
+                normalize_conf_terminal_value(value, value_t)
             end
         end
 
-        # Converts an array to a properly formatted configuration value
+        # @api private
         #
-        # See {#sections} for a description of configuration value formatting
+        # Helper for {#normalize_conf_value} to normalize values that are
+        # terminal, i.e. that should be converted to a typelib value
+        def normalize_conf_terminal_value(value, value_t)
+            if value_t <= Typelib::NumericType
+                ruby_value = Typelib.to_ruby(value)
+                if ruby_value.respond_to?(:to_str)
+                    converted_value = evaluate_numeric_field(ruby_value, value_t)
+                else
+                    converted_value = value
+                end
+                typelib_value = Typelib.from_ruby(converted_value, value_t)
+            else
+                typelib_value = Typelib.from_ruby(value, value_t)
+            end
+
+            if typelib_value.class != value.class
+                return normalize_conf_value(typelib_value, value_t)
+            else
+                typelib_value
+            end
+
+        rescue ArgumentError => e
+            raise ConversionFailed.new(e), e.message, e.backtrace
+        end
+
+        # @api private
         #
-        # @param [Array] array the input array
-        # @param [Model<Typelib::Type>] value_t the description of the expected type
-        # @return [Object] a properly formatted configuration value based on the
-        #   input array
-        def config_from_array(array, value_t)
+        # Helper for {.normalize_conf_value}. See it for details
+        def normalize_conf_array(array, value_t)
             if value_t.respond_to?(:length) && value_t.length < array.size
                 raise ConversionFailed, "array too big (got #{array.size} for a maximum of #{value_t.length}"
             end
@@ -320,7 +440,7 @@ module Orocos
             element_t = value_t.deference
             array.each_with_index.map do |value, i|
                 begin
-                    yaml_value_to_typelib(value, element_t)
+                    normalize_conf_value(value, element_t)
                 rescue ConversionFailed => e
                     e.full_path.unshift "[#{i}]"
                     raise e, "failed to convert configuration value for #{e.full_path.join("")}", e.backtrace
@@ -328,42 +448,29 @@ module Orocos
             end
         end
 
-        # Converts a hash to a properly formatted configuration value
+        # @api private
         #
-        # See {#sections} for a description of configuration value formatting
+        # Helper for {.normalize_conf} and {.normalize_conf_value}. See it for details
         #
-        # @param [Hash] hash the input hash
-        # @param [Model<Typelib::Compound>,nil] base the description of the
-        #   expected type. If nil, the function will assume that the hash keys
-        #   are propery names and the types will be taken from {#model}
-        # @return [Object] a properly formatted configuration value based on the
-        #   input hash
-        def config_from_hash(hash, base = nil) # :nodoc:
+        # @param [Hash] hash a hash representing a configuration value (in which
+        #   case the keys are field names), or the configuration of a whole task
+        #   (in which case the keys are property names)
+        # @param [#[]] value_t representation of the value's type. It will
+        #   usually be a subclass of Typelib::CompoundType, or a
+        #   property-name-to-type mapping.
+        def normalize_conf_hash(hash, value_t) # :nodoc:
             result = Hash.new
             hash.each do |key, value|
-                if base
-                    begin
-                        value_t = base[key]
-                    rescue ArgumentError => e
-                        raise ConversionFailed.new(e), e.message, e.backtrace
-                    end
-                else
-                    prop = model.find_property(key)
-                    if !prop
-                        raise ConversionFailed, "#{key} is not a property of #{model.name}"
-                    end
-                    value_t = Orocos.typelib_type_for(prop.type)
+                begin
+                    field_t = value_t[key]
+                rescue ArgumentError => e
+                    raise ConversionFailed.new(e), e.message, e.backtrace
                 end
 
-
                 begin
-                    result[key] = yaml_value_to_typelib(value, value_t)
+                    result[key] = normalize_conf_value(value, field_t)
                 rescue ConversionFailed => e
-                    if base
-                        e.full_path.unshift ".#{key}"
-                    else
-                        e.full_path.unshift "#{key}"
-                    end
+                    e.full_path.unshift ".#{key}"
                     raise e, "failed to convert configuration value for #{e.full_path.join("")}", e.backtrace
                 end
             end
@@ -433,6 +540,13 @@ module Orocos
             sections.has_key?(name)
         end
 
+        def each_resolved_conf
+            return enum_for(__method__) if !block_given?
+            sections.each_key do |conf_name|
+                yield(conf_name, conf([conf_name]))
+            end
+        end
+
         # Returns the task configuration that is the combination of the
         # named configuration sections
         #
@@ -472,38 +586,84 @@ module Orocos
         #   configuration(['default', 'fast', 'slow'], true)
         #
         # returns { 'threshold' => 20, 'speed' => 1 }
+        #
+        # @raises [SectionNotFound] if one of the required
+        #   configuration sections do not exist
         def conf(names, override = false)
-            if names.size == 1
-                return sections[names.first]
+            names = Array(names)
+            if names.empty?
+                return Hash.new
             elsif cached = @merged_conf[[names, override]]
                 return cached
             else
-                if !sections[names.last]
-                    raise ArgumentError, "#{names.last} is not a known configuration section"
+                config = names.inject(Hash.new) do |c, section_name|
+                    section = sections[section_name]
+                    if !section
+                        raise SectionNotFound.new(section_name), "#{section_name} is not a known configuration section"
+                    end
+                    TaskConfigurations.merge_conf(c, section, override)
                 end
-                config = conf(names[0..-2], override)
-                config = TaskConfigurations.merge_conf(config, sections[names.last], override)
-
                 @merged_conf[[names, override]] = config
                 return config
             end
+        end
+
+        # Returns the required configuration in a property-to-ruby form
+        #
+        # The objects are equivalent to the ruby objects one would get by
+        # enumerating a task's property
+        #
+        # @param [String,Array<String>] names the configurations to apply. See
+        #   {#conf} for more details
+        # @param [Boolean] override see {#conf}
+        #
+        # @see conf conf_to_typelib
+        def conf_as_ruby(names, override: false)
+            conf = conf_as_typelib(names, override: override)
+            conf.map_value do |_, v|
+                Typelib.to_ruby(v)
+            end
+        end
+
+        # Returns the required configuration in a property-to-typelib form
+        #
+        # The typelib values are equivalent to the typelib objects one would get
+        # by enumerating a task's property
+        #
+        # @param [String,Array<String>] names the configurations to apply. See
+        #   {#conf} for more details
+        # @param [Boolean] override see {#conf}
+        #
+        # @see conf conf_to_ruby
+        def conf_as_typelib(names, override: false)
+            c = conf(names, override)
+            return if !c
+
+            result = Hash.new
+            c.each do |property_name, ruby_value|
+                orocos_type = model.find_property(property_name).type
+                typelib_type = loader.typelib_type_for(orocos_type)
+
+                typelib_value = typelib_type.new
+                typelib_value.zero!
+                result[property_name] = TaskConfigurations.apply_conf_on_typelib_value(typelib_value, ruby_value)
+            end
+            result
         end
 
         # Applies the specified configuration to the given task
         #
         # @param [TaskContext] task the task on which the configuration should
         #   be applied
-        # @param (see #conf)
-        # @raise (see #conf)
-        #
-        # See {#conf} for additional examples
-        def apply(task, names, override = false)
-            if names.respond_to?(:to_ary)
-                config = conf(names, override)
-            elsif names.respond_to?(:to_str)
-                config = conf([names], override)
-            else
-                config = names
+        # @param [String,Array<String>,Hash] config either the name (or names) of
+        #   configuration section(s) as should be passed to {#conf}, or directly
+        #   a configuration value as a mapping from property names to
+        #   configuration object
+        # @param [Boolean] override the override argument of {#conf}
+        # @return [void]
+        def apply(task, config, override = false)
+            if !config.kind_of?(Hash)
+                config = conf(config, override)
             end
 
             if !config
@@ -519,37 +679,30 @@ module Orocos
             config.each do |prop_name, conf|
                 p = task.property(prop_name)
                 result = p.raw_read
-                result = TaskConfigurations.typelib_from_yaml_value(result, conf)
+                result = TaskConfigurations.apply_conf_on_typelib_value(result, conf)
                 p.write(result, timestamp)
             end
         end
 
-        # Helper method for {.typelib_from_yaml_value} when the YAML value is a
-        # hash
-        def self.typelib_from_yaml_hash(value, conf)
-            conf.each do |conf_key, conf_value|
-                value.raw_set(conf_key, typelib_from_yaml_value(value.raw_get(conf_key), conf_value))
-            end
-            value
-        end
-
-        # Helper method for {.typelib_from_yaml_value} when the YAML value is an
-        # array
-        def self.typelib_from_yaml_array(value, conf)
+        # @api private
+        #
+        # Helper method for {.to_typelib} when the value is an array
+        def self.apply_conf_array_on_typelib_value(value, conf)
             if value.kind_of?(Typelib::ArrayType)
                 # This is a fixed-size array, verify that the size matches
                 if conf.size > value.size
                     raise ArgumentError, "Configuration object size is larger than field #{value}"
                 end
             else
+                element_t = value.class.deference
                 while value.size < conf.size
-                    new_value = value.class.deference.new
+                    new_value = element_t.new
                     new_value.zero!
                     value.push(new_value)
                 end
             end
             conf.each_with_index do |element, idx|
-                value[idx] = typelib_from_yaml_value(value.raw_get(idx), element)
+                value[idx] = apply_conf_on_typelib_value(value.raw_get(idx), element)
             end
             value
         end
@@ -559,55 +712,64 @@ module Orocos
         #
         # @param [Typelib::Type] value the value to be updated. Note that the
         #   actually updated value is returned by the method (it might be
-        #   different)
-        # @param [Object] conf a straight YAML object (i.e. an object that is
-        #   made only of data that is part of the YAML representation). It is
-        #   usually generated by {.typelib_to_yaml_value}
+        #   a different object)
+        # @param [Object] conf a configuration object, as a mix of Hash, Array,
+        #   Numeric, String and Typelib values
         # @return [Typelib::Type] the updated value. It is not necessarily equal
         #   to value
-        def self.typelib_from_yaml_value(value, conf)
+        def self.apply_conf_on_typelib_value(value, conf)
             if conf.kind_of?(Hash)
-                typelib_from_yaml_hash(value, conf)
+                conf.each do |conf_key, conf_value|
+                    value.raw_set(conf_key, apply_conf_on_typelib_value(value.raw_get(conf_key), conf_value))
+                end
+                value
             elsif conf.respond_to?(:to_ary)
-                typelib_from_yaml_array(value, conf)
+                apply_conf_array_on_typelib_value(value, conf)
             else
                 Typelib.from_ruby(conf, value.class)
             end
         end
 
-        # Converts a typelib value into an object that can be represented
-        # straight in YAML
+        # Converts a configuration structure into a representation suitable for
+        # marshalling into YAML
         #
-        # The inverse operation can be performed by {.typelib_from_yaml_value}
-        #
-        # @param [Typelib::Type] value the value to be converted
+        # @param [Object] value the value to be converted, this is a mix of
+        #   Hash, Array, numeric and string Ruby objects, and Typelib values
         # @return [Object] a value that can be represented in YAML as-is
-        def self.typelib_to_yaml_value(value)
-            if value.kind_of?(Typelib::CompoundType)
+        def self.to_yaml(value)
+            case value
+            when Typelib::CompoundType
                 result = Hash.new
                 value.raw_each_field do |field_name, field_value|
-                    result[field_name] = typelib_to_yaml_value(field_value)
+                    result[field_name] = to_yaml(field_value)
                 end
                 result
-            elsif value.kind_of?(Symbol)
-                value.to_s
-            elsif value.respond_to?(:to_str)
-                value.to_str
-            elsif value.kind_of?(Typelib::ArrayType) || value.kind_of?(Typelib::ContainerType)
-                value.raw_each.map(&method(:typelib_to_yaml_value))
-            elsif value.kind_of?(Typelib::Type)
+            when Typelib::ArrayType, Typelib::ContainerType
+                if value.respond_to?(:to_str)
+                    value.to_str
+                else
+                    value.raw_each.map(&method(:to_yaml))
+                end
+            when Typelib::Type
                 Typelib.to_ruby(value)
-            else value
+            when Array
+                value.map(&method(:to_yaml))
+            when Hash
+                value.map_value do |_, v|
+                    to_yaml(v)
+                end
+            when Numeric, String, Symbol
+                value
+            else
+                raise ArgumentError, "invalid object #{value} of type #{value.class} found while converting typelib values to their YAML representation"
             end
         end
 
-        # Converts the properties of a task into a hash that can be represented
-        # in YAML
+        # @api private
         #
-        # @param [#each_property] task the task. The yield properties have to
-        #   respond to raw_read
-        # @return [Hash] the converted data
-        def self.config_as_hash(task)
+        # Reads the configuration of a task into a property-name-to-typelib
+        # value form
+        def self.read_task_conf(task)
             current_config = Hash.new
             task.each_property do |prop|
                 # Make sure we dont extract metadata information, check here against the
@@ -616,7 +778,7 @@ module Orocos
                 if prop.name == "metadata" and prop.orocos_type_name == "/metadata/Component"
                     next 
                 end
-                current_config[prop.name] = typelib_to_yaml_value(prop.raw_read)
+                current_config[prop.name] = prop.raw_read
             end
             current_config
         end
@@ -646,49 +808,85 @@ module Orocos
             @context.last || ''
         end
 
-        # Saves the current configuration of task in a file and updates the
-        # section in this object
+        # Save a configuration section to disk
         #
-        # @param (see TaskConfigurations.save)
-        # @return (see TaskConfigurations.save)
-        def save(task, file, name)
-            config_hash = self.class.save(task, file, name)
-            in_context("while saving section #{name} in #{file} from task #{task.name}(#{task.model.name})") do
-                sections[name] = config_from_hash(config_hash)
+        # @overload save(section_name, file)
+        #   @param [String] section_name the section name
+        #   @param [String] file either a file, or a directory. In the latter
+        #     case, the file will be #{conf_dir}/#{model.name}.yml
+        #   @return [Hash] the configuration section that just got saved
+        #
+        # @overload save(task, file, section_name)
+        #   @deprecated use {#extract} and {#save} instead
+        #
+        def save(*args)
+            if !args.first.respond_to?(:to_str)
+                Orocos.warn "save(task, file, name) is deprecated, use a combination of #extract and #save(name, file) instead"
+                task, file, name = *args
+                extract(name, task)
+                return save(name, file, task_model: task.model)
             end
+
+            section_name, file, options = *args
+            options ||= Hash.new
+            task_model = options[:task_model] || self.model
+            conf = conf(section_name)
+            self.class.save(conf, file, section_name, task_model: task_model)
+            conf
         end
 
-        # Saves the current configuration of task in a file
+        # Saves a configuration section to a file
         #
-        # @param [TaskContext] task the task whose configuration is to be saved
-        # @param [String] file either a file or a directory. If it is a
-        #   directory, the generated file will be named based on the task's
-        #   model name
-        # @param [String,nil] name the name of the new section. If nil is given,
-        #   defaults to task.name 
-        # @return [Hash] the task configuration in YAML representation, as
-        #   returned by {.config_as_hash}
-        # @see TaskConfigurations#save
-        def self.save(task, file, name)
+        # @overload save(conf, file, name)
+        #   @param [Hash] config the configuration section that should be saved,
+        #     either as a hash of plain Ruby objects, or as a mapping from
+        #     property names to typelib values
+        #   @param [String] file either a file or a directory. If it is a
+        #     directory, the generated file will be named based on the task's
+        #     model name
+        #   @param [String,nil] name the name of the new section
+        #   @param [TaskContext] task_model if given, the property's
+        #     documentation stored in this model are added before each property
+        #   @return [Hash] the task configuration in YAML representation, as
+        #     returned by {.config_as_hash}
+        #
+        # @overload save(task, file, name)
+        #   @param [TaskContext] task the task whose configuration is to be saved
+        #   @param [String] file either a file or a directory. If it is a
+        #     directory, the generated file will be named based on the task's
+        #     model name
+        #   @param [String,nil] name the name of the new section. If nil is given,
+        #     defaults to task.name 
+        #   @return [Hash] the task configuration in YAML representation, as
+        #     returned by {.config_as_hash}
+        def self.save(config, file, name, task_model: nil)
+            if config.respond_to?(:each_property)
+                conf = TaskConfigurations.new(task_model || config.model)
+                conf.extract(name, config)
+                return conf.save(name, file)
+            end
+
+            task_model ||= OroGen::Spec::TaskContext.blank
+            config = to_yaml(config)
+
             if File.directory?(file)
-                file = File.join(file, "#{task.model.name}.yml")
+                if !task_model.name
+                    raise ArgumentError, "#{file} is a directory and the given model has no name"
+                end
+                file = File.join(file, "#{task_model.name}.yml")
             else
                 FileUtils.mkdir_p(File.dirname(file))
             end
-            name ||= task.name
-
-            current_config = config_as_hash(task)
 
             parts = []
-            current_config.keys.sort.each do |property_name|
-                doc = task.model.find_property(property_name).doc
-                if doc
+            config.keys.sort.each do |property_name|
+                if (p = task_model.find_property(property_name)) && (doc = p.doc)
                     parts << doc.split("\n").map { |s| "# #{s}" }.join("\n")
                 else
                     parts << "# no documentation available for this property"
                 end
 
-                property_hash = { property_name => current_config[property_name] }
+                property_hash = { property_name => config[property_name] }
                 yaml = YAML.dump(property_hash)
                 parts << yaml.split("\n")[1..-1].join("\n")
             end
@@ -698,7 +896,7 @@ module Orocos
                 io.write(parts.join("\n"))
                 io.puts
             end
-            current_config
+            config
         end
     end
 
@@ -738,14 +936,17 @@ module Orocos
         extend Logger::Forward
         extend Logger::Hierarchy
 
+        attr_reader :loader
+
         # A mapping from the task model names to the corresponding
         # {TaskConfigurations} object
         #
         # @return [{String=>TaskConfigurations}]
         attr_reader :conf
 
-        def initialize
-            @conf = Hash.new
+        def initialize(loader = Orocos.default_loader)
+            @loader = loader
+            @conf   = Hash.new
         end
 
         # Loads all configuration files present in the given directory
@@ -774,7 +975,7 @@ module Orocos
 
                 changed_configurations =
                     begin load_file(file)
-                    rescue Orocos::NotFound
+                    rescue OroGen::TaskModelNotFound
                         ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
                         next
                     end
@@ -811,12 +1012,7 @@ module Orocos
 
             if !model || model.respond_to?(:to_str)
                 model_name = model || File.basename(file, '.yml')
-                begin
-                    model = Orocos.default_loader.task_model_from_name(model_name)
-                rescue OroGen::TaskModelNotFound
-                    ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
-                    return false
-                end
+                model = loader.task_model_from_name(model_name)
             end
 
             ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
