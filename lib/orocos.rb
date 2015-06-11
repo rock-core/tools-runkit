@@ -19,6 +19,7 @@ rescue LoadError => e
     exit 1
 end
     
+require 'typelib'
 require 'orocos/base'
 require 'orocos/default_loader'
 require 'orocos/typekits'
