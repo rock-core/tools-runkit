@@ -347,7 +347,7 @@ module Orocos
                 if p = model.find_property(k)
                     property_types[k] = model.loader.typelib_type_for(p.type)
                 else
-                    raise ConversionFailed, "#{key} is not a property of #{model.name}"
+                    raise ConversionFailed.new, "#{k} is not a property of #{model.name}"
                 end
             end
 
@@ -434,7 +434,7 @@ module Orocos
         # Helper for {.normalize_conf_value}. See it for details
         def normalize_conf_array(array, value_t)
             if value_t.respond_to?(:length) && value_t.length < array.size
-                raise ConversionFailed, "array too big (got #{array.size} for a maximum of #{value_t.length}"
+                raise ConversionFailed.new, "array too big (got #{array.size} for a maximum of #{value_t.length}"
             end
 
             element_t = value_t.deference
