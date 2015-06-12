@@ -772,12 +772,6 @@ module Orocos
         def self.read_task_conf(task)
             current_config = Hash.new
             task.each_property do |prop|
-                # Make sure we dont extract metadata information, check here against the
-                # typename instead aainst the type, to prevent problem if the
-                # metadata support is not installed.
-                if prop.name == "metadata" and prop.orocos_type_name == "/metadata/Component"
-                    next 
-                end
                 current_config[prop.name] = prop.raw_read
             end
             current_config
