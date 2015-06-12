@@ -64,10 +64,6 @@ module Orocos
         # @return [{String=>{String=>Object}}] 
         attr_reader :sections
 
-        # @return [{String=>Hash}] set of configuration options for each known
-        #   configuration sections
-        attr_reader :conf_options
-
         # @return [OroGen::Spec::TaskContext] the task context model for which self holds
         #   configurations
         attr_reader :model
@@ -116,18 +112,14 @@ module Orocos
             value
         end
 
-        # Loads the configurations from a YAML file
+        # Parses a configuration file to return the text of each section along
+        # with the section's options
         #
-        # Multiple configurations can be saved in the file, in which case each
-        # configuration set must be separated by a line of the form
-        #
-        #   --- name:configuration_name
-        #
-        # The first YAML document has, by default, the name 'default'. One can
-        # also be provided if needed.
-        #
-        # @return [Array<String>] the names of the sections that have been modified
-        def load_from_yaml(file)
+        # @param [String] file the file
+        # @return [Array<(Hash,String)>] the list of sections. The hash is the
+        #   parsed representation of the option line (the line starting with
+        #   ---) and the string is the raw section text
+        def self.load_raw_sections_from_file(file)
             document_lines = File.readlines(file)
 
             headers = document_lines.enum_for(:each_with_index).
@@ -171,15 +163,29 @@ module Orocos
             end
             sections << document_lines[options[-1][1] + 1, document_lines.size - options[-1][1] - 1]
 
-            changed_sections = []
-            @conf_options = options
+            options.map(&:first).zip(sections)
+        end
 
-            sections.each_with_index do |doc, idx|
+        # Loads the configurations from a YAML file
+        #
+        # Multiple configurations can be saved in the file, in which case each
+        # configuration set must be separated by a line of the form
+        #
+        #   --- name:configuration_name
+        #
+        # The first YAML document has, by default, the name 'default'. One can
+        # also be provided if needed.
+        #
+        # @return [Array<String>] the names of the sections that have been modified
+        def load_from_yaml(file)
+            sections = self.class.load_raw_sections_from_file(file)
+
+            changed_sections = []
+            sections.each do |conf_options, doc|
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
                 result = normalize_conf(YAML.load(StringIO.new(doc)) || Hash.new)
-                conf_options = options[idx].first
                 name  = conf_options.delete(:name)
                 chain = conf(conf_options.delete(:chain), true)
                 result = Orocos::TaskConfigurations.merge_conf(result, chain, true)
@@ -804,7 +810,7 @@ module Orocos
 
         # Save a configuration section to disk
         #
-        # @overload save(section_name, file)
+        # @overload save(section_name, file, replace: false, task_model: self.model)
         #   @param [String] section_name the section name
         #   @param [String] file either a file, or a directory. In the latter
         #     case, the file will be #{conf_dir}/#{model.name}.yml
@@ -813,7 +819,7 @@ module Orocos
         # @overload save(task, file, section_name)
         #   @deprecated use {#extract} and {#save} instead
         #
-        def save(*args)
+        def save(*args, task_model: self.model, replace: false)
             if !args.first.respond_to?(:to_str)
                 Orocos.warn "save(task, file, name) is deprecated, use a combination of #extract and #save(name, file) instead"
                 task, file, name = *args
@@ -821,11 +827,9 @@ module Orocos
                 return save(name, file, task_model: task.model)
             end
 
-            section_name, file, options = *args
-            options ||= Hash.new
-            task_model = options[:task_model] || self.model
+            section_name, file = *args
             conf = conf(section_name)
-            self.class.save(conf, file, section_name, task_model: task_model)
+            self.class.save(conf, file, section_name, task_model: task_model, replace: replace)
             conf
         end
 
@@ -853,7 +857,7 @@ module Orocos
         #     defaults to task.name 
         #   @return [Hash] the task configuration in YAML representation, as
         #     returned by {.config_as_hash}
-        def self.save(config, file, name, task_model: nil)
+        def self.save(config, file, name, task_model: nil, replace: false)
             if config.respond_to?(:each_property)
                 conf = TaskConfigurations.new(task_model || config.model)
                 conf.extract(name, config)
@@ -885,10 +889,37 @@ module Orocos
                 parts << yaml.split("\n")[1..-1].join("\n")
             end
 
-            File.open(file, 'a') do |io|
-                io.write("--- name:#{name}\n")
-                io.write(parts.join("\n"))
-                io.puts
+            if !replace
+                File.open(file, 'a') do |io|
+                    io.write("--- name:#{name}\n")
+                    io.write(parts.join("\n"))
+                    io.puts
+                end
+            else
+                raw_sections =
+                    begin load_raw_sections_from_file(file)
+                    rescue Errno::ENOENT
+                        Array.new
+                    end
+
+                raw_sections.delete_if { |options, _| options[:name] == name }
+                raw_sections << [Hash[name: name], parts.map { |l| "#{l}\n" }]
+                File.open(file, 'w') do |io|
+                    raw_sections.each do |options, doc|
+                        formatted_options = options.map do |k, v|
+                            if v.respond_to?(:to_ary)
+                                next if !v.empty?
+                                v = v.join(",")
+                            end
+                            "#{k}:#{v}"
+                        end.compact
+                        io.puts "--- #{formatted_options.join(" ")}"
+                        io.write doc.join("")
+                        if doc.last != "\n"
+                            io.puts
+                        end
+                    end
+                end
             end
             config
         end
