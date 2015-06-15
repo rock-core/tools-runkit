@@ -1,5 +1,4 @@
-module Types
-end
+Types = Typelib::RegistryExport::Namespace.new
 
 module Orocos
     class << self
