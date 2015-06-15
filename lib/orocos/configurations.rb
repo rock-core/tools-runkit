@@ -314,6 +314,14 @@ module Orocos
             changed
         end
 
+        # Remove a configuration section
+        # 
+        # @param [String] name the section name
+        # @return [Boolean] true if such as section existed, and false otherwise
+        def remove(name)
+            !!sections.delete(name)
+        end
+
         # Extract configuration from a task object and save it as a section in self
         #
         # @param [#each_property] task the task. #each_property must yield
