@@ -81,6 +81,13 @@ module Orocos
             @context = Array.new
         end
 
+        def initialize_copy(source)
+            super
+            @sections = sections.map_value { |k, v| v.dup }
+            @merged_conf = Hash.new
+            @context = Array.new
+        end
+
         # Retrieves the configuration for the given section name 
         #
         # @return [Object] see the description of {#sections} for the description
