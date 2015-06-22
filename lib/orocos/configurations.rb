@@ -1110,7 +1110,7 @@ module Orocos
                 if names == ['default'] || names == []
                     return
                 else
-                    raise ArgumentError, "no configuration available for #{model_name}"
+                    raise ArgumentError, "no configuration available for #{model_name} (expected #{names.join(", ")})"
                 end
             end
 
