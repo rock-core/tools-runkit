@@ -48,8 +48,7 @@ module Orocos
                 raise ArgumentError, "#{name} is already started in #{self}"
             end
 
-            prefix_mappings, options =
-                Orocos::ProcessBase.resolve_prefix_option(options, model)
+            prefix_mappings = Orocos::ProcessBase.resolve_prefix(model, options.delete(:prefix))
             name_mappings = prefix_mappings.merge(name_mappings)
 
             ruby_deployment = Process.new(self, name, model)

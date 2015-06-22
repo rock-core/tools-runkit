@@ -161,8 +161,7 @@ module Orocos
             else deployment_model = deployment
             end
 
-            prefix_mappings, options =
-                Orocos::ProcessBase.resolve_prefix_option(options, deployment_model)
+            prefix_mappings = Orocos::ProcessBase.resolve_prefix(deployment_model, options.delete(:prefix))
             name_mappings = prefix_mappings.merge(name_mappings)
 
             socket.write(COMMAND_START)

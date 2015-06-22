@@ -295,7 +295,7 @@ module Orocos
                 begin
                     p = Orocos::Process.new(name, deployment_name)
                     p.name_mappings = name_mappings
-                    p.spawn(self.default_start_options.merge(options))
+                    p.spawn(**self.default_start_options.merge(options))
                     Server.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
                     processes[name] = p
                     socket.write(RET_STARTED_PROCESS)
