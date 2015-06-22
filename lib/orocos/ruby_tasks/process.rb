@@ -64,8 +64,9 @@ module Orocos
         # @return [void]
         def spawn(options = Hash.new)
             model.task_activities.each do |deployed_task|
-                deployed_tasks[deployed_task.name] = TaskContext.
-                    from_orogen_model(get_mapped_name(deployed_task.name), deployed_task.task_model)
+                name = get_mapped_name(deployed_task.name)
+                deployed_tasks[name] = TaskContext.
+                    from_orogen_model(name, deployed_task.task_model)
             end
             @alive = true
         end
@@ -81,7 +82,7 @@ module Orocos
         def task(task_name)
             if t = deployed_tasks[task_name]
                 t
-            else raise ArgumentError, "#{self} has no task called #{task_name}"
+            else raise ArgumentError, "#{self} has no task called #{task_name}, known tasks: #{deployed_tasks.keys.sort.join(", ")}"
             end
         end
 
