@@ -6,12 +6,8 @@ module Orocos
     # the local process, based on the deployment models
     class ProcessManager
         class Status
-            def initialize(options = Hash.new)
-                options = Kernel.validate_options options,
-                    :exit_code => nil,
-                    :signal => nil
-                @exit_code = options[:exit_code]
-                @signal = options[:signal]
+            def initialize(exit_code: nil, signal: nil)
+                @exit_code, @signal = exit_code, signal
             end
             def stopped?; false end
             def exited?; !@exit_code.nil? end
@@ -89,7 +85,7 @@ module Orocos
             end
         end
 
-        def dead_deployment(deployment_name, status = Status.new(:exit_code => 0))
+        def dead_deployment(deployment_name, status = Status.new(exit_code: 0))
             if deployment = deployments.delete(deployment_name)
                 terminated_deployments[deployment] = status
             end

@@ -23,7 +23,7 @@ module Orocos
         #
         # @return [TaskContext]
         def self.from_orogen_model(name, orogen_model)
-            new(name, :model => orogen_model)
+            new(name, model: orogen_model)
         end
 
         # Creates a new ruby task context with the given name
@@ -32,8 +32,8 @@ module Orocos
         # @return [TaskContext]
         def self.new(name, options = Hash.new, &block)
             options, _ = Kernel.filter_options options,
-                :model => nil,
-                :project => OroGen::Spec::Project.new(Orocos.default_loader)
+                model: nil,
+                project: OroGen::Spec::Project.new(Orocos.default_loader)
 
             project = options.delete(:project)
             if block && !options[:model]
