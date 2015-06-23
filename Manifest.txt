@@ -88,6 +88,7 @@ lib/orocos/ruby_tasks/deprecated.rb
 lib/orocos/ruby_tasks/ports.rb
 lib/orocos/ruby_tasks/process.rb
 lib/orocos/ruby_tasks/process_manager.rb
+lib/orocos/ruby_tasks/stub_task_context.rb
 lib/orocos/ruby_tasks/task_context.rb
 lib/orocos/scripts.rb
 lib/orocos/task_context.rb
@@ -95,6 +96,7 @@ lib/orocos/task_context_base.rb
 lib/orocos/test.rb
 lib/orocos/test/component.rb
 lib/orocos/test/mocks.rb
+lib/orocos/test/ruby_tasks.rb
 lib/orocos/typekits.rb
 lib/orocos/uri.rb
 lib/orocos/version.rb
@@ -175,10 +177,13 @@ test/ros/test_node.rb
 test/ros/test_process_manager.rb
 test/ros/test_ros.rb
 test/ros/test_topic.rb
+test/ruby_tasks/test_process.rb
+test/ruby_tasks/test_task_context.rb
 test/standalone/test_corba_not_initialized.rb
 test/suite.rb
 test/suite_async.rb
 test/suite_ros.rb
+test/suite_ruby_tasks.rb
 test/test_base.rb
 test/test_configurations.rb
 test/test_corba.rb
@@ -190,6 +195,5 @@ test/test_ports.rb
 test/test_process.rb
 test/test_properties.rb
 test/test_remote_processes.rb
-test/test_ruby_task_context.rb
 test/test_task.rb
 test/test_uri.rb
