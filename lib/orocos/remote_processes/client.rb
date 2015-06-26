@@ -168,7 +168,8 @@ module Orocos
             Marshal.dump([process_name, deployment_model.name, name_mappings, options], socket)
             wait_for_answer do |pid_s|
                 if pid_s == RET_NO
-                    raise Failed, "failed to start #{deployment_model.name}"
+                    msg = Marshal.load(socket)
+                    raise Failed, "failed to start #{deployment_model.name}: #{msg}"
                 elsif pid_s == RET_STARTED_PROCESS
                     pid = Marshal.load(socket)
                     process = Process.new(process_name, deployment_model, self, pid)

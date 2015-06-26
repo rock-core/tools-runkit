@@ -304,6 +304,7 @@ module Orocos
                     Server.warn "failed to start #{name}: #{e.message}"
                     Server.warn "  " + e.backtrace.join("\n  ")
                     socket.write(RET_NO)
+                    socket.write Marshal.dump(e.message)
                 end
             elsif cmd_code == COMMAND_END
                 name = Marshal.load(socket)
