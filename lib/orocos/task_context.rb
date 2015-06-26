@@ -211,7 +211,7 @@ module Orocos
                 if has_operation?('__orogen_getTID')
                     @tid = operation('__orogen_getTID').callop()
                 else
-                    raise ArgumentError, "#tid is available only on oroGen tasks"
+                    raise ArgumentError, "#tid is available only on oroGen tasks, not #{self}"
                 end
             end
             @tid
