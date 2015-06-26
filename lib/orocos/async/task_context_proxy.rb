@@ -563,6 +563,7 @@ module Orocos::Async
         end
 
         def property(name,options = Hash.new)
+            name = name.to_str
             options,other_options = Kernel.filter_options options,:wait => @options[:wait]
             wait if options[:wait]
 
@@ -591,6 +592,7 @@ module Orocos::Async
         end
 
         def attribute(name,options = Hash.new)
+            name = name.to_str
             options,other_options = Kernel.filter_options options,:wait => @options[:wait]
             wait if options[:wait]
 
@@ -619,6 +621,7 @@ module Orocos::Async
         end
 
         def port(name,options = Hash.new)
+            name = name.to_str
             options,other_options = Kernel.filter_options options,:wait => @options[:wait]
             wait if options[:wait]
 
