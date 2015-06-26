@@ -77,10 +77,12 @@ module Orocos
             end
 
             def operation(name)
+                super
+            rescue NotFound
                 if model.find_operation(name)
                     Operation.new(name, self)
                 else
-                    raise NotFound, "#{self} has no operation called #{name}"
+                    raise
                 end
             end
         end
