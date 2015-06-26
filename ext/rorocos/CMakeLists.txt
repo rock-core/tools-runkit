@@ -9,6 +9,13 @@ IF(APPLE)
   set(CMAKE_MACOSX_RPATH 1)
 ENDIF(APPLE)
 
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    message(STATUS "running on Linux, implementing the __orogen_getTID() operation on all tasks")
+    add_definitions(-DHAS_GETTID)
+else()
+    message(STATUS "NOT running on Linux (cmake reports ${CMAKE_SYSTEM_NAME}). The __orogen_getTID() operation will be a dummy")
+endif()
+
 ADD_DEFINITIONS(-D_REENTRANT)
 MACRO(CMAKE_USE_FULL_RPATH install_rpath)
     # use, i.e. don't skip the full RPATH for the build tree
