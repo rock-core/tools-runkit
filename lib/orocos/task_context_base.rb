@@ -67,10 +67,10 @@ module Orocos
         end
 
         # Sets a new value for the property/attribute
-        def write(value, timestamp = Time.now)
+        def write(value, timestamp = Time.now, direct: false)
             ensure_type_available
             value = Typelib.from_ruby(value, type)
-            do_write(@orocos_type_name, value)
+            do_write(@orocos_type_name, value, direct: direct)
             log_value(value, timestamp)
             value
         end
