@@ -282,8 +282,57 @@ module Orocos
         type.name
     end
 
+    # Gets or update known maximum size for variable-sized containers in types
+    #
+    # This method can only be called after Orocos.load
+    #
+    # Size specification is path.to.field => size, where [] is used to get
+    # elements of an array or variable-size container.
+    #
+    # If type is a container itself, the second form is used,
+    # where the first argument is the container size and the rest
+    # specifies its element sizes (and must start with [])
+    #
+    # For instance, with the types
+    #
+    #   struct A
+    #   {
+    #       std::vector<int> values;
+    #   };
+    #   struct B
+    #   {
+    #       std::vector<A> field;
+    #   };
+    #
+    # Then sizes of type B would be given with
+    #
+    #   max_sizes('/B', 'field' => 10, 'field[].values' => 20)
+    #
+    # while the sizes of /std/vector</A> would be given with
+    #
+    #   max_sizes('/std/vector</A>', 10, '[].values' => 20)
+    #
+    # Finally, for /std/vector</std/vector</A>>, one would use
+    #
+    #   max_sizes('/std/vector</std/vector</A>>, 10, '[]' => 20, '[][].values' => 30)
+    #
+    #
+    # @overload max_sizes => Hash
+    #   Gets all known maximum sizes
+    #
+    #   @return [Hash<String,Hash>] a mapping from type names to the size
+    #     specification for this type. See above for the hash format
+    #
+    # @overload max_sizes('/namespace/Compound', 'to[].field' => 10, 'other' => 20)
+    #   Updates the known maximum sizes for the given type. When updating, any
+    #   new field value will erase old ones, unless a block is given in which
+    #   case the block is given the old and new values and should return the
+    #   value that should be stored
+    #
     def self.max_sizes(typename = nil, *sizes, &block)
-        @max_sizes ||= Hash.new
+        if !@max_sizes
+            raise ArgumentError, "cannot call Orocos.max_sizes before Orocos.load"
+        end
 
         if !typename && sizes.empty?
             return @max_sizes
@@ -295,11 +344,16 @@ module Orocos
         @max_sizes[type.name].merge!(sizes, &block)
     end
 
+    # Returns the max size specification for the given type
+    #
+    # @param [String,Typelib::Type] the type or type name
+    # @return [Hash] the maximum size specification, see {Orocos.max_sizes} for
+    #   details
     def self.max_sizes_for(type)
         if type.respond_to?(:name)
             type = type.name
         end
-        max_sizes[type] || Hash.new
+        @max_sizes.fetch(type, Hash.new)
     end
 
     def self.normalize_typename(typename)
