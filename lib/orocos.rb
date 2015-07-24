@@ -39,6 +39,7 @@ end
 
 require 'orogen'
 require 'utilrb/module/attr_predicate'
+require 'utilrb/hash/map_value'
 
 require 'orocos/namespace'
 require 'orocos/logging'
