@@ -636,7 +636,7 @@ module Orocos
                                    gdb: false, gdb_options: Hash.new,
                                    log_level: nil,
                                    output: nil, oro_logfile:  "orocos.%m-%p.txt",
-                                   working_directory: nil,
+                                   working_directory: Orocos.default_working_directory,
                                    cmdline_args: Hash.new)
             deployments, models = partition_run_options(*names, loader: loader)
             wait = normalize_wait_option(wait, valgrind, gdb)
@@ -888,7 +888,7 @@ module Orocos
         #   true will enable valgrind support. Setting it to an array of strings will
         #   specify a list of arguments that should be passed to valgrind
         #   itself. This is obviously incompatible with the gdb option.
-        def spawn(log_level: nil, working_directory: nil,
+        def spawn(log_level: nil, working_directory: Orocos.default_working_directory,
                   cmdline_args: Hash.new,
                   oro_logfile:  "orocos.%m-%p.txt",
                   prefix: nil, tracing: Orocos.tracing?, name_service: Orocos::CORBA.name_service,
