@@ -812,14 +812,14 @@ describe Orocos::TaskConfigurations do
             end
             it "saves the named configuration to disk" do
                 flexmock(Orocos::TaskConfigurations).should_receive(:save).
-                    with(conf.conf('sec'), '/conf.yml', 'sec', task_model: conf.model).
+                    with(conf.conf('sec'), '/conf.yml', 'sec', task_model: conf.model, replace: false).
                     once
                 conf.save('sec', '/conf.yml')
             end
             it "allows to override the model" do
                 task_model = flexmock
                 flexmock(Orocos::TaskConfigurations).should_receive(:save).
-                    with(conf.conf('sec'), '/conf.yml', 'sec', task_model: task_model).
+                    with(conf.conf('sec'), '/conf.yml', 'sec', task_model: task_model, replace: false).
                     once
                 conf.save('sec', '/conf.yml', task_model: task_model)
             end
@@ -845,10 +845,11 @@ describe Orocos::TaskConfigurations do
             it "extracts the configuration from the task and saves it" do
                 flexmock(Orocos::TaskConfigurations).
                     should_receive(:save).once.
-                    with(task, '/conf.yml', 'sec', task_model: task.model).pass_thru
+                    with(task, '/conf.yml', 'sec', task_model: task.model).
+		    pass_thru
                 flexmock(Orocos::TaskConfigurations).
                     should_receive(:save).once.
-                    with(expected, '/conf.yml', 'sec', task_model: task.model)
+                    with(expected, '/conf.yml', 'sec', replace: false, task_model: task.model)
                 Orocos::TaskConfigurations.save(task, '/conf.yml', 'sec', task_model: task.model)
             end
         end

@@ -38,7 +38,7 @@ module Orocos
 
         def clear
             if export_types? && registry
-                type_export_namespace.reset_registry_export
+                type_export_namespace.disable_registry_export
             end
             super
             OroGen::Loaders::RTT.setup_loader(self)

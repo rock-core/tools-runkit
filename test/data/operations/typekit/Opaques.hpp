@@ -3,7 +3,7 @@
 #ifndef operations_USER_MARSHALLING_HH
 #define operations_USER_MARSHALLING_HH
 
-#include <operations/Types.hpp>
+#include <operations/typekit/OpaqueFwd.hpp>
 
 namespace orogen_typekits
 {

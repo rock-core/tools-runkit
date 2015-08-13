@@ -31,8 +31,8 @@ module Orocos
             super.merge('rock_stream_type' => 'property')
         end
 
-        def do_write(type_name, value)
-            if dynamic?
+        def do_write(type_name, value, direct: false)
+            if !direct && dynamic?
                 do_write_dynamic(value)
             else
                 task.do_property_write(name, type_name, value)
@@ -47,8 +47,9 @@ module Orocos
         def log_metadata
             super.merge('rock_stream_type' => 'attribute')
         end
-        def do_write(type_name, value)
-            if dynamic?
+
+        def do_write(type_name, value, direct: false)
+            if !direct && dynamic?
                 do_write_dynamic(value)
             else
                 task.do_attribute_write(name, type_name, value)
@@ -211,7 +212,7 @@ module Orocos
                 if has_operation?('__orogen_getTID')
                     @tid = operation('__orogen_getTID').callop()
                 else
-                    raise ArgumentError, "#tid is available only on oroGen tasks"
+                    raise ArgumentError, "#tid is available only on oroGen tasks, not #{self}"
                 end
             end
             @tid

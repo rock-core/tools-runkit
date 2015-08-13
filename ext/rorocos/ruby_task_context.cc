@@ -18,6 +18,10 @@
 #include <rtt/transports/corba/CorbaDispatcher.hpp>
 #include "rblocking_call.h"
 
+#ifdef HAS_GETTID
+#include <sys/syscall.h>
+#endif
+
 static VALUE cRubyTaskContext;
 static VALUE cLocalTaskContext;
 static VALUE cLocalOutputPort;
@@ -28,6 +32,7 @@ struct LocalTaskContext : public RTT::TaskContext
     std::string model_name;
 
     RTT::Operation< ::std::string() > _getModelName;
+    RTT::Operation< boost::int32_t() > ___orogen_getTID;
     RTT::OutputPort< ::boost::int32_t > _state;
     std::string getModelName() const
     { return model_name; }
@@ -37,6 +42,7 @@ struct LocalTaskContext : public RTT::TaskContext
     LocalTaskContext(std::string const& name)
         : RTT::TaskContext(name, TaskCore::PreOperational)
         , _getModelName("getModelName", &LocalTaskContext::getModelName, this, RTT::ClientThread)
+        , ___orogen_getTID("__orogen_getTID", &LocalTaskContext::__orogen_getTID, this, RTT::OwnThread)
         , _state("state")
     {
         setupComponentInterface();
@@ -46,12 +52,19 @@ struct LocalTaskContext : public RTT::TaskContext
     {
         provides()->addOperation( _getModelName)
             .doc("returns the oroGen model name for this task");
+        provides()->addOperation( ___orogen_getTID)
+            .doc("returns the thread ID of this task");
         _state.keepLastWrittenValue(false);
         _state.keepNextWrittenValue(true);
         ports()->addPort(_state);
         
         _state.keepLastWrittenValue(true);
         _state.write(getTaskState());
+    }
+
+    boost::int32_t __orogen_getTID() const
+    {
+        return syscall(SYS_gettid);
     }
 
     void report(int state) { _state.write(state); }

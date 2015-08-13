@@ -1,7 +1,7 @@
 #ifndef echo_USER_MARSHALLING_HH
 #define echo_USER_MARSHALLING_HH
 
-#include <echo/Types.hpp>
+#include <echo/typekit/OpaqueFwd.hpp>
 
 namespace orogen_typekits
 {

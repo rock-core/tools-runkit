@@ -28,7 +28,7 @@ module Orocos
                 if text = available_projects[name]
                     return text
                 else
-                    raise OroGen::NotFound, "#{client} has no project called #{name}, available projects: #{available_projects.keys.sort.join(", ")}"
+                    raise OroGen::ProjectNotFound, "#{client} has no project called #{name}, available projects: #{available_projects.keys.sort.join(", ")}"
                 end
             end
 
@@ -42,7 +42,7 @@ module Orocos
                 if text = available_typekits[name]
                     return *text
                 else 
-                    raise OroGen::NotFound, "#{client} has no typekit called #{name}"
+                    raise OroGen::TypekitNotFound, "#{client} has no typekit called #{name}"
                 end
             end
 

@@ -6,12 +6,8 @@ module Orocos
     # the local process, based on the deployment models
     class ProcessManager
         class Status
-            def initialize(options = Hash.new)
-                options = Kernel.validate_options options,
-                    :exit_code => nil,
-                    :signal => nil
-                @exit_code = options[:exit_code]
-                @signal = options[:signal]
+            def initialize(exit_code: nil, signal: nil)
+                @exit_code, @signal = exit_code, signal
             end
             def stopped?; false end
             def exited?; !@exit_code.nil? end
@@ -26,10 +22,18 @@ module Orocos
         attr_reader :loader
         attr_reader :terminated_deployments
 
-        def initialize(loader = Orocos.default_loader)
+        # The task context class that should be used on the client side
+        #
+        # Defaults to {TaskContext}, another option is {StubTaskContext}
+        #
+        # @return [Class]
+        attr_reader :task_context_class
+
+        def initialize(loader = Orocos.default_loader, task_context_class: TaskContext)
             @loader = loader
             @deployments = Hash.new
             @terminated_deployments = Hash.new
+            @task_context_class = task_context_class
         end
 
         def disconnect
@@ -48,11 +52,10 @@ module Orocos
                 raise ArgumentError, "#{name} is already started in #{self}"
             end
 
-            prefix_mappings, options =
-                Orocos::ProcessBase.resolve_prefix_option(options, model)
+            prefix_mappings = Orocos::ProcessBase.resolve_prefix(model, options.delete(:prefix))
             name_mappings = prefix_mappings.merge(name_mappings)
 
-            ruby_deployment = Process.new(self, name, model)
+            ruby_deployment = Process.new(self, name, model, task_context_class: task_context_class)
             ruby_deployment.name_mappings = name_mappings
             ruby_deployment.spawn
             deployments[name] = ruby_deployment
@@ -90,7 +93,7 @@ module Orocos
             end
         end
 
-        def dead_deployment(deployment_name, status = Status.new(:exit_code => 0))
+        def dead_deployment(deployment_name, status = Status.new(exit_code: 0))
             if deployment = deployments.delete(deployment_name)
                 terminated_deployments[deployment] = status
             end

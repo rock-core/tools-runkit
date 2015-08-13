@@ -44,7 +44,14 @@ module Orocos
         # process
         #
         # @return [Integer]
-        def pid; Process.pid end
+        def pid; ::Process.pid end
+
+        # The task context class that should be used on the client side
+        #
+        # Defaults to {TaskContext}, another option is {StubTaskContext}
+        #
+        # @return [Class]
+        attr_reader :task_context_class
 
         # Creates a new ruby task process
         #
@@ -53,9 +60,10 @@ module Orocos
         #   will be called when this process stops
         # @param [String] name the process name
         # @param [OroGen::Spec::Deployment] model the deployment model
-        def initialize(ruby_process_server, name, model)
+        def initialize(ruby_process_server, name, model, task_context_class: TaskContext)
             @ruby_process_server = ruby_process_server
             @deployed_tasks = Hash.new
+            @task_context_class = task_context_class
             super(name, model)
         end
 
@@ -64,8 +72,9 @@ module Orocos
         # @return [void]
         def spawn(options = Hash.new)
             model.task_activities.each do |deployed_task|
-                deployed_tasks[deployed_task.name] = TaskContext.
-                    from_orogen_model(get_mapped_name(deployed_task.name), deployed_task.task_model)
+                name = get_mapped_name(deployed_task.name)
+                deployed_tasks[name] = task_context_class.
+                    from_orogen_model(name, deployed_task.task_model)
             end
             @alive = true
         end
@@ -81,7 +90,7 @@ module Orocos
         def task(task_name)
             if t = deployed_tasks[task_name]
                 t
-            else raise ArgumentError, "#{self} has no task called #{task_name}"
+            else raise ArgumentError, "#{self} has no task called #{task_name}, known tasks: #{deployed_tasks.keys.sort.join(", ")}"
             end
         end
 

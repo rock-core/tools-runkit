@@ -71,7 +71,12 @@ CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src)
     else
     {
         orogen_transports::TypelibMarshallerBase::Handle* handle = typelib_transport->createHandle();
-        typelib_transport->setTypelibSample(handle, src);
+        try { typelib_transport->setTypelibSample(handle, src); }
+        catch(std::exception& e)
+        {
+            rb_raise(eCORBA, "failed to marshal %s: %s", type_name.c_str(), e.what());
+        }
+
         RTT::base::DataSourceBase::shared_ptr ds =
             typelib_transport->getDataSource(handle);
         result = corba_transport->createAny(ds);

@@ -1,4 +1,5 @@
 #include "Opaques.hpp"
+#include <echo/typekit/OpaqueTypes.hpp>
 
     /** Returns the intermediate value that is contained in \c real_type */
     /** Stores \c intermediate into \c real_type. \c intermediate is owned by \c

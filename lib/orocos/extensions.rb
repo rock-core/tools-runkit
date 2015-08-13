@@ -123,7 +123,19 @@ module Orocos
 
         def add_watches(processes, _threads)
             watch_op = operation('watch')
-            threads = _threads.dup
+            if _threads.respond_to?(:to_ary)
+                threads = Hash.new
+                _threads.each do |orocos_task|
+                    tid = orocos_task.tid
+                    if tid == 0
+                        Orocos.warn "taskmon::Task: cannot automatically add a watch on #{orocos_task}: #tid returned zero, which probably means that you are on a system where oroGen does not implement the getTID operation (e.g. non-Linux)"
+                    else
+                        threads[tid] = orocos_task.name
+                    end
+                end
+            else
+                threads = _threads.to_hash.dup
+            end
             sent_operations = []
 
             if on_localhost?
