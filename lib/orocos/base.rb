@@ -173,7 +173,7 @@ module Orocos
 
         @conf = ConfigurationManager.new
         @loaded_typekit_plugins.clear
-        @max_sizes = Hash.new
+        @max_sizes = Hash.new { |h, k| h[k] = Hash.new }
 
         load_standard_typekits
 
@@ -197,6 +197,8 @@ module Orocos
         @ruby_task.dispose if @ruby_task
         default_loader.clear
         known_orogen_extensions.clear
+
+        @max_sizes.clear
 
         Orocos::CORBA.clear
         @name_service = nil
