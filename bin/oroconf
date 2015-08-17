@@ -86,7 +86,8 @@ def dump_configuration(task, save_configuration)
         section_name ||= "default"
         Orocos::TaskConfigurations.save(task, file, section_name)
     else
-        pp Orocos::TaskConfigurations.config_as_hash(task)
+	task_conf = Orocos::TaskConfigurations.read_task_conf(task)
+	puts YAML.dump(Orocos::TaskConfigurations.to_yaml(task_conf))
     end
 end
 
@@ -106,7 +107,11 @@ when "extract"
         dump_configuration(task, save_configuration)
     end
     if save_configuration
-        puts "saved in #{File.join(save_configuration[0], "#{model_name}.yml")}"
+	path, section = *save_configuration
+	if File.directory?(path)
+	    path = File.join(save_configuration[0], "#{model_name}.yml")
+	end
+        puts "saved in #{path}"
     end
 
 when "logextract"
