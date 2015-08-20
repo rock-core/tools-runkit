@@ -1110,7 +1110,8 @@ module Orocos
                 if names == ['default'] || names == []
                     return
                 else
-                    raise ArgumentError, "no configuration available for #{model_name} (expected #{names.join(", ")})"
+                    section_name = names.find { |n| n != 'default' }
+                    raise TaskConfigurations::SectionNotFound.new(section_name), "no configuration available for #{model_name} (expected #{names.join(", ")})"
                 end
             end
 
