@@ -450,7 +450,8 @@ module Orocos
 
             a = Attribute.new(self, name, type_name)
             if configuration_log
-                a.log_stream = a.stream("#{self.name}.#{a.name}", a.type, true)
+                create_property_log_stream(a)
+                a.log_current_value
             end
             attributes[name] = a
         end
