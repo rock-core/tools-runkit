@@ -551,7 +551,7 @@ module Orocos
                     if !new_name
                         raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
                     end
-                    models[object] = new_name
+                    models[object] = Array(new_name)
                 when OroGen::Spec::Deployment
                     deployments[object] = (new_name if new_name)
                 else raise ArgumentError, "expected a task context model or a deployment model, got #{object}"
@@ -641,7 +641,7 @@ module Orocos
             deployments, models = partition_run_options(*names, loader: loader)
             wait = normalize_wait_option(wait, valgrind, gdb)
 
-            all_deployments = deployments.keys.map(&:name) + models.values
+            all_deployments = deployments.keys.map(&:name) + models.values.flatten
             valgrind = parse_cmdline_wrapper_option(
                 'valgrind', valgrind, valgrind_options, all_deployments)
             gdb = parse_cmdline_wrapper_option(
@@ -730,9 +730,12 @@ module Orocos
                     deployments = all_deployments
                 end
 
-                deployments.inject(Hash.new) { |h, name| h[name] = options; h }
-            else
-                deployments
+                deployments = deployments.inject(Hash.new) { |h, name| h[name] = options; h }
+            end
+            deployments.each_key do |name|
+                if !all_deployments.include?(name)
+                    raise ArgumentError, "#{name}, selected to be executed under #{cmd}, is not a known deployment/model"
+                end
             end
         end
         

@@ -11,7 +11,7 @@ describe Orocos::Process do
             deployments, models, options =
                 Orocos::Process.partition_run_options 'process' => 'name2', 'process::Test' => 'name'
             assert_equal Hash[deployment_m => 'name2'], deployments
-            assert_equal Hash[task_m => 'name'], models
+            assert_equal Hash[task_m => ['name']], models
         end
         it "sets to nil the prefix for deployments that should not have one" do
             deployments, models, options =
@@ -32,6 +32,118 @@ describe Orocos::Process do
 
     it "raises NotFound when the deployment name does not exist" do
         assert_raises(OroGen::DeploymentModelNotFound) { Orocos::Process.new("does_not_exist") }
+    end
+
+    describe 'parse_run_options' do
+        describe 'per-deployment wrappers' do
+            before do
+                flexmock(Orocos::Process).should_receive(:partition_run_options).with('foo', 'bar', any).
+                    and_return([Hash[flexmock(name: 'foo_prefixed'), nil,
+                                     flexmock(name: 'bar_prefixed'), nil],
+                                Hash.new])
+            end
+            let(:wrapper_options) { flexmock }
+
+            def parse_run_options(wrapper_name, arg, options: wrapper_options)
+                opts = Hash[wrapper_name.to_sym => arg]
+                if options
+                    opts["#{wrapper_name}_options".to_sym] = options
+                end
+
+                processes, _ = Orocos::Process.parse_run_options('foo', 'bar', **opts)
+                processes.inject(Hash.new) do |h, (_, _, name, spawn)|
+                    h.merge(name => spawn[wrapper_name.to_sym])
+                end
+            end
+
+            %w{valgrind gdb}.each do |wrapper|
+                it "uses an empty hash as default value if if no #{wrapper} options are explicitely given" do
+                    result = parse_run_options(wrapper, true, options: nil)
+                    assert_equal Hash.new, result['foo_prefixed']
+                    assert_equal Hash.new, result['bar_prefixed']
+                end
+                it "passes the #{wrapper} options to all deployments if given 'true'" do
+                    result = parse_run_options(wrapper, true)
+                    assert_equal wrapper_options, result['foo_prefixed']
+                    assert_equal wrapper_options, result['bar_prefixed']
+                end
+                it "passes the #{wrapper} options to a select set of deployments if given a list of names" do
+                    result = parse_run_options(wrapper, ['foo_prefixed'])
+                    assert_equal wrapper_options, result['foo_prefixed']
+                    assert !result['bar_prefixed']
+                end
+                it "raises if the name array given as '#{wrapper}' contains non-existent deployments" do
+                    assert_raises(ArgumentError) do
+                        parse_run_options(wrapper, ['foo'])
+                    end
+                end
+                it "passes per-deployment #{wrapper} options if given a hash" do
+                    result = parse_run_options(wrapper, Hash[
+                        'foo_prefixed' => (options0 = flexmock),
+                        'bar_prefixed' => (options1 = flexmock)])
+                    assert_equal options0, result['foo_prefixed']
+                    assert_equal options1, result['bar_prefixed']
+                end
+            end
+        end
+
+        describe 'per-model wrappers' do
+            before do
+                flexmock(Orocos::Process).should_receive(:partition_run_options).with('foo', 'bar', any).
+                    and_return([Hash.new,
+                                Hash[flexmock, ['foo_prefixed'],
+                                     flexmock, ['bar_prefixed']]])
+                flexmock(Orocos::Process).should_receive(:resolve_name_mappings).
+                    and_return do |_, models|
+                        models.flat_map do |obj, new_names|
+                            Array(new_names).map { |n| [flexmock, Hash.new, n] }
+                        end
+                    end
+            end
+            let(:wrapper_options) { flexmock }
+
+            def parse_run_options(wrapper_name, arg, options: wrapper_options)
+                opts = Hash[wrapper_name.to_sym => arg]
+                if options
+                    opts["#{wrapper_name}_options".to_sym] = options
+                end
+
+                processes, _ = Orocos::Process.parse_run_options('foo', 'bar', **opts)
+                processes.inject(Hash.new) do |h, (_, _, name, spawn)|
+                    h.merge(name => spawn[wrapper_name.to_sym])
+                end
+            end
+
+            %w{valgrind gdb}.each do |wrapper|
+                it "uses an empty hash as default value if if no #{wrapper} options are explicitely given" do
+                    result = parse_run_options(wrapper, true, options: nil)
+                    assert_equal Hash.new, result['foo_prefixed']
+                    assert_equal Hash.new, result['bar_prefixed']
+                end
+                it "passes the #{wrapper} options to all deployments if given 'true'" do
+                    result = parse_run_options(wrapper, true)
+                    assert_equal wrapper_options, result['foo_prefixed']
+                    assert_equal wrapper_options, result['bar_prefixed']
+                end
+                it "passes the #{wrapper} options to a select set of deployments if given a list of names" do
+                    result = parse_run_options(wrapper, ['foo_prefixed'])
+                    assert_equal wrapper_options, result['foo_prefixed']
+                    assert !result['bar_prefixed']
+                end
+                it "raises if the name array given as '#{wrapper}' contains non-existent deployments" do
+                    assert_raises(ArgumentError) do
+                        parse_run_options(wrapper, ['foo'])
+                    end
+                end
+                it "passes per-deployment #{wrapper} options if given a hash" do
+                    result = parse_run_options(wrapper, Hash[
+                        'foo_prefixed' => (options0 = flexmock),
+                        'bar_prefixed' => (options1 = flexmock)])
+                    assert_equal options0, result['foo_prefixed']
+                    assert_equal options1, result['bar_prefixed']
+                end
+            end
+        end
     end
     
     describe "#spawn" do
