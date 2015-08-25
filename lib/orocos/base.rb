@@ -1,5 +1,6 @@
 # The Orocos main class
 module Orocos
+    class AlreadyInitialized < RuntimeError; end
     class InternalError < RuntimeError; end
     class AmbiguousName < RuntimeError; end
     class PropertyChangeRejected < RuntimeError; end
@@ -165,6 +166,10 @@ module Orocos
     end
 
     def self.load(name = nil)
+        if @loaded
+            raise AlreadyInitialized "Orocos is already loaded. Try to call 'clear' before callign load a second time."
+        end
+
         if ENV['ORO_LOGFILE'] && orocos_logfile && (ENV['ORO_LOGFILE'] != orocos_logfile)
             raise "trying to change the path to ORO_LOGFILE from #{orocos_logfile} to #{ENV['ORO_LOGFILE']}. This is not supported"
         end
