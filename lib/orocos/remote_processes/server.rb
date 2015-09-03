@@ -226,7 +226,9 @@ module Orocos
             end
 
             each_client do |socket|
-                socket.close
+                begin socket.close
+                rescue IOError
+                end
             end
         end
 
