@@ -167,7 +167,7 @@ module Orocos
 
     def self.load(name = nil)
         if @loaded
-            raise AlreadyInitialized "Orocos is already loaded. Try to call 'clear' before callign load a second time."
+            raise AlreadyInitialized, "Orocos is already loaded. Try to call 'clear' before callign load a second time."
         end
 
         if ENV['ORO_LOGFILE'] && orocos_logfile && (ENV['ORO_LOGFILE'] != orocos_logfile)
