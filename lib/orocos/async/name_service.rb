@@ -27,7 +27,24 @@ module Orocos::Async
         include Orocos::Async::ObjectBase::Periodic
         include Orocos::Namespace
 
-        define_events :task_added, :task_removed
+        # @!method on_task_added
+        #
+        # Registers an event callback that will receive new task names when the
+        # name service reports them
+        #
+        # @yieldparam [String] name use {#proxy} to resolve it into a task
+        #   context proxy
+        # @return [void]
+        define_events :task_added
+        
+        # @!method on_task_added
+        #
+        # Registers an event callback that will receive task names when the task
+        # got deregistered from the name service(s)
+        #
+        # @yieldparam [String] name
+        # @return [void]
+        define_events :task_removed
 
         attr_reader :task_context_proxies
 

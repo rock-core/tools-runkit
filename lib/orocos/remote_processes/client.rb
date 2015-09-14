@@ -116,8 +116,15 @@ module Orocos
             socket.close
         end
 
-        def wait_for_answer
+        class TimeoutError < RuntimeError
+        end
+
+        def wait_for_answer(timeout: 10)
             while true
+                if !select([socket], [], [], timeout)
+                    raise TimeoutError, "reached timeout of #{timeout}s in #wait_for_answer"
+                end
+
                 reply = socket.read(1)
                 if !reply
                     raise Orocos::ComError, "failed to read from process server #{self}"
