@@ -253,6 +253,9 @@ module Orocos
                     move_log_dir(log_dir, results_dir)
                 rescue Exception => e
                     Server.warn "failed to move log directory from #{log_dir} to #{results_dir}: #{e.message}"
+                    (e.backtrace || Array.new).each do |line|
+                        Server.warn "   #{line}"
+                    end
                 end
 
             elsif cmd_code == COMMAND_CREATE_LOG
@@ -260,11 +263,15 @@ module Orocos
                     Server.debug "#{socket} requested creating a log directory"
                     log_dir, time_tag, metadata = Marshal.load(socket)
                     metadata ||= Hash.new # compatible with older clients
-                    log_dir     = File.expand_path(log_dir)
+                    if log_dir
+                        log_dir = File.expand_path(log_dir)
+                    end
                     create_log_dir(log_dir, time_tag, metadata)
                 rescue Exception => e
                     Server.warn "failed to create log directory #{log_dir}: #{e.message}"
-                    Server.warn "   #{e.backtrace[0]}"
+                    (e.backtrace || Array.new).each do |line|
+                        Server.warn "   #{line}"
+                    end
                 end
 
             elsif cmd_code == COMMAND_START
@@ -278,7 +285,9 @@ module Orocos
                     Marshal.dump(p.pid, socket)
                 rescue Exception => e
                     Server.warn "failed to start #{name}: #{e.message}"
-                    Server.warn "  " + e.backtrace.join("\n  ")
+                    (e.backtrace || Array.new).each do |line|
+                        Server.warn "   #{line}"
+                    end
                     socket.write(RET_NO)
                     socket.write Marshal.dump(e.message)
                 end
