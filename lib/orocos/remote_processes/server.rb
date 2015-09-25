@@ -248,7 +248,7 @@ module Orocos
                 Server.debug "#{socket} requested moving a log directory"
                 begin
                     log_dir, results_dir = Marshal.load(socket)
-                    log_dir     = File.expand_path(log_dir)
+                    log_dir = File.expand_path(log_dir)
                     results_dir = File.expand_path(results_dir)
                     move_log_dir(log_dir, results_dir)
                 rescue Exception => e
@@ -258,9 +258,10 @@ module Orocos
             elsif cmd_code == COMMAND_CREATE_LOG
                 begin
                     Server.debug "#{socket} requested creating a log directory"
-                    log_dir, time_tag = Marshal.load(socket)
+                    log_dir, time_tag, metadata = Marshal.load(socket)
+                    metadata ||= Hash.new # compatible with older clients
                     log_dir     = File.expand_path(log_dir)
-                    create_log_dir(log_dir, time_tag)
+                    create_log_dir(log_dir, time_tag, metadata)
                 rescue Exception => e
                     Server.warn "failed to create log directory #{log_dir}: #{e.message}"
                     Server.warn "   #{e.backtrace[0]}"
@@ -306,12 +307,15 @@ module Orocos
             false
         end
 
-        def create_log_dir(log_dir, time_tag)
+        def create_log_dir(log_dir, time_tag, metadata = Hash.new)
             log_dir     = File.expand_path(log_dir)
             Server.debug "  #{log_dir}, time: #{time_tag}"
             FileUtils.mkdir_p(log_dir)
             File.open(File.join(log_dir, 'time_tag'), 'w') do |io|
                 io.write(time_tag)
+            end
+            File.open(File.join(log_dir, 'info.yml'), 'w') do |io|
+                YAML.dump(Hash['time' => time_tag].merge(metadata), io)
             end
         end
 
