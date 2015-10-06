@@ -243,51 +243,35 @@ module Orocos
 
             elsif cmd_code == COMMAND_GET_INFO
                 Server.debug "#{socket} requested system information"
-                available_projects = Hash.new
-                available_typekits = Hash.new
-                available_deployments = Hash.new
-                loader.each_available_project_name do |name|
-                    available_projects[name] = loader.project_model_text_from_name(name)
-                end
-                loader.each_available_typekit_name do |name|
-                    available_typekits[name] = loader.typekit_model_text_from_name(name)
-                end
-                loader.each_available_deployment_name do |name|
-                    available_deployments[name] = loader.find_project_from_deployment_name(name)
-                end
-                Marshal.dump([available_projects, available_deployments, available_typekits], socket)
+                Marshal.dump(build_system_info, socket)
             elsif cmd_code == COMMAND_MOVE_LOG
                 Server.debug "#{socket} requested moving a log directory"
                 begin
                     log_dir, results_dir = Marshal.load(socket)
-                    log_dir     = File.expand_path(log_dir)
-                    date_tag    = File.read(File.join(log_dir, 'time_tag')).strip
+                    log_dir = File.expand_path(log_dir)
                     results_dir = File.expand_path(results_dir)
-                    Server.debug "  #{log_dir} => #{results_dir}"
-                    if File.directory?(log_dir)
-                        dirname = Server.unique_dirname(results_dir + '/', '', date_tag)
-                        FileUtils.mv log_dir, dirname
-                    end
+                    move_log_dir(log_dir, results_dir)
                 rescue Exception => e
                     Server.warn "failed to move log directory from #{log_dir} to #{results_dir}: #{e.message}"
-                    if dirname
-                        Server.warn "   target directory was #{dirname}"
+                    (e.backtrace || Array.new).each do |line|
+                        Server.warn "   #{line}"
                     end
                 end
 
             elsif cmd_code == COMMAND_CREATE_LOG
                 begin
                     Server.debug "#{socket} requested creating a log directory"
-                    log_dir, time_tag = Marshal.load(socket)
-                    log_dir     = File.expand_path(log_dir)
-                    Server.debug "  #{log_dir}, time: #{time_tag}"
-                    FileUtils.mkdir_p(log_dir)
-                    File.open(File.join(log_dir, 'time_tag'), 'w') do |io|
-                        io.write(time_tag)
+                    log_dir, time_tag, metadata = Marshal.load(socket)
+                    metadata ||= Hash.new # compatible with older clients
+                    if log_dir
+                        log_dir = File.expand_path(log_dir)
                     end
+                    create_log_dir(log_dir, time_tag, metadata)
                 rescue Exception => e
                     Server.warn "failed to create log directory #{log_dir}: #{e.message}"
-                    Server.warn "   #{e.backtrace[0]}"
+                    (e.backtrace || Array.new).each do |line|
+                        Server.warn "   #{line}"
+                    end
                 end
 
             elsif cmd_code == COMMAND_START
@@ -295,26 +279,24 @@ module Orocos
                 options ||= Hash.new
                 Server.debug "#{socket} requested startup of #{name} with #{options} and mappings #{name_mappings}"
                 begin
-                    p = Orocos::Process.new(name, deployment_name)
-                    p.name_mappings = name_mappings
-                    p.spawn(**self.default_start_options.merge(options))
+                    p = start_process(name, deployment_name, name_mappings, options)
                     Server.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
-                    processes[name] = p
                     socket.write(RET_STARTED_PROCESS)
                     Marshal.dump(p.pid, socket)
                 rescue Exception => e
                     Server.warn "failed to start #{name}: #{e.message}"
-                    Server.warn "  " + e.backtrace.join("\n  ")
+                    (e.backtrace || Array.new).each do |line|
+                        Server.warn "   #{line}"
+                    end
                     socket.write(RET_NO)
                     socket.write Marshal.dump(e.message)
                 end
             elsif cmd_code == COMMAND_END
                 name = Marshal.load(socket)
                 Server.debug "#{socket} requested end of #{name}"
-                p = processes[name]
-                if p
+                if p = processes[name]
                     begin
-                        p.kill(false)
+                        end_process(p)
                         socket.write(RET_YES)
                     rescue Exception => e
                         Server.warn "exception raised while calling #{p}#kill(false)"
@@ -326,12 +308,64 @@ module Orocos
                     socket.write(RET_NO)
                 end
             elsif cmd_code == COMMAND_QUIT
-                raise Interrupt
+                quit
             end
 
             true
         rescue EOFError
             false
+        end
+
+        def create_log_dir(log_dir, time_tag, metadata = Hash.new)
+            log_dir     = File.expand_path(log_dir)
+            Server.debug "  #{log_dir}, time: #{time_tag}"
+            FileUtils.mkdir_p(log_dir)
+            File.open(File.join(log_dir, 'time_tag'), 'w') do |io|
+                io.write(time_tag)
+            end
+            File.open(File.join(log_dir, 'info.yml'), 'w') do |io|
+                YAML.dump(Hash['time' => time_tag].merge(metadata), io)
+            end
+        end
+
+        def move_log_dir(log_dir, results_dir)
+            date_tag    = File.read(File.join(log_dir, 'time_tag')).strip
+            Server.debug "  #{log_dir} => #{results_dir}"
+            if File.directory?(log_dir)
+                dirname = Server.unique_dirname(results_dir + '/', '', date_tag)
+                FileUtils.mv log_dir, dirname
+            end
+        end
+        
+        def build_system_info
+            available_projects = Hash.new
+            available_typekits = Hash.new
+            available_deployments = Hash.new
+            loader.each_available_project_name do |name|
+                available_projects[name] = loader.project_model_text_from_name(name)
+            end
+            loader.each_available_typekit_name do |name|
+                available_typekits[name] = loader.typekit_model_text_from_name(name)
+            end
+            loader.each_available_deployment_name do |name|
+                available_deployments[name] = loader.find_project_from_deployment_name(name)
+            end
+            return available_projects, available_deployments, available_typekits
+        end
+
+        def start_process(name, deployment_name, name_mappings, options)
+            p = Orocos::Process.new(name, deployment_name)
+            p.name_mappings = name_mappings
+            p.spawn(**self.default_start_options.merge(options))
+            processes[name] = p
+        end
+
+        def end_process(p)
+            p.kill(false)
+        end
+
+        def quit
+            raise Interrupt
         end
     end
     end

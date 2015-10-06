@@ -198,9 +198,9 @@ module Orocos
 
         # Creates a new log dir, and save the given time tag in it (used later
         # on by save_log_dir)
-        def create_log_dir(log_dir, time_tag)
+        def create_log_dir(log_dir, time_tag, metadata = Hash.new)
             socket.write(COMMAND_CREATE_LOG)
-            Marshal.dump([log_dir, time_tag], socket)
+            Marshal.dump([log_dir, time_tag, metadata], socket)
         end
 
         def queue_death_announcement
