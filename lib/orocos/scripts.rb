@@ -221,7 +221,7 @@ module Orocos
         end
 
         def self.run(*options, &block)
-            deployments, models, options = Orocos::Process.partition_run_options(*options)
+            deployments, models = Orocos::Process.partition_run_options(*options)
 
             if attach?
                 deployments.delete_if do |depl, _|
@@ -237,7 +237,7 @@ module Orocos
             if deployments.empty? && models.empty?
                 yield
             else
-                Orocos.run(deployments.merge(models).merge(options).merge(run_options), &block)
+                Orocos.run(deployments.merge(models).merge(run_options), &block)
             end
         end
 
