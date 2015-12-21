@@ -161,8 +161,14 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
     RTaskContext& task = get_wrapped<RTaskContext>(task_);
 
     VALUE result = rb_ary_new();
-    RTT::corba::CDescriptions_var args = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getArguments,
+
+    #if RTT_VERSION_GTE(2,9,0)
+        RTT::corba::CArgumentDescriptions_var args = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getArguments,
                 (_objref_COperationInterface*)task.main_service,StringValuePtr(opname)));
+    #else
+        RTT::corba::CDescriptions_var args = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getArguments,
+                (_objref_COperationInterface*)task.main_service,StringValuePtr(opname)));
+    #endif
 
     for (unsigned int i = 0; i < args->length(); ++i)
     {

@@ -1,6 +1,7 @@
 #ifndef OROCOS_EXT_RB_ROROCOS_HH
 #define OROCOS_EXT_RB_ROROCOS_HH
 
+
 #include "TaskContextC.h"
 #include "DataFlowC.h"
 #include "corba.hh"
@@ -8,6 +9,11 @@
 
 #include <rtt/typelib/TypelibMarshallerBase.hpp>
 #include <rtt/transports/corba/CorbaTypeTransporter.hpp>
+
+//if RTT_VERSION_GTE is not defined by above includes (RTT versions below 2.9)
+#ifndef RTT_VERSION_GTE
+#define RTT_VERSION_GTE(major,minor,patch) false
+#endif
 
 struct RInputPort { };
 struct ROutputPort { };

@@ -219,7 +219,11 @@ static VALUE task_context_attribute_names(VALUE self)
         corba_blocking_fct_call_with_result(bind(&_objref_CConfigurationInterface::getAttributeList,(_objref_CConfigurationInterface*)context.main_service));
     for (unsigned int i = 0; i != names->length(); ++i)
     {
-        CORBA::String_var name = names[i];
+        #if RTT_VERSION_GTE(2,9,0)
+            CORBA::String_var name = names[i].name;
+        #else
+            CORBA::String_var name = names[i];
+        #endif
         rb_ary_push(result, rb_str_new2(name));
     }
     return result;
@@ -230,11 +234,21 @@ static VALUE task_context_operation_names(VALUE self)
     RTaskContext& context = get_wrapped<RTaskContext>(self);
 
     VALUE result = rb_ary_new();
-    RTT::corba::COperationInterface::COperationList_var names =
-        corba_blocking_fct_call_with_result(bind(&_objref_COperationInterface::getOperations,(_objref_COperationInterface*)context.main_service));
+    #if RTT_VERSION_GTE(2,9,0)
+        RTT::corba::COperationInterface::COperationDescriptions_var names =
+                corba_blocking_fct_call_with_result(bind(&_objref_COperationInterface::getOperations,(_objref_COperationInterface*)context.main_service));
+    #else
+        RTT::corba::COperationInterface::COperationList_var names =
+                corba_blocking_fct_call_with_result(bind(&_objref_COperationInterface::getOperations,(_objref_COperationInterface*)context.main_service));
+    #endif
+
     for (unsigned int i = 0; i != names->length(); ++i)
     {
-        CORBA::String_var name = names[i];
+        #if RTT_VERSION_GTE(2,9,0)
+            CORBA::String_var name = names[i].name;
+        #else
+            CORBA::String_var name = names[i];
+        #endif
         rb_ary_push(result, rb_str_new2(name));
     }
     return result;
