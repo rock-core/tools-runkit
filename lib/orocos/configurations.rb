@@ -1158,7 +1158,9 @@ module Orocos
             if !task_conf
                 task_conf = conf[model_name] = TaskConfigurations.new(options[:model])
             end
-            task_conf.save(task, path, options[:name])
+            name = options[:name] || task.name
+            task_conf.extract(name, task)
+            task_conf.save(name, path, task_model: task.model)
         end
 
         # Returns a resolved configuration value for a task model name
