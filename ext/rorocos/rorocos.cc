@@ -98,14 +98,14 @@ orogen_transports::TypelibMarshallerBase* get_typelib_transport(RTT::types::Type
         return 0;
 }
 
-tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
+boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 {
     VALUE task = rb_iv_get(port, "@task");
     VALUE task_name = rb_iv_get(task, "@name");
     VALUE port_name = rb_iv_get(port, "@name");
 
     RTaskContext& task_context = get_wrapped<RTaskContext>(task);
-    return make_tuple(&task_context, task_name, port_name);
+    return boost::make_tuple(&task_context, task_name, port_name);
 }
 
 // call-seq:
