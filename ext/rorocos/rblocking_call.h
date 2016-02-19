@@ -7,6 +7,7 @@
 #include <boost/function_types/result_type.hpp>
 #include <boost/bind.hpp>
 #include <ruby.h>
+#include <ruby/thread.h>
 #include <stdarg.h>
 
 #define EXCEPTION_HANDLERS \
@@ -26,8 +27,8 @@ class BlockingFunctionBase
         void blockingCall()
         {
             exception_class = Qnil;
-#ifdef HAVE_RUBY_INTERN_H
-            rb_thread_blocking_region(&BlockingFunctionBase::callProcessing, this,
+#if defined HAVE_RUBY_INTERN_H
+            rb_thread_call_without_gvl(&BlockingFunctionBase::callProcessing, this,
                     &BlockingFunctionBase::callAbort, this);
 #else
             callProcessing(this);
@@ -94,10 +95,10 @@ class BlockingFunctionBase
 
 
     private:
-        static VALUE callProcessing(void* ptr)
+        static void* callProcessing(void* ptr)
         {
             reinterpret_cast<BlockingFunctionBase*>(ptr)->processing();
-            return Qnil;
+            return NULL;
         }
 
         static void callAbort(void* ptr)
