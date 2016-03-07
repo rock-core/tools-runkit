@@ -9,23 +9,25 @@ module Orocos
                     end
                 end
 
+                stubbed_operations = Module.new
                 orogen_model.each_operation do |op|
                     next if has_operation?(op.name, with_stubs: false)
 
                     if property = setter_operations[op.name]
-                        singleton_class.class_eval do
+                        stubbed_operations.class_eval do
                             define_method(op.name) do |value|
                                 self.property(property.name).write(value, Time.now, direct: true)
                                 true
                             end
                         end
                     else
-                        singleton_class.class_eval do
+                        stubbed_operations.class_eval do
                             define_method(op.name) do |*args|
                             end
                         end
                     end
                 end
+                extend stubbed_operations
                 super
             end
 
