@@ -620,7 +620,7 @@ module Orocos
                 config = names.inject(Hash.new) do |c, section_name|
                     section = sections[section_name]
                     if !section
-                        raise SectionNotFound.new(section_name), "#{section_name} is not a known configuration section"
+                        raise SectionNotFound.new(section_name), "#{section_name} is not a known configuration section for #{model.name}"
                     end
                     TaskConfigurations.merge_conf(c, section, override)
                 end
