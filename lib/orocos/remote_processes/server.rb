@@ -172,7 +172,7 @@ module Orocos
 
                 readable_sockets.each do |socket|
                     if !handle_command(socket)
-                        Server.debug "#{socket} closed"
+                        Server.debug "#{socket} closed or errored"
                         socket.close
                         @all_ios.delete(socket)
                     end
@@ -312,6 +312,14 @@ module Orocos
             end
 
             true
+        rescue Exception => e
+            Server.fatal "protocol error on #{socket}: #{e}"
+            Server.fatal "while serving command #{cmd_code}"
+            e.backtrace.each do |bt|
+                Server.fatal "  #{bt}"
+            end
+            false
+
         rescue EOFError
             false
         end
