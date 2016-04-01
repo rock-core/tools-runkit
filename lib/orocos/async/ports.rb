@@ -110,23 +110,27 @@ module Orocos::Async::CORBA
         end
 
         private
+
         # blocking method called from thread pool to read new data
         def thread_read(timeout)
             t1 = Time.now
-            while(!(data = raw_read_new).nil?) # sync call from bg thread
-                @raw_last_sample = data
+            raw_last_sample = nil
+            while data = raw_read_new # sync call from bg thread
+                raw_last_sample = data
                 event :raw_data, data
                 # TODO just emit raw_data and convert it to ruby
                 # if someone is listening to (see PortProxy)
                 event :data, Typelib.to_ruby(data)
                 break if (Time.now-t1).to_f >= timeout
             end
-            @raw_last_sample
+            raw_last_sample
         end
 
         # callback after thread_read returns called from the main thread
-        def thread_read_callback(data,error)
-            if error
+        def thread_read_callback(data, error)
+            if data
+                @raw_last_sample = data
+            elsif error
                 poll_timer.cancel
                 self.period = poll_timer.period
                 @event_loop.once do
