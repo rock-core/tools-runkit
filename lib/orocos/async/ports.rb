@@ -8,6 +8,8 @@ module Orocos::Async::CORBA
         attr_reader :policy
         attr_reader :raw_last_sample
 
+        attr_reader :period
+
         # The event loop timer that is polling the connection
         attr_reader :poll_timer
 
@@ -20,6 +22,7 @@ module Orocos::Async::CORBA
             @port = port
             @raw_last_sample = nil
             @policy = reader.policy
+            @period = period
 
             timeout =
                 if reader.policy[:type] == :buffer
@@ -311,16 +314,8 @@ module Orocos::Async::CORBA
             on_event :raw_data,&block
         end
 
-        def period
-            if @options.has_key?(:period)
-                @options[:period]
-            else
-                OutputReader.default_period
-            end
-        end
-
         def period=(value)
-            @options[:period] = value
+            @period = value
             @global_reader.period = value if @global_reader.respond_to?(:period=)
         end
 
