@@ -8,15 +8,33 @@ module Orocos::Async::CORBA
         attr_reader :policy
         attr_reader :raw_last_sample
 
+        # The event loop timer that is polling the connection
+        attr_reader :poll_timer
+
         self.default_period = 0.1
 
         # @param [Async::OutputPort] port The Asyn::OutputPort
         # @param [Orocos::OutputReader] reader The designated reader
-        def initialize(port,reader,options=Hash.new)
+        def initialize(port, reader, period: default_period)
             super(port.name,port.event_loop)
-            @options = Kernel.validate_options options, :period => default_period
             @port = port
             @raw_last_sample = nil
+            @policy = reader.policy
+
+            timeout =
+                if reader.policy[:type] == :buffer
+                    period
+                else 0
+                end
+
+            poll_timer = @event_loop.async_every(
+                method(:thread_read),
+                Hash[period: period,
+                     start: false,
+                     known_errors: Orocos::Async::KNOWN_ERRORS],
+                timeout, &method(:thread_read_callback))
+            poll_timer.doc = port.full_name
+            @poll_timer = poll_timer
 
             # otherwise event reachable will be queued and all 
             # listeners will be called twice (one for registering and one because
@@ -27,23 +45,6 @@ module Orocos::Async::CORBA
             proxy_event @port,:unreachable
         rescue Orocos::NotFound => e
             emit_error e
-        end
-
-        # Returns the poll timer.
-        def poll_timer
-            @poll_timer ||= begin
-                                period = @options[:period]
-                                timeout= if @policy.key?(:type) && @policy[:type] == :buffer
-                                            period
-                                         else
-                                             0
-                                         end
-                                timer = @event_loop.async_every(method(:thread_read), {:period => period, :start => false,
-                                                                :known_errors => Orocos::Async::KNOWN_ERRORS},
-                                                                timeout,&method(:thread_read_callback))
-                                timer.doc = port.full_name
-                                timer
-                            end
         end
 
         def last_sample
@@ -80,7 +81,6 @@ module Orocos::Async::CORBA
 
         def reachable!(reader,options = Hash.new)
             super
-            @policy = reader.policy
             if number_of_listeners(:data) != 0
                 poll_timer.start period unless poll_timer.running?
             end
