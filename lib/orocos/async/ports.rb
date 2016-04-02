@@ -8,15 +8,36 @@ module Orocos::Async::CORBA
         attr_reader :policy
         attr_reader :raw_last_sample
 
+        attr_reader :period
+
+        # The event loop timer that is polling the connection
+        attr_reader :poll_timer
+
         self.default_period = 0.1
 
         # @param [Async::OutputPort] port The Asyn::OutputPort
         # @param [Orocos::OutputReader] reader The designated reader
-        def initialize(port,reader,options=Hash.new)
+        def initialize(port, reader, period: default_period)
             super(port.name,port.event_loop)
-            @options = Kernel.validate_options options, :period => default_period
             @port = port
             @raw_last_sample = nil
+            @policy = reader.policy
+            @period = period
+
+            timeout =
+                if reader.policy[:type] == :buffer
+                    period
+                else 0
+                end
+
+            poll_timer = @event_loop.async_every(
+                method(:thread_read),
+                Hash[period: period,
+                     start: false,
+                     known_errors: Orocos::Async::KNOWN_ERRORS],
+                timeout, &method(:thread_read_callback))
+            poll_timer.doc = port.full_name
+            @poll_timer = poll_timer
 
             # otherwise event reachable will be queued and all 
             # listeners will be called twice (one for registering and one because
@@ -25,24 +46,6 @@ module Orocos::Async::CORBA
                 reachable! reader
             end
             proxy_event @port,:unreachable
-            
-            @poll_timer = @event_loop.async_every(method(:raw_read_new), {:period => period, :start => false,
-                                                  :known_errors => Orocos::Async::KNOWN_ERRORS}) do |data,error|
-                if error
-                    @poll_timer.cancel
-                    self.period = @poll_timer.period
-                    @event_loop.once do
-                        event :error,error
-                    end
-                elsif data
-                    @raw_last_sample = data
-                    event :raw_data, data
-                    # TODO just emit raw_data and convert it to ruby
-                    # if someone is listening to (see PortProxy)
-                    event :data, Typelib.to_ruby(data)
-                end
-            end
-            @poll_timer.doc = port.full_name
         rescue Orocos::NotFound => e
             emit_error e
         end
@@ -55,7 +58,7 @@ module Orocos::Async::CORBA
 
         # TODO keep timer and remote connection in mind
         def unreachable!(options = Hash.new)
-            @poll_timer.cancel
+            poll_timer.cancel
             @raw_last_sample = nil
 
             # ensure that this is always called from the
@@ -81,23 +84,22 @@ module Orocos::Async::CORBA
 
         def reachable!(reader,options = Hash.new)
             super
-            @policy = reader.policy
             if number_of_listeners(:data) != 0
-                @poll_timer.start period unless @poll_timer.running?
+                poll_timer.start period unless poll_timer.running?
             end
         end
 
         def period=(period)
             super
-            @poll_timer.period = self.period
+            poll_timer.period = self.period
         end
 
         def really_add_listener(listener)
             if listener.event == :data
-                @poll_timer.start(period) unless @poll_timer.running?
+                poll_timer.start(period) unless poll_timer.running?
                 listener.call Typelib.to_ruby(@raw_last_sample) if @raw_last_sample && listener.use_last_value?
             elsif listener.event == :raw_data
-                @poll_timer.start(period) unless @poll_timer.running?
+                poll_timer.start(period) unless poll_timer.running?
                 listener.call @raw_last_sample if @raw_last_sample && listener.use_last_value?
             end
             super
@@ -106,11 +108,40 @@ module Orocos::Async::CORBA
         def remove_listener(listener)
             super
             if number_of_listeners(:data) == 0 && number_of_listeners(:raw_data) == 0
-                @poll_timer.cancel
+                poll_timer.cancel
             end
         end
 
         private
+
+        # blocking method called from thread pool to read new data
+        def thread_read(timeout)
+            t1 = Time.now
+            raw_last_sample = nil
+            while data = raw_read_new # sync call from bg thread
+                raw_last_sample = data
+                event :raw_data, data
+                # TODO just emit raw_data and convert it to ruby
+                # if someone is listening to (see PortProxy)
+                event :data, Typelib.to_ruby(data)
+                break if (Time.now-t1).to_f >= timeout
+            end
+            raw_last_sample
+        end
+
+        # callback after thread_read returns called from the main thread
+        def thread_read_callback(data, error)
+            if data
+                @raw_last_sample = data
+            elsif error
+                poll_timer.cancel
+                self.period = poll_timer.period
+                @event_loop.once do
+                    event :error,error
+                end
+            end
+        end
+
         forward_to :@delegator_obj,:@event_loop,:known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :emit_error  do
             methods = Orocos::OutputReader.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
             methods -= Orocos::Async::CORBA::OutputReader.instance_methods
@@ -283,16 +314,8 @@ module Orocos::Async::CORBA
             on_event :raw_data,&block
         end
 
-        def period
-            if @options.has_key?(:period)
-                @options[:period]
-            else
-                OutputReader.default_period
-            end
-        end
-
         def period=(value)
-            @options[:period] = value
+            @period = value
             @global_reader.period = value if @global_reader.respond_to?(:period=)
         end
 
