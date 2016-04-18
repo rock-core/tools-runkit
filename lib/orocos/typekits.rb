@@ -76,8 +76,7 @@ module Orocos
     def self.load_typekit(name)
         @lock.synchronize do
             typekit = default_pkgconfig_loader.typekit_model_from_name(name)
-            typekit_pkg = find_typekit_pkg(name)
-            load_typekit_plugins(name, typekit_pkg)
+            load_typekit_plugins(name)
         end
     end
 
