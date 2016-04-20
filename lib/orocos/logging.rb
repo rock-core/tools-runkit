@@ -6,14 +6,27 @@ module Orocos
         log_all_configuration
     end
 
-    # This method assumes that #add_logger has been called at the end of each
-    # static_deployment block.
-    def self.log_all_ports(options = Hash.new)
-        exclude_ports = options[:exclude_ports]
-        exclude_types = options[:exclude_types]
-
+    # Setup logging on all output ports of the processes started with Orocos.run
+    #
+    # This method is designed to be called within an Orocos.run block
+    #
+    # @param [nil,#===] exclude_ports an object matching the name of the ports
+    #   that should not be logged (typically a regular expression). If nil, all
+    #   ports are logged.
+    # @param [nil,#===] exclude_types an object matching the name of the types
+    #   that should not be logged (typically a regular expression). If nil, all
+    #   ports are logged.
+    # @param [nil,Array<String>] tasks name of the tasks for which logging
+    #   should be set up
+    #
+    # @example log all ports whose name does not start with 'io_'
+    #   Orocos.log_all_ports(exclude_ports: /^io_/)
+    # @example log all ports whose type name does not contain 'debug'
+    #   Orocos.log_all_ports(exclude_types: /debug/)
+    #
+    def self.log_all_ports(exclude_ports: nil, exclude_types: nil, tasks: nil)
         each_process do |process|
-            process.log_all_ports(options)
+            process.log_all_ports(exclude_ports: exclude_ports, exclude_types: exclude_types, tasks: tasks)
         end
     end
 
