@@ -251,6 +251,8 @@ module Orocos
                     log_dir = File.expand_path(log_dir)
                     results_dir = File.expand_path(results_dir)
                     move_log_dir(log_dir, results_dir)
+                rescue Interrupt
+                    raise
                 rescue Exception => e
                     Server.warn "failed to move log directory from #{log_dir} to #{results_dir}: #{e.message}"
                     (e.backtrace || Array.new).each do |line|
@@ -267,6 +269,8 @@ module Orocos
                         log_dir = File.expand_path(log_dir)
                     end
                     create_log_dir(log_dir, time_tag, metadata)
+                rescue Interrupt
+                    raise
                 rescue Exception => e
                     Server.warn "failed to create log directory #{log_dir}: #{e.message}"
                     (e.backtrace || Array.new).each do |line|
@@ -283,6 +287,8 @@ module Orocos
                     Server.debug "#{name}, from #{deployment_name}, is started (#{p.pid})"
                     socket.write(RET_STARTED_PROCESS)
                     Marshal.dump(p.pid, socket)
+                rescue Interrupt
+                    raise
                 rescue Exception => e
                     Server.warn "failed to start #{name}: #{e.message}"
                     (e.backtrace || Array.new).each do |line|
@@ -298,6 +304,8 @@ module Orocos
                     begin
                         end_process(p)
                         socket.write(RET_YES)
+                    rescue Interrupt
+                        raise
                     rescue Exception => e
                         Server.warn "exception raised while calling #{p}#kill(false)"
                         Server.log_pp(:warn, e)
@@ -312,6 +320,8 @@ module Orocos
             end
 
             true
+        rescue Interrupt
+            raise
         rescue Exception => e
             Server.fatal "protocol error on #{socket}: #{e}"
             Server.fatal "while serving command #{cmd_code}"
