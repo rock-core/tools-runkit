@@ -212,13 +212,13 @@ module Orocos
             remove_inputs.each { |p| remove_input_port p }
             remove_outputs.each { |p| remove_output_port p }
             new_properties.each do |p|
-                create_property(p.name, p.orocos_type_name)
+                create_property(p.name, p.type)
             end
             new_inputs.each do |p|
-                create_input_port(p.name, p.orocos_type_name)
+                create_input_port(p.name, p.type)
             end
             new_outputs.each do |p|
-                create_output_port(p.name, p.orocos_type_name)
+                create_output_port(p.name, p.type)
             end
             @model = orogen_model
             nil
