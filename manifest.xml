@@ -13,6 +13,7 @@
 
     <depend package="base/orogen/std" />
     <depend package="cmake" />
+    <depend package="yard" />
     <depend package="orogen" />
     <depend package="tools/pocolog" optional="1"/>
     <depend package="omniorb" />
