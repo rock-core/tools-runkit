@@ -26,9 +26,13 @@ module Orocos
     # Given a pkg-config file and a base name for a shared library, finds the
     # full path to the library
     def self.find_plugin_library(pkg, libname)
-        pkg.library_dirs.find do |dir|
+        libs = pkg.expand_field('Libs', pkg.raw_fields['Libs'])
+        libs = libs.grep(/^-L/).map { |s| s[2..-1] }
+        libs.find do |dir|
             full_path = File.join(dir, "lib#{libname}.#{Orocos.shared_library_suffix}")
-            break(full_path) if File.file?(full_path)
+            if File.file?(full_path)
+                return full_path, libs
+            end
         end
     end
 
@@ -72,13 +76,12 @@ module Orocos
     def self.load_typekit(name)
         @lock.synchronize do
             typekit = default_pkgconfig_loader.typekit_model_from_name(name)
-            typekit_pkg = find_typekit_pkg(name)
-            load_typekit_plugins(name, typekit_pkg)
+            load_typekit_plugins(name)
         end
     end
 
     def self.find_typekit_pkg(name)
-        Utilrb::PkgConfig.new("#{name}-typekit-#{Orocos.orocos_target}")
+        Utilrb::PkgConfig.get("#{name}-typekit-#{Orocos.orocos_target}", minimal: true)
     rescue Utilrb::PkgConfig::NotFound
         raise TypekitNotFound, "the '#{name}' typekit is not available to pkgconfig"
     end
@@ -142,7 +145,7 @@ module Orocos
             AUTOLOADED_TRANSPORTS.each do |transport_name, required|
                 plugin_name = transport_library_name(name, transport_name, Orocos.orocos_target)
                 begin
-                    pkg = Utilrb::PkgConfig.new(plugin_name)
+                    pkg = Utilrb::PkgConfig.get(plugin_name, minimal: true)
                     if pkg.disabled != "true"
                         plugins[plugin_name] = [pkg, required]
                     elsif required
@@ -157,12 +160,12 @@ module Orocos
         end
 
         plugins.each_pair do |file, (pkg, required)| 
-            lib = find_plugin_library(pkg, file)
+            lib, lib_dirs = find_plugin_library(pkg, file)
             if !lib
                 if required
-                    raise NotFound, "cannot find shared library #{file} for #{name} (searched in #{pkg.library_dirs.join(", ")})"
+                    raise NotFound, "cannot find shared library #{file} for #{name} (searched in #{lib_dirs})"
                 else
-                    Orocos.warn "plugin #{file} is registered through pkg-config, but the library cannot be found in #{pkg.library_dirs.join(", ")}"
+                    Orocos.warn "plugin #{file} is registered through pkg-config, but the library cannot be found in #{lib_dirs}"
                 end
             else
                 libs << [lib, required]

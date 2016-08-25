@@ -345,8 +345,8 @@ module Orocos
     # starting the process and cleaning up when the process
     # dies.
     class Process < ProcessBase
-        # The component PkgConfig instance
-        attr_reader :pkg
+        # The path to the binary file
+        attr_reader :binfile
         # The component process ID
         attr_reader :pid
 
@@ -430,7 +430,11 @@ module Orocos
                         loader.deployment_model_from_name(model)
                     else model
                     end
-            @pkg = loader.available_deployments[model.name]
+            @binfile =
+                if loader.respond_to?(:find_deployment_binfile)
+                    loader.find_deployment_binfile(model.name)
+                else loader.available_deployments[model.name].binfile
+                end
             super(name, model)
         end
 
@@ -951,11 +955,7 @@ module Orocos
 		ENV['ORBInitRef'] = "NameService=corbaname::#{name_service.ip}"
 	    end
 
-            module_bin = pkg.binfile
-            if !module_bin # assume an older orogen version
-                module_bin = "#{pkg.exec_prefix}/bin/#{name}"
-            end
-            cmdline = [module_bin]
+            cmdline = [binfile]
 
             # check arguments for log_level
             if log_level

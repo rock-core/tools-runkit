@@ -2,6 +2,7 @@
 
 require 'irb'
 require 'orocos'
+require 'optparse'
 
 parser = OptionParser.new do |opt|
     opt.on('--host=HOST', String, "the host we should connect to for naming") do |hostname|
