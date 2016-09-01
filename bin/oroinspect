@@ -110,7 +110,7 @@ end
 if search_for.include?(:types)
     Orocos.default_loader.each_available_project_name do |project_name|
         seen = Set.new
-        found = ValueSet.new
+        found = Array.new
         next if !Orocos.default_loader.has_typekit?(project_name)
 
         typekit = Orocos.default_loader.typekit_model_from_name(project_name)
