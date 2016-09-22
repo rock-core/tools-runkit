@@ -296,6 +296,37 @@ module Orocos
     def self.task_model_from_name(*args, &block)
         default_loader.task_model_from_name(*args, &block)
     end
+
+    # Calls a block with the no-blocking-call-in-thread check disabled
+    #
+    # This is used in tests, when we know we want to do a remote call, or in
+    # places where it is guaranteed that the "remote" is actually co-localized
+    # within the same process (e.g. readers, writers, ruby task context)
+    def self.allow_blocking_calls
+        if block_given?
+            forbidden = Orocos.no_blocking_calls_in_thread
+            if forbidden && (forbidden != Thread.current)
+                raise ThreadError, "cannot call #allow_blocking_calls with a block outside of the forbidden thread"
+            end
+
+            Orocos.no_blocking_calls_in_thread = nil
+            begin
+                return yield
+            ensure
+                if forbidden
+                    Orocos.no_blocking_calls_in_thread = forbidden
+                end
+            end
+        else
+            current_thread = Orocos.no_blocking_calls_in_thread
+            Orocos.no_blocking_calls_in_thread = nil
+            current_thread
+        end
+    end
+
+    def self.forbid_blocking_calls
+        Orocos.no_blocking_calls_in_thread = Thread.current
+    end
 end
 
 at_exit do

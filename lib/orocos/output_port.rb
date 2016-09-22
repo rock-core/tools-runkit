@@ -54,6 +54,11 @@ module Orocos
                 task.process && input_port.task.process &&
                     (task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id)
             end
+
+            if policy[:pull]
+                input_port.blocking_read = true
+            end
+
             begin
                 refine_exceptions(input_port) do
                     do_connect_to(input_port, policy)

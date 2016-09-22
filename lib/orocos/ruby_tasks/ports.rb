@@ -50,6 +50,13 @@ module Orocos
             raw_read_new(sample)
         end
 
+        # Whether the port seem to be connected to something
+        def connected?
+            Orocos.allow_blocking_calls do
+                super
+            end
+        end
+
 
         OLD_DATA = 0
         NEW_DATA = 1
@@ -112,7 +119,7 @@ module Orocos
             end
 
             result = value.allocating_operation do
-                do_read(orocos_type_name, value, copy_old_data)
+                do_read(orocos_type_name, value, copy_old_data, blocking_read?)
             end
             if result == NEW_DATA || (result == OLD_DATA && copy_old_data)
                 if sample
@@ -147,6 +154,13 @@ module Orocos
         def write(data)
             data = Typelib.from_ruby(data, type)
             do_write(orocos_type_name, data)
+        end
+
+        # Whether the port seem to be connected to something
+        def connected?
+            Orocos.allow_blocking_calls do
+                super
+            end
         end
     end
     end

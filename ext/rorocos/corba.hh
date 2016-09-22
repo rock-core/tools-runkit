@@ -4,21 +4,21 @@
 #include <omniORB4/CORBA.h>
 
 #include <exception>
+#include <string>
+
 #include "StdExceptionC.h"
 #include "TaskContextC.h"
 #include "DataFlowC.h"
-#include <iostream>
-#include <string>
-#include <stack>
-#include <list>
-#include <ruby.h>
-#include <typelib_ruby.hh>
-
 #include "rblocking_call.h"
+
+#include <typelib/value.hh>
+
+// !!! ruby.h must be included LAST. It defines macros that break
+// !!! omniORB code
+#include <ruby.h>
 
 using namespace std;
 
-extern VALUE corba_access;
 extern VALUE eCORBA;
 extern VALUE eCORBAComError;
 extern VALUE mCORBA;

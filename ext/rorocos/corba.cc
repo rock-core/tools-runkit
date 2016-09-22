@@ -1,6 +1,3 @@
-#include "rorocos.hh"
-#include "lib/corba_name_service_client.hh"
-
 #include <list>
 #include <typeinfo>
 #include <rtt/types/Types.hpp>
@@ -14,18 +11,14 @@
 #include <rtt/Activity.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include "corba.hh"
+#include "rorocos.hh"
+#include "lib/corba_name_service_client.hh"
+
 using namespace CORBA;
 using namespace std;
 using namespace boost;
 using namespace corba;
-
-extern VALUE mCORBA;
-extern VALUE mOrocos;
-extern VALUE eCORBA;
-extern VALUE eCORBAComError;
-extern VALUE corba_access;
-extern VALUE eNotFound;
-extern VALUE eNotInitialized;
 
 static VALUE cNameService;
 
@@ -108,7 +101,7 @@ static void corba_deinit(void*)
 {
     CorbaAccess::deinit();
     rb_iv_set(mCORBA, "@corba", Qnil);
-    corba_access = Qnil;
+    corbaAccess = Qnil;
 }
 
 /* call-seq:
@@ -124,14 +117,14 @@ static void corba_deinit(void*)
 static VALUE corba_init(VALUE mod)
 {
     // Initialize only once ...
-    if (!NIL_P(corba_access))
+    if (!NIL_P(corbaAccess))
         return Qfalse;
 
     try {
         char const* argv[2] = { "bla", 0 };
         CorbaAccess::init(1, const_cast<char**>(argv));
-        corba_access = Data_Wrap_Struct(rb_cObject, 0, corba_deinit, CorbaAccess::instance());
-        rb_iv_set(mCORBA, "@corba", corba_access);
+        corbaAccess = Data_Wrap_Struct(rb_cObject, 0, corba_deinit, CorbaAccess::instance());
+        rb_iv_set(mCORBA, "@corba", corbaAccess);
     } catch(CORBA::Exception& e) {
         rb_raise(eCORBA, "failed to contact the name server");
     }
@@ -139,7 +132,7 @@ static VALUE corba_init(VALUE mod)
 }
 
 static VALUE corba_is_initialized(VALUE mod)
-{ return NIL_P(corba_access) ? Qfalse : Qtrue; }
+{ return NIL_P(corbaAccess) ? Qfalse : Qtrue; }
 
 /* call-seq:
  *   Orocos::CORBA.transportable_type_names => name_list
@@ -275,6 +268,7 @@ static VALUE name_service_ior(VALUE self,VALUE task_name)
 
 void Orocos_init_CORBA()
 {
+    VALUE mOrocos = rb_define_module("Orocos");
     rb_define_singleton_method(mCORBA, "initialized?", RUBY_METHOD_FUNC(corba_is_initialized), 0);
     rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 0);
     rb_define_singleton_method(mCORBA, "do_deinit", RUBY_METHOD_FUNC(corba_deinit), 0);

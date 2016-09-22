@@ -5,6 +5,17 @@ module Orocos
     class InputPort < Port
         include InputPortBase
 
+        # Whether a {#read} should be considered blocking
+        #
+        # This is set as soon as at least one connection involving this port is
+        # set with the 'pull' option
+        attr_predicate :blocking_read?, true
+
+        def initialize(task, name, orocos_type_name, model)
+            super
+            @blocking_read = false
+        end
+
         # Used by InputPortWriteAccess to determine which class should be used
         # to create the writer
         def self.writer_class

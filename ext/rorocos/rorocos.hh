@@ -1,14 +1,13 @@
 #ifndef OROCOS_EXT_RB_ROROCOS_HH
 #define OROCOS_EXT_RB_ROROCOS_HH
 
-
-#include "TaskContextC.h"
-#include "DataFlowC.h"
-#include "corba.hh"
 #include <boost/tuple/tuple.hpp>
-
 #include <rtt/typelib/TypelibMarshallerBase.hpp>
 #include <rtt/transports/corba/CorbaTypeTransporter.hpp>
+
+// !!! ruby.h must be included LAST. It defines macros that break
+// !!! omniORB code
+#include <ruby.h>
 
 //if RTT_VERSION_GTE is not defined by above includes (RTT versions below 2.9)
 #ifndef RTT_VERSION_GTE
@@ -25,6 +24,8 @@ namespace RTT
     }
 }
 
+struct RTaskContext;
+
 extern VALUE task_context_create(int argc, VALUE *argv,VALUE klass);
 
 extern RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
@@ -33,10 +34,28 @@ extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(std::stri
 extern RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* type, bool do_check = true);
 extern RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name, bool do_check = true);
 extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
+
+extern VALUE corbaAccess;
 extern VALUE cTaskContext;
+extern VALUE eBlockingCallInForbiddenThread;
+extern VALUE threadInterdiction;
+
+extern VALUE eCORBA;
+extern VALUE eCORBAComError;
+extern VALUE eNotFound;
+extern VALUE eNotInitialized;
 
 namespace
 {
+    inline VALUE orocos_verify_thread_interdiction()
+    {
+        if (threadInterdiction == rb_thread_current())
+        {
+            rb_raise(eBlockingCallInForbiddenThread, "network-accessing method called from forbidden thread");
+        }
+        return Qnil;
+    }
+
     template<typename T>
     T& get_wrapped(VALUE self)
     {
@@ -65,7 +84,7 @@ namespace
             obj = new T;
 
         VALUE robj = Data_Wrap_Struct(klass, 0, delete_object<T>, obj);
-        rb_iv_set(robj, "@corba", corba_access);
+        rb_iv_set(robj, "@corba", corbaAccess);
         return robj;
     }
 }

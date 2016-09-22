@@ -9,6 +9,7 @@
 #include <ruby.h>
 #include <ruby/thread.h>
 #include <stdarg.h>
+#include "rorocos.hh"
 
 #define EXCEPTION_HANDLERS \
     catch(std::runtime_error &e) { this->rb_raise(rb_eRuntimeError, "%s", e.what());}\
@@ -27,6 +28,8 @@ class BlockingFunctionBase
         void blockingCall()
         {
             exception_class = Qnil;
+            orocos_verify_thread_interdiction();
+
 #if defined HAVE_RUBY_INTERN_H
             rb_thread_call_without_gvl(&BlockingFunctionBase::callProcessing, this,
                     &BlockingFunctionBase::callAbort, this);

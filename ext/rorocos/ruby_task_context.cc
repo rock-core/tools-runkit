@@ -323,7 +323,7 @@ static VALUE local_task_context_create_attribute(VALUE _task, VALUE _klass, VALU
     return ruby_attribute;
 }
 
-static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_typelib_value, VALUE copy_old_data)
+static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_typelib_value, VALUE copy_old_data, VALUE blocking_read)
 {
     RTT::base::InputPortInterface& local_port = get_wrapped<RTT::base::InputPortInterface>(_local_port);
     Typelib::Value value = typelib_get(rb_typelib_value);
@@ -336,7 +336,13 @@ static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_
     {
         RTT::base::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
-        switch(blocking_fct_call_with_result(boost::bind(&RTT::base::InputPortInterface::read,&local_port,ds,RTEST(copy_old_data))))
+        RTT::FlowStatus did_read;
+        if (RTEST(blocking_read))
+            did_read = blocking_fct_call_with_result(boost::bind(&RTT::base::InputPortInterface::read,&local_port,ds,RTEST(copy_old_data)));
+        else
+            did_read = local_port.read(ds, RTEST(copy_old_data));
+
+        switch(did_read)
         {
             case RTT::NoData:  return Qfalse;
             case RTT::OldData: return INT2FIX(0);
@@ -352,7 +358,11 @@ static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_
         typelib_transport->setTypelibSample(handle, value, false);
         RTT::base::DataSourceBase::shared_ptr ds =
             typelib_transport->getDataSource(handle);
-        RTT::FlowStatus did_read = blocking_fct_call_with_result(boost::bind(&RTT::base::InputPortInterface::read,&local_port,ds,RTEST(copy_old_data)));
+        RTT::FlowStatus did_read;
+        if (RTEST(blocking_read))
+            did_read = blocking_fct_call_with_result(boost::bind(&RTT::base::InputPortInterface::read,&local_port,ds,RTEST(copy_old_data)));
+        else
+            did_read = local_port.read(ds, RTEST(copy_old_data));
        
         if (did_read == RTT::NewData || (did_read == RTT::OldData && RTEST(copy_old_data)))
         {
@@ -394,8 +404,7 @@ static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE r
     {
         RTT::base::DataSourceBase::shared_ptr ds =
             ti->buildReference(value.getData());
-
-        blocking_fct_call(boost::bind(&RTT::base::OutputPortInterface::write,&local_port,ds));
+        local_port.write(ds);
     }
     else
     {
@@ -405,11 +414,10 @@ static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE r
         transport->setTypelibSample(handle, static_cast<uint8_t*>(value.getData()));
         RTT::base::DataSourceBase::shared_ptr ds =
             transport->getDataSource(handle);
-        blocking_fct_call(boost::bind(&RTT::base::OutputPortInterface::write,&local_port,ds));
+        local_port.write(ds);
         transport->deleteHandle(handle);
     }
-    bool result = blocking_fct_call_with_result(boost::bind(&RTT::base::OutputPortInterface::connected,&local_port));
-    return result ? Qtrue : Qfalse;
+    return local_port.connected() ? Qtrue : Qfalse;
 }
 
 void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOutputPort, VALUE cInputPort)
@@ -429,7 +437,7 @@ void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOut
     cLocalOutputPort = rb_define_class_under(mRubyTasks, "LocalOutputPort", cOutputPort);
     rb_define_method(cLocalOutputPort, "do_write", RUBY_METHOD_FUNC(local_output_port_write), 2);
     cLocalInputPort = rb_define_class_under(mRubyTasks, "LocalInputPort", cInputPort);
-    rb_define_method(cLocalInputPort, "do_read", RUBY_METHOD_FUNC(local_input_port_read), 3);
+    rb_define_method(cLocalInputPort, "do_read", RUBY_METHOD_FUNC(local_input_port_read), 4);
     rb_define_method(cLocalInputPort, "do_clear", RUBY_METHOD_FUNC(local_input_port_clear), 0);
 }
 

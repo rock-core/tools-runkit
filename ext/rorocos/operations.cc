@@ -1,6 +1,8 @@
 #include "rorocos.hh"
+#include "corba.hh"
 #include <memory>
 #include <typeinfo>
+#include <typelib_ruby.hh>
 
 using namespace std;
 using namespace RTT::corba;
@@ -186,7 +188,7 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
 
 void Orocos_init_methods()
 {
-    VALUE mOrocos      = rb_define_module("Orocos");
+    VALUE mOrocos = rb_define_module("Orocos");
     cOperation   = rb_define_class_under(mOrocos, "Operation",  rb_cObject);
     cSendHandle  = rb_define_class_under(mOrocos, "SendHandle", rb_cObject);
 
