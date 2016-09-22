@@ -5,6 +5,11 @@ module Orocos
     #
     # It is created by {TaskContext#create_input_port}
     class LocalInputPort < InputPort
+        # Remove this port from the underlying task context
+        def remove
+            task.remove_port(self)
+        end
+
         # Reads a sample on this input port
         #
         # For simple types, the returned value is the Ruby representation of the
@@ -120,6 +125,11 @@ module Orocos
     end
 
     class LocalOutputPort < OutputPort
+        # Remove this port from the underlying task context
+        def remove
+            task.remove_port(self)
+        end
+
         # Write a sample on this output port
         #
         # If the data type is a struct, the sample can be provided either as a
