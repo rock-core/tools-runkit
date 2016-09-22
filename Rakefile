@@ -4,8 +4,8 @@ require "rake/testtask"
 Rake::TestTask.new(:test) do |t|
     t.libs << "lib"
     t.libs << "."
-    t.ruby_opts << '-w'
     t.test_files = FileList['test/suite.rb']
+    t.warning = false
 end
 
 def build_orogen(name, options = Hash.new)
