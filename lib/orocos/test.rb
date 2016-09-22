@@ -1,7 +1,3 @@
-require 'minitest/autorun'
-require 'minitest/spec'
-require 'flexmock/test_unit'
-
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
 if ENV['TEST_ENABLE_COVERAGE'] == '1'
@@ -40,6 +36,10 @@ if ENV['TEST_ENABLE_PRY'] != '0'
         Orocos.warn "debugging is disabled because the 'pry' gem cannot be loaded"
     end
 end
+
+require 'minitest/autorun'
+require 'minitest/spec'
+require 'flexmock/minitest'
 
 require 'orocos'
 require 'orocos/rake'
@@ -83,7 +83,7 @@ module Orocos
             if File.directory?(work_dir)
                 Orocos.default_working_directory = work_dir
                 ENV['PKG_CONFIG_PATH'] += ":#{File.join(work_dir, "prefix", 'lib', 'pkgconfig')}"
-                Orocos.default_pkgconfig_loader.update
+                Orocos.default_pkgconfig_loader.clear
             end
 
             if defined?(Orocos::Async)
@@ -199,15 +199,6 @@ module Orocos
             "IOR:010000001f00000049444c3a5254542f636f7262612f435461736b436f6e746578743a312e300000010000000000000064000000010102000d00000031302e3235302e332e31363000002bc80e000000fe8a95a65000004d25000000000000000200000000000000080000000100000000545441010000001c00000001000000010001000100000001000105090101000100000009010100"
         end
     end
-end
-
-# Workaround a problem with flexmock and minitest not being compatible with each
-# other (currently). See github.com/jimweirich/flexmock/issues/15.
-if defined?(FlexMock) && !FlexMock::TestUnitFrameworkAdapter.method_defined?(:assertions)
-    class FlexMock::TestUnitFrameworkAdapter
-        attr_accessor :assertions
-    end
-    FlexMock.framework_adapter.assertions = 0
 end
 
 module Minitest
