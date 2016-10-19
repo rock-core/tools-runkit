@@ -96,6 +96,12 @@ module Orocos
             end
         end
 
+        def resolve_all_tasks(cache = Hash.new)
+            Orocos::Process.resolve_all_tasks(self, cache) do |task_name|
+                task(task_name)
+            end
+        end
+
         def kill(wait = true, status = ProcessManager::Status.new(:exit_code => 0))
             deployed_tasks.each_value do |task|
                 task.dispose

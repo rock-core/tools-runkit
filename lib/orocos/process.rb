@@ -225,16 +225,13 @@ module Orocos
                 return result
             end
 
-            result = if task_names.include?(task_name)
-                         name_service.get task_name, process: self
-                     elsif task_names.include?(full_name)
-                         name_service.get full_name, process: self
-                     else
-                         raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
-                     end
-
-            @tasks << result
-            result
+            if task_names.include?(task_name)
+                name_service.get task_name, process: self
+            elsif task_names.include?(full_name)
+                name_service.get full_name, process: self
+            else
+                raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
+            end
         end
 
         def register_task(task)
@@ -1063,6 +1060,20 @@ module Orocos
             end
         end
 
+        def self.resolve_all_tasks(process, cache = Hash.new)
+            # Get any task name from that specific deployment, and check we
+            # can access it. If there is none
+            all_reachable = process.task_names.all? do |task_name|
+                begin
+                    cache[task_name] ||= yield(task_name)
+                rescue Orocos::NotFound
+                end
+            end
+            if all_reachable
+                cache
+            end
+        end
+
 	# Wait for a process to become reachable
         #
         def self.wait_running(process, timeout = nil, name_service = Orocos::CORBA.name_service, &block)
@@ -1114,6 +1125,12 @@ module Orocos
                 end
 	    end
 	end
+
+        def resolve_all_tasks(cache = Hash.new, name_service: Orocos::CORBA.name_service)
+            Process.resolve_all_tasks(self, cache) do |task_name|
+                name_service.get(task_name)
+            end
+        end
 
         # Wait for the module to be started. If timeout is 0, the function
         # returns immediately, with a false return value if the module is not
