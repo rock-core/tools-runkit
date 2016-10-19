@@ -53,6 +53,8 @@ module Orocos
 
             if options[:model]
                 remote_task.setup_from_orogen_model(options[:model])
+            else
+                remote_task.model.extended_state_support
             end
             remote_task
         rescue ::Exception
