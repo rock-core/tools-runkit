@@ -225,6 +225,10 @@ module Orocos
             nil
         end
 
+        def has_port?(name)
+            @local_ports.has_key?(name) || super
+        end
+
         private
 
         # Helper method for create_input_port and create_output_port
