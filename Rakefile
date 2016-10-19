@@ -1,16 +1,20 @@
 require "bundler/gem_tasks"
 require "rake/testtask"
+require './lib/orocos/rake'
+
 
 Rake::TestTask.new(:test) do |t|
     t.libs << "lib"
     t.libs << "."
-    t.test_files = FileList['test/**/test_*.rb']
+    test_files = FileList['test/**/test_*.rb']
+    if !Orocos::Rake::USE_ROS
+        test_files.exclude 'test/ros/**'
+    end
+    t.test_files = test_files
     t.warning = false
 end
 
 def build_orogen(name, options = Hash.new)
-    require './lib/orocos/rake'
-
     parsed_options = Hash.new
     parsed_options[:keep_wc] =
         if ['1', 'true'].include?(options[:keep_wc]) then true
