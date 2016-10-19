@@ -451,6 +451,18 @@ module Orocos
             attributes[name] = a
         end
 
+        # Return the property object without caching nor validation
+        def raw_property(name)
+            type_name = CORBA.refine_exceptions(self) do
+                begin
+                    do_property_type_name(name)
+                rescue ArgumentError => e
+                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
+                end
+            end
+            Property.new(self, name, type_name)
+        end
+
         # Returns a Property object representing the given property
         #
         # Raises NotFound if no such property exists.
@@ -477,20 +489,23 @@ module Orocos
                 end
             end
 
-            type_name = CORBA.refine_exceptions(self) do
-                begin
-                    do_property_type_name(name)
-                rescue ArgumentError => e
-                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
-                end
-            end
-
-            p = Property.new(self, name, type_name)
+            p = raw_property(name)
             if configuration_log
                 create_property_log_stream(p)
                 p.log_current_value
             end
             properties[name] = p
+        end
+
+        # @api private
+        #
+        # Resolve a Port object for the given port name
+        def raw_port(name)
+            port_model = model.find_port(name)
+            do_port(name, port_model)
+
+        rescue Orocos::NotFound => e
+            raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
         end
 
         # Returns an object that represents the given port on the remote task
@@ -518,15 +533,9 @@ module Orocos
                         raise NotFound, "no port named '#{name}' on task '#{self.name}'"
                     end
                 else
-                    port_model = if model
-                                     model.find_port(name)
-                                 end
-                    @ports[name] = do_port(name, port_model)
+                    @ports[name] = raw_port(name)
                 end
             end
-
-        rescue Orocos::NotFound => e
-            raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
         end
 
 
