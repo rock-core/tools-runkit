@@ -613,9 +613,7 @@ module Orocos
         end
 
         def inspect
-            "#<#{self.class}: #{self.class.name}/#{name} state=#{state}>"
-        rescue Orocos::ComError
-            "#<#{self.class}: #{self.class.name}/#{name} state=UNREACHABLE>"
+            "#<#{self.class}: #{self.class.name}/#{name}>"
         end
 
         # @return [Symbol] the toplevel state that corresponds to +state+, i.e.
