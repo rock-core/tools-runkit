@@ -29,8 +29,14 @@ module Orocos
         # This is only possible if the remote deployment has been started by
         # this Ruby instance
         def read(sample = nil)
-            # Only overloaded for documentation reasons
-            super
+            if !policy[:pull]
+                Orocos.allow_blocking_calls do
+                    # Non-pull readers are non-blocking
+                    super
+                end
+            else
+                super
+            end
         end
 
         # Reads a sample on the associated output port, and returns nil if no
@@ -41,8 +47,14 @@ module Orocos
         # this Ruby instance
         # @see read
         def read_new(sample = nil)
-            # Only overloaded for documentation reasons
-            super
+            if !policy[:pull]
+                Orocos.allow_blocking_calls do
+                    # Non-pull readers are non-blocking
+                    super
+                end
+            else
+                super
+            end
         end
 
         # Disconnects this port from the port it is reading
