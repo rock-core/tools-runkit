@@ -62,7 +62,7 @@ module Orocos
             orogen_bin = File.expand_path('../bin/orogen', Orocos::Generation.base_dir)
 
             build_dir = File.join(work_dir, 'build')
-            if !system(ruby_bin, orogen_bin, '--corba', '--no-rtt-scripting', "--transports=#{transports.join(",")}", File.basename(src), chdir: work_dir)
+            if !system(ruby_bin, orogen_bin, '--corba', '--no-rtt-scripting', '--import=std', "--transports=#{transports.join(",")}", File.basename(src), chdir: work_dir)
                 raise "failed to build #{src} in #{work_basedir}"
             end
 
