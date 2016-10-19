@@ -132,15 +132,8 @@ module Orocos
         # @option options [String] :name Overwrites the real name of remote task
         # @option options [Orocos::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
-        def initialize(ior,options=Hash.new)
-            options,other_options = Kernel.filter_options options,:name
-
-            name = if options.has_key?(:name)
-                       options[:name]
-                   else
-                       do_real_name
-                   end
-            super(name,other_options)
+        def initialize(ior, name: do_real_name, model: nil, **other_options)
+            super(name, **other_options)
             @ior = ior
 
             if process && (process.default_logger_name != name)
