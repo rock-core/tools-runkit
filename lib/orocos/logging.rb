@@ -65,17 +65,14 @@ module Orocos
     # Common implementation of log_all_ports for a single process
     #
     # This is shared by local and remote processes alike
-    def self.log_all_process_ports(process, options = Hash.new)
-        options, logger_options = Kernel.filter_options options,
-            :tasks => nil, :exclude_ports => nil, :exclude_types => nil
-
-        tasks = options[:tasks]
-        exclude_ports = options[:exclude_ports]
-        exclude_types = options[:exclude_types]
-
-        if !(logger = process.setup_default_logger(logger_options))
+    def self.log_all_process_ports(process, tasks: nil, exclude_ports: nil, exclude_types: nil, **logger_options)
+        if !(logger = self.default_logger)
             return Set.new
         end
+
+        process.setup_default_logger(
+            logger,
+            **logger_options)
 
         logged_ports = Set.new
         process.task_names.each do |task_name|

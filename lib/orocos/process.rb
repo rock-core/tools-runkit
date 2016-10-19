@@ -249,29 +249,26 @@ module Orocos
 
         @@logfile_indexes = Hash.new
 
+        # Computes the default log file name for a given orocos name
+        def default_log_file_name(orocos_name)
+            orocos_name[/.*(?=_[L|l]ogger)/] || orocos_name
+        end
+
         # @api private
         #
         # Sets up the default logger of this process
-        def setup_default_logger(remote: false, log_dir: Orocos.default_working_directory)
-            is_remote     = remote
-            log_dir       = log_dir
-
-            if !(logger = self.default_logger)
-                return
-            end
-            log_file_name = logger.basename[/.*(?=_[L|l]ogger)/] || logger.basename
-
-            index = 0
+        def setup_default_logger(logger = self.default_logger, log_file_name: default_log_file_name(logger.basename), remote: false, log_dir: Orocos.default_working_directory)
             if remote
-                index = (@@logfile_indexes[name] ||= -1) + 1
-                @@logfile_indexes[name] = index
-                logger.file = "#{log_file_name}.#{index}.log"
+                index = (@@logfile_indexes[log_file_name] ||= -1) + 1
+                @@logfile_indexes[log_file_name] = index
+                log_file_path = "#{log_file_name}.#{index}.log"
             else
-                while File.file?( logfile = File.join(log_dir, "#{log_file_name}.#{index}.log"))
+                index = 0
+                while File.file?(log_file_path = File.join(log_dir, "#{log_file_name}.#{index}.log"))
                     index += 1
                 end
-                logger.file = logfile 
             end
+            logger.property('file').write(log_file_path)
             logger
         end
 
