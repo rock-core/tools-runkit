@@ -129,8 +129,9 @@ module Orocos
                 ENV['PKG_CONFIG_PATH'] = @old_pkg_config_path
             end
             Orocos::CORBA.instance_variable_set :@loaded_typekits, []
-            Orocos.clear
             Orocos.warn_for_missing_default_loggers = @__warn_for_missing_default_loggers
+        ensure
+            Orocos.clear
         end
 
         attr_reader :processes
