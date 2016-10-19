@@ -294,6 +294,9 @@ module Orocos
         # A name => Property instance mapping of cached properties
         attr_reader :properties
 
+        # A mapping from static numeric value to state names
+        attr_reader :state_symbols
+
         # @param [String] name The name of the task.
         # @param [Hash] options The options.
         # @option options [Orocos::Process] :process The process supporting the task

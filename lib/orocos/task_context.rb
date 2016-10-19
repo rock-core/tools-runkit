@@ -152,6 +152,8 @@ module Orocos
         #
         # StateReader objects are created by TaskContext#state_reader
         module StateReader
+            attr_accessor :state_symbols
+
             def read
                 if value = super
                     @state_symbols[value]
@@ -172,7 +174,7 @@ module Orocos
 
             reader = port('state').reader(policy)
             reader.extend StateReader
-            reader.instance_variable_set :@state_symbols, @state_symbols
+            reader.state_symbols = @state_symbols
             reader
         end
 
