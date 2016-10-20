@@ -607,7 +607,7 @@ module Orocos
                 else
                     ns,_ = split_name(name)
                     ns = if !ns || ns.empty?
-                             namespace
+                             self.namespace
                          else
                              ns
                          end

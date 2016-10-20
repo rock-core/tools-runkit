@@ -199,6 +199,30 @@ module Orocos
         rescue Orocos::NotFound
             "IOR:010000001f00000049444c3a5254542f636f7262612f435461736b436f6e746578743a312e300000010000000000000064000000010102000d00000031302e3235302e332e31363000002bc80e000000fe8a95a65000004d25000000000000000200000000000000080000000100000000545441010000001c00000001000000010001000100000001000105090101000100000009010100"
         end
+
+        # Polls the async event loop until a condition is met
+        #
+        # @yieldreturn a falsy value if the condition is not met yet (i.e. false
+        #   or nil), and a truthy value if the condition has been met. This
+        #   value is returned by {#async_poll_until}
+        #
+        # @param [Float] period the period in seconds
+        # @param [Float] timeout the timeout in seconds. The test will flunk if
+        #   the condition is not met within that many seconds
+        def assert_async_polls_until(period: 0.01, timeout: 5)
+            start = Time.now
+            while true
+                Orocos::Async.step
+                if result = yield
+                    return result
+                end
+                if Time.now - start > timeout
+                    flunk("timed out while waiting for condition")
+                end
+                sleep period
+            end
+        end
+
     end
 end
 
