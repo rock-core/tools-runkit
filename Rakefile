@@ -7,10 +7,18 @@ Rake::TestTask.new(:test) do |t|
     t.libs << "lib"
     t.libs << "."
     test_files = FileList['test/**/test_*.rb']
+    test_files.exclude "test/standalone/**/*"
     if !Orocos::Rake::USE_ROS
         test_files.exclude 'test/ros/**'
     end
     t.test_files = test_files
+    t.warning = false
+end
+
+Rake::TestTask.new(:test_standalone) do |t|
+    t.libs << "lib"
+    t.libs << "."
+    t.test_files = FileList['test/standalone/test_*.rb']
     t.warning = false
 end
 
