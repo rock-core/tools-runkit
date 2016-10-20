@@ -716,16 +716,15 @@ module Orocos
             # @param [Orocos::TaskContext] task The task.
             # @param [String] name The name which is used to register the task.
             def register(task,name=task.name)
-                service = if @registered_tasks.has_key? name
-                              @registered_tasks[name]
-                          else
-                              service = ::Avahi::ServiceDiscovery.new
-                              @registered_tasks[name] = service
-                              service.publish(name,@searchdomain)
-                              service
-                          end
+                existing_service = @registered_tasks[name]
+                service = existing_service || ::Avahi::ServiceDiscovery.new
                 service.set_description("IOR",task.ior)
-                service.update
+                if existing_service
+                    service.update
+                else
+                    @registered_tasks[name] = service
+                    service.publish(name, @searchdomain)
+                end
                 service
             end
 

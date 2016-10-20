@@ -291,15 +291,50 @@ describe Orocos::Avahi::NameService do
         @service = Orocos::Avahi::NameService.new("_orocosrb._tcp")
     end
 
-    it "allows registering a task explicitely" do
+    def wait_for_publication(name, expected_ior, timeout: 10)
+        start = Time.now
+        while Time.now - start < timeout
+            ior = nil
+            begin
+                capture_subprocess_io { ior = @service.ior(name) }
+            rescue Orocos::NotFound
+            end
+
+            if ior == expected_ior
+                return
+            end
+            sleep 0.1
+        end
+
+        if ior
+            flunk("resolved #{name}, but it does not match the expected IOR")
+        else
+            flunk("cannot resolve #{name}")
+        end
+    end
+
+    it "allows registering a task explicitely and updates it" do
         task = new_ruby_task_context 'orocosrb-test'
         @service.register(task)
-        while !@service.names.include?(task.name)
-            sleep 0.01
-        end
+        wait_for_publication('orocosrb-test', task.ior)
         assert @service.names.include?(task.name)
-        assert_equal task, @service.get(task.name)
-        assert_equal task.ior, @service.ior(task.name)
+        capture_subprocess_io do
+            assert_equal task, @service.get(task.name)
+        end
+
+        task.dispose
+
+        # This would be better split into two tests, but the avahi name service
+        # as it is does not accept de-registering anything ... avahi then
+        # refuses to re-register an existing service (which is a good behaviour)
+
+        task = new_ruby_task_context 'orocosrb-test'
+        @service.register(task)
+        wait_for_publication('orocosrb-test', task.ior)
+        assert @service.names.include?(task.name)
+        capture_subprocess_io do
+            assert_equal task, @service.get(task.name)
+        end
     end
 end
 
