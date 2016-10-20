@@ -362,7 +362,7 @@ module Orocos::Async
                 reachable! service
             end
             def name_service
-                @name_service ||= NameService.new(Orocos::CORBA.name_service.ip,Orocos::CORBA.name_service.port)
+                @name_service ||= NameService.new(Orocos::CORBA.name_service.ip)
             end
 
             def get(name,options =Hash.new)
@@ -377,18 +377,9 @@ module Orocos::Async
         class NameService < RemoteNameService
             extend Utilrb::EventLoop::Forwardable
 
-            def initialize(ip="",port="",options = Hash.new)
-                ip,port,options = if ip.is_a? Hash
-                                      ["","",ip]
-                                  elsif port.is_a? Hash
-                                      [ip,"",port]
-                                  else port.is_a? Hash
-                                      [ip,port,options]
-                                  end
-                options,name_service_options = Kernel.filter_options options,:reconnect=> true
-
-                name_service = Orocos::CORBA::NameService.new ip,port,name_service_options
-                super(name_service,options)
+            def initialize(host = "", reconnect: true)
+                name_service = Orocos::CORBA::NameService.new(host)
+                super(name_service, reconnect: reconnect)
             end
         end
     end
