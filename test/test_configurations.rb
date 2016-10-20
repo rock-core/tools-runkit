@@ -911,11 +911,6 @@ end
 class TC_Orocos_Configurations < Minitest::Test
     TaskConfigurations = Orocos::TaskConfigurations
 
-    def setup
-        super
-        Orocos.load
-    end
-
     def test_merge_conf_array
         assert_raises(ArgumentError) { TaskConfigurations.merge_conf_array([nil, 1], [nil, 2], false) }
         assert_equal([1, 2], TaskConfigurations.merge_conf_array([1, nil], [nil, 2], false))
