@@ -193,8 +193,9 @@ module Orocos
             end
             orogen_model.each_input_port do |p|
                 if has_port?(p.name)
-                    if port(p.name).orocos_type_name != p.orocos_type_name
-                        remove_inputs << p
+                    existing_port = port(p.name)
+                    if existing_port.orocos_type_name != p.orocos_type_name
+                        remove_inputs << existing_port
                         new_inputs << p
                     end
                 else new_inputs << p
@@ -202,16 +203,17 @@ module Orocos
             end
             orogen_model.each_output_port do |p|
                 if has_port?(p.name)
-                    if port(p.name).orocos_type_name != p.orocos_type_name
-                        remove_outputs << p
+                    existing_port = port(p.name)
+                    if existing_port.orocos_type_name != p.orocos_type_name
+                        remove_outputs << existing_port
                         new_outputs << p
                     end
                 else new_outputs << p
                 end
             end
 
-            remove_inputs.each { |p| remove_input_port p }
-            remove_outputs.each { |p| remove_output_port p }
+            remove_inputs.each { |p| remove_port p }
+            remove_outputs.each { |p| remove_port p }
             new_properties.each do |p|
                 create_property(p.name, p.type)
             end
