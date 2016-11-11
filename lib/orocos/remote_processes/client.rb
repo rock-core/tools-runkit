@@ -277,6 +277,10 @@ module Orocos
         def quit_server
             socket.write(COMMAND_QUIT)
         end
+
+        def close
+            socket.close
+        end
     end
     end
 end
