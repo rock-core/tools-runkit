@@ -21,16 +21,6 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should return its name and basename"do
-        Orocos.run('simple_source') do
-            ns = Orocos::CORBA::NameService.new
-            ns.ip = "127.0.0.1"
-            source = ns.get("simple_source_source")
-            assert_equal "127.0.0.1/simple_source_source", source.name
-            assert_equal "simple_source_source", source.basename
-        end
-    end
-
     it "should give access to its own process if it is known" do
         Orocos.run('simple_source') do |process|
             source = Orocos::TaskContext.get("simple_source_source")

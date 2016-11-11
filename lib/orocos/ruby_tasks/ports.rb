@@ -5,6 +5,11 @@ module Orocos
     #
     # It is created by {TaskContext#create_input_port}
     class LocalInputPort < InputPort
+        # Remove this port from the underlying task context
+        def remove
+            task.remove_port(self)
+        end
+
         # Reads a sample on this input port
         #
         # For simple types, the returned value is the Ruby representation of the
@@ -43,6 +48,13 @@ module Orocos
         # @deprecated use {raw_read_new} instead
         def read_new_raw(sample)
             raw_read_new(sample)
+        end
+
+        # Whether the port seem to be connected to something
+        def connected?
+            Orocos.allow_blocking_calls do
+                super
+            end
         end
 
 
@@ -107,7 +119,7 @@ module Orocos
             end
 
             result = value.allocating_operation do
-                do_read(orocos_type_name, value, copy_old_data)
+                do_read(orocos_type_name, value, copy_old_data, blocking_read?)
             end
             if result == NEW_DATA || (result == OLD_DATA && copy_old_data)
                 if sample
@@ -120,6 +132,11 @@ module Orocos
     end
 
     class LocalOutputPort < OutputPort
+        # Remove this port from the underlying task context
+        def remove
+            task.remove_port(self)
+        end
+
         # Write a sample on this output port
         #
         # If the data type is a struct, the sample can be provided either as a
@@ -137,6 +154,13 @@ module Orocos
         def write(data)
             data = Typelib.from_ruby(data, type)
             do_write(orocos_type_name, data)
+        end
+
+        # Whether the port seem to be connected to something
+        def connected?
+            Orocos.allow_blocking_calls do
+                super
+            end
         end
     end
     end

@@ -294,42 +294,42 @@ module Orocos
         # A name => Property instance mapping of cached properties
         attr_reader :properties
 
+        # A mapping from static numeric value to state names
+        attr_reader :state_symbols
+
         # @param [String] name The name of the task.
         # @param [Hash] options The options.
         # @option options [Orocos::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
-        def initialize(name,options = Hash.new)
-            options = Kernel.validate_options options,:namespace,:process,:model
-
+        def initialize(name, namespace: nil, process: nil, model: nil)
             @ports = Hash.new
             @properties = Hash.new
             @attributes = Hash.new
             @state_queue = Array.new
-            @ior = ""
 
-            namespace,@name = split_name(name)
-            namespace = if options.has_key?(:namespace)
-                              options[:namespace]
-                          else
-                              namespace
-                          end
-            self.namespace = namespace
-            @process    = options[:process]
+            if namespace
+                self.namespace, @name = namespace, name
+            else
+                self.namespace, @name = split_name(name)
+                name = @name
+            end
+            @process    = process
 
             @process ||= Orocos.enum_for(:each_process).
                 find do |p|
                     p.task_names.any? { |n| n == name }
                 end
+
             if process
                 process.register_task(self)
             end
 
-            if options.has_key?(:model)
-                self.model = options[:model]
+            if model
+                self.model = model
+            else
+                # Load the model from remote if it is not set yet
+                self.model
             end
-
-            # Load the model from remote if it is not set yet
-            model
 
             if !@state_symbols
                 @state_symbols = []
@@ -613,9 +613,7 @@ module Orocos
         end
 
         def inspect
-            "#<#{self.class}: #{self.class.name}/#{name} state=#{state}>"
-        rescue Orocos::ComError
-            "#<#{self.class}: #{self.class.name}/#{name} state=UNREACHABLE>"
+            "#<#{self.class}: #{self.class.name}/#{name}>"
         end
 
         # @return [Symbol] the toplevel state that corresponds to +state+, i.e.

@@ -47,12 +47,14 @@ module Orocos
                 local_task.model_name = options[:model].name
             end
 
-            remote_task = super(local_task.ior, options)
+            remote_task = super(local_task.ior, name: name, **options)
             local_task.instance_variable_set :@remote_task, remote_task
             remote_task.instance_variable_set :@local_task, local_task
 
             if options[:model]
                 remote_task.setup_from_orogen_model(options[:model])
+            else
+                remote_task.model.extended_state_support
             end
             remote_task
         rescue ::Exception
@@ -60,12 +62,11 @@ module Orocos
             raise
         end
 
-        def initialize(ior, options = Hash.new)
+        def initialize(ior, name: self.name, **other_options)
             @local_ports = Hash.new
             @local_properties = Hash.new
             @local_attributes = Hash.new
-            options, other_options = Kernel.filter_options options, :name => name
-            super(ior, other_options.merge(options))
+            super(ior, name: name, **other_options)
         end
 
         # Create a new input port on this task context
@@ -222,6 +223,10 @@ module Orocos
             end
             @model = orogen_model
             nil
+        end
+
+        def has_port?(name)
+            @local_ports.has_key?(name) || super
         end
 
         private

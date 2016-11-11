@@ -1,3 +1,4 @@
+#include "corba.hh"
 #include "rorocos.hh"
 #include "datahandling.hh"
 #include <rtt/types/Types.hpp>

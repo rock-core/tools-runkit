@@ -191,14 +191,14 @@ module Orocos
             end.compact
 
             if candidates.empty?
-                raise "cannot find any task in #{names.join(", ")}"
+                raise Orocos::NotFound, "cannot find any tasks matching #{names.join(", ")}"
             end
 
             running_candidates = candidates.find_all(&:running?)
             if running_candidates.empty?
-                raise "none of #{names.join(", ")} is running"
+                raise Orocos::NotFound, "none of #{names.join(", ")} are running"
             elsif running_candidates.size > 1
-                raise "multiple candidates are running: #{running_candidates.map(&:name)}"
+                raise Orocos::NotFound, "multiple candidates are running: #{running_candidates.map(&:name)}"
             else
                 running_candidates.first
             end
@@ -531,32 +531,8 @@ module Orocos
         class NameService < NameServiceBase
             include Namespace
 
-            # A new instance of NameService
-            #
-            # @overload initialize(port="",ip="",options=Hash.new)
-            #   @param [String] ip The ip address or host name where the CORBA name service is running.
-            #     If no ip is given the local host is used respectively 
-            #     the one specified by global environment variable ORBInitRef.
-            #   @param [String] port The port number of the CORBA name service.
-            #     If no port is given the default port 2809 is used respectively
-            #     the one specified by global environment variable ORBInitRef.
-            #   @param [Hash] options The options.
-            # @overload initialize(ip,options)
-            #   @param [String] ip
-            #   @param [Hash] options 
-            # @overload initialize(options)
-            #   @param [Hash] options 
-            def initialize(ip="",port="",options = Hash.new)
-                ip,port,options = if ip.is_a? Hash
-                                      ["",port,ip]
-                                  elsif port.is_a? Hash
-                                      [ip,"",port]
-                                  else
-                                      [ip,port,options]
-                                  end
-
-                # no support for options at the moment
-                options = Kernel.validate_options options
+            def initialize(host = "")
+                self.ip = host
             end
 
             #(see NameServiceBase#name)
@@ -596,8 +572,8 @@ module Orocos
             # The async-access object for this name service
             # @param (see Orocos::Async::CORBA::NameService#initialize)
             # @return [Orocos::Async::CORBA::NameService]
-            def to_async(options = Hash.new)
-                Orocos::Async::CORBA::NameService.new(ip,port,options)
+            def to_async(reconnect: true)
+                Orocos::Async::CORBA::NameService.new(ip, reconnect: reconnect)
             end
 
             # Resets the CORBA name service client.
@@ -625,16 +601,19 @@ module Orocos
             end
 
             # (see NameServiceBase#get)
-            def get(name,options = Hash.new)
-                options = Kernel.validate_options options,:name,:namespace,:process
-                ns,_ = split_name(name)
-                ns = if !ns || ns.empty?
-                         namespace
-                     else
-                         ns
-                     end
-                options[:namespace] ||= ns
-                Orocos::TaskContext.new(ior(name),options)
+            def get(name = nil, namespace: nil, process: nil, ior: nil)
+                if ior
+                    Orocos::TaskContext.new(ior, namespace: namespace, process: process)
+                else
+                    ns,_ = split_name(name)
+                    ns = if !ns || ns.empty?
+                             self.namespace
+                         else
+                             ns
+                         end
+                    namespace ||= (ns || "")
+                    Orocos::TaskContext.new(ior(name), namespace: namespace, process: process)
+                end
             rescue ComError => e
                 raise Orocos::NotFound, "task context #{name} is registered but cannot be reached."
             end
@@ -737,16 +716,15 @@ module Orocos
             # @param [Orocos::TaskContext] task The task.
             # @param [String] name The name which is used to register the task.
             def register(task,name=task.name)
-                service = if @registered_tasks.has_key? name
-                              @registered_tasks[name]
-                          else
-                              service = ::Avahi::ServiceDiscovery.new
-                              @registered_tasks[name] = service
-                              service.publish(name,@searchdomain)
-                              service
-                          end
+                existing_service = @registered_tasks[name]
+                service = existing_service || ::Avahi::ServiceDiscovery.new
                 service.set_description("IOR",task.ior)
-                service.update
+                if existing_service
+                    service.update
+                else
+                    @registered_tasks[name] = service
+                    service.publish(name, @searchdomain)
+                end
                 service
             end
 
@@ -772,7 +750,9 @@ module Orocos
                     warn "Avahi: '#{name}' found multiple times. Possibly due to publishing on IPv4 and IPv6, or on multiple interfaces -- picking first one in list"
                 end
                 ior = services.first.get_description("IOR")
-                raise Orocos::NotFound, "Avahi nameservice could not retrieve an ior for task #{name}" unless ior
+                if !ior || ior.empty?
+                    raise Orocos::NotFound, "Avahi nameservice could not retrieve an ior for task #{name}"
+                end
                 ior
             end
 

@@ -52,6 +52,16 @@ module Orocos
         # True if the process is running. This is an alias for alive?
         def running?; @alive end
 
+        # Resolve all tasks within the deployment
+        #
+        # A deployment is usually considered ready when all its tasks can be
+        # resolved successfully
+        def resolve_all_tasks(cache = Hash.new)
+            Orocos::Process.resolve_all_tasks(self, cache) do |task_name|
+                task(task_name)
+            end
+        end
+
         # Waits for the deployment to be ready. +timeout+ is the number of
         # milliseconds we should wait. If it is nil, will wait indefinitely
 	def wait_running(timeout = nil)

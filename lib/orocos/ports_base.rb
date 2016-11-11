@@ -38,9 +38,8 @@ module Orocos
 
         # True if +self+ and +other+ represent the same port
         def ==(other)
-            other.class == self.class &&
-                other.task == self.task &&
-                other.name == self.name
+            return false if !other.kind_of?(PortBase)
+            other.task == self.task && other.name == self.name
         end
 
         def ensure_type_available(options = Hash.new)

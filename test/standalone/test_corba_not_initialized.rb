@@ -1,15 +1,16 @@
 require 'orocos/test'
 
-class TC_CORBA_Standalone < Minitest::Test
-    def test_taskcontext_get_fails_if_corba_is_not_initialized
-        assert_raises(Orocos::NotInitialized) { Orocos::TaskContext.get 'bla' }
-        assert_raises(Orocos::NotInitialized) { Orocos::TaskContext.do_get 'bla' }
-        assert_raises(Orocos::NotInitialized) { Orocos::TaskContext.do_get_from_ior 'bla' }
-        assert_raises(Orocos::NotInitialized) { Orocos::TaskContext.reachable? 'bla' }
-        Orocos.initialize
-        assert_raises(Orocos::NotFound) { Orocos::TaskContext.get 'bla' }
-        assert_raises(Orocos::NotFound) { Orocos::TaskContext.do_get 'bla' }
-        assert_raises(Orocos::NotFound) { Orocos::TaskContext.do_get_from_ior 'bla' }
-        assert(!Orocos::TaskContext.reachable?('bla'))
+describe "behaviour when CORBA is not initialized" do
+    it "the name service accesses raise Orocos::NotInitialized" do 
+        service = Orocos::CORBA::NameService.new
+        assert_raises(Orocos::NotInitialized) do
+            service.names
+        end
+        assert_raises(Orocos::NotInitialized) do
+            service.ior("bla")
+        end
+        assert_raises(Orocos::NotInitialized) do
+            service.deregister("bla")
+        end
     end
 end

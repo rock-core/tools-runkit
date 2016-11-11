@@ -225,16 +225,13 @@ module Orocos
                 return result
             end
 
-            result = if task_names.include?(task_name)
-                         name_service.get task_name, process: self
-                     elsif task_names.include?(full_name)
-                         name_service.get full_name, process: self
-                     else
-                         raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
-                     end
-
-            @tasks << result
-            result
+            if task_names.include?(task_name)
+                name_service.get task_name, process: self
+            elsif task_names.include?(full_name)
+                name_service.get full_name, process: self
+            else
+                raise Orocos::NotFound, "no task #{task_name} defined on #{name}"
+            end
         end
 
         def register_task(task)
@@ -249,29 +246,26 @@ module Orocos
 
         @@logfile_indexes = Hash.new
 
+        # Computes the default log file name for a given orocos name
+        def default_log_file_name(orocos_name)
+            orocos_name[/.*(?=_[L|l]ogger)/] || orocos_name
+        end
+
         # @api private
         #
         # Sets up the default logger of this process
-        def setup_default_logger(remote: false, log_dir: Orocos.default_working_directory)
-            is_remote     = remote
-            log_dir       = log_dir
-
-            if !(logger = self.default_logger)
-                return
-            end
-            log_file_name = logger.basename[/.*(?=_[L|l]ogger)/] || logger.basename
-
-            index = 0
+        def setup_default_logger(logger = self.default_logger, log_file_name: default_log_file_name(logger.basename), remote: false, log_dir: Orocos.default_working_directory)
             if remote
-                index = (@@logfile_indexes[name] ||= -1) + 1
-                @@logfile_indexes[name] = index
-                logger.file = "#{log_file_name}.#{index}.log"
+                index = (@@logfile_indexes[log_file_name] ||= -1) + 1
+                @@logfile_indexes[log_file_name] = index
+                log_file_path = "#{log_file_name}.#{index}.log"
             else
-                while File.file?( logfile = File.join(log_dir, "#{log_file_name}.#{index}.log"))
+                index = 0
+                while File.file?(log_file_path = File.join(log_dir, "#{log_file_name}.#{index}.log"))
                     index += 1
                 end
-                logger.file = logfile 
             end
+            logger.property('file').write(log_file_path)
             logger
         end
 
@@ -1066,6 +1060,20 @@ module Orocos
             end
         end
 
+        def self.resolve_all_tasks(process, cache = Hash.new)
+            # Get any task name from that specific deployment, and check we
+            # can access it. If there is none
+            all_reachable = process.task_names.all? do |task_name|
+                begin
+                    cache[task_name] ||= yield(task_name)
+                rescue Orocos::NotFound
+                end
+            end
+            if all_reachable
+                cache
+            end
+        end
+
 	# Wait for a process to become reachable
         #
         def self.wait_running(process, timeout = nil, name_service = Orocos::CORBA.name_service, &block)
@@ -1117,6 +1125,12 @@ module Orocos
                 end
 	    end
 	end
+
+        def resolve_all_tasks(cache = Hash.new, name_service: Orocos::CORBA.name_service)
+            Process.resolve_all_tasks(self, cache) do |task_name|
+                name_service.get(task_name)
+            end
+        end
 
         # Wait for the module to be started. If timeout is 0, the function
         # returns immediately, with a false return value if the module is not

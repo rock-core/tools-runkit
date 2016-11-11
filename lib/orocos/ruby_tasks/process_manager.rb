@@ -55,7 +55,9 @@ module Orocos
             prefix_mappings = Orocos::ProcessBase.resolve_prefix(model, options.delete(:prefix))
             name_mappings = prefix_mappings.merge(name_mappings)
 
-            ruby_deployment = Process.new(self, name, model, task_context_class: task_context_class)
+            task_context_class = options.fetch(:task_context_class, self.task_context_class)
+            ruby_deployment = Process.new(self, name, model,
+                                          task_context_class: task_context_class)
             ruby_deployment.name_mappings = name_mappings
             ruby_deployment.spawn
             deployments[name] = ruby_deployment

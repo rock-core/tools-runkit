@@ -1,5 +1,3 @@
-#include "rorocos.hh"
-
 #include <typeinfo>
 
 #include <memory>
@@ -16,7 +14,6 @@
 #include <rtt/base/OutputPortInterface.hpp>
 #include <rtt/base/InputPortInterface.hpp>
 
-#include <typelib_ruby.hh>
 #include <rtt/transports/corba/CorbaLib.hpp>
 #ifdef HAS_MQUEUE
 #include <rtt/transports/mqueue/MQLib.hpp>
@@ -25,6 +22,10 @@
 #include <mqueue.h>
 #include <boost/lexical_cast.hpp>
 #endif
+
+#include "rorocos.hh"
+#include "corba.hh"
+#include <typelib_ruby.hh>
 
 using namespace std;
 using namespace boost;
@@ -39,7 +40,10 @@ VALUE cNameService;
 VALUE cTaskContext;
 VALUE eNotFound;
 VALUE eNotInitialized;
-VALUE corba_access = Qnil;
+VALUE eBlockingCallInForbiddenThread = Qnil;
+VALUE threadInterdiction = Qnil;
+VALUE corbaAccess = Qnil;
+
 
 static VALUE cInputPort;
 static VALUE cOutputPort;
@@ -591,6 +595,17 @@ static VALUE mqueue_transportable_type_names(VALUE mod)
 }
 #endif
 
+static VALUE orocos_no_blocking_calls_in_thread_set(VALUE self, VALUE thread)
+{
+    threadInterdiction = thread;
+    return thread;
+}
+
+static VALUE orocos_no_blocking_calls_in_thread_get(VALUE self)
+{
+    return threadInterdiction;
+}
+
 extern "C" void Init_rorocos()
 {
     mOrocos = rb_define_module("Orocos");
@@ -599,12 +614,15 @@ extern "C" void Init_rorocos()
     eCORBA    = rb_define_class_under(mOrocos, "CORBAError", eComError);
     eCORBAComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
     eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
+    eBlockingCallInForbiddenThread = rb_define_class_under(mOrocos, "BlockingCallInForbiddenThread", rb_eRuntimeError);
 
     rb_define_singleton_method(mOrocos, "load_standard_typekits", RUBY_METHOD_FUNC(orocos_load_standard_typekits), 0);
     rb_define_singleton_method(mOrocos, "load_rtt_plugin",  RUBY_METHOD_FUNC(orocos_load_rtt_plugin), 1);
     rb_define_singleton_method(mOrocos, "load_rtt_typekit", RUBY_METHOD_FUNC(orocos_load_rtt_typekit), 1);
     rb_define_singleton_method(mOrocos, "registered_type?", RUBY_METHOD_FUNC(orocos_registered_type_p), 1);
     rb_define_singleton_method(mOrocos, "do_typelib_type_for", RUBY_METHOD_FUNC(orocos_typelib_type_for), 1);
+    rb_define_singleton_method(mOrocos, "no_blocking_calls_in_thread=", RUBY_METHOD_FUNC(orocos_no_blocking_calls_in_thread_set), 1);
+    rb_define_singleton_method(mOrocos, "no_blocking_calls_in_thread", RUBY_METHOD_FUNC(orocos_no_blocking_calls_in_thread_get), 0);
 
     VALUE cTaskContextBase = rb_define_class_under(mOrocos, "TaskContextBase",rb_cObject);
     rb_const_set(cTaskContextBase, rb_intern("STATE_PRE_OPERATIONAL"),      INT2FIX(RTT::corba::CPreOperational));

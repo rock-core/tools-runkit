@@ -73,8 +73,10 @@ module Orocos
         def spawn(options = Hash.new)
             model.task_activities.each do |deployed_task|
                 name = get_mapped_name(deployed_task.name)
-                deployed_tasks[name] = task_context_class.
-                    from_orogen_model(name, deployed_task.task_model)
+                Orocos.allow_blocking_calls do
+                    deployed_tasks[name] = task_context_class.
+                        from_orogen_model(name, deployed_task.task_model)
+                end
             end
             @alive = true
         end
@@ -91,6 +93,12 @@ module Orocos
             if t = deployed_tasks[task_name]
                 t
             else raise ArgumentError, "#{self} has no task called #{task_name}, known tasks: #{deployed_tasks.keys.sort.join(", ")}"
+            end
+        end
+
+        def resolve_all_tasks(cache = Hash.new)
+            Orocos::Process.resolve_all_tasks(self, cache) do |task_name|
+                task(task_name)
             end
         end
 

@@ -1,0 +1,40 @@
+#! /usr/bin/env ruby
+
+require 'optparse'
+input_ports  = Array.new
+output_ports = Array.new
+typekits     = Array.new
+parser = OptionParser.new do |opt|
+    opt.on '--input-port=PORT::TYPE', String do |spec|
+        input_ports << spec.split('::')
+    end
+    opt.on '--output-port=PORT::TYPE', String do |spec|
+        output_ports << spec.split('::')
+    end
+    opt.on '--typekit=NAME', String do |name|
+        typekits << name
+    end
+end
+name = parser.parse(ARGV).first
+
+require 'orocos'
+
+Orocos.initialize
+typekits.each do |name|
+    Orocos.load_typekit name
+end
+
+task = Orocos::RubyTasks::TaskContext.new(name)
+begin
+    input_ports.each do |port_name, port_type|
+        task.create_input_port port_name, port_type
+    end
+    output_ports.each do |port_name, port_type|
+        task.create_output_port port_name, port_type
+    end
+    sleep
+ensure
+    task.dispose
+end
+
+
