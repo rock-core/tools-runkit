@@ -67,6 +67,13 @@ module Orocos
         # data readers and writers
         attr_reader :ruby_task
 
+        @@ruby_task_sync = Mutex.new
+
+        # Protect access to {#ruby_task} in multithreading contexts
+        def ruby_task_access(&block)
+            @@ruby_task_sync.synchronize(&block)
+        end
+
         attr_predicate :warn_for_missing_default_loggers?, true
     end
     @use_mq_warning = true

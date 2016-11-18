@@ -162,11 +162,13 @@ module Orocos
         # remote input port.
         def writer(distance: PortBase::D_UNKNOWN, **policy)
             ensure_type_available
-            writer = Orocos.ruby_task.create_output_port(
-                self.class.transient_local_port_name(full_name),
-                orocos_type_name,
-                permanent: false,
-                class: self.class.writer_class) 
+            writer = Orocos.ruby_task_access do
+                Orocos.ruby_task.create_output_port(
+                    self.class.transient_local_port_name(full_name),
+                    orocos_type_name,
+                    permanent: false,
+                    class: self.class.writer_class) 
+            end
             writer.port = self
             writer.policy = policy
             writer.connect_to(self, distance: distance, **policy)
@@ -231,11 +233,13 @@ module Orocos
         # reader object. See #prepare_policy
         def reader(distance: PortBase::D_UNKNOWN, **policy)
             ensure_type_available
-            reader = Orocos.ruby_task.create_input_port(
-                self.class.transient_local_port_name(full_name),
-                orocos_type_name,
-                permanent: false,
-                class: self.class.reader_class)
+            reader = Orocos.ruby_task_access do
+                Orocos.ruby_task.create_input_port(
+                    self.class.transient_local_port_name(full_name),
+                    orocos_type_name,
+                    permanent: false,
+                    class: self.class.reader_class)
+            end
             reader.port = self
             reader.policy = policy
             connect_to(reader, distance: distance, **policy)
