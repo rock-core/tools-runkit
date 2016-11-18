@@ -76,6 +76,7 @@ module Orocos
             Orocos::MQueue.auto = USE_MQUEUE
 
             @test_dir = File.expand_path(File.join("..", "..", 'test'), File.dirname(__FILE__))
+            @__tmpdirs = Array.new
 
             # Since we are loading typekits over and over again, we need to
             # disable type export
@@ -114,6 +115,9 @@ module Orocos
             if defined? FlexMock
                 flexmock_teardown
             end
+            @__tmpdirs.each do |dir|
+                FileUtils.rm_rf dir
+            end
             processes.each do |p|
                 begin p.kill
                 rescue Exception => e
@@ -135,6 +139,12 @@ module Orocos
         end
 
         attr_reader :processes
+
+        def make_tmpdir
+            dir = Dir.mktmpdir
+            @__tmpdirs << dir
+            dir
+        end
 
         def start(*spec)
             processes.concat Orocos.run(*spec)

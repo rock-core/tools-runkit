@@ -461,6 +461,11 @@ module Orocos
         # True if the given symbol is the name of a fatal error state
         def fatal_error_state?(sym); @fatal_states.include?(sym) end
 
+        # Returns true if the task is pre-operational
+        def pre_operational?
+            peek_current_state && peek_current_state == :PRE_OPERATIONAL
+        end
+
         # Returns true if the task is in a state where code is executed. This
         # includes of course the running state, but also runtime error states.
         def running?

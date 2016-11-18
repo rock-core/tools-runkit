@@ -66,7 +66,7 @@ module Orocos
     #
     # This is shared by local and remote processes alike
     def self.log_all_process_ports(process, tasks: nil, exclude_ports: nil, exclude_types: nil, **logger_options)
-        if !(logger = self.default_logger)
+        if !(logger = process.default_logger)
             return Set.new
         end
 
@@ -76,7 +76,7 @@ module Orocos
 
         logged_ports = Set.new
         process.task_names.each do |task_name|
-            task = TaskContext.get(task_name)
+            task = process.task(task_name)
             next if task == logger
             next if tasks && !(tasks === task_name)
 
@@ -89,6 +89,9 @@ module Orocos
                 logged_ports << [task.name, port.name]
                 logger.log(port)
             end
+        end
+        if logger.pre_operational?
+            logger.configure
         end
         if !logger.running?
             logger.start
