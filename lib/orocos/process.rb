@@ -293,25 +293,25 @@ module Orocos
         #    default, to log data coming out of this process, or false if none
         #    can be found
         def default_logger
-            if !@logger.nil?
-                return @logger
+            if !@default_logger.nil?
+                return @default_logger
             end
 
             if logger_name = default_logger_name
                 begin
-                    @logger = TaskContext.get logger_name
+                    @default_logger = TaskContext.get logger_name
                 rescue Orocos::NotFound
                     Orocos.warn "no default logger defined on #{name}, tried #{logger_name}"
-                    @logger = false # use false to mark "can not find"
+                    @default_logger = false # use false to mark "can not find"
                 end
             else
                 if Orocos.warn_for_missing_default_loggers?
                     Orocos.warn "cannot determine the default logger name for process #{name}"
                 end
-                @logger = false
+                @default_logger = false
             end
 
-            @logger
+            @default_logger
         end
 
         # @api private

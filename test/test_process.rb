@@ -238,5 +238,48 @@ describe Orocos::Process do
             end
         end
     end
+
+    describe "#setup_default_logger" do
+        attr_reader :logger, :process
+        before do
+            orogen_project = OroGen::Spec::Project.new(Orocos.default_loader)
+            orogen_deployment = orogen_project.deployment('test')
+            @process = Orocos::Process.new('test', orogen_deployment)
+            @logger = Orocos::RubyTasks::TaskContext.from_orogen_model(
+                'test_logger', Orocos.default_loader.task_model_from_name('logger::Logger'))
+        end
+
+        describe "remote: true" do
+            it "increases the last known index at each call" do
+                process.setup_default_logger(logger, log_file_name: 'test', remote: true)
+                assert_equal 'test.0.log', logger.file
+                process.setup_default_logger(logger, log_file_name: 'test', remote: true)
+                assert_equal 'test.1.log', logger.file
+            end
+
+            it "maintains the index per-file" do
+                process.setup_default_logger(logger, log_file_name: 'foo', remote: true)
+                assert_equal 'foo.0.log', logger.file
+                process.setup_default_logger(logger, log_file_name: 'bar', remote: true)
+                assert_equal 'bar.0.log', logger.file
+            end
+        end
+
+        describe "remote: false" do
+            attr_reader :log_dir
+            before do
+                @log_dir = make_tmpdir
+            end
+            it "takes the first non-existing index" do
+                process.setup_default_logger(logger, log_file_name: 'test', log_dir: log_dir)
+                assert_equal File.join(log_dir, "test.0.log"), logger.file
+                process.setup_default_logger(logger, log_file_name: 'test', log_dir: log_dir)
+                assert_equal File.join(log_dir, "test.0.log"), logger.file
+                FileUtils.touch logger.file
+                process.setup_default_logger(logger, log_file_name: 'test', log_dir: log_dir)
+                assert_equal File.join(log_dir, "test.1.log"), logger.file
+            end
+        end
+    end
 end
 
