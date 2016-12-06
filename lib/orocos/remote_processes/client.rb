@@ -218,6 +218,10 @@ module Orocos
                 reader = select([socket], nil, nil, timeout)
                 return Hash.new if !reader
                 while reader
+                    if socket.eof? # remote closed, probably a crash
+                        raise ComError, "communication to process server closed"
+                    end
+
                     data = socket.read(1)
                     if !data
                         return Hash.new
@@ -272,6 +276,10 @@ module Orocos
 
         def quit_server
             socket.write(COMMAND_QUIT)
+        end
+
+        def close
+            socket.close
         end
     end
     end
