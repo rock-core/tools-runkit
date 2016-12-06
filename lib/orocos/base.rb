@@ -180,6 +180,7 @@ module Orocos
         @loaded_typekit_plugins.clear
         @max_sizes = Hash.new { |h, k| h[k] = Hash.new }
 
+        load_typekit 'std'
         load_standard_typekits
 
         if Orocos::ROS.enabled?
@@ -281,7 +282,6 @@ module Orocos
                 Orocos::Async.name_service.add(ns)
             end
         end
-        load_typekit 'std'
         @ruby_task = RubyTasks::TaskContext.new(name)
     end
 
