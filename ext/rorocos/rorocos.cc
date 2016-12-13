@@ -402,6 +402,8 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
         result.type = RTT::corba::CData;
     else if (conn_type == rb_intern("buffer"))
         result.type = RTT::corba::CBuffer;
+    else if (conn_type == rb_intern("circular_buffer"))
+        result.type = RTT::corba::CCircularBuffer;
     else
     {
         VALUE obj_as_str = rb_funcall(conn_type_value, rb_intern("inspect"), 0);
