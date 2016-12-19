@@ -69,7 +69,7 @@ namespace
         VALUE iv = rb_iv_get(self, name);
         return get_wrapped<T>(iv);
     }
-    std::string get_str_iv(VALUE self, char const* name)
+    inline std::string get_str_iv(VALUE self, char const* name)
     {
         VALUE iv = rb_iv_get(self, name);
         return StringValuePtr(iv);
