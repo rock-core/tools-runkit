@@ -124,6 +124,11 @@ module Orocos
             @local_task.dispose
         end
 
+        # Transition to an exception state
+        def exception
+            @local_task.exception
+        end
+
         # Creates a new attribute on this task context
         #
         # @param [String] name the attribute name
