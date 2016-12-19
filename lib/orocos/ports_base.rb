@@ -32,6 +32,25 @@ module Orocos
             super() if defined? super
         end
 
+        D_UNKNOWN      = 0
+        D_SAME_PROCESS = 1
+        D_SAME_HOST    = 2
+        D_DIFFERENT_HOSTS   = 3
+
+        # How "far" from the given input port this port is
+        #
+        # @return one of the D_ constants
+        def distance_to(input_port)
+            if !task.process || !input_port.task.process
+                return D_UNKNOWN
+            elsif task.process == input_port.task.process
+                return D_SAME_PROCESS
+            elsif task.process.host_id == input_port.task.process.host_id
+                return D_SAME_HOST
+            else return D_DIFFERENT_HOSTS
+            end
+        end
+
         def to_s
             "#{full_name}"
         end
@@ -141,16 +160,18 @@ module Orocos
 
         # Returns a InputWriter object that allows you to write data to the
         # remote input port.
-        def writer(policy = Hash.new)
+        def writer(distance: PortBase::D_UNKNOWN, **policy)
             ensure_type_available
-            writer = Orocos.ruby_task.create_output_port(
-                self.class.transient_local_port_name(full_name),
-                orocos_type_name,
-                :permanent => false,
-                :class => self.class.writer_class) 
+            writer = Orocos.ruby_task_access do
+                Orocos.ruby_task.create_output_port(
+                    self.class.transient_local_port_name(full_name),
+                    orocos_type_name,
+                    permanent: false,
+                    class: self.class.writer_class) 
+            end
             writer.port = self
             writer.policy = policy
-            writer.connect_to(self, policy)
+            writer.connect_to(self, distance: distance, **policy)
             writer
         end
 
@@ -210,16 +231,18 @@ module Orocos
         #
         # The policy dictates how data should flow between the port and the
         # reader object. See #prepare_policy
-        def reader(policy = Hash.new)
+        def reader(distance: PortBase::D_UNKNOWN, **policy)
             ensure_type_available
-            reader = Orocos.ruby_task.create_input_port(
-                self.class.transient_local_port_name(full_name),
-                orocos_type_name,
-                :permanent => false,
-                :class => self.class.reader_class)
+            reader = Orocos.ruby_task_access do
+                Orocos.ruby_task.create_input_port(
+                    self.class.transient_local_port_name(full_name),
+                    orocos_type_name,
+                    permanent: false,
+                    class: self.class.reader_class)
+            end
             reader.port = self
             reader.policy = policy
-            connect_to(reader, policy)
+            connect_to(reader, distance: distance, **policy)
             reader
         end
 

@@ -37,7 +37,7 @@ module Orocos
         # Where the +size+ option gives the size of the intermediate buffer.
         # Note that new samples will be lost if they are received when the
         # buffer is full.
-        def connect_to(input_port, options = Hash.new)
+        def connect_to(input_port, distance: D_UNKNOWN, **options)
             if !input_port.respond_to?(:to_orocos_port)
                 return super
             end
@@ -49,12 +49,13 @@ module Orocos
                 raise ArgumentError, "trying to connect #{self}, an output port of type #{type.name}, to #{input_port}, an input port of type #{input_port.type.name}"
             end
 
-            policy = Port.prepare_policy(options)
-            policy = handle_mq_transport(input_port.full_name, policy) do
-                task.process && input_port.task.process &&
-                    (task.process != input_port.task.process && task.process.host_id == input_port.task.process.host_id)
+            policy = Port.prepare_policy(**options)
+            if distance == D_UNKNOWN
+                distance = distance_to(input_port)
             end
-
+            if distance == D_SAME_HOST
+                policy = handle_mq_transport(input_port.full_name, policy)
+            end
             if policy[:pull]
                 input_port.blocking_read = true
             end

@@ -165,7 +165,6 @@ module Orocos
             self
         end
 
-    private
         def refine_exceptions(other = nil) # :nodoc:
             CORBA.refine_exceptions(self, other) do
                 yield
@@ -179,6 +178,10 @@ module Orocos
             end
         end
 
+        class InvalidMQTransportSetup < ArgumentError; end
+
+        MQ_RTT_DEFAULT_QUEUE_LENGTH = 10
+
         # Helper method for #connect_to, to handle the MQ transport (in
         # particular, the validation of the parameters)
         #
@@ -187,57 +190,70 @@ module Orocos
         # (i.e. true if the two ports are located on the same machine, false
         # otherwise)
         def handle_mq_transport(input_name, policy) # :nodoc:
-            if policy[:transport] == TRANSPORT_MQ && !Orocos::MQueue.available?
-                raise ArgumentError, "cannot select the MQueue transport as it is not built into the RTT"
-            end
-
-            if Orocos::MQueue.auto? && policy[:transport] == 0
-                if yield
-                    switched = true
-                    Orocos.info do
-                        "#{full_name} => #{input_name}: using MQ transport"
-                    end
-                    policy[:transport] = TRANSPORT_MQ
-                else
-                    Orocos.debug do
-                        "#{full_name} => #{input_name}: cannot use MQ as the two ports are located on different machines"
-                    end
+            if policy[:transport] == TRANSPORT_MQ
+                if !Orocos::MQueue.available?
+                    raise InvalidMQTransportSetup, "cannot select the MQueue transport as it is not built into the RTT"
                 end
+                # Go on to the validation steps
+            elsif !Orocos::MQueue.available?
+                return policy.dup
+            elsif !Orocos::MQueue.auto?
+                return policy.dup
+            elsif policy[:transport] != 0
+                return policy.dup # explicit transport chosen, and it is not MQ
             end
 
-            if Orocos::MQueue.auto_sizes? && policy[:transport] == TRANSPORT_MQ && policy[:data_size] == 0
+            Orocos.info do
+                "#{full_name} => #{input_name}: using MQ transport"
+            end
+            updated_policy = Hash[size: 0, data_size: 0].
+                merge(policy).
+                merge(transport: TRANSPORT_MQ)
+
+            queue_length, message_size = updated_policy.values_at(:size, :data_size)
+            if queue_length == 0
+                queue_length = MQ_RTT_DEFAULT_QUEUE_LENGTH
+            end
+
+            if Orocos::MQueue.auto_sizes? && message_size == 0
                 size = max_marshalling_size
-                if size
-                    Orocos.info do
-                        "#{full_name} => #{input_name}: MQ data_size == #{size}"
+                if !size
+                    if policy[:transport] == TRANSPORT_MQ
+                        raise InvalidMQTransportSetup, "MQ transport explicitely selected, but the message size cannot be computed for #{self}"
                     end
-                    policy[:data_size] = size
-                else
-                    policy[:transport] = 0
+
                     if Orocos::MQueue.warn?
-                        Orocos.warn "the MQ transport could be selected, but the marshalling size of samples from the output port #{full_name}, of type #{type.name}, is unknown"
+                        Orocos.warn "the MQ transport could be selected, but the marshalling size of samples from the output port #{full_name}, of type #{type.name}, is unknown, falling back to auto-transport"
                     end
+                    return policy.dup
                 end
+
+                Orocos.info do
+                    "#{full_name} => #{input_name}: MQ data_size == #{size}"
+                end
+                message_size = size
             end
 
-            if Orocos::MQueue.validate_sizes? && policy[:transport] == TRANSPORT_MQ
-                size = if policy[:size] == 0 then 10 # 10 is the default size in the RTT's MQ transport for data samples
-                       else policy[:size]
-                       end
-
-                valid = Orocos::MQueue.valid_sizes?(size, policy[:data_size]) do
+            if Orocos::MQueue.validate_sizes?
+                valid = Orocos::MQueue.valid_sizes?(queue_length, message_size) do
                     "#{full_name} => #{input_name} of type #{type.name}: "
                 end
 
                 if !valid
-                    policy[:transport] = 0
+                    if policy[:transport] == TRANSPORT_MQ
+                        raise InvalidMQTransportSetup, "MQ transport explicitely selected, but the current system setup does not allow to create a MQ of #{queue_length} messages of size #{message_size}"
+                    end
+
+                    if Orocos::MQueue.warn?
+                        Orocos.warn "the MQ transport could be selected, but the marshalling size of samples (#{policy[:data_size]}) is invalid, falling back to auto-transport"
+                    end
+                    return policy.dup
                 end
             end
 
-            policy
+            updated_policy[:data_size] = message_size
+            updated_policy
         end
     end
-
-
 end
 

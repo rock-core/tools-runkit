@@ -415,9 +415,17 @@ module Orocos
                 end
                 result
             when Hash
-                normalize_conf_hash(value, value_t)
+                if value_t <= Typelib::CompoundType
+                    normalize_conf_hash(value, value_t)
+                else
+                    raise ConversionFailed.new, "cannot interpret a hash as a #{value_t.name}"
+                end
             when Array
-                normalize_conf_array(value, value_t)
+                if value_t <= Typelib::ArrayType || value_t <= Typelib::ContainerType
+                    normalize_conf_array(value, value_t)
+                else
+                    raise ConversionFailed.new, "cannot interpret an array as #{value_t.name}"
+                end
             else
                 normalize_conf_terminal_value(value, value_t)
             end
@@ -492,7 +500,7 @@ module Orocos
                     result[key] = normalize_conf_value(value, field_t)
                 rescue ConversionFailed => e
                     e.full_path.unshift ".#{key}"
-                    raise e, "failed to convert configuration value for #{e.full_path.join("")}", e.backtrace
+                    raise e, "failed to convert configuration value for #{e.full_path.join("")}: #{e.message}", e.backtrace
                 end
             end
             result
