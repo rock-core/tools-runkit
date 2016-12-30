@@ -37,11 +37,12 @@ module Orocos
         end
 
         def clear
-            if export_types? && registry
-                type_export_namespace.disable_registry_export
-            end
             super
             OroGen::Loaders::RTT.setup_loader(self)
+
+            if export_types? && registry
+                type_export_namespace.reset_registry_export(registry)
+            end
         end
 
         def register_project_model(project)
