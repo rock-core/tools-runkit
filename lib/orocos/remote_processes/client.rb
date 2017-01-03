@@ -61,7 +61,7 @@ module Orocos
         # @option options [OroGen::Loaders::Base] :root_loader
         #   (Orocos.default_loader). The loader object that should be used as
         #   root for this client's loader
-        def initialize(host = 'localhost', port = DEFAULT_PORT, options = Hash.new)
+        def initialize(host = 'localhost', port = DEFAULT_PORT, options = Hash.new, response_timeout: 10)
             @host = host
             @port = port
             @socket =
@@ -90,23 +90,24 @@ module Orocos
             @processes = Hash.new
             @death_queue = Array.new
             @host_id = "#{host}:#{port}:#{server_pid}"
+            @response_timeout = response_timeout
         end
 
-        def pid
+        def pid(timeout: @response_timeout)
             if @server_pid
                 return @server_pid
             end
 
             socket.write(COMMAND_GET_PID)
-	    if !select([socket], [], [], 2)
+	    if !select([socket], [], [], timeout)
 	       raise "timeout while reading process server at '#{host}:#{port}'"
 	    end
             @server_pid = Integer(Marshal.load(socket).first)
         end
 
-        def info
+        def info(timeout: @response_timeout)
             socket.write(COMMAND_GET_INFO)
-	    if !select([socket], [], [], 2)
+	    if !select([socket], [], [], timeout)
 	       raise "timeout while reading process server at '#{host}:#{port}'"
 	    end
             Marshal.load(socket)
@@ -119,7 +120,7 @@ module Orocos
         class TimeoutError < RuntimeError
         end
 
-        def wait_for_answer(timeout: 10)
+        def wait_for_answer(timeout: @response_timeout)
             while true
                 if !select([socket], [], [], timeout)
                     raise TimeoutError, "reached timeout of #{timeout}s in #wait_for_answer"
