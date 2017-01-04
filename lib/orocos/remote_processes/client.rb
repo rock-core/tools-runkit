@@ -61,7 +61,7 @@ module Orocos
         # @option options [OroGen::Loaders::Base] :root_loader
         #   (Orocos.default_loader). The loader object that should be used as
         #   root for this client's loader
-        def initialize(host = 'localhost', port = DEFAULT_PORT, options = Hash.new, response_timeout: 10)
+        def initialize(host = 'localhost', port = DEFAULT_PORT, response_timeout: 10, root_loader: Orocos.default_loader, name_service: Orocos.name_service)
             @host = host
             @port = port
             @socket =
@@ -73,19 +73,14 @@ module Orocos
             socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, true)
             socket.fcntl(Fcntl::FD_CLOEXEC, 1)
 
-            options = Kernel.validate_options options,
-                :name_service => Orocos.name_service,
-                :root_loader => Orocos.default_loader
-            @name_service = options[:name_service]
-
-
+            @name_service = name_service
             begin
                 @server_pid = pid
             rescue EOFError
                 raise StartupFailed, "process server failed at '#{host}:#{port}'"
             end
 
-            @loader = Loader.new(self, options[:root_loader])
+            @loader = Loader.new(self, root_loader)
             @root_loader = loader.root_loader
             @processes = Hash.new
             @death_queue = Array.new
