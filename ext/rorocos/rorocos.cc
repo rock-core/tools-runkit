@@ -613,8 +613,8 @@ extern "C" void Init_rorocos()
     mOrocos = rb_define_module("Orocos");
     mCORBA  = rb_define_module_under(mOrocos, "CORBA");
     eComError    = rb_define_class_under(mOrocos, "ComError", rb_eRuntimeError);
-    eCORBA    = rb_define_class_under(mOrocos, "CORBAError", eComError);
-    eCORBAComError = rb_define_class_under(mCORBA, "ComError", eCORBA);
+    eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
+    eCORBAComError = rb_define_class_under(mCORBA, "ComError", eComError);
     eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
     eBlockingCallInForbiddenThread = rb_define_class_under(mOrocos, "BlockingCallInForbiddenThread", rb_eRuntimeError);
 
