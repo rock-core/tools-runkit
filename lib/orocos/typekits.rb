@@ -358,6 +358,7 @@ module Orocos
         end
         @max_sizes.fetch(type, Hash.new)
     end
+    @max_sizes = Hash.new
 
     def self.normalize_typename(typename)
         load_typekit_for(typename)

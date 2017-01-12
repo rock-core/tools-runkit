@@ -127,13 +127,24 @@ MACRO(OMNIORB)
     SET(ORB_LIBRARIES omniORB4 omniDynamic4)
 ENDMACRO(OMNIORB)
 
+
 link_directories(${RTT_ROS_LIBRARY_DIRS})
+
 
 OMNIORB()
 SET(EXTENSION_NAME rorocos)
 ADD_RUBY_EXTENSION(${EXTENSION_NAME}
     ruby_task_context.cc rorocos.cc corba.cc datahandling.cc operations.cc
     lib/corba_name_service_client.cc ${ORB_IDL_FILES} ${ROS_FILES})
+
+# OmniORB defines static global variables for internal bookkeeping. They show up
+# as warning under -Wunused-variable
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-Wunused-variable" CXX_SUPPORTS_WUNUSED_VARIABLE)
+if (CXX_SUPPORTS_WUNUSED_VARIABLE)
+    set_source_files_properties(${ORB_IDL_FILES} PROPERTIES COMPILE_FLAGS "-Wno-unused-variable")
+endif()
+
 target_link_libraries(${EXTENSION_NAME} ${ORB_LIBRARIES} ${RTT_LIBRARIES}
     ${RTT_CORBA_LIBRARIES} ${TYPELIB_LIBRARIES}
     ${RTT_PLUGIN_rtt-typekit_LIBRARY}

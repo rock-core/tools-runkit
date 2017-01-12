@@ -228,6 +228,12 @@ static VALUE local_task_context_set_model_name(VALUE _task, VALUE name)
     return Qnil;
 }
 
+static VALUE local_task_context_exception(VALUE _task)
+{
+    local_task_context(_task).exception();
+    return Qnil;
+}
+
 /** call-seq:
  *     do_create_port(klass, port_name, orocos_type_name)
  *
@@ -433,6 +439,7 @@ void Orocos_init_ruby_task_context(VALUE mOrocos, VALUE cTaskContext, VALUE cOut
     rb_define_method(cLocalTaskContext, "do_remove_port", RUBY_METHOD_FUNC(local_task_context_remove_port), 1);
     rb_define_method(cLocalTaskContext, "do_create_property", RUBY_METHOD_FUNC(local_task_context_create_property), 3);
     rb_define_method(cLocalTaskContext, "do_create_attribute", RUBY_METHOD_FUNC(local_task_context_create_attribute), 3);
+    rb_define_method(cLocalTaskContext, "exception", RUBY_METHOD_FUNC(local_task_context_exception), 0);
 
     cLocalOutputPort = rb_define_class_under(mRubyTasks, "LocalOutputPort", cOutputPort);
     rb_define_method(cLocalOutputPort, "do_write", RUBY_METHOD_FUNC(local_output_port_write), 2);
