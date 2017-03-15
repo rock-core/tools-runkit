@@ -184,7 +184,7 @@ module Orocos::Async
         end
 
         def to_async(options=Hash.new)
-            task.to_async(options).port(port.name)
+            task.to_async(options).port(self.name)
         end
 
         def to_proxy(options=Hash.new)
