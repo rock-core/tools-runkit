@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
     s.bindir = 'bin'
     s.require_paths = ["lib"]
     s.extensions = []
-    s.extra_rdoc_files = ["README.md"]
+    s.extra_rdoc_files = ["README.markdown"]
     s.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
 
     s.add_runtime_dependency "utilrb"
