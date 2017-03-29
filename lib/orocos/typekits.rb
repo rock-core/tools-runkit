@@ -108,9 +108,10 @@ module Orocos
 
     # Loads all typekits that are available on this system
     def self.load_all_typekits
-        default_pkgconfig_loader.available_typekits.each_key do |typekit_name|
+        default_pkgconfig_loader.each_available_typekit_name do |typekit_name|
             load_typekit(typekit_name)
         end
+        default_pkgconfig_loader.available_typekits.keys
     end
 
     def self.typekit_library_name(typekit_name, target)
