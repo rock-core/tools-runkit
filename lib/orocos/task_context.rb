@@ -165,6 +165,15 @@ module Orocos
                     @state_symbols[value]
                 end
             end
+
+            def read_with_result(sample = nil, copy_old_data = false)
+                result, value = super
+                if value
+                    return result, @state_symbols[value]
+                else
+                    return result
+                end
+            end
         end
 
         # Returns a StateReader object that allows to flexibly monitor the
