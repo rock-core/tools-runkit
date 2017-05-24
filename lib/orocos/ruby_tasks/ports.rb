@@ -139,8 +139,10 @@ module Orocos
         #   @return [false] if there were no samples on the port
         def raw_read_with_result(sample = nil, copy_old_data = true)
             if sample
-                if sample.class != type
-                    raise ArgumentError, "wrong sample type #{sample.class}, expected #{type}"
+                if !sample.kind_of?(type)
+                    if sample.class != type
+                        raise ArgumentError, "wrong sample type #{sample.class}, expected #{type}"
+                    end
                 end
                 value = sample
             else
