@@ -904,6 +904,45 @@ describe Orocos::TaskConfigurations do
                 enm = Typelib.to_ruby(conf.conf('sec')['enm'])
                 assert(Typelib.to_ruby(enm) == :First)
             end
+            it "uses #to_yaml to normalize the configuration hash" do
+                config = flexmock
+                conf_dir = File.expand_path(File.join('conf', 'dir'))
+                model = OroGen::Spec::TaskContext.blank('model::Name')
+                expected_filename = File.join(conf_dir, "#{model.name}.yml")
+
+                FileUtils.mkdir_p conf_dir
+                flexmock(Orocos::TaskConfigurations).should_receive(:to_yaml).
+                    with(config).and_return('enm' => :First)
+                Orocos::TaskConfigurations.save(config, expected_filename, 'sec', task_model: model)
+                conf.load_from_yaml expected_filename
+                enm = Typelib.to_ruby(conf.conf('sec')['enm'])
+                assert(Typelib.to_ruby(enm) == :First)
+            end
+        end
+
+        describe "#to_yaml" do
+            before do
+                @registry = Typelib::Registry.new
+                @numeric_t   = @registry.create_numeric '/int', 4, :sint
+                @converted_t = converted_t = @registry.create_compound '/with_convertion' do |c|
+                    c.add 'f', '/int'
+                end
+                @converted_ruby_t = converted_ruby_t = Class.new do
+                    attr_accessor :value
+                    def initialize(v = 0); @value = v end
+                end
+
+                @converted_t.convert_to_ruby(@converted_ruby_t) { |v| converted_ruby_t.new(v.f) }
+                @converted_t.convert_from_ruby(@converted_ruby_t) { |v| converted_t.new(f: v.value) }
+            end
+            it "applies the conversion from converted types in compounds" do
+                compound_t = @registry.create_compound '/C' do |c|
+                    c.add 'f', @converted_t
+                end
+                compound = compound_t.new(f: @converted_t.new(f: 0))
+                compound.f.value = 42
+                assert_equal Hash['f' => Hash['f' => 42]], Orocos::TaskConfigurations.to_yaml(compound)
+            end
         end
     end
 end
