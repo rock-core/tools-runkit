@@ -768,18 +768,22 @@ module Orocos
         def self.to_yaml(value)
             case value
             when Typelib::CompoundType
+                value.apply_changes_from_converted_types
+
                 result = Hash.new
                 value.raw_each_field do |field_name, field_value|
                     result[field_name] = to_yaml(field_value)
                 end
                 result
             when Typelib::ArrayType, Typelib::ContainerType
+                value.apply_changes_from_converted_types
                 if value.respond_to?(:to_str)
                     value.to_str
                 else
                     value.raw_each.map(&method(:to_yaml))
                 end
             when Typelib::Type
+                value.apply_changes_from_converted_types
                 Typelib.to_ruby(value)
             when Array
                 value.map(&method(:to_yaml))
