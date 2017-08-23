@@ -306,7 +306,11 @@ module Orocos
                 if merge
                     conf = TaskConfigurations.merge_conf(self.sections[name], conf, true)
                 end
-                changed = self.sections[name] != conf
+                changed = (self.sections[name] != conf)
+                if changed
+                    # This happens rarely, be brutal about cache invalidation
+                    @merged_conf.clear
+                end
             else
                 changed = true
             end

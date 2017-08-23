@@ -460,6 +460,46 @@ describe Orocos::TaskConfigurations do
         end
     end
 
+    describe "#add" do
+        before do
+            manager = Orocos::ConfigurationManager.new
+            manager.load_dir(File.join(data_dir, 'configurations', 'dir'))
+            @conf = manager.conf['configurations::Task']
+        end
+
+        describe "merge: true" do
+            it "merges into an existing section" do
+                assert @conf.add 'default', Hash['compound' => Hash['compound' => Hash['intg' => 20]]], merge: true
+                assert_equal 20, @conf.conf('default')['compound']['compound']['intg'].to_ruby
+                assert_equal 10, @conf.conf('default')['compound']['vector_of_compound'][0]['intg'].to_ruby
+            end
+            it "returns false if the updated value is equal to the existing one" do
+                refute @conf.add 'default', Hash['compound' => Hash['compound' => Hash['intg' => 30]]], merge: true
+            end
+            it "updates the cached value returned by #conf" do
+                @conf.conf('default')
+                @conf.add 'default', Hash['compound' => Hash['compound' => Hash['intg' => 20]]], merge: true
+                assert_equal 20, @conf.conf('default')['compound']['compound']['intg'].to_ruby
+            end
+        end
+        describe "merge: false" do
+            it "replaces an existing section" do
+                assert @conf.add 'default', Hash['compound' => Hash['compound' => Hash['intg' => 20]]], merge: false
+                assert_equal 20, @conf.conf('default')['compound']['compound']['intg'].to_ruby
+                assert_nil @conf.conf('default')['compound']['vector_of_compound']
+            end
+            it "updates the cached value returned by #conf" do
+                @conf.conf('default')
+                @conf.add 'default', Hash['compound' => Hash['compound' => Hash['intg' => 20]]], merge: false
+                assert_equal 20, @conf.conf('default')['compound']['compound']['intg'].to_ruby
+            end
+        end
+        it "adds a new section if the added section does not exist" do
+            assert @conf.add 'does_not_already_exist', Hash['compound' => Hash['compound' => Hash['intg' => 20]]], merge: false
+            assert_equal 20, @conf.conf('does_not_already_exist')['compound']['compound']['intg'].to_ruby
+        end
+    end
+
     describe "apply_conf_on_typelib_value" do
         attr_reader :array_t, :vector_t
         before do
