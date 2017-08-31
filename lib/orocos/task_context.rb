@@ -154,15 +154,24 @@ module Orocos
         module StateReader
             attr_accessor :state_symbols
 
-            def read
-                if value = super
+            def read(sample = nil)
+                if value = super(sample)
                     @state_symbols[value]
                 end
             end
 
-            def read_new
-                if value = super
+            def read_new(sample = nil)
+                if value = super(sample)
                     @state_symbols[value]
+                end
+            end
+
+            def read_with_result(sample = nil, copy_old_data = false)
+                result, value = super
+                if value
+                    return result, @state_symbols[value]
+                else
+                    return result
                 end
             end
         end

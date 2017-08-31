@@ -1,5 +1,19 @@
 # The Orocos main class
 module Orocos
+    # Result value when reading a port whose value has already been read
+    #
+    # Unlike within RTT, 'NO_DATA' is represented by a false value
+    #
+    # @see NEW_DATA
+    OLD_DATA = 0
+
+    # Result value when reading a port which has a new (never read) value
+    #
+    # Unlike within RTT, 'NO_DATA' is represented by a false value
+    #
+    # @see OLD_DATA
+    NEW_DATA = 1
+
     class AlreadyInitialized < RuntimeError; end
     class InternalError < RuntimeError; end
     class AmbiguousName < RuntimeError; end

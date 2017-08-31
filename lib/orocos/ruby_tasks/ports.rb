@@ -35,9 +35,8 @@ module Orocos
         #
         # Raises CORBA::ComError if the communication is broken.
         def raw_read(sample = nil)
-            if value = read_helper(sample,true)
-                value[0]
-            end
+            _result, value = raw_read_with_result(sample, true)
+            value
         end
 
         # @deprecated use {raw_read} instead
@@ -56,10 +55,6 @@ module Orocos
                 super
             end
         end
-
-
-        OLD_DATA = 0
-        NEW_DATA = 1
 
         # Reads a new sample on the associated output port.
         #
@@ -94,24 +89,60 @@ module Orocos
         #
         # Raises CORBA::ComError if the communication is broken.
         def raw_read_new(sample = nil)
-            if value = read_helper(sample, false)
-                value[0] if value[1] == NEW_DATA
+            _result, value = raw_read_with_result(sample, false)
+            value
+        end
+
+        # Attempt to read a sample and return it, along with the read state
+        #
+        # The returned sample is converted to its Ruby equivalent if a
+        # conversion has been registered
+        #
+        # @overload read_with_result(sample = nil, false)
+        #   @return [(Orocos::NEW_DATA, Object)] the read sample if there was a
+        #     never-read sample
+        #   @return [Orocos::OLD_DATA] if there is a sample on the port, but it
+        #     was already read
+        #   @return [false] if there were no samples on the port
+        #
+        # @overload read_with_result(sample = nil, true)
+        #   @return [(Orocos::NEW_DATA, Object)] the read sample if there was a
+        #     never-read sample
+        #   @return [(Orocos::OLD_DATA, Object)] the read sample if there was a
+        #     sample that was already read
+        #   @return [false] if there were no samples on the port
+        def read_with_result(sample = nil, copy_old_data = true)
+            result, value = raw_read_with_result(sample, copy_old_data)
+            if value
+                return result, Typelib.to_ruby(value)
+            else
+                return result
             end
         end
 
-        # Clears the channel, i.e. "forget" that this port ever got written to
-        def clear
-            do_clear
-        end
-
-        private
-
-        # Helper method for #read, #raw_read, #read_new and #raw_read_new
-        # always returns a Typelib Type or nil even for simple types
-        def read_helper(sample, copy_old_data) # :nodoc:
+        # Attempt to read a sample and return it, along with the read state
+        #
+        # The sample is returned as a Typelib::Type object
+        #
+        # @overload read_with_result(sample = nil, false)
+        #   @return [(Orocos::NEW_DATA, Typelib::Type)] the read sample if there was a
+        #     never-read sample
+        #   @return [Orocos::OLD_DATA] if there is a sample on the port, but it
+        #     was already read
+        #   @return [false] if there were no samples on the port
+        #
+        # @overload read_with_result(sample = nil, true)
+        #   @return [(Orocos::NEW_DATA, Typelib::Type)] the read sample if there was a
+        #     never-read sample
+        #   @return [(Orocos::OLD_DATA, Typelib::Type)] the read sample if there was a
+        #     sample that was already read
+        #   @return [false] if there were no samples on the port
+        def raw_read_with_result(sample = nil, copy_old_data = true)
             if sample
-                if sample.class != type
-                    raise ArgumentError, "wrong sample type #{sample.class}, expected #{type}"
+                if !sample.kind_of?(type)
+                    if sample.class != type
+                        raise ArgumentError, "wrong sample type #{sample.class}, expected #{type}"
+                    end
                 end
                 value = sample
             else
@@ -125,10 +156,16 @@ module Orocos
                 if sample
                     sample.invalidate_changes_from_converted_types
                 end
-                return [value, result]
+                return result, value
+            else
+                return result
             end
         end
 
+        # Clears the channel, i.e. "forget" that this port ever got written to
+        def clear
+            do_clear
+        end
     end
 
     class LocalOutputPort < OutputPort
