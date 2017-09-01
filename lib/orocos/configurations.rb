@@ -201,7 +201,7 @@ module Orocos
                 chain = conf(conf_options.delete(:chain), true)
                 result = Orocos::TaskConfigurations.merge_conf(result, chain, true)
                 changed = in_context("while loading section #{name} of #{file}") do
-                    add(name, result, **conf_options)
+                    add(name, result, normalize: false, **conf_options)
                 end
 
                 if changed
@@ -297,13 +297,18 @@ module Orocos
         # @param [{String=>Object}] conf the configuration data, as either a
         #   mapping from property names to property values, or property names to
         #   plain Ruby objects. It gets passed to {#normalize_conf}.
+        # @param [Boolean] normalize if true, the configuration is normalized
+        #   to this class' expected internal representation first. Set to
+        #   false when the data has already been normalized.
         # @param [Boolean] merge if true, the configuration will be merged with
         #   an existing section that has the same name (if there is one)
         # @return [Boolean] true if the configuration changed, and false
         #   otherwise
         # @see extract
-        def add(name, conf, merge: true)
-            conf = normalize_conf(conf)
+        def add(name, conf, normalize: true, merge: true)
+            if normalize
+                conf = normalize_conf(conf)
+            end
 
             changed = false
             if self.sections[name]
