@@ -192,7 +192,11 @@ module Orocos
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
-                result = normalize_conf(YAML.load(StringIO.new(doc)) || Hash.new)
+                begin
+                    result = normalize_conf(YAML.load(StringIO.new(doc)) || Hash.new)
+                rescue ConversionFailed => e
+                    raise e, "while loading section #{conf_options[:name] || 'default'} #{e.message}", e.backtrace
+                end
                 name  = conf_options.delete(:name)
                 chain = conf(conf_options.delete(:chain), true)
                 result = Orocos::TaskConfigurations.merge_conf(result, chain, true)
@@ -358,6 +362,10 @@ module Orocos
                 @original_error = original_error
                 @full_path = Array.new
             end
+
+            def original_message
+                original_error.message if original_error
+            end
         end
 
         # Converts a representation of a task configuration
@@ -504,7 +512,7 @@ module Orocos
                     result[key] = normalize_conf_value(value, field_t)
                 rescue ConversionFailed => e
                     e.full_path.unshift ".#{key}"
-                    raise e, "failed to convert configuration value for #{e.full_path.join("")}: #{e.message}", e.backtrace
+                    raise e, "failed to convert configuration value for #{e.full_path.join("")}: #{e.original_message}", e.backtrace
                 end
             end
             result
