@@ -419,6 +419,8 @@ module Orocos
         def normalize_conf_value(value, value_t)
             if value_t.method_defined?(:to_str)
                 return normalize_conf_terminal_value(value, value_t)
+            elsif value.kind_of?(value_t)
+                return value
             end
 
             case value
@@ -484,6 +486,20 @@ module Orocos
             end
 
             element_t = value_t.deference
+            if element_t <= Typelib::NumericType
+                # Try to pack the array. If it works, return it straight.
+                # Otherwise, go through the slow path
+                begin
+                    packed_array = array.pack("#{element_t.pack_code}*")
+                    if value_t.respond_to?(:length)
+                        return value_t.from_buffer(packed_array)
+                    else
+                        return value_t.from_buffer([array.size].pack("Q") + packed_array)
+                    end
+                rescue TypeError
+                end
+            end
+
             array.each_with_index.map do |value, i|
                 begin
                     normalize_conf_value(value, element_t)
