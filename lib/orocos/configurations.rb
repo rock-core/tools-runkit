@@ -192,12 +192,16 @@ module Orocos
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
-                result = normalize_conf(YAML.load(StringIO.new(doc)) || Hash.new)
+                begin
+                    result = normalize_conf(YAML.load(StringIO.new(doc)) || Hash.new)
+                rescue ConversionFailed => e
+                    raise e, "while loading section #{conf_options[:name] || 'default'} #{e.message}", e.backtrace
+                end
                 name  = conf_options.delete(:name)
                 chain = conf(conf_options.delete(:chain), true)
                 result = Orocos::TaskConfigurations.merge_conf(result, chain, true)
                 changed = in_context("while loading section #{name} of #{file}") do
-                    add(name, result, **conf_options)
+                    add(name, result, normalize: false, **conf_options)
                 end
 
                 if changed
@@ -293,13 +297,18 @@ module Orocos
         # @param [{String=>Object}] conf the configuration data, as either a
         #   mapping from property names to property values, or property names to
         #   plain Ruby objects. It gets passed to {#normalize_conf}.
+        # @param [Boolean] normalize if true, the configuration is normalized
+        #   to this class' expected internal representation first. Set to
+        #   false when the data has already been normalized.
         # @param [Boolean] merge if true, the configuration will be merged with
         #   an existing section that has the same name (if there is one)
         # @return [Boolean] true if the configuration changed, and false
         #   otherwise
         # @see extract
-        def add(name, conf, merge: true)
-            conf = normalize_conf(conf)
+        def add(name, conf, normalize: true, merge: true)
+            if normalize
+                conf = normalize_conf(conf)
+            end
 
             changed = false
             if self.sections[name]
@@ -358,6 +367,10 @@ module Orocos
                 @original_error = original_error
                 @full_path = Array.new
             end
+
+            def original_message
+                original_error.message if original_error
+            end
         end
 
         # Converts a representation of a task configuration
@@ -406,6 +419,8 @@ module Orocos
         def normalize_conf_value(value, value_t)
             if value_t.method_defined?(:to_str)
                 return normalize_conf_terminal_value(value, value_t)
+            elsif value.kind_of?(value_t)
+                return value
             end
 
             case value
@@ -471,6 +486,20 @@ module Orocos
             end
 
             element_t = value_t.deference
+            if element_t <= Typelib::NumericType
+                # Try to pack the array. If it works, return it straight.
+                # Otherwise, go through the slow path
+                begin
+                    packed_array = array.pack("#{element_t.pack_code}*")
+                    if value_t.respond_to?(:length)
+                        return value_t.from_buffer(packed_array)
+                    else
+                        return value_t.from_buffer([array.size].pack("Q") + packed_array)
+                    end
+                rescue TypeError
+                end
+            end
+
             array.each_with_index.map do |value, i|
                 begin
                     normalize_conf_value(value, element_t)
@@ -504,7 +533,7 @@ module Orocos
                     result[key] = normalize_conf_value(value, field_t)
                 rescue ConversionFailed => e
                     e.full_path.unshift ".#{key}"
-                    raise e, "failed to convert configuration value for #{e.full_path.join("")}: #{e.message}", e.backtrace
+                    raise e, "failed to convert configuration value for #{e.full_path.join("")}: #{e.original_message}", e.backtrace
                 end
             end
             result
