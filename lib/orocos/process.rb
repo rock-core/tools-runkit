@@ -873,6 +873,74 @@ module Orocos
 
         VALID_LOG_LEVELS = [:debug, :info, :warn, :error, :fatal, :disable]
 
+        CommandLine = Struct.new :env, :command, :args, :working_directory
+
+        # Massages various spawn parameters into the actual deployment command line
+        #
+        # @return [CommandLine]
+        def command_line(working_directory: Orocos.default_working_directory,
+                log_level: nil,
+                cmdline_args: Hash.new,
+                tracing: Orocos.tracing?,
+                gdb: nil, valgrind: nil,
+                name_service_ip: Orocos::CORBA.name_service_ip)
+
+            result = CommandLine.new(Hash.new, nil, [], working_directory)
+            result.command = binfile
+
+            if tracing
+                result.env['LD_PRELOAD'] = Orocos.tracing_library_path
+            end
+            if log_level
+                valid_levels = [:debug, :info, :warn, :error, :fatal, :disable]
+                if valid_levels.include?(log_level)
+                    result.env['BASE_LOG_LEVEL'] = log_level.to_s.upcase
+                else
+                    raise ArgumentError, "'#{log_level}' is not a valid log level." +
+                        " Valid options are #{valid_levels}."
+                end
+            end
+            if name_service_ip
+                result.env['ORBInitRef'] = "NameService=corbaname::#{name_service_ip}"
+            end
+
+            cmdline_args = cmdline_args.dup
+            cmdline_args[:rename] ||= []
+            name_mappings.each do |old, new|
+                cmdline_args[:rename].push "#{old}:#{new}"
+            end
+
+            # Command line arguments have to be of type --<option>=<value>
+            # or if <value> is nil a valueless option, i.e. --<option>
+            cmdline_args.each do |option, value|
+                if value
+                    if value.respond_to?(:to_ary)
+                        value.each do |v|
+                            result.args.push "--#{option}=#{v}"
+                        end
+                    else
+                        result.args.push "--#{option}=#{value}"
+                    end
+                else
+                    result.args.push "--#{option}"
+                end
+            end
+
+            if gdb
+                result.args.unshift(result.command)
+                if gdb == true
+                    gdb = Process.allocate_gdb_port
+                end
+                result.args.unshift("0.0.0.0:#{gdb}")
+                result.command = 'gdbserver'
+            elsif valgrind
+                result.args.unshift(result.command)
+                result.command = 'valgrind'
+            end
+
+            return result
+        end
+
         # Spawns this process
         #
         # @param [Symbol] log_level the log level under which the process should
@@ -912,8 +980,8 @@ module Orocos
                   output: nil,
                   gdb: nil, valgrind: nil)
 
-	    raise "#{name} is already running" if alive?
-	    Orocos.info "starting deployment #{name}"
+            raise "#{name} is already running" if alive?
+            Orocos.info "starting deployment #{name}"
 
             # Setup mapping for prefixed tasks in Process class
             prefix_mappings = ProcessBase.resolve_prefix(model, prefix)
@@ -960,9 +1028,9 @@ module Orocos
                 cmdline_wrapper_options << "localhost:#{gdb_port}"
             end
 
-	    if !name_service.ip.empty?
-		ENV['ORBInitRef'] = "NameService=corbaname::#{name_service.ip}"
-	    end
+            if !name_service.ip.empty?
+                ENV['ORBInitRef'] = "NameService=corbaname::#{name_service.ip}"
+            end
 
             cmdline = [binfile]
 
@@ -977,8 +1045,8 @@ module Orocos
                 end
             end
 		    
-	    read, write = IO.pipe
-	    @pid = fork do 
+            read, write = IO.pipe
+            @pid = fork do 
                 if tracing
                     ENV['LD_PRELOAD'] = Orocos.tracing_library_path
                 end
@@ -988,16 +1056,16 @@ module Orocos
 
                 ENV['BASE_LOG_LEVEL'] = log_level if log_level
 
-		if output && output.respond_to?(:to_str)
-		    output_file_name = output.
-			gsub('%m', real_name).
-			gsub('%p', pid.to_s)
+                if output && output.respond_to?(:to_str)
+                    output_file_name = output.
+                        gsub('%m', real_name).
+                        gsub('%p', pid.to_s)
                     if working_directory
                         output_file_name = File.expand_path(output_file_name, working_directory)
                     end
 
                     output = File.open(output_file_name, 'a')
-		end
+                end
 
                 if oro_logfile
                     oro_logfile = oro_logfile.
@@ -1011,10 +1079,10 @@ module Orocos
                     ENV['ORO_LOGFILE'] = "/dev/null"
                 end
 
-		if output
-		    STDERR.reopen(output)
-		    STDOUT.reopen(output)
-		end
+                if output
+                    STDERR.reopen(output)
+                    STDOUT.reopen(output)
+                end
 
                 if output_file_name && valgrind
                     cmdline.unshift "--log-file=#{output_file_name}.valgrind"
@@ -1042,9 +1110,10 @@ module Orocos
                         end
                     end
                 end
-		read.close
-		write.fcntl(Fcntl::F_SETFD, 1)
-		::Process.setpgrp
+
+                read.close
+                write.fcntl(Fcntl::F_SETFD, 1)
+                ::Process.setpgrp
                 begin
                     if working_directory
                         Dir.chdir(working_directory)
@@ -1053,13 +1122,13 @@ module Orocos
                 rescue Exception
                     write.write("FAILED")
                 end
-	    end
+            end
             Process.register(self)
 
-	    write.close
-	    if read.read == "FAILED"
-		raise "cannot start #{name}"
-	    end
+            write.close
+            if read.read == "FAILED"
+                raise "cannot start #{name}"
+            end
 
             if gdb
                 Orocos.warn "process #{name} has been started under gdbserver, port=#{gdb_port}. The components will not be functional until you attach a GDB to the started server"
