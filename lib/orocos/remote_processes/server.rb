@@ -372,7 +372,7 @@ module Orocos
         end
 
         def start_process(name, deployment_name, name_mappings, options)
-            p = Orocos::Process.new(name, deployment_name)
+            p = Orocos::Process.new(name, deployment_name, loader: @loader)
             p.name_mappings = name_mappings
             p.spawn(**self.default_start_options.merge(options))
             processes[name] = p
