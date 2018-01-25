@@ -1,31 +1,69 @@
 require 'orocos/test'
 
 describe Orocos::Process do
-    describe ".partition_run_options" do
-        attr_reader :deployment_m, :task_m
-        before do
-            @deployment_m = Orocos.default_loader.deployment_model_from_name('process')
-            @task_m = Orocos.default_loader.task_model_from_name('process::Test')
+    attr_reader :deployment_m, :task_m
+    before do
+        @loader = flexmock(OroGen::Loaders::Aggregate.new)
+        @loader.should_receive(:find_deployment_binfile).
+            explicitly.by_default
+
+        project = OroGen::Spec::Project.new(@loader)
+        project.default_task_superclass = OroGen::Spec::TaskContext.new(
+            project, 'base::Task', subclasses: false
+        ) 
+        @task_m = OroGen::Spec::TaskContext.new project, 'test::Task'
+        @deployment_m = OroGen::Spec::Deployment.new project, 'test_deployment'
+        @default_deployment_m = OroGen::Spec::Deployment.new project, 'orogen_default_test__Task'
+        @loader.register_task_context_model(@task_m)
+        @loader.register_deployment_model(@deployment_m)
+        @loader.register_deployment_model(@default_deployment_m)
+
+        flexmock(Orocos::Process).should_receive(:has_command?).
+            and_return(true).by_default
+    end
+
+    describe "#initialize" do
+        it "resolves the binfile" do
+            @loader.should_receive(:find_deployment_binfile).
+                explicitly.
+                with('test_deployment').
+                and_return('/path/to/file')
+            process = Orocos::Process.new(
+                'test', @deployment_m,
+                loader: @loader,
+                name_mappings: Hash['task' => 'renamed_task'])
+            assert_equal '/path/to/file', process.binfile
         end
+        it "applies the name mappings" do
+            @deployment_m.task 'task', @task_m
+            process = Orocos::Process.new(
+                'test', @deployment_m,
+                loader: @loader,
+                name_mappings: Hash['task' => 'renamed_task'])
+            assert_equal 'renamed_task', process.get_mapped_name('task')
+        end
+    end
+
+    describe ".partition_run_options" do
         it "partitions deployment names from task model names using Orocos.available_task_models" do
             deployments, models, options =
-                Orocos::Process.partition_run_options 'process' => 'name2', 'process::Test' => 'name'
+                Orocos::Process.partition_run_options 'test_deployment' => 'name2', 'test::Task' => 'name', loader: @loader
             assert_equal Hash[deployment_m => 'name2'], deployments
             assert_equal Hash[task_m => ['name']], models
         end
         it "sets to nil the prefix for deployments that should not have one" do
             deployments, models, options =
-                Orocos::Process.partition_run_options 'process', 'process::Test' => 'name'
+                Orocos::Process.partition_run_options 'test_deployment', 'test::Task' => 'name', loader: @loader
             assert_equal Hash[deployment_m => nil], deployments
         end
         it "raises if an unexisting name is given" do
             assert_raises(ArgumentError) do
-                Orocos::Process.partition_run_options 'does_not_exist'
+                Orocos::Process.partition_run_options 'does_not_exist', loader: @loader
             end
         end
         it "raises if a task model is given without a name" do
             assert_raises(ArgumentError) do
-                Orocos::Process.partition_run_options 'process::Test'
+                Orocos::Process.partition_run_options 'test::Task', loader: @loader
             end
         end
     end
@@ -50,7 +88,7 @@ describe Orocos::Process do
                     opts["#{wrapper_name}_options".to_sym] = options
                 end
 
-                processes, _ = Orocos::Process.parse_run_options('foo', 'bar', **opts)
+                processes, _ = Orocos::Process.parse_run_options('foo', 'bar', loader: @loader, **opts)
                 processes.inject(Hash.new) do |h, (_, _, name, spawn)|
                     h.merge(name => spawn[wrapper_name.to_sym])
                 end

@@ -163,9 +163,10 @@ module Orocos
         # the process is actually started
         attr_reader :tasks
 
-        def initialize(name, model)
+        def initialize(name, model, name_mappings: Hash.new)
             @name, @model = name, model
             @name_mappings = Hash.new
+            self.name_mappings = name_mappings
             @logged_ports = Set.new
             @tasks = []
         end
@@ -419,17 +420,20 @@ module Orocos
         #   @param [String] name the process name
         #   @param [String] model_name the name of the deployment model
         #
-        def initialize(name, model = name, loader: Orocos.default_pkgconfig_loader)
+        def initialize(name, model = name,
+                loader: Orocos.default_pkgconfig_loader,
+                name_mappings: Hash.new)
             model = if model.respond_to?(:to_str)
                         loader.deployment_model_from_name(model)
                     else model
                     end
+            
             @binfile =
                 if loader.respond_to?(:find_deployment_binfile)
                     loader.find_deployment_binfile(model.name)
                 else loader.available_deployments[model.name].binfile
                 end
-            super(name, model)
+            super(name, model, name_mappings: name_mappings)
         end
 
         # Waits until the process dies
@@ -687,6 +691,17 @@ module Orocos
 
         # @api private
         #
+        # Checks that the given command can be resolved
+        def self.has_command?(cmd)
+            if File.file?(cmd) && File.executable?(cmd)
+                return
+            else
+                system("which #{cmd} > /dev/null 2>&1")
+            end
+        end
+
+        # @api private
+        #
         # Normalizes the options for command line wrappers such as gdb and
         # valgrind as passed to {Orocos.run}
         #
@@ -717,7 +732,7 @@ module Orocos
                 return Hash.new
             end
 
-            if !system("which #{cmd} > /dev/null 2>&1")
+            if !has_command?(cmd)
                 raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed"
             end
 
