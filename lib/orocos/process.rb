@@ -491,7 +491,9 @@ module Orocos
             # end
 	end
 
-	@@logfile_indexes = Hash.new
+    @@logfile_indexes = Hash.new
+    
+        class TaskNameRequired < ArgumentError; end
 
         # Converts the options given to Orocos.run in a more normalized format
         #
@@ -518,10 +520,10 @@ module Orocos
         #   deployments = { 'xsens' => nil }
         #   models = { 'xsens_imu::Task' => 'imu' }
         #   options = { valgrind => true }
-	#
-	# In case multiple instances of a single model need to be started, the
-	# names can be given as an Array. E.g. 
-	# 
+        #
+        # In case multiple instances of a single model need to be started, the
+        # names can be given as an Array. E.g. 
+        # 
         #   Orocos.run 'xsens_imu::Task' => ['imu1', 'imu2']
         #   
         def self.partition_run_options(*names, loader: Orocos.default_loader)
@@ -543,7 +545,7 @@ module Orocos
                         begin
                             object = loader.deployment_model_from_name(object)
                         rescue OroGen::NotFound
-                            raise ArgumentError, "#{object} is neither a task model nor a deployment name"
+                            raise OroGen::NotFound, "#{object} is neither a task model nor a deployment name"
                         end
                     end
                 end
@@ -551,7 +553,7 @@ module Orocos
                 case object
                 when OroGen::Spec::TaskContext
                     if !new_name
-                        raise ArgumentError, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
+                        raise TaskNameRequired, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
                     end
                     models[object] = Array(new_name)
                 when OroGen::Spec::Deployment
