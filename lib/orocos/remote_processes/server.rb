@@ -95,7 +95,7 @@ module Orocos
         attr_reader :loader
 
         def self.create_pkgconfig_loader
-            OroGen::Loaders::PkgConfig.new(Orocos.orocos_target)
+            OroGen::Loaders::RTT.new(Orocos.orocos_target)
         end
 
         def initialize(default_start_options = DEFAULT_OPTIONS,
