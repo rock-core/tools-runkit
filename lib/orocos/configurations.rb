@@ -1,6 +1,7 @@
 require 'stringio'
 require 'yaml'
 require 'utilrb/hash/map_key'
+require 'digest'
 
 module Orocos
     # Class handling multiple possible configuration for a single task
@@ -18,7 +19,7 @@ module Orocos
     #
     # The following options are possible:
     #
-    # name:: 
+    # name::
     #   it is optional for the first section and mandatory for further
     #   sections. It gives a name to the section, that can then be used
     #   to refer to the configuration information in TaskConfigurations#apply
@@ -34,7 +35,7 @@ module Orocos
     #   always be merged with the ones listed. The name of the current
     #   configuration section can be listed, in which case it will be merged in
     #   the specified order. Otherwise, it is added at the end.
-    # 
+    #
     class TaskConfigurations
         # Exception raised when the user asks for a non-existent configuration
         class SectionNotFound < ArgumentError
@@ -61,7 +62,7 @@ module Orocos
         # The toplevel value (i.e. the value of e.g. sections['default']) is
         # always a hash whose keys are the task's property names.
         #
-        # @return [{String=>{String=>Object}}] 
+        # @return [{String=>{String=>Object}}]
         attr_reader :sections
 
         # @return [OroGen::Spec::TaskContext] the task context model for which self holds
@@ -88,7 +89,7 @@ module Orocos
             @context = Array.new
         end
 
-        # Retrieves the configuration for the given section name 
+        # Retrieves the configuration for the given section name
         #
         # @return [Object] see the description of {#sections} for the description
         #   of formatting
@@ -97,7 +98,7 @@ module Orocos
         end
 
         # @api private
-        # 
+        #
         # Evaluate ruby content that has been embedded into the configuration file
         # inbetween <%= ... %>
         def evaluate_dynamic_content(filename, value)
@@ -129,7 +130,7 @@ module Orocos
         def self.load_raw_sections_from_file(file)
             document_lines = File.readlines(file)
 
-            headers = document_lines.enum_for(:each_with_index).
+            headers = document_lines.each_with_index.
                 find_all { |line, _| line =~ /^---/ }
             if headers.empty? || headers.first[1] != 0
                 headers.unshift ["--- name:default", -1]
@@ -153,7 +154,7 @@ module Orocos
                 if !line_options.empty?
                     ConfigurationManager.warn "unrecognized options #{line_options.keys.sort.join(", ")} in #{file}"
                 end
-                    
+
                 [section_options, line_number]
             end
             options[0][0][:name] ||= 'default'
@@ -173,6 +174,31 @@ module Orocos
             options.map(&:first).zip(sections)
         end
 
+        # @api private
+        #
+        # Read the YAML from the cache directory, if available
+        def read_yaml_from_cache(cache_dir, doc)
+            cache_id = Digest::SHA256.hexdigest(doc)
+            path = File.join(cache_dir, cache_id)
+            return cache_id unless File.exist?(path)
+
+            begin
+                [cache_id, Marshal.load(File.read(path))]
+            rescue Exception
+                cache_id
+            end
+        end
+
+        # @api private
+        #
+        # Write the YAML to the cache directory, if available
+        def save_yaml_to_cache(cache_dir, cache_id, contents)
+            path = File.join(cache_dir, cache_id)
+            File.open(path, 'w') do |io|
+                io.write Marshal.dump(contents)
+            end
+        end
+
         # Loads the configurations from a YAML file
         #
         # Multiple configurations can be saved in the file, in which case each
@@ -184,7 +210,7 @@ module Orocos
         # also be provided if needed.
         #
         # @return [Array<String>] the names of the sections that have been modified
-        def load_from_yaml(file)
+        def load_from_yaml(file, cache_dir: nil)
             sections = self.class.load_raw_sections_from_file(file)
 
             changed_sections = []
@@ -192,11 +218,23 @@ module Orocos
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
+                if cache_dir
+                    cache_id, cached_yaml = read_yaml_from_cache(cache_dir, doc)
+                end
+                unless cached_yaml
+                    loaded_yaml = YAML.load(StringIO.new(doc)) || Hash.new
+                end
+
                 begin
-                    result = normalize_conf(YAML.load(StringIO.new(doc)) || Hash.new)
+                    result = normalize_conf(cached_yaml || loaded_yaml || Hash.new)
                 rescue ConversionFailed => e
                     raise e, "while loading section #{conf_options[:name] || 'default'} #{e.message}", e.backtrace
                 end
+
+                if cache_id && !cached_yaml
+                    save_yaml_to_cache(cache_dir, cache_id, loaded_yaml)
+                end
+
                 name  = conf_options.delete(:name)
                 chain = conf(conf_options.delete(:chain), true)
                 result = Orocos::TaskConfigurations.merge_conf(result, chain, true)
@@ -328,7 +366,7 @@ module Orocos
         end
 
         # Remove a configuration section
-        # 
+        #
         # @param [String] name the section name
         # @return [Boolean] true if such as section existed, and false otherwise
         def remove(name)
@@ -479,7 +517,7 @@ module Orocos
 
         # @api private
         #
-        # Helper for {.normalize_conf_value}. See it for details
+        # Helper for {.}. See it for details
         def normalize_conf_array(array, value_t)
             if value_t.respond_to?(:length) && value_t.length < array.size
                 raise ConversionFailed.new, "array too big (got #{array.size} for a maximum of #{value_t.length}"
@@ -641,16 +679,16 @@ module Orocos
         #   speed: 1
         #
         # Then
-        # 
+        #
         #   configuration(['default', 'fast'])
         #
         # returns { 'threshold' => 20, 'speed' => 10 } regardless of the value
         # of the override parameter, while
-        # 
+        #
         #   configuration(['default', 'fast', 'slow'])
         #
-        # will raise ArgumentError and 
-        # 
+        # will raise ArgumentError and
+        #
         #   configuration(['default', 'fast', 'slow'], true)
         #
         # returns { 'threshold' => 20, 'speed' => 1 }
@@ -742,7 +780,7 @@ module Orocos
                     raise ArgumentError, "no configuration #{names.join(", ")} for #{task.model.name}"
                 end
             end
-            
+
             timestamp = Time.now
             config.each do |prop_name, conf|
                 p = task.property(prop_name)
@@ -921,7 +959,7 @@ module Orocos
         #     directory, the generated file will be named based on the task's
         #     model name
         #   @param [String,nil] name the name of the new section. If nil is given,
-        #     defaults to task.name 
+        #     defaults to task.name
         #   @return [Hash] the task configuration in YAML representation, as
         #     returned by {.config_as_hash}
         def self.save(config, file, name, task_model: nil, replace: false)
@@ -1167,7 +1205,7 @@ module Orocos
                 end
             end
 
-            # If no names are given try to figure them out 
+            # If no names are given try to figure them out
             if !names || names.empty?
                 if(task_conf.sections.size == 1)
                     [task_conf.sections.keys.first]
@@ -1237,4 +1275,3 @@ module Orocos
         end
     end
 end
-

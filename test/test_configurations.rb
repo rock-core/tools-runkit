@@ -149,6 +149,67 @@ describe Orocos::TaskConfigurations do
         end
     end
 
+    describe "the loaded yaml cache" do
+        before do
+            @root_dir  = make_tmpdir
+            @cache_dir  = FileUtils.mkdir File.join(@root_dir, 'cache')
+            @conf_file = File.join(@root_dir, "conf.yml")
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: 20
+            CONF
+        end
+        def write_fixture_conf(content)
+            File.open(@conf_file, 'w') { |io| io.write(content) }
+        end
+        it "auto-saves a marshalled version in the provided cache directory" do
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            flexmock(YAML).should_receive(:load).never
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            default = conf.conf('default')
+            assert_equal 20, Typelib.to_ruby(default['intg'])
+        end
+        it "ignores the cache if the document changed" do
+            # Generate the cache
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: 30
+            CONF
+
+            flexmock(YAML).should_receive(:load).at_least.once.pass_thru
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            default = conf.conf('default')
+            assert_equal 30, Typelib.to_ruby(default['intg'])
+        end
+        it "does not use the cache if the dynamic content is different" do
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: <%= Time.now.tv_usec %>
+            CONF
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            flexmock(YAML).should_receive(:load).at_least.once.pass_thru
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+        end
+        it "properly deals with an invalid cache" do
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: 20
+            CONF
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            Dir.glob(File.join(@cache_dir, "*")) do |file|
+                File.truncate(file, 0) if File.file?(file)
+            end
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            default = conf.conf('default')
+            assert_equal 20, Typelib.to_ruby(default['intg'])
+        end
+    end
+
     it "should be able to load complex structures" do
         conf.load_from_yaml(File.join(data_dir, 'configurations', 'complex_config.yml'))
 
