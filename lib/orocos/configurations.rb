@@ -492,7 +492,13 @@ module Orocos
                 begin
                     packed_array = array.pack("#{element_t.pack_code}*")
                     if value_t.respond_to?(:length)
-                        return value_t.from_buffer(packed_array)
+                        if value_t.length == array.size
+                            return value_t.from_buffer(packed_array)
+                        else
+                            return array.map do |v|
+                                normalize_conf_terminal_value(v, element_t)
+                            end
+                        end
                     else
                         return value_t.from_buffer([array.size].pack("Q") + packed_array)
                     end
@@ -782,7 +788,8 @@ module Orocos
         def self.apply_conf_on_typelib_value(value, conf)
             if conf.kind_of?(Hash)
                 conf.each do |conf_key, conf_value|
-                    value.raw_set(conf_key, apply_conf_on_typelib_value(value.raw_get(conf_key), conf_value))
+                    value.raw_set(conf_key,
+                        apply_conf_on_typelib_value(value.raw_get(conf_key), conf_value))
                 end
                 value
             elsif conf.respond_to?(:to_ary)
