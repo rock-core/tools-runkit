@@ -59,10 +59,11 @@ describe Orocos::TaskConfigurations do
 
     def get_conf_value(*path)
         path.inject(@conf_context) do |result, field|
-            if !result[field]
-                raise ArgumentError, "no #{field} in #{result.inspect}"
+            if result.respond_to?(:raw_get)
+                result.raw_get(field)
+            else
+                result.fetch(field)
             end
-            result[field]
         end
     end
 
@@ -145,6 +146,67 @@ describe Orocos::TaskConfigurations do
             assert_conf_value 2, "/int32_t", Typelib::NumericType, 30
             container = get_conf_value
             assert_equal 3, container.size
+        end
+    end
+
+    describe "the loaded yaml cache" do
+        before do
+            @root_dir  = make_tmpdir
+            @cache_dir  = FileUtils.mkdir File.join(@root_dir, 'cache')
+            @conf_file = File.join(@root_dir, "conf.yml")
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: 20
+            CONF
+        end
+        def write_fixture_conf(content)
+            File.open(@conf_file, 'w') { |io| io.write(content) }
+        end
+        it "auto-saves a marshalled version in the provided cache directory" do
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            flexmock(YAML).should_receive(:load).never
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            default = conf.conf('default')
+            assert_equal 20, Typelib.to_ruby(default['intg'])
+        end
+        it "ignores the cache if the document changed" do
+            # Generate the cache
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: 30
+            CONF
+
+            flexmock(YAML).should_receive(:load).at_least.once.pass_thru
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            default = conf.conf('default')
+            assert_equal 30, Typelib.to_ruby(default['intg'])
+        end
+        it "does not use the cache if the dynamic content is different" do
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: <%= Time.now.tv_usec %>
+            CONF
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            flexmock(YAML).should_receive(:load).at_least.once.pass_thru
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+        end
+        it "properly deals with an invalid cache" do
+            write_fixture_conf <<~CONF
+            --- name:default
+            intg: 20
+            CONF
+            @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            Dir.glob(File.join(@cache_dir, "*")) do |file|
+                File.truncate(file, 0) if File.file?(file)
+            end
+            conf = Orocos::TaskConfigurations.new(model)
+            conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
+            default = conf.conf('default')
+            assert_equal 20, Typelib.to_ruby(default['intg'])
         end
     end
 
@@ -341,7 +403,7 @@ describe Orocos::TaskConfigurations do
         end
 
         conf.apply(task, ['default', 'compound', 'simple_container'])
-        simple_container[0, 3] = [10, 20, 30]
+        simple_container = [10, 20, 30]
         verify_applied_conf task do
             assert_conf_value 'simple_container', '/std/vector</int32_t>', Typelib::ContainerType, simple_container do |v|
                 v.to_a
@@ -687,13 +749,20 @@ describe Orocos::TaskConfigurations do
             @registry = Typelib::CXXRegistry.new
         end
 
-        it "maps arrays passing on the deference'd type" do
+        it "maps the elements of a ruby array if the sizes do not match" do
+            type = registry.build('/int[5]')
+            result = conf.normalize_conf_value([1, 2, 3, 4], type)
+            assert_kind_of Array, result
+            result.each do |e|
+                assert_kind_of type.deference, e
+            end
+            assert_equal [1, 2, 3, 4], result.map { |e| Typelib.to_ruby(e) }
+        end
+        it "maps arrays to a typelib array if the sizes match" do
             type = registry.build('/int[5]')
             result = conf.normalize_conf_value([1, 2, 3, 4, 5], type)
-            result.each do |v|
-                assert_kind_of type.deference, v
-            end
-            assert_equal [1, 2, 3, 4, 5], Typelib.to_ruby(result)
+            assert_kind_of type, result
+            assert_equal [1, 2, 3, 4, 5], result.to_a
         end
         it "maps hashes passing on the field types" do
             type = registry.create_compound '/Test' do |c|
@@ -708,7 +777,8 @@ describe Orocos::TaskConfigurations do
         end
         it "converts numerical values using evaluate_numeric_field" do
             type = registry.get '/int'
-            flexmock(conf).should_receive(:evaluate_numeric_field).with('42', type).and_return(42).once
+            flexmock(conf).should_receive(:evaluate_numeric_field).
+                with('42', type).and_return(42).once
             result = conf.normalize_conf_value('42', type)
             assert_kind_of type, result
             assert_equal 42, Typelib.to_ruby(result)
@@ -719,38 +789,42 @@ describe Orocos::TaskConfigurations do
             assert_kind_of string_t, normalized
             assert_equal "bla", Typelib.to_ruby(normalized)
         end
-        it "converts typelib compound values to hashes" do
+        it "keeps typelib compound values that match the target value" do
             compound_t = registry.create_compound('/S') { |c| c.add 'a', '/int' }
             compound = compound_t.new(a: 10)
             normalized = conf.normalize_conf_value(compound, compound_t)
-            assert_kind_of Hash, normalized
-            assert_kind_of compound_t['a'], normalized['a']
-            assert_equal 10, normalized['a']
+            assert_equal compound, normalized
         end
-        it "converts typelib container values to arrays" do
+        it "normalizes a compound's field" do
+            compound_t = registry.create_compound('/S') { |c| c.add 'a', '/int' }
+            compound = compound_t.new(a: 10)
+            normalized = conf.normalize_conf_value(Hash['a' => compound.a], compound_t)
+            assert_equal compound.a, normalized['a']
+        end
+        it "keeps typelib container values" do
             container_t = registry.create_container('/std/vector', '/int')
             container = container_t.new
             container << 0
             normalized = conf.normalize_conf_value(container, container_t)
-            assert_kind_of Array, normalized
-            normalized.each { |v| assert_kind_of(container_t.deference, v) }
-            normalized.each_with_index { |v, i| assert_equal(container[i], v) }
+            assert_kind_of container_t, normalized
+            normalized.raw_each { |v| assert_kind_of(container_t.deference, v) }
+            normalized.raw_each.each_with_index { |v, i| assert_equal(container[i], v) }
         end
-        it "converts typelib array values to arrays" do
+        it "keeps typelib array values" do
             array_t = registry.create_array('/int', 3)
             array = array_t.new
             normalized = conf.normalize_conf_value(array, array_t)
-            assert_kind_of Array, normalized
-            normalized.each { |v| assert_kind_of(array_t.deference, v) }
-            normalized.each_with_index { |v, i| assert_equal(array[i], v) }
+            assert_kind_of array_t, normalized
+            normalized.raw_each { |v| assert_kind_of(array_t.deference, v) }
+            normalized.raw_each.each_with_index { |v, i| assert_equal(array[i], v) }
         end
         it "properly handles Ruby objects that are converted from a complex Typelib type" do
             klass = Class.new
             compound_t = registry.create_compound('/S') { |c| c.add 'a', '/int' }
             compound_t.convert_from_ruby(klass) { |v| compound_t.new(a: 10) }
             normalized = conf.normalize_conf_value(klass.new, compound_t)
-            assert_kind_of Hash, normalized
-            assert_kind_of compound_t['a'], normalized['a']
+            assert_kind_of compound_t, normalized
+            assert_kind_of compound_t['a'], normalized.raw_get('a')
             assert_equal 10, normalized['a']
         end
 
@@ -843,7 +917,7 @@ describe Orocos::TaskConfigurations do
                 assert_equal expected_conf, conf.conf('sec')
             end
         end
-        
+
         describe "#save(name, file)" do
             attr_reader :section
             before do
@@ -1042,4 +1116,3 @@ class TC_Orocos_Configurations < Minitest::Test
         assert_equal({ 'gyrorrw' => default_conf['gyrorrw'], 'gyrorw' => xsens_conf['gyrorw'] }, result)
     end
 end
-
