@@ -13,7 +13,7 @@ module Orocos::Async
         def_delegators :@delegator_obj,*methods
 
         def initialize(task_proxy,attribute_name,options=Hash.new)
-            @type = options.delete(:type) if options.has_key? :type
+            @type = options.delete(:type)
             @options = options
             super(attribute_name,task_proxy.event_loop)
             @task_proxy = task_proxy
@@ -33,12 +33,17 @@ module Orocos::Async
         end
 
         def type
-            @type ||= @delegator_obj.type
+            raise Orocos::NotFound, "#{self} is not reachable" unless @type
+            @type
         end
 
         # returns true if the proxy stored the type
         def type?
             !!@type
+        end
+
+        def new_sample
+            type.new
         end
 
         def last_sample
@@ -157,7 +162,7 @@ module Orocos::Async
         def initialize(task_proxy,port_name,options=Hash.new)
             super(port_name,task_proxy.event_loop)
             @task_proxy = task_proxy
-            @type = options.delete(:type) if options.has_key? :type
+            @type = options.delete(:type)
             @options = options
             @raw_last_sample = nil
         end
@@ -175,12 +180,17 @@ module Orocos::Async
         end
 
         def type
-            @type ||= @delegator_obj.type
+            raise Orocos::NotFound, "#{self} is not reachable" unless @type
+            @type
         end
 
         # returns true if the proxy stored the type
         def type?
             !!@type
+        end
+
+        def new_sample
+            type.new
         end
 
         def to_async(options=Hash.new)
