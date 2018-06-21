@@ -331,11 +331,11 @@ module Orocos::Async
 
         # calls all listener which are registered for the given event
         # the next step
-        def event(event_name,*args)
+        def event(event_name,*args,&block)
             validate_event event_name
             return unless @emitting
             @event_loop.once do
-                process_event event_name,*args
+                process_event event_name,*args,&block
             end
             self
         end
@@ -386,8 +386,9 @@ module Orocos::Async
 
         private
         # calls all listener which are registered for the given event
-        def process_event(event_name,*args)
+        def process_event(event_name,*args,&block)
             event = validate_event event_name
+            args = block.call if block
             #@listeners have to be cloned because it might get modified 
             #by listener.call
             @listeners[event_name].clone.each do |listener|
