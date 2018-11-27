@@ -236,6 +236,10 @@ module Orocos
             @local_ports.has_key?(name) || super
         end
 
+        def raw_port(name)
+            @local_ports[name] || super
+        end
+
         private
 
         # Helper method for create_input_port and create_output_port
