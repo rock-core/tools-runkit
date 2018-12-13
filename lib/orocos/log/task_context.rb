@@ -620,18 +620,19 @@ module Orocos
             attr_reader :file_path_config      #path of the dedicated log configuration file
             attr_reader :log_replay
 
-            #Creates a new instance of TaskContext.
+            # Creates a new instance of TaskContext.
             #
-            #* task_name => name of the task
-            #* file_path => path of the log file
-            def initialize(log_replay,task_name,file_path,file_path_config)
+            # @overload initialize(log_replay, task_name)
+            #   @param [Orocos::Log::Replay] log_replay the replay instance
+            #   @param [String] task_name the task name
+            #
+            # @overload initialize(log_replay, task_name, file_path, file_path_config)
+            #   Deprecated, use the other form
+            def initialize(log_replay,task_name,file_path = nil,file_path_config = nil)
                 super(task_name)
                 self.model = Orocos.create_orogen_task_context_model
                 @log_replay = log_replay
                 @invalid_ports = Hash.new # ports that could not be loaded
-                @file_path = file_path
-                @file_path_config = nil
-                @file_path_config_reg = file_path_config
                 @rtt_state = :RUNNING
                 @port_reachable_blocks = Array.new
                 @property_reachable_blocks = Array.new
@@ -724,60 +725,71 @@ module Orocos
                 end
             end
 
-            #Adds a new property or port to the TaskContext
+            # Register a property/port backed by a data stream
             #
-            #* file_path = path of the log file
-            #* stream = stream which shall be simulated as OutputPort
-            def add_stream(file_path,stream)
-                if Regexp.new(@file_path_config_reg).match(file_path) || stream.metadata["rock_stream_type"] == "property"
-                    log = add_property(file_path,stream)
+            # The two types are recognized by the rock_stream_type metadata,
+            # which should either be 'port' or 'property'.
+            #
+            # @overload add_stream(stream)
+            #   @param [Pocolog::Datastream] stream the property/port type is autodetected
+            #     by the rock_stream_type metadata ('property' or 'port')
+            #   @return [Log::Property,Log::TaskContext]
+            def add_stream(stream, _backward = nil)
+                stream = _backward if _backward
+                case stream_type = stream.metadata["rock_stream_type"]
+                when "property"
+                    add_property(stream)
+                when "port"
+                    add_port(stream)
+                when NilClass
+                    raise ArgumentError, "stream '#{stream.name}' has no "\
+                        "rock_stream_type metadata, cannot guess whether it should "\
+                        "back a port or a property"
                 else
-                    log = add_port(file_path,stream)
+                    raise ArgumentError, "the rock_stream_type metadata of "\
+                        "'#{stream.name}' is '#{stream_type}', expected either "\
+                        "'port' or 'property'"
                 end
-                log
             end
 
-            #Adds a new property to the TaskContext
+            # Adds a new property to the TaskContext, backed by a datastream
             #
-            #* file_path = path of the log file
-            #* stream = stream which shall be simulated as OutputPort
-            def add_property(file_path,stream)
-                if @file_path_config && !Regexp.new(@file_path_config).match(file_path)
-                    raise "You are trying to add properties to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path_config != file_path
-                end
-                if @file_path == file_path
-                    @file_path = nil 
-                end
-                @file_path_config = file_path
-
+            # @overload add_property(stream)
+            #   @param [Pocolog::Datastream] stream the stream that backs the
+            #     new property
+            #   @return [Log::Property]
+            #
+            # @overload add_port(file_path, stream)
+            #   Deprecated. Use the other form.
+            def add_property(stream, _backward = nil)
+                stream = _backward if _backward
                 log_property = Property.new(self,stream)
-                raise ArgumentError, "The log file #{file_path} is already loaded" if @properties.has_key?(log_property.name)
+                if @properties.has_key?(log_property.name)
+                    raise ArgumentError, "property '#{log_property.name}' already "\
+                        "exists, probably from a different log stream"
+                end
                 @properties[log_property.name] = log_property
                 @property_reachable_blocks.each{|b|b.call(log_property.name)}
                 return log_property
             end
 
-            #Adds a new port to the TaskContext
+            # Adds a new port to the TaskContext, backed by a data stream
             #
-            #* file_path = path of the log file
-            #* stream = stream which shall be simulated as OutputPort
-            def add_port(file_path,stream)
-                #overwrite ports if the file is different and newer than the current one 
-                if @file_path && @file_path != file_path
-                    if File.new(@file_path).ctime < File.new(file_path ).ctime
-                        Log.warn "For task #{name} using ports from \"#{file_path}\" instead of \"#{@file_path}\", because the file is more recent."
-                        @ports.clear
-                        @file_path = file_path
-                    else
-                        Log.warn "For task #{name} ommiting log file \"#{file_path}\", because it is older than \"#{@file_path}\"."
-                        return nil
-                    end
-                else
-                    @file_path = file_path
-                end
+            # @overload add_port(stream)
+            #   @param [Pocolog::Datastream] stream the stream that backs the
+            #     new port
+            #   @return [Log::Property]
+            #
+            # @overload add_port(file_path, stream)
+            #   Deprecated. Use the other form.
+            def add_port(stream, _backward = nil)
+                stream = _backward if _backward
                 begin
-                    log_port = OutputPort.new(self,stream)
-                    raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
+                    log_port = OutputPort.new(self, stream)
+                    if @ports.has_key?(log_port.name)
+                        raise ArgumentError, "port '#{log_port.name}' already exists, "\
+                            "probably from a different log stream"
+                    end
                     @ports[log_port.name] = log_port
                     @port_reachable_blocks.each{|b|b.call(log_port.name)}
                 rescue InitializePortError => error
