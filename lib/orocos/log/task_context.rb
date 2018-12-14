@@ -11,6 +11,84 @@ module Orocos
             attr_reader :port_name
         end
 
+        class InterfaceObject
+            # The backing stream
+            #
+            # @return [Pocolog::Datastream]
+            attr_reader :stream
+
+            # The object name
+            #
+            # @return [String]
+            attr_reader :name
+
+            # The object type
+            #
+            # @return [Typelib::Type]
+            attr_reader :type
+
+            # @deprecated use {#type}.name instead
+            attr_reader :type_name
+
+            # The underlying opaque type if {#type} is an intermediate type
+            attr_reader :orocos_type_name
+
+            def initialize(stream)
+                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
+                    raise ArgumentError, "cannot use #{stream} to back "\
+                        "a #{self.class.name}"
+                end
+
+                @stream = stream
+                @type = stream.type
+                @type_name = stream.type.name
+
+                @name = guess_object_name(stream)
+                @orocos_type_name = guess_orocos_type_name(stream)
+            end
+
+            def guess_object_name(stream)
+                if (name = stream.metadata["rock_task_object_name"])
+                    return name
+                end
+
+                Log.warn "stream '#{stream.name}' has no rock_task_object_name "\
+                    "metadata, guessing the #{self.class.name} name from the "\
+                    "stream name"
+
+                # backward compatibility
+                if (name = stream.name.to_s.match(/\.(.*)$/))
+                    name[1]
+                else
+                    Log.warn "stream name '#{stream.name}' does not follow "\
+                        "the convention TASKNAME.PORTNAME, taking it whole as "\
+                        "the #{self.class.name} name"
+                    stream.name
+                end
+            end
+
+            def guess_orocos_type_name(stream)
+                metadata = stream.metadata || Hash.new
+                if (name = metadata['rock_cxx_type_name'])
+                    return name
+                end
+
+                if (name = metadata['rock_orocos_type_name'])
+                    Log.warn "stream '#{stream.name}' has no rock_cxx_type_name metadata, "\
+                        "using the rock_orocos_type_name metadata instead"
+                    return name
+                end
+
+                Log.warn "stream '#{stream.name}' has neither the "\
+                    "rock_cxx_type_name nor the rock_orocos_type_name metadata set, "\
+                    "falling back on the Typelib type's name"
+                if (match = /^(.*)_m$/.match(stream.type.name))
+                    match[1]
+                else
+                    stream.type.name
+                end
+            end
+        end
 
         # Simulates an output port based on log files.
         # It has the same behavior like an OutputReader
@@ -115,19 +193,9 @@ module Orocos
 
         #Simulates a port based on log files
         #It has the same behavior like Orocos::OutputPorts
-        class OutputPort
-
+        class OutputPort < InterfaceObject
             #true -->  this port shall be replayed even if there are no connections
             attr_accessor :tracked
-
-            #name of the recorded port
-            attr_reader :name 
-
-            #name of the type as Typelib::Type object           
-            attr_reader :type          
-
-            #name of the type as it is used in ruby
-            attr_reader :type_name      
 
             #connections between this port and InputPort ports that support a writer
             attr_reader :connections
@@ -221,16 +289,6 @@ module Orocos
                 end
             end
 
-            def orocos_type_name
-                if metadata && metadata.has_key?(:rock_orocos_type_name)
-                    metadata[:rock_orocos_type_name]
-		elsif type_name =~ /^(.*)_m$/
-		    $1
-                else
-                    type_name
-                end
-            end
-
             #if force_local? returns true this port will never be proxied by an orogen port proxy
             def force_local?
                 return true
@@ -296,36 +354,15 @@ module Orocos
             #Creates a new object of OutputPort
             #
             #task => simulated task for which the port shall be created
-            #stream => stream from which the port shall be created 
-            def initialize(task,stream)
-                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
-                    raise "Cannot create OutputPort out of #{stream.class}"
+            #stream => stream from which the port shall be created
+            def initialize(task, stream)
+                super(stream)
+
+                begin
+                    @type = stream.type
+                rescue Exception => e
+                    raise InitializePortError.new( e.message, @name )
                 end
-                @stream = stream
-                @name = if stream.metadata.has_key? "rock_task_object_name"
-                            name = stream.metadata["rock_task_object_name"]
-                            if !name || name.empty?
-                                name = "#{stream.name.to_s}"
-                                Log.warn "Stream name (#{stream.name}) has empty meta data assuming as PORTNAME \"#{name}\""
-                            end
-                            name
-                        else
-                            # backward compatibility
-                            name = stream.name.to_s.match(/\.(.*$)/)
-                            if name == nil
-                                name = "#{stream.name.to_s}"
-                                Log.warn "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME, assuming as PORTNAME \"#{name}\""
-                                name
-                            else
-                                name[1]
-                            end
-                        end
-		begin
-		    @type = stream.type
-		rescue Exception => e
-		    raise InitializePortError.new( e.message, @name )
-		end
-                @type_name = stream.typename
                 @task = task
                 @connections = Set.new
                 @current_data = nil
@@ -495,34 +532,20 @@ module Orocos
                 true
             end
         end
-        
+
         #Simulated Property based on a configuration log file
         #It is automatically replayed if at least one OutputPort of the task is replayed
-        class Property
+        class Property < InterfaceObject
             #true -->  this property shall be replayed
             attr_accessor :tracked
             # The underlying TaskContext instance
             attr_reader :task
-            # The property/attribute name
-            attr_reader :name
-            # The attribute type, as a subclass of Typelib::Type
-            attr_reader :type
-            #dedicated stream for simulating the port
-            attr_reader :stream
-            attr_reader :type_name
 
             def initialize(task, stream)
-                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
-                    raise "Cannot create Property out of #{stream.class}"
-                end
-                @stream = stream
-                @name = stream.name.to_s.match(/\.(.*$)/)
-                raise 'Stream name does not follow the convention TASKNAME.PROPERTYNAME' if @name == nil
-                @name = @name[1]
-                @type = stream.type
+                super(stream)
+
                 @task = task
                 @current_data = nil
-                @type_name = stream.typename
                 @notify_blocks =[]
             end
 
