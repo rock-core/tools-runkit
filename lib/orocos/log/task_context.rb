@@ -1,15 +1,16 @@
 
 module Orocos
     module Log
-	# Exception if a port can not be initialized
-	class InitializePortError < RuntimeError
-	    def initialize( message, name )
-		super( message )
-		@port_name = name
-	    end
+        # Exception if a port can not be initialized
+        class InitializePortError < RuntimeError
+            def initialize( message, name )
+                super( message )
+                @port_name = name
+            end
 
-	    attr_reader :port_name
-	end
+            attr_reader :port_name
+        end
+
 
         # Simulates an output port based on log files.
         # It has the same behavior like an OutputReader
@@ -19,15 +20,15 @@ module Orocos
 
             attr_reader :policy
 
-            #filter for log data 
+            #filter for log data
             #the filter is applied during read
-            #the buffer is not effected 
+            #the buffer is not effected
             attr_accessor :filter
 
             #Creates a new OutputReader
             #
             #port => handle to the port the reader shall read from
-            #policy => policy for reading data 
+            #policy => policy for reading data
             #
             #see project orocos.rb for more information
             def initialize(port,policy=default_policy)
@@ -43,7 +44,7 @@ module Orocos
             end
 
             #This method is called each time new data are availabe.
-            def update(raw_data) 
+            def update(raw_data)
                 if @policy_type == :buffer
                     if @buffer.size != @buffer_size
                         @buffer << raw_data
@@ -56,7 +57,7 @@ module Orocos
             end
 
             #Clears the buffer of the reader.
-            def clear_buffer 
+            def clear_buffer
                 @buffer.clear
             end
 
@@ -102,7 +103,7 @@ module Orocos
             def type_name
                 @port.type_name
             end
-           
+
             def new_sample
                 @port.new_sample
             end
@@ -117,7 +118,7 @@ module Orocos
         class OutputPort
 
             #true -->  this port shall be replayed even if there are no connections
-            attr_accessor :tracked         
+            attr_accessor :tracked
 
             #name of the recorded port
             attr_reader :name 
@@ -129,16 +130,16 @@ module Orocos
             attr_reader :type_name      
 
             #connections between this port and InputPort ports that support a writer
-            attr_reader :connections    
+            attr_reader :connections
 
             #dedicated stream for simulating the port
-            attr_reader :stream         
+            attr_reader :stream
 
             #parent log task
-            attr_reader :task          
+            attr_reader :task
 
             #number of readers which are using the port
-            attr_reader :readers        
+            attr_reader :readers
 
             #returns the system time when the port was updated with new data
             attr_reader :last_update
@@ -146,8 +147,8 @@ module Orocos
             attr_reader :current_data
 
             #filter for log data
-            #the filter is applied before all connections and readers are updated 
-            #if you want to apply a filter only for one connection or one reader do not set 
+            #the filter is applied before all connections and readers are updated
+            #if you want to apply a filter only for one connection or one reader do not set
             #the filter here.
             #the filter must be a proc, lambda, method or object with a function named call.
             #the signature must be:
@@ -174,14 +175,14 @@ module Orocos
 
                 def update
                     data = log_port.raw_read
-                    if @filter 
+                    if @filter
                         @writer.write(@filter.call data)
                     else
                         @writer.write(data)
                     end
                 end
             end
-            
+
             #Defines a connection which is set through connect_to
             class CodeBlockConnection #:nodoc:
                 attr_reader :port
@@ -239,7 +240,7 @@ module Orocos
                 task.log_replay.last_sample_pos stream
             end
 
-            def first_sample_pos 
+            def first_sample_pos
                 task.log_replay.first_sample_pos stream
             end
 
@@ -261,25 +262,25 @@ module Orocos
             end
 
             #Pretty print for OutputPort.
-	    def pretty_print(pp)
+            def pretty_print(pp)
                 pp.text "#{task.name}.#{name}"
-		pp.nest(2) do
-		    pp.breakable
-		    pp.text "tracked = #{@tracked}"
-		    pp.breakable
-		    pp.text "readers = #{@readers.size}"
-		    pp.breakable
-		    pp.text "filtered = #{(@filter!=nil).to_s}"
-		    @connections.each do |connection|
-			pp.breakable
+                pp.nest(2) do
+                    pp.breakable
+                    pp.text "tracked = #{@tracked}"
+                    pp.breakable
+                    pp.text "readers = #{@readers.size}"
+                    pp.breakable
+                    pp.text "filtered = #{(@filter!=nil).to_s}"
+                    @connections.each do |connection|
+                        pp.breakable
                         if connection.is_a?(OutputPort::Connection)
-                          pp.text "connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
+                            pp.text "connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
                         end
                         if connection.is_a?(OutputPort::CodeBlockConnection)
-                          pp.text "connected to code block"
+                            pp.text "connected to code block"
                         end
-		    end
-		end
+                    end
+                end
             end
 
             #returns the metadata associated with the underlying stream
@@ -342,7 +343,7 @@ module Orocos
                 return new_reader
             end
 
-            #Returns true if the port has at least one connection or 
+            #Returns true if the port has at least one connection or
             #tracked is set to true.
             def used?
                 return @tracked
@@ -365,7 +366,7 @@ module Orocos
                     if @filter
                         filtered_data = @filter.call(data)
 
-                        if data.class != filtered_data.class 
+                        if data.class != filtered_data.class
                             Log.error "Filter block for port #{full_name} returned #{@current_data.class.name} but #{data.class.name} was expected."
                             Log.error "If a statement like #{name} do |sample,port| or #{name}.connect_to(port) do |sample,port| is used, the code block always needs to return 'sample'!"
                             Log.error "Disabling Filter for port #{full_name}"
@@ -381,7 +382,7 @@ module Orocos
                 @current_data
             end
 
-            #If set to true the port is replayed.  
+            #If set to true the port is replayed.
             def tracked=(value)
                 raise "can not track unused port #{stream.name} after the replay has started" if !used? && aligned?
                 @tracked = value
@@ -400,7 +401,7 @@ module Orocos
                 add_connection(connection)
                 connection
             end
-            
+
             def has_connection?(connection)
                 @connections.include?(connection)
             end
@@ -423,7 +424,7 @@ module Orocos
                            end
                            result.to_orocos_port
                        elsif port
-                           port.to_orocos_port 
+                           port.to_orocos_port
                        end
 
                 if block && !port
@@ -432,7 +433,7 @@ module Orocos
 
                 self.tracked = true
                 policy[:filter] = block if block
-                if !port 
+                if !port
                   raise "Cannot set up connection no code block or port is given" unless block
                   @connections << CodeBlockConnection::OnData.new(self,block)
                 else
@@ -458,7 +459,7 @@ module Orocos
                 end
             end
 
-            #Disconnects all ports and deletes all readers 
+            #Disconnects all ports and deletes all readers
             def disconnect_all
                 @connections.clear
                 @readers.clear
@@ -469,7 +470,7 @@ module Orocos
                 @type.new
             end
 
-            #Clears all reader buffers 
+            #Clears all reader buffers
             def clear_reader_buffers
                 @readers.each do |reader|
                     reader.clear_buffer
@@ -560,7 +561,7 @@ module Orocos
                 @current_data
             end
 
-            # registers a code block which will be called 
+            # registers a code block which will be called
             # when the property changes
             def on_change(&block)
                 self.tracked = true
@@ -569,7 +570,7 @@ module Orocos
                 end
             end
 
-            # registers a code block which will be called 
+            # registers a code block which will be called
             # when the property changes
             def notify(&block)
                 @notify_blocks << block
@@ -824,7 +825,7 @@ module Orocos
                 Orocos::TaskContext.connect_to(self,task,policy,&block)
             end
 
-            #If set to true all ports are replayed 
+            #If set to true all ports are replayed
             #otherwise only ports are replayed which have a reader or
             #a connection to an other port
             def track(value,filter = Hash.new)
@@ -893,12 +894,12 @@ module Orocos
                     Log.warn "Setting the property #{name} the TaskContext #{@name} is not supported"
                     return
                 end
-                if has_port?(m) 
+                if has_port?(m)
                     _port = port(m)
                     _port.filter = block if block         #overwirte filer
                     return _port
                 end
-                if has_property?(m) 
+                if has_property?(m)
                     return property(m)
                 end
                 begin
@@ -919,6 +920,5 @@ module Orocos
                 end
             end
         end
-
     end
 end
