@@ -1,15 +1,94 @@
 
 module Orocos
     module Log
-	# Exception if a port can not be initialized
-	class InitializePortError < RuntimeError
-	    def initialize( message, name )
-		super( message )
-		@port_name = name
-	    end
+        # Exception if a port can not be initialized
+        class InitializePortError < RuntimeError
+            def initialize( message, name )
+                super( message )
+                @port_name = name
+            end
 
-	    attr_reader :port_name
-	end
+            attr_reader :port_name
+        end
+
+        class InterfaceObject
+            # The backing stream
+            #
+            # @return [Pocolog::Datastream]
+            attr_reader :stream
+
+            # The object name
+            #
+            # @return [String]
+            attr_reader :name
+
+            # The object type
+            #
+            # @return [Typelib::Type]
+            attr_reader :type
+
+            # @deprecated use {#type}.name instead
+            attr_reader :type_name
+
+            # The underlying opaque type if {#type} is an intermediate type
+            attr_reader :orocos_type_name
+
+            def initialize(stream)
+                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
+                    raise ArgumentError, "cannot use #{stream} to back "\
+                        "a #{self.class.name}"
+                end
+
+                @stream = stream
+                @type = stream.type
+                @type_name = stream.type.name
+
+                @name = guess_object_name(stream)
+                @orocos_type_name = guess_orocos_type_name(stream)
+            end
+
+            def guess_object_name(stream)
+                if (name = stream.metadata["rock_task_object_name"])
+                    return name
+                end
+
+                Log.warn "stream '#{stream.name}' has no rock_task_object_name "\
+                    "metadata, guessing the #{self.class.name} name from the "\
+                    "stream name"
+
+                # backward compatibility
+                if (name = stream.name.to_s.match(/\.(.*)$/))
+                    name[1]
+                else
+                    Log.warn "stream name '#{stream.name}' does not follow "\
+                        "the convention TASKNAME.PORTNAME, taking it whole as "\
+                        "the #{self.class.name} name"
+                    stream.name
+                end
+            end
+
+            def guess_orocos_type_name(stream)
+                metadata = stream.metadata || Hash.new
+                if (name = metadata['rock_cxx_type_name'])
+                    return name
+                end
+
+                if (name = metadata['rock_orocos_type_name'])
+                    Log.warn "stream '#{stream.name}' has no rock_cxx_type_name metadata, "\
+                        "using the rock_orocos_type_name metadata instead"
+                    return name
+                end
+
+                Log.warn "stream '#{stream.name}' has neither the "\
+                    "rock_cxx_type_name nor the rock_orocos_type_name metadata set, "\
+                    "falling back on the Typelib type's name"
+                if (match = /^(.*)_m$/.match(stream.type.name))
+                    match[1]
+                else
+                    stream.type.name
+                end
+            end
+        end
 
         # Simulates an output port based on log files.
         # It has the same behavior like an OutputReader
@@ -19,15 +98,15 @@ module Orocos
 
             attr_reader :policy
 
-            #filter for log data 
+            #filter for log data
             #the filter is applied during read
-            #the buffer is not effected 
+            #the buffer is not effected
             attr_accessor :filter
 
             #Creates a new OutputReader
             #
             #port => handle to the port the reader shall read from
-            #policy => policy for reading data 
+            #policy => policy for reading data
             #
             #see project orocos.rb for more information
             def initialize(port,policy=default_policy)
@@ -43,7 +122,7 @@ module Orocos
             end
 
             #This method is called each time new data are availabe.
-            def update(raw_data) 
+            def update(raw_data)
                 if @policy_type == :buffer
                     if @buffer.size != @buffer_size
                         @buffer << raw_data
@@ -56,7 +135,7 @@ module Orocos
             end
 
             #Clears the buffer of the reader.
-            def clear_buffer 
+            def clear_buffer
                 @buffer.clear
             end
 
@@ -102,7 +181,7 @@ module Orocos
             def type_name
                 @port.type_name
             end
-           
+
             def new_sample
                 @port.new_sample
             end
@@ -114,31 +193,21 @@ module Orocos
 
         #Simulates a port based on log files
         #It has the same behavior like Orocos::OutputPorts
-        class OutputPort
-
+        class OutputPort < InterfaceObject
             #true -->  this port shall be replayed even if there are no connections
-            attr_accessor :tracked         
-
-            #name of the recorded port
-            attr_reader :name 
-
-            #name of the type as Typelib::Type object           
-            attr_reader :type          
-
-            #name of the type as it is used in ruby
-            attr_reader :type_name      
+            attr_accessor :tracked
 
             #connections between this port and InputPort ports that support a writer
-            attr_reader :connections    
+            attr_reader :connections
 
             #dedicated stream for simulating the port
-            attr_reader :stream         
+            attr_reader :stream
 
             #parent log task
-            attr_reader :task          
+            attr_reader :task
 
             #number of readers which are using the port
-            attr_reader :readers        
+            attr_reader :readers
 
             #returns the system time when the port was updated with new data
             attr_reader :last_update
@@ -146,8 +215,8 @@ module Orocos
             attr_reader :current_data
 
             #filter for log data
-            #the filter is applied before all connections and readers are updated 
-            #if you want to apply a filter only for one connection or one reader do not set 
+            #the filter is applied before all connections and readers are updated
+            #if you want to apply a filter only for one connection or one reader do not set
             #the filter here.
             #the filter must be a proc, lambda, method or object with a function named call.
             #the signature must be:
@@ -174,14 +243,14 @@ module Orocos
 
                 def update
                     data = log_port.raw_read
-                    if @filter 
+                    if @filter
                         @writer.write(@filter.call data)
                     else
                         @writer.write(data)
                     end
                 end
             end
-            
+
             #Defines a connection which is set through connect_to
             class CodeBlockConnection #:nodoc:
                 attr_reader :port
@@ -220,16 +289,6 @@ module Orocos
                 end
             end
 
-            def orocos_type_name
-                if metadata && metadata.has_key?(:rock_orocos_type_name)
-                    metadata[:rock_orocos_type_name]
-		elsif type_name =~ /^(.*)_m$/
-		    $1
-                else
-                    type_name
-                end
-            end
-
             #if force_local? returns true this port will never be proxied by an orogen port proxy
             def force_local?
                 return true
@@ -239,7 +298,7 @@ module Orocos
                 task.log_replay.last_sample_pos stream
             end
 
-            def first_sample_pos 
+            def first_sample_pos
                 task.log_replay.first_sample_pos stream
             end
 
@@ -261,25 +320,25 @@ module Orocos
             end
 
             #Pretty print for OutputPort.
-	    def pretty_print(pp)
+            def pretty_print(pp)
                 pp.text "#{task.name}.#{name}"
-		pp.nest(2) do
-		    pp.breakable
-		    pp.text "tracked = #{@tracked}"
-		    pp.breakable
-		    pp.text "readers = #{@readers.size}"
-		    pp.breakable
-		    pp.text "filtered = #{(@filter!=nil).to_s}"
-		    @connections.each do |connection|
-			pp.breakable
+                pp.nest(2) do
+                    pp.breakable
+                    pp.text "tracked = #{@tracked}"
+                    pp.breakable
+                    pp.text "readers = #{@readers.size}"
+                    pp.breakable
+                    pp.text "filtered = #{(@filter!=nil).to_s}"
+                    @connections.each do |connection|
+                        pp.breakable
                         if connection.is_a?(OutputPort::Connection)
-                          pp.text "connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
+                            pp.text "connected to #{connection.port.task.name}.#{connection.port.name} (filtered = #{(connection.filter!=nil).to_s})"
                         end
                         if connection.is_a?(OutputPort::CodeBlockConnection)
-                          pp.text "connected to code block"
+                            pp.text "connected to code block"
                         end
-		    end
-		end
+                    end
+                end
             end
 
             #returns the metadata associated with the underlying stream
@@ -295,36 +354,15 @@ module Orocos
             #Creates a new object of OutputPort
             #
             #task => simulated task for which the port shall be created
-            #stream => stream from which the port shall be created 
-            def initialize(task,stream)
-                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
-                    raise "Cannot create OutputPort out of #{stream.class}"
+            #stream => stream from which the port shall be created
+            def initialize(task, stream)
+                super(stream)
+
+                begin
+                    @type = stream.type
+                rescue Exception => e
+                    raise InitializePortError.new( e.message, @name )
                 end
-                @stream = stream
-                @name = if stream.metadata.has_key? "rock_task_object_name"
-                            name = stream.metadata["rock_task_object_name"]
-                            if !name || name.empty?
-                                name = "#{stream.name.to_s}"
-                                Log.warn "Stream name (#{stream.name}) has empty meta data assuming as PORTNAME \"#{name}\""
-                            end
-                            name
-                        else
-                            # backward compatibility
-                            name = stream.name.to_s.match(/\.(.*$)/)
-                            if name == nil
-                                name = "#{stream.name.to_s}"
-                                Log.warn "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME, assuming as PORTNAME \"#{name}\""
-                                name
-                            else
-                                name[1]
-                            end
-                        end
-		begin
-		    @type = stream.type
-		rescue Exception => e
-		    raise InitializePortError.new( e.message, @name )
-		end
-                @type_name = stream.typename
                 @task = task
                 @connections = Set.new
                 @current_data = nil
@@ -342,7 +380,7 @@ module Orocos
                 return new_reader
             end
 
-            #Returns true if the port has at least one connection or 
+            #Returns true if the port has at least one connection or
             #tracked is set to true.
             def used?
                 return @tracked
@@ -365,7 +403,7 @@ module Orocos
                     if @filter
                         filtered_data = @filter.call(data)
 
-                        if data.class != filtered_data.class 
+                        if data.class != filtered_data.class
                             Log.error "Filter block for port #{full_name} returned #{@current_data.class.name} but #{data.class.name} was expected."
                             Log.error "If a statement like #{name} do |sample,port| or #{name}.connect_to(port) do |sample,port| is used, the code block always needs to return 'sample'!"
                             Log.error "Disabling Filter for port #{full_name}"
@@ -381,7 +419,7 @@ module Orocos
                 @current_data
             end
 
-            #If set to true the port is replayed.  
+            #If set to true the port is replayed.
             def tracked=(value)
                 raise "can not track unused port #{stream.name} after the replay has started" if !used? && aligned?
                 @tracked = value
@@ -400,7 +438,7 @@ module Orocos
                 add_connection(connection)
                 connection
             end
-            
+
             def has_connection?(connection)
                 @connections.include?(connection)
             end
@@ -423,7 +461,7 @@ module Orocos
                            end
                            result.to_orocos_port
                        elsif port
-                           port.to_orocos_port 
+                           port.to_orocos_port
                        end
 
                 if block && !port
@@ -432,7 +470,7 @@ module Orocos
 
                 self.tracked = true
                 policy[:filter] = block if block
-                if !port 
+                if !port
                   raise "Cannot set up connection no code block or port is given" unless block
                   @connections << CodeBlockConnection::OnData.new(self,block)
                 else
@@ -458,7 +496,7 @@ module Orocos
                 end
             end
 
-            #Disconnects all ports and deletes all readers 
+            #Disconnects all ports and deletes all readers
             def disconnect_all
                 @connections.clear
                 @readers.clear
@@ -469,7 +507,7 @@ module Orocos
                 @type.new
             end
 
-            #Clears all reader buffers 
+            #Clears all reader buffers
             def clear_reader_buffers
                 @readers.each do |reader|
                     reader.clear_buffer
@@ -494,34 +532,20 @@ module Orocos
                 true
             end
         end
-        
+
         #Simulated Property based on a configuration log file
         #It is automatically replayed if at least one OutputPort of the task is replayed
-        class Property
+        class Property < InterfaceObject
             #true -->  this property shall be replayed
             attr_accessor :tracked
             # The underlying TaskContext instance
             attr_reader :task
-            # The property/attribute name
-            attr_reader :name
-            # The attribute type, as a subclass of Typelib::Type
-            attr_reader :type
-            #dedicated stream for simulating the port
-            attr_reader :stream
-            attr_reader :type_name
 
             def initialize(task, stream)
-                if !stream.respond_to?(:name) || !stream.respond_to?(:type) || !stream.respond_to?(:typename) || !stream.respond_to?(:metadata)
-                    raise "Cannot create Property out of #{stream.class}"
-                end
-                @stream = stream
-                @name = stream.name.to_s.match(/\.(.*$)/)
-                raise 'Stream name does not follow the convention TASKNAME.PROPERTYNAME' if @name == nil
-                @name = @name[1]
-                @type = stream.type
+                super(stream)
+
                 @task = task
                 @current_data = nil
-                @type_name = stream.typename
                 @notify_blocks =[]
             end
 
@@ -560,7 +584,7 @@ module Orocos
                 @current_data
             end
 
-            # registers a code block which will be called 
+            # registers a code block which will be called
             # when the property changes
             def on_change(&block)
                 self.tracked = true
@@ -569,7 +593,7 @@ module Orocos
                 end
             end
 
-            # registers a code block which will be called 
+            # registers a code block which will be called
             # when the property changes
             def notify(&block)
                 @notify_blocks << block
@@ -619,18 +643,19 @@ module Orocos
             attr_reader :file_path_config      #path of the dedicated log configuration file
             attr_reader :log_replay
 
-            #Creates a new instance of TaskContext.
+            # Creates a new instance of TaskContext.
             #
-            #* task_name => name of the task
-            #* file_path => path of the log file
-            def initialize(log_replay,task_name,file_path,file_path_config)
+            # @overload initialize(log_replay, task_name)
+            #   @param [Orocos::Log::Replay] log_replay the replay instance
+            #   @param [String] task_name the task name
+            #
+            # @overload initialize(log_replay, task_name, file_path, file_path_config)
+            #   Deprecated, use the other form
+            def initialize(log_replay,task_name,file_path = nil,file_path_config = nil)
                 super(task_name)
                 self.model = Orocos.create_orogen_task_context_model
                 @log_replay = log_replay
                 @invalid_ports = Hash.new # ports that could not be loaded
-                @file_path = file_path
-                @file_path_config = nil
-                @file_path_config_reg = file_path_config
                 @rtt_state = :RUNNING
                 @port_reachable_blocks = Array.new
                 @property_reachable_blocks = Array.new
@@ -723,60 +748,71 @@ module Orocos
                 end
             end
 
-            #Adds a new property or port to the TaskContext
+            # Register a property/port backed by a data stream
             #
-            #* file_path = path of the log file
-            #* stream = stream which shall be simulated as OutputPort
-            def add_stream(file_path,stream)
-                if Regexp.new(@file_path_config_reg).match(file_path) || stream.metadata["rock_stream_type"] == "property"
-                    log = add_property(file_path,stream)
+            # The two types are recognized by the rock_stream_type metadata,
+            # which should either be 'port' or 'property'.
+            #
+            # @overload add_stream(stream)
+            #   @param [Pocolog::Datastream] stream the property/port type is autodetected
+            #     by the rock_stream_type metadata ('property' or 'port')
+            #   @return [Log::Property,Log::TaskContext]
+            def add_stream(stream, _backward = nil)
+                stream = _backward if _backward
+                case stream_type = stream.metadata["rock_stream_type"]
+                when "property"
+                    add_property(stream)
+                when "port"
+                    add_port(stream)
+                when NilClass
+                    raise ArgumentError, "stream '#{stream.name}' has no "\
+                        "rock_stream_type metadata, cannot guess whether it should "\
+                        "back a port or a property"
                 else
-                    log = add_port(file_path,stream)
+                    raise ArgumentError, "the rock_stream_type metadata of "\
+                        "'#{stream.name}' is '#{stream_type}', expected either "\
+                        "'port' or 'property'"
                 end
-                log
             end
 
-            #Adds a new property to the TaskContext
+            # Adds a new property to the TaskContext, backed by a datastream
             #
-            #* file_path = path of the log file
-            #* stream = stream which shall be simulated as OutputPort
-            def add_property(file_path,stream)
-                if @file_path_config && !Regexp.new(@file_path_config).match(file_path)
-                    raise "You are trying to add properties to the task from different log files #{@file_path}; #{file_path}!!!" if @file_path_config != file_path
-                end
-                if @file_path == file_path
-                    @file_path = nil 
-                end
-                @file_path_config = file_path
-
+            # @overload add_property(stream)
+            #   @param [Pocolog::Datastream] stream the stream that backs the
+            #     new property
+            #   @return [Log::Property]
+            #
+            # @overload add_port(file_path, stream)
+            #   Deprecated. Use the other form.
+            def add_property(stream, _backward = nil)
+                stream = _backward if _backward
                 log_property = Property.new(self,stream)
-                raise ArgumentError, "The log file #{file_path} is already loaded" if @properties.has_key?(log_property.name)
+                if @properties.has_key?(log_property.name)
+                    raise ArgumentError, "property '#{log_property.name}' already "\
+                        "exists, probably from a different log stream"
+                end
                 @properties[log_property.name] = log_property
                 @property_reachable_blocks.each{|b|b.call(log_property.name)}
                 return log_property
             end
 
-            #Adds a new port to the TaskContext
+            # Adds a new port to the TaskContext, backed by a data stream
             #
-            #* file_path = path of the log file
-            #* stream = stream which shall be simulated as OutputPort
-            def add_port(file_path,stream)
-                #overwrite ports if the file is different and newer than the current one 
-                if @file_path && @file_path != file_path
-                    if File.new(@file_path).ctime < File.new(file_path ).ctime
-                        Log.warn "For task #{name} using ports from \"#{file_path}\" instead of \"#{@file_path}\", because the file is more recent."
-                        @ports.clear
-                        @file_path = file_path
-                    else
-                        Log.warn "For task #{name} ommiting log file \"#{file_path}\", because it is older than \"#{@file_path}\"."
-                        return nil
-                    end
-                else
-                    @file_path = file_path
-                end
+            # @overload add_port(stream)
+            #   @param [Pocolog::Datastream] stream the stream that backs the
+            #     new port
+            #   @return [Log::Property]
+            #
+            # @overload add_port(file_path, stream)
+            #   Deprecated. Use the other form.
+            def add_port(stream, _backward = nil)
+                stream = _backward if _backward
                 begin
-                    log_port = OutputPort.new(self,stream)
-                    raise ArgumentError, "The log file #{file_path} is already loaded" if @ports.has_key?(log_port.name)
+                    log_port = OutputPort.new(self, stream)
+                    if @ports.has_key?(log_port.name)
+                        raise ArgumentError, "port '#{log_port.name}' already exists, "\
+                            "probably from a different log stream"
+                    end
                     @ports[log_port.name] = log_port
                     @port_reachable_blocks.each{|b|b.call(log_port.name)}
                 rescue InitializePortError => error
@@ -824,7 +860,7 @@ module Orocos
                 Orocos::TaskContext.connect_to(self,task,policy,&block)
             end
 
-            #If set to true all ports are replayed 
+            #If set to true all ports are replayed
             #otherwise only ports are replayed which have a reader or
             #a connection to an other port
             def track(value,filter = Hash.new)
@@ -893,12 +929,12 @@ module Orocos
                     Log.warn "Setting the property #{name} the TaskContext #{@name} is not supported"
                     return
                 end
-                if has_port?(m) 
+                if has_port?(m)
                     _port = port(m)
                     _port.filter = block if block         #overwirte filer
                     return _port
                 end
-                if has_property?(m) 
+                if has_property?(m)
                     return property(m)
                 end
                 begin
@@ -919,6 +955,5 @@ module Orocos
                 end
             end
         end
-
     end
 end

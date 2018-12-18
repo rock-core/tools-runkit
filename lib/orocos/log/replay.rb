@@ -56,32 +56,32 @@ module Orocos
             include Namespace
             include Orocos::PortsSearchable
 
-            class << self 
-                attr_accessor :log_config_file 
+            class << self
+                attr_accessor :log_config_file
             end
             @log_config_file = "properties."
 
             # @return [Orocos::Local] a local nameservice on which the log tasks
             #   are registered. It is added to the global name service with
             #   {#register_tasks} and removed with {#unregister_tasks}
-	    attr_accessor :name_service
+            attr_accessor :name_service
 
             # @return [Orocos::Async::Local] a local async nameservice on which the log tasks
             #   are registered. It is added to the global name service with
             #   {#register_tasks} and removed with {#unregister_tasks}
-	    attr_accessor :name_service_async
+            attr_accessor :name_service_async
 
             #desired replay speed = 1 --> record time
-            attr_accessor :speed            
+            attr_accessor :speed
 
             #name of the log file which holds the logged properties
             #is converted into Regexp
-            attr_accessor :log_config_file            
+            attr_accessor :log_config_file
 
             #last replayed sample
             attr_reader :current_sample
 
-            #array of all replayed ports  
+            #array of all replayed ports
             #this array is filled after {align} was called
             attr_accessor :replayed_ports
 
@@ -117,7 +117,7 @@ module Orocos
             # @return [Float]
             attr_reader :out_of_sync_delta
 
-            # The actual replay speed 
+            # The actual replay speed
             #
             # This is updated during replay, and reflects the actual replay
             # speed
@@ -177,7 +177,7 @@ module Orocos
                 replay
             rescue ArgumentError => e
                 Orocos.error "Cannot load logfiles"
-                raise e 
+                raise e
             rescue Pocolog::Logfiles::MissingPrologue => e
                 Orocos.error "Wrong log format"
                 raise e
@@ -222,7 +222,7 @@ module Orocos
             end
 
             #returns false if no ports are or will be replayed
-            def replay? 
+            def replay?
                 #check if stream was initialized
                 if @stream
                     return true
@@ -331,7 +331,7 @@ module Orocos
                 end
                 ports_ignored = Array.new(ports_ignored)
 
-                #start task if necessary 
+                #start task if necessary
                 if task.state == :PRE_OPERATIONAL
                     task.configure
                 end
@@ -339,7 +339,7 @@ module Orocos
                     task.start
                 end
 
-                #to have a better user interface the hash is inverted 
+                #to have a better user interface the hash is inverted
                 #port1 connect_to port2 is written as ('port1' => 'port2')
                 port_mappings = port_mappings.invert
 
@@ -386,8 +386,8 @@ module Orocos
                 return @tasks[name2]
             end
 
-            # Aligns all streams which have at least: 
-            # * one reader 
+            # Aligns all streams which have at least:
+            # * one reader
             # * or one connections
             # * or track set to true.
             #
@@ -446,7 +446,7 @@ module Orocos
                 Log.info "Replayed Ports:"
                 @replayed_ports.each {|port| Log.info PP.pp(port,"")}
 
-                #join streams 
+                #join streams
                 @stream = Pocolog::StreamAligner.new(time_source, *@used_streams)
                 @stream.rewind
 
@@ -484,13 +484,13 @@ module Orocos
 
 	    # deregister the local name service again
 	    def deregister_tasks
-		if @name_service 
+		if @name_service
 		    Orocos::name_service.delete @name_service
 		end
 	    end
 
 	    # close the log file, deregister from name service
-	    # and also close all available streams 
+	    # and also close all available streams
 	    def close
 		deregister_tasks
 		# TODO close all streams
@@ -530,7 +530,7 @@ module Orocos
             #Resets the simulated time.
             #This should be called after the replay was paused.
             def reset_time_sync
-                @start_time = nil 
+                @start_time = nil
                 @base_time  = nil
                 @actual_speed = 0
                 @out_of_sync_delta = 0
@@ -541,9 +541,9 @@ module Orocos
             #time = current sample time
             #actual_delta = time between start of replay and now
             #required_delta = time which should have elapsed between start and now
-            #to replay at the desired speed 
-            #the code block must return the number of seconds which 
-            #the replay shall wait before the sample is repalyed 
+            #to replay at the desired speed
+            #the code block must return the number of seconds which
+            #the replay shall wait before the sample is repalyed
             #
             #Do not block the program otherwise qt events are no longer processed!!!
             #
@@ -776,7 +776,7 @@ module Orocos
                     markers << LogMarker.new(interval.last,:stop,-1,comment)
                 end
                 markers.sort! do |a,b|
-                    a.time <=> b.time 
+                    a.time <=> b.time
                 end
                 markers
             end
@@ -819,7 +819,7 @@ module Orocos
                 end
             end
 
-            #Returns an array of all simulated ports 
+            #Returns an array of all simulated ports
             def ports
                 result = Array.new
                 each_port do |port|
@@ -840,7 +840,7 @@ module Orocos
                     end
                 end
                 @markers.sort! do |a,b|
-                    a.time <=> b.time 
+                    a.time <=> b.time
                 end
                 @markers
             end
@@ -935,10 +935,11 @@ module Orocos
                 end
 
                 begin
-                    task.add_stream(path,stream)
+                    task.add_stream(path, stream)
                     Log.info "    loading stream #{stream.name} (#{stream.type_name})"
                 rescue InitializePortError => error
-                    Log.warn "    loading stream #{stream.name} (#{stream.type_name}) failed. Call the port for an error message."
+                    Log.warn "    loading stream #{stream.name} (#{stream.type_name}) failed: #{error}. "\
+                        "Call the port for an error message."
                 end
                 task
             end
@@ -962,7 +963,7 @@ module Orocos
 	    #Logs that share the same basename, will be joined such that the streams within
 	    #the logs appear continous.
 	    #
-	    #a collection of files/directories can be given as arguments, followed by a 
+	    #a collection of files/directories can be given as arguments, followed by a
 	    #typelib registry and/or an options hash. The options can be given as:
 	    #
 	    # :registry - same as providing the registry directly
@@ -983,7 +984,7 @@ module Orocos
 		    logreg = opts[:registry] if opts[:registry]
 		end
 
-                paths.each do |path| 
+                paths.each do |path|
                     #check if path is a directory
                     path = File.expand_path(path)
                     if File.directory?(path)
@@ -1006,7 +1007,7 @@ module Orocos
                         end
 
                         by_basename.each_value do |files|
-			    if opts[:multifile] == :last 
+			    if opts[:multifile] == :last
 				files = files[-1,1]
 			    end
 			    args = files.compact.map do |path|
@@ -1039,21 +1040,21 @@ module Orocos
                 end
             end
 
-            # exports all aligned stream to a new log file 
+            # exports all aligned stream to a new log file
             # if no start and end index is given all data are exported
-            # otherwise the data are truncated according to the given global indexes 
-            # the block is called for each sample to update a progress bar 
+            # otherwise the data are truncated according to the given global indexes
+            # the block is called for each sample to update a progress bar
             def export_to_file(file,start_index=0,end_index=0,&block)
                 @stream.export_to_file(file,start_index,end_index,&block)
             end
 
             #This is used to support the syntax.
-            #log_replay.task 
+            #log_replay.task
             def method_missing(m,*args,&block) #:nodoc:
                 task_name = full_name(m)
                 return @tasks[task_name] if task_name
 
-                begin  
+                begin
                     super(m.to_sym,*args,&block)
                 rescue  NoMethodError => e
                     Log.error "#{m} is not a Log::Task of the current log file(s)"
@@ -1061,7 +1062,7 @@ module Orocos
                     @tasks.each_value do |task|
                         Log.error "  #{task.name}"
                     end
-                    raise e 
+                    raise e
                 end
             end
         end

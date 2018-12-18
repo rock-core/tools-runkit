@@ -1,19 +1,19 @@
 require 'orocos/test'
 require 'orocos/async'
 
-describe Orocos::Async::PortProxy do 
-    describe "when not connected" do 
-        it "should be an input and output port at the same time because the exact type is unknown" do 
+describe Orocos::Async::PortProxy do
+    describe "when not connected" do
+        it "should be an input and output port at the same time because the exact type is unknown" do
             t1 = Orocos::Async.proxy("process_Test")
             p = t1.port("test")
             assert p.input?
             assert p.output?
         end
 
-        it "should raise Orocos::NotFound if some one is accessing the type name of a port which is not yet known" do 
+        it "should raise Orocos::NotFound if some one is accessing the type name of a port which is not yet known" do
             t1 = Orocos::Async.proxy("simple_source_source")
             p = t1.port("cycle")
-            assert_raises Orocos::NotFound do 
+            assert_raises Orocos::NotFound do
                 p.type_name
             end
         end
@@ -28,7 +28,7 @@ describe Orocos::Async::PortProxy do
         end
     end
 
-    describe "when connected" do 
+    describe "when connected" do
         it "should raise RuntimeError if an operation is performed which is not available for this port type" do
             Orocos.run('simple_sink') do
                 t1 = Orocos::Async.proxy("simple_sink_sink")
@@ -43,9 +43,9 @@ describe Orocos::Async::PortProxy do
             end
         end
 
-        it "should return the type name of the port if known or connected" do 
+        it "should return the type name of the port if known or connected" do
             t1 = Orocos::Async.proxy("simple_source_source",:retry_period => 0.2,:period => 0.2)
-            p = t1.port("cycle2",:type => Fixnum)
+            p = t1.port("cycle2",:type => Integer)
             assert_equal "Fixnum",p.type_name
 
             p2 = t1.port("cycle")
@@ -66,8 +66,8 @@ describe Orocos::Async::PortProxy do
 
     end
 
-    describe 'on_reachable' do 
-        it 'must be called once when the port is reachable' do 
+    describe 'on_reachable' do
+        it 'must be called once when the port is reachable' do
             p = Orocos::Async.proxy("simple_sink_sink").port("cycle")
             counter = 0
             p.on_reachable do
@@ -83,15 +83,15 @@ describe Orocos::Async::PortProxy do
 
 end
 
-describe Orocos::Async::SubPortProxy do 
+describe Orocos::Async::SubPortProxy do
     include Orocos::Spec
 
     describe "when not connected" do
-        it "should raise if the type is accessed but not given" do 
+        it "should raise if the type is accessed but not given" do
             t1 = Orocos::Async.proxy("simple_source_source")
             p = t1.port("cycle")
             sub_port = p.sub_port(:value)
-            assert_raises Orocos::NotFound do 
+            assert_raises Orocos::NotFound do
                 sub_port.type
             end
         end
@@ -137,14 +137,14 @@ describe Orocos::Async::SubPortProxy do
     end
 end
 
-describe Orocos::Async::PropertyProxy do 
+describe Orocos::Async::PropertyProxy do
     include Orocos::Spec
 
-    describe "on_reachable" do 
-        it "must be called once when a prop gets reachable" do 
+    describe "on_reachable" do
+        it "must be called once when a prop gets reachable" do
             prop = Orocos::Async.proxy("process_Test",:period => 0.09).property("prop1")
             counter = 0
-            prop.on_reachable do 
+            prop.on_reachable do
                 counter +=1
             end
             Orocos.run('process') do
@@ -155,8 +155,8 @@ describe Orocos::Async::PropertyProxy do
         end
     end
 
-    describe "on_unreachable" do 
-        it "must be called once when a prop is or gets unreachable" do 
+    describe "on_unreachable" do
+        it "must be called once when a prop is or gets unreachable" do
             prop = Orocos::Async.proxy("process_Test",:period => 0.09).property("prop1")
             counter = 0
             prop.on_unreachable do
@@ -174,25 +174,25 @@ describe Orocos::Async::PropertyProxy do
     end
 end
 
-describe Orocos::Async::AttributeProxy do 
+describe Orocos::Async::AttributeProxy do
     include Orocos::Spec
 
-    describe "when not connected" do 
-        it "should raise Orocos::NotFound if someone is accessing the type name of the attribute which is not yet known" do 
+    describe "when not connected" do
+        it "should raise Orocos::NotFound if someone is accessing the type name of the attribute which is not yet known" do
             t1 = Orocos::Async.proxy("process_Test")
             p = t1.attribute("att1")
-            assert_raises Orocos::NotFound do 
+            assert_raises Orocos::NotFound do
                 p.type_name
             end
         end
-        it "should call unreachable" do 
+        it "should call unreachable" do
             t1 = Orocos::Async.proxy("process_Test")
             counter = 0
             counter2 = 0
-            t1.on_unreachable do 
+            t1.on_unreachable do
                 counter += 1
             end
-            t1.on_reachable do 
+            t1.on_reachable do
                 counter2 += 1
             end
             Orocos::Async.steps
@@ -201,8 +201,8 @@ describe Orocos::Async::AttributeProxy do
         end
     end
 
-    describe "when connected" do 
-        it "should return the type name of the attribute if known or connected" do 
+    describe "when connected" do
+        it "should return the type name of the attribute if known or connected" do
             t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.08,:period => 0.1)
             p = t1.attribute("att2",:type => Orocos.registry.get("int32_t"))
             assert_equal "/int32_t",p.type_name
@@ -269,28 +269,28 @@ describe Orocos::Async::AttributeProxy do
     end
 end
 
-describe Orocos::Async::PropertyProxy do 
+describe Orocos::Async::PropertyProxy do
     include Orocos::Spec
 
-    describe "when not connected" do 
-        it "should raise Orocos::NotFound if someone is accessing the type name of the property which is not yet known" do 
+    describe "when not connected" do
+        it "should raise Orocos::NotFound if someone is accessing the type name of the property which is not yet known" do
             t1 = Orocos::Async.proxy("process_Test")
             p = t1.property("prop1")
-            assert_raises Orocos::NotFound do 
+            assert_raises Orocos::NotFound do
                 p.type_name
             end
         end
     end
 
-    describe "when connected" do 
-        it "should return the type name of the property if known or connected" do 
+    describe "when connected" do
+        it "should return the type name of the property if known or connected" do
             t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.08,:period => 0.1)
             p = t1.property("prop2",:type => Orocos.registry.get("int32_t"))
             assert_equal "/int32_t",p.type_name
 
             p2 = t1.property("prop3")
             Orocos.run('process') do
-                wait_for do 
+                wait_for do
                     p2.reachable?
                 end
                 assert_equal "/std/string",p2.type_name
@@ -347,7 +347,7 @@ end
 describe Orocos::Async::TaskContextProxy do
     include Orocos::Spec
 
-    describe "initialize" do 
+    describe "initialize" do
         it "should raise Orocos::NotFound if remote task is unreachable and :raise is set to true" do
             t1 = Orocos::Async::TaskContextProxy.new("bla0",:raise => true)
             assert_raises(Orocos::NotFound) do
@@ -372,7 +372,7 @@ describe Orocos::Async::TaskContextProxy do
             end
         end
 
-        it "should raise Orocos::NotFound if task is not reachable after n seconds" do 
+        it "should raise Orocos::NotFound if task is not reachable after n seconds" do
             t1 = Orocos::Async::TaskContextProxy.new("bla3")
             assert_raises(Orocos::NotFound) do
                 t1.wait(0.1)
@@ -384,7 +384,7 @@ describe Orocos::Async::TaskContextProxy do
             t1.must_be_instance_of Orocos::Async::TaskContextProxy
         end
 
-        it "should return a port proxy" do 
+        it "should return a port proxy" do
             t1 = Orocos::Async.proxy("process_Test",:retry_period => 0.1,:period => 0.1)
             p = t1.port("test")
             p.must_be_instance_of Orocos::Async::PortProxy
@@ -411,7 +411,7 @@ describe Orocos::Async::TaskContextProxy do
                 Orocos::Async.steps # queue reconnect
                 assert t1.reachable?
                 t1.instance_variable_get(:@delegator_obj).must_be_instance_of Orocos::Async::CORBA::TaskContext
-                assert_equal 1, disconnects 
+                assert_equal 1, disconnects
             end
             assert !t1.reachable?
             Orocos::Async.steps # queue reconnect
@@ -428,10 +428,10 @@ describe Orocos::Async::TaskContextProxy do
             assert_equal 3, disconnects
         end
 
-        it "should call on_port_reachable if task gets reachable" do 
+        it "should call on_port_reachable if task gets reachable" do
             port = []
             t1 = Orocos::Async.proxy("simple_source_source")
-            t1.on_port_reachable do |port_name| 
+            t1.on_port_reachable do |port_name|
                 port << port_name
             end
             Orocos.run('simple_source') do
@@ -440,7 +440,7 @@ describe Orocos::Async::TaskContextProxy do
         end
 
 
-        it "should block until the task is reachable if wait option is given" do 
+        it "should block until the task is reachable if wait option is given" do
             Orocos.run('simple_source') do
                 t1 = Orocos::Async.proxy("simple_source_source",:wait => true )
                 assert t1.reachable?

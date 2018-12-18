@@ -244,7 +244,7 @@ module Orocos::Async
             if port.respond_to?(:reader)
                 @raw_last_sample = port.raw_last_sample
             elsif number_of_listeners(:data) != 0
-                raise RuntimeError, "Port #{name} is an input port but callbacks for on_data are registered" 
+                raise RuntimeError, "Port #{name} is an input port but callbacks for on_data are registered"
             end
         rescue Orocos::NotFound
             unreachable!
@@ -355,7 +355,7 @@ module Orocos::Async
 
         def on_data(policy = Hash.new)
             on_raw_data(policy) do |sample|
-                sample = Typelib.to_ruby(sample) if sample 
+                sample = Typelib.to_ruby(sample) if sample
                 yield(sample)
             end
         end
@@ -716,7 +716,7 @@ module Orocos::Async
 
         # call-seq:
         #  task.each_property { |a| ... } => task
-        # 
+        #
         # Enumerates the properties that are available on
         # this task, as instances of Orocos::Attribute
         def each_property(&block)
@@ -731,7 +731,7 @@ module Orocos::Async
 
         # call-seq:
         #  task.each_attribute { |a| ... } => task
-        # 
+        #
         # Enumerates the attributes that are available on
         # this task, as instances of Orocos::Attribute
         def each_attribute(&block)
@@ -747,7 +747,7 @@ module Orocos::Async
 
         # call-seq:
         #  task.each_port { |p| ... } => task
-        # 
+        #
         # Enumerates the ports that are available on this task, as instances of
         # either Orocos::InputPort or Orocos::OutputPort
         def each_port(&block)
@@ -761,7 +761,7 @@ module Orocos::Async
             self
         end
 
-        # must be thread safe 
+        # must be thread safe
         def reachable!(task_context,options = Hash.new)
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
             raise ArgumentError, "task_context must be an async instance but is #{task_context.class}" if !task_context.respond_to?(:event_names)
@@ -892,7 +892,7 @@ module Orocos::Async
         end
 
         def disconnect_attributes
-            attributes = @mutex.synchronize do 
+            attributes = @mutex.synchronize do
                 @attributes.values
             end
             attributes.each(&:unreachable!)
