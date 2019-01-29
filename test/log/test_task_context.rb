@@ -30,6 +30,12 @@ module Orocos
                             and_return(ret = flexmock)
                     assert_equal ret, @task_context.add_stream(@stream)
                 end
+                it "uses the type argument instead of rock_stream_type if provided" do
+                    @stream.metadata['rock_stream_type'] = 'property'
+                    flexmock(@task_context).should_receive(:add_port).with(@stream).once.
+                            and_return(ret = flexmock)
+                    assert_equal ret, @task_context.add_stream(@stream, type: 'port')
+                end
                 it "raises ArgumentError if the rock_stream_type metadata is neither port nor property" do
                     @stream.metadata['rock_stream_type'] = 'something'
                     e = assert_raises(ArgumentError) do
