@@ -757,9 +757,10 @@ module Orocos
             #   @param [Pocolog::Datastream] stream the property/port type is autodetected
             #     by the rock_stream_type metadata ('property' or 'port')
             #   @return [Log::Property,Log::TaskContext]
-            def add_stream(stream, _backward = nil)
+            def add_stream(stream, _backward = nil, type: nil)
                 stream = _backward if _backward
-                case stream_type = stream.metadata["rock_stream_type"]
+                type ||= stream.metadata["rock_stream_type"]
+                case type
                 when "property"
                     add_property(stream)
                 when "port"
@@ -770,7 +771,7 @@ module Orocos
                         "back a port or a property"
                 else
                     raise ArgumentError, "the rock_stream_type metadata of "\
-                        "'#{stream.name}' is '#{stream_type}', expected either "\
+                        "'#{stream.name}' is '#{type}', expected either "\
                         "'port' or 'property'"
                 end
             end

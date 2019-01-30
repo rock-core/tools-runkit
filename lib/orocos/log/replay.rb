@@ -901,7 +901,7 @@ module Orocos
                 @replayed_objects[index].update(sample_info)
             end
 
-            def load_task_from_stream(stream,path)
+            def load_task_from_stream(stream, path)
                 #get the name of the task which was logged into the stream
                 task_name = if stream.metadata.has_key? "rock_task_name"
                                 begin
@@ -934,8 +934,17 @@ module Orocos
                     task = @tasks[task_name]= TaskContext.new(self,task_name, path,@log_config_file)
                 end
 
+                # Guess the stream type if it's not stored in the file
+                unless (stream_type = stream.metadata['rock_stream_type'])
+                    if File.basename(path).start_with?(@log_config_file)
+                        stream_type = 'property'
+                    else
+                        stream_type = 'port'
+                    end
+                end
+
                 begin
-                    task.add_stream(path, stream)
+                    task.add_stream(stream, type: stream_type)
                     Log.info "    loading stream #{stream.name} (#{stream.type_name})"
                 rescue InitializePortError => error
                     Log.warn "    loading stream #{stream.name} (#{stream.type_name}) failed: #{error}. "\
