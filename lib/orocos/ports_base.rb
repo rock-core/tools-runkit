@@ -78,7 +78,8 @@ module Orocos
                 'rock_task_name' => task.name,
                 'rock_task_object_name' => name,
                 'rock_stream_type' => 'port',
-                'rock_orocos_type_name' => orocos_type_name]
+                'rock_orocos_type_name' => orocos_type_name,
+                'rock_cxx_type_name' => orocos_type_name]
 
 	    if Orocos.logger_guess_timestamp_field?
 		# see if we can find a time field in the type, which

@@ -14,7 +14,7 @@ module Orocos
                             File.join(dir, 'somefile.0.log'), registry)
                         @stream = @logfile.create_stream 'test.pattern', '/double',
                             'rock_task_object_name' => 'test',
-                            'rock_cxx_type_name' => '/cxx/type/name'
+                            'rock_orocos_type_name' => '/cxx/type/name'
                     end
 
                     it "uses the rock_task_object_name metadata by default" do
@@ -33,7 +33,7 @@ module Orocos
                     it "finally falls back to the whole stream name if the name does not "\
                         "match the PORT.NAME pattern" do
                         stream = @logfile.create_stream 'test_pattern', '/double',
-                            'rock_cxx_type_name' => '/cxx/type/name'
+                            'rock_orocos_type_name' => '/cxx/type/name'
 
                         flexmock(Log).should_receive(:warn).
                             with("stream 'test_pattern' has no rock_task_object_name "\
@@ -55,26 +55,22 @@ module Orocos
                             File.join(dir, 'somefile.0.log'), registry)
                         @stream = logfile.create_stream 'test.pattern', '/double',
                             'rock_task_object_name' => 'test',
-                            'rock_orocos_type_name' => '/orocos/type/name',
-                            'rock_cxx_type_name' => '/cxx/type/name'
+                            'rock_cxx_type_name' => '/orocos/type/name',
+                            'rock_orocos_type_name' => '/cxx/type/name'
                     end
 
-                    it "uses first the rock_cxx_type_name metadata" do
+                    it "uses first the rock_orocos_type_name metadata" do
                         object = InterfaceObject.new(@stream)
                         assert_equal '/cxx/type/name', object.orocos_type_name
                     end
-                    it "first falls back to rock_orocos_type_name metadata" do
-                        @stream.metadata.delete 'rock_cxx_type_name'
-                        flexmock(Log).should_receive(:warn).
-                            with("stream 'test.pattern' has no rock_cxx_type_name "\
-                                 "metadata, using the rock_orocos_type_name metadata "\
-                                 "instead").once
+                    it "first falls back to rock_cxx_type_name metadata" do
+                        @stream.metadata.delete 'rock_orocos_type_name'
                         object = InterfaceObject.new(@stream)
                         assert_equal '/orocos/type/name', object.orocos_type_name
                     end
                     it "uses the type name last" do
-                        @stream.metadata.delete 'rock_orocos_type_name'
                         @stream.metadata.delete 'rock_cxx_type_name'
+                        @stream.metadata.delete 'rock_orocos_type_name'
                         flexmock(Log).should_receive(:warn).
                             with("stream 'test.pattern' has neither the "\
                                  "rock_cxx_type_name nor the rock_orocos_type_name "\
@@ -84,8 +80,8 @@ module Orocos
                         assert_equal '/double', object.orocos_type_name
                     end
                     it "filters out the _m type pattern when using the type name" do
-                        @stream.metadata.delete 'rock_orocos_type_name'
                         @stream.metadata.delete 'rock_cxx_type_name'
+                        @stream.metadata.delete 'rock_orocos_type_name'
                         flexmock(@stream.type).should_receive(name: '/double_m')
                         flexmock(Log).should_receive(:warn).
                             with("stream 'test.pattern' has neither the "\

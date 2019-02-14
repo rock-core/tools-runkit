@@ -69,13 +69,9 @@ module Orocos
 
             def guess_orocos_type_name(stream)
                 metadata = stream.metadata || Hash.new
-                if (name = metadata['rock_cxx_type_name'])
-                    return name
-                end
-
                 if (name = metadata['rock_orocos_type_name'])
-                    Log.warn "stream '#{stream.name}' has no rock_cxx_type_name metadata, "\
-                        "using the rock_orocos_type_name metadata instead"
+                    return name
+                elsif (name = metadata['rock_cxx_type_name'])
                     return name
                 end
 
