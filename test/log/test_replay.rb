@@ -45,7 +45,29 @@ module Orocos
                     @log_replay.load_task_from_stream(@stream, '/some/path/to/port.0.log')
                 end
             end
+
+            describe "#align" do
+                before do
+                    dir = make_tmpdir
+                    registry = Typelib::CXXRegistry.new
+                    logfile = Pocolog::Logfiles.create(
+                            File.join(dir, 'somefile'), registry)
+                    logfile.create_stream 'test_stream', '/double',
+                        'rock_task_name' => 'task_name',
+                        'rock_task_object_name' => 'port_name',
+                        'rock_cxx_type_name' => '/double',
+                        'rock_stream_type' => 'port'
+                    logfile.close
+                    logfile = Pocolog::Logfiles.open(File.join(dir, 'somefile.0.log'))
+                    @stream = logfile.streams.first
+                end
+
+                it "aligns empty streams" do
+                    @log_replay.load_task_from_stream(@stream, "log_file")
+                    @log_replay.align
+                    assert @log_replay.used_streams.include?(@stream)
+                end
+            end
         end
     end
 end
-

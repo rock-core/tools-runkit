@@ -422,10 +422,7 @@ module Orocos
 
                 #get all streams which shall be replayed
                 each_port do |port|
-                    if port.used?
-                        next if port.stream.empty?
-                        @replayed_ports << port
-                    end
+                    @replayed_ports << port if port.used?
                 end
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
