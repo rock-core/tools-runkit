@@ -9,6 +9,7 @@
 #include <rtt/typekit/RealTimeTypekit.hpp>
 #include <rtt/base/PortInterface.hpp>
 #include <rtt/transports/corba/TransportPlugin.hpp>
+#include <rtt/transports/corba/CorbaConnPolicy.hpp>
 #include <rtt/plugin/PluginLoader.hpp>
 
 #include <rtt/base/OutputPortInterface.hpp>
@@ -395,7 +396,7 @@ static VALUE port_connected_p(VALUE self)
 
 static RTT::corba::CConnPolicy policyFromHash(VALUE options)
 {
-    RTT::corba::CConnPolicy result;
+    RTT::corba::CConnPolicy result = toCORBA(RTT::ConnPolicy());
     VALUE conn_type_value = rb_hash_aref(options, ID2SYM(rb_intern("type")));
     VALUE conn_type = SYM2ID(conn_type_value);
     if (conn_type == rb_intern("data"))
