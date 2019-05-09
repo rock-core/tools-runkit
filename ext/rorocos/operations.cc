@@ -164,7 +164,7 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
 
     VALUE result = rb_ary_new();
 
-    #if RTT_VERSION_GTE(2,9,0)
+    #if RTT_VERSION_GTE(2,8,99)
         RTT::corba::CArgumentDescriptions_var args = corba_blocking_fct_call_with_result(boost::bind(&_objref_COperationInterface::getArguments,
                 (_objref_COperationInterface*)task.main_service,StringValuePtr(opname)));
     #else

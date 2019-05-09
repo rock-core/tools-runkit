@@ -224,7 +224,7 @@ static VALUE task_context_attribute_names(VALUE self)
         corba_blocking_fct_call_with_result(bind(&_objref_CConfigurationInterface::getAttributeList,(_objref_CConfigurationInterface*)context.main_service));
     for (unsigned int i = 0; i != names->length(); ++i)
     {
-        #if RTT_VERSION_GTE(2,9,0)
+        #if RTT_VERSION_GTE(2,8,99)
             CORBA::String_var name = names[i].name;
         #else
             CORBA::String_var name = names[i];
@@ -239,7 +239,7 @@ static VALUE task_context_operation_names(VALUE self)
     RTaskContext& context = get_wrapped<RTaskContext>(self);
 
     VALUE result = rb_ary_new();
-    #if RTT_VERSION_GTE(2,9,0)
+    #if RTT_VERSION_GTE(2,8,99)
         RTT::corba::COperationInterface::COperationDescriptions_var names =
                 corba_blocking_fct_call_with_result(bind(&_objref_COperationInterface::getOperations,(_objref_COperationInterface*)context.main_service));
     #else
@@ -249,7 +249,7 @@ static VALUE task_context_operation_names(VALUE self)
 
     for (unsigned int i = 0; i != names->length(); ++i)
     {
-        #if RTT_VERSION_GTE(2,9,0)
+        #if RTT_VERSION_GTE(2,8,99)
             CORBA::String_var name = names[i].name;
         #else
             CORBA::String_var name = names[i];
