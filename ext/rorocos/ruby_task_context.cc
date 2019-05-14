@@ -178,7 +178,12 @@ static VALUE local_task_context_new(VALUE klass, VALUE _name)
 {
     std::string name = StringValuePtr(_name);
     LocalTaskContext* ruby_task = new LocalTaskContext(name);
+#if RTT_VERSION_GTE(2,8,99)
+    ruby_task->addConstant<int>("CorbaDispatcherScheduler", ORO_SCHED_OTHER);
+    ruby_task->addConstant<int>("CorbaDispatcherPriority", RTT::os::LowestPriority);
+#else
     RTT::corba::CorbaDispatcher::Instance(ruby_task->ports(), ORO_SCHED_OTHER, RTT::os::LowestPriority);
+#endif
 
     RTT::corba::TaskContextServer::Create(ruby_task);
 
