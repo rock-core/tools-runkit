@@ -7,20 +7,6 @@ module Orocos
         # The policy of the connection
         attr_accessor :policy
 
-        # Helper method for #read and #read_new
-        #
-        # This is overloaded in OutputReader to raise CORBA::ComError if the
-        # process supporting the remote task is known to be dead
-        def read_helper(sample, copy_old_data)
-	    if process = port.task.process
-		if !process.alive?
-		    disconnect_all
-		    raise CORBA::ComError, "remote end is dead"
-		end
-	    end
-            super
-        end
-
         # Reads a sample on the associated output port. Returns a value as soon
         # as a sample has ever been written to the port since the data reader
         # has been created
