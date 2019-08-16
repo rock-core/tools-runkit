@@ -645,7 +645,16 @@ module Orocos
             #(see NameServiceBase#validate)
             def validate
                 CORBA.refine_exceptions("corba naming service #{ip}") do
-                    do_validate
+                    begin
+                        do_validate
+                    rescue Orocos::ComError => e
+                        CORBA.warn "Name service is unreachable: #{e.message}\n"
+                        CORBA.warn "You can try to fix this manually by restarting the nameserver:\n"
+                        CORBA.warn "    sudo /etc/init.d/omniorb4-nameserver stop\n"
+                        CORBA.warn "    sudo rm -f /var/lib/omniorb/*\n"
+                        CORBA.warn "    sudo /etc/init.d/omniorb4-nameserver start\n"
+                        raise
+                    end
                 end
             end
 
