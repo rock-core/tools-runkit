@@ -72,9 +72,10 @@ CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src)
     else
     {
         orogen_transports::TypelibMarshallerBase::Handle* handle = typelib_transport->createHandle();
-        try { typelib_transport->setTypelibSample(handle, src); }
-        catch(std::exception& e)
-        {
+        try {
+            typelib_transport->setTypelibSample(handle, src);
+        }
+        catch(std::exception& e) {
             rb_raise(eCORBA, "failed to marshal %s: %s", type_name.c_str(), e.what());
         }
 
