@@ -366,6 +366,13 @@ static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_
             typelib_transport->createHandle();
         // Set the typelib sample using the value passed from ruby to avoid
         // unnecessary convertions. Don't touch the orocos sample though.
+        //
+        // Since no typelib-to-orocos conversion happens, the conversion method
+        // is not called and we don't have to catch a possible conversion error
+        // exception
+        //
+        // If the remote side sends us invalid data, it will be rejected at the
+        // CORBA layer
         typelib_transport->setTypelibSample(handle, value, false);
         RTT::base::DataSourceBase::shared_ptr ds =
             typelib_transport->getDataSource(handle);
@@ -374,7 +381,7 @@ static VALUE local_input_port_read(VALUE _local_port, VALUE type_name, VALUE rb_
             did_read = blocking_fct_call_with_result(boost::bind(&RTT::base::InputPortInterface::read,&local_port,ds,RTEST(copy_old_data)));
         else
             did_read = local_port.read(ds, RTEST(copy_old_data));
-       
+
         if (did_read == RTT::NewData || (did_read == RTT::OldData && RTEST(copy_old_data)))
         {
             typelib_transport->refreshTypelibSample(handle);
@@ -398,13 +405,14 @@ static VALUE local_input_port_clear(VALUE _local_port)
     return Qnil;
 }
 
-static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE rb_typelib_value)
+static VALUE local_output_port_write(VALUE _local_port, VALUE rb_type_name, VALUE rb_typelib_value)
 {
     RTT::base::OutputPortInterface& local_port = get_wrapped<RTT::base::OutputPortInterface>(_local_port);
     Typelib::Value value = typelib_get(rb_typelib_value);
+    std::string type_name(StringValuePtr(rb_type_name));
 
     orogen_transports::TypelibMarshallerBase* transport = 0;
-    RTT::types::TypeInfo* ti = get_type_info(StringValuePtr(type_name));
+    RTT::types::TypeInfo* ti = get_type_info(type_name);
     if (ti && ti->hasProtocol(orogen_transports::TYPELIB_MARSHALLER_ID))
     {
         transport =
@@ -422,7 +430,12 @@ static VALUE local_output_port_write(VALUE _local_port, VALUE type_name, VALUE r
         orogen_transports::TypelibMarshallerBase::Handle* handle =
             transport->createHandle();
 
-        transport->setTypelibSample(handle, static_cast<uint8_t*>(value.getData()));
+        try {
+            transport->setTypelibSample(handle, static_cast<uint8_t*>(value.getData()));
+        }
+        catch(std::exception& e) {
+            rb_raise(eCORBA, "failed to marshal %s: %s", type_name.c_str(), e.what());
+        }
         RTT::base::DataSourceBase::shared_ptr ds =
             transport->getDataSource(handle);
         local_port.write(ds);

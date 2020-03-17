@@ -1,6 +1,10 @@
 require 'orocos/test'
 
 describe Orocos::RubyTasks::TaskContext do
+    before do
+        Orocos.load_typekit 'base'
+    end
+
     it "should be registered on the name server" do
         task = new_ruby_task_context("task")
         assert Orocos.name_service.get("task")
@@ -44,15 +48,15 @@ describe Orocos::RubyTasks::TaskContext do
         assert_equal 10, in_p.read
     end
 
-    describe "#create_property" do
-        it "can create a property" do
+    describe "properties" do
+        it "creates them" do
             task = new_ruby_task_context("task")
             property = task.create_property('prop', 'int')
             assert_kind_of Orocos::Property, property
             assert_same property, task.property('prop')
             assert task.has_property?('prop')
         end
-        it "initializes the property with a sample" do
+        it "initializes them with a sample by default" do
             Orocos.load_typekit 'echo'
             opaque_t       = Orocos.registry.get '/OpaquePoint'
             intermediate_t = Orocos.registry.get '/echo/Point'
@@ -64,18 +68,44 @@ describe Orocos::RubyTasks::TaskContext do
             task.create_property 'p', '/OpaquePoint'
             assert_equal initial_sample, task.p
         end
+
+        it "reads and writes them" do
+            task = new_ruby_task_context("task")
+            property = task.create_property('prop', 'int')
+            property.write(10)
+            assert_equal 10, property.read
+            property.write(20)
+            assert_equal 20, property.read
+        end
+
+        it "raises a Ruby exception on initialization if the opaque conversion fails" do
+            task = new_ruby_task_context("task")
+            # create_property initializes the property, which fails in this case
+            e = assert_raises(Orocos::CORBAError) do
+                task.create_property 'out', '/base/geometry/Spline3'
+            end
+            assert_match(
+                /failed to marshal.*dimension must be strictly/,
+                e.message
+            )
+        end
+
+        it "raises a Ruby exception on write the opaque conversion fails" do
+            task = new_ruby_task_context("task")
+            prop = task.create_property 'out', '/base/geometry/Spline3', init: false
+            e = assert_raises(Orocos::CORBAError) do
+                sample = Orocos.registry.get('/wrappers/geometry/Spline').new
+                sample.dimension = 0
+                prop.write(sample)
+            end
+            assert_match(
+                /failed to marshal.*dimension must be strictly/,
+                e.message
+            )
+        end
     end
 
-    it "can read and write properties" do
-        task = new_ruby_task_context("task")
-        property = task.create_property('prop', 'int')
-        property.write(10)
-        assert_equal 10, property.read
-        property.write(20)
-        assert_equal 20, property.read
-    end
-
-    describe "#create_attribute" do
+    describe "attributes" do
         it "can create a attribute" do
             task = new_ruby_task_context("task")
             attribute = task.create_attribute('prop', 'int')
@@ -95,15 +125,41 @@ describe Orocos::RubyTasks::TaskContext do
             task.create_attribute 'p', '/OpaquePoint'
             assert_equal initial_sample, task.p
         end
-    end
 
-    it "can read and write attributes" do
-        task = new_ruby_task_context("task")
-        attribute = task.create_attribute('prop', 'int')
-        attribute.write(10)
-        assert_equal 10, attribute.read
-        attribute.write(20)
-        assert_equal 20, attribute.read
+        it "reads and writes attributes" do
+            task = new_ruby_task_context("task")
+            attribute = task.create_attribute('prop', 'int')
+            attribute.write(10)
+            assert_equal 10, attribute.read
+            attribute.write(20)
+            assert_equal 20, attribute.read
+        end
+
+        it "raises a Ruby exception on initialization if the opaque conversion fails" do
+            task = new_ruby_task_context("task")
+            # create_attribute initializes the attribute, which fails in this case
+            e = assert_raises(Orocos::CORBAError) do
+                task.create_attribute 'out', '/base/geometry/Spline3'
+            end
+            assert_match(
+                /failed to marshal.*dimension must be strictly/,
+                e.message
+            )
+        end
+
+        it "raises a Ruby exception on write the opaque conversion fails" do
+            task = new_ruby_task_context("task")
+            prop = task.create_attribute 'out', '/base/geometry/Spline3', init: false
+            e = assert_raises(Orocos::CORBAError) do
+                sample = Orocos.registry.get('/wrappers/geometry/Spline').new
+                sample.dimension = 0
+                prop.write(sample)
+            end
+            assert_match(
+                /failed to marshal.*dimension must be strictly/,
+                e.message
+            )
+        end
     end
 
     it "allows to get access to the model name if one is given" do
@@ -131,5 +187,20 @@ describe Orocos::RubyTasks::TaskContext do
         assert_equal :STOPPED, task.rtt_state
     end
 
+    describe 'local output ports' do
+        it 'gets an exception if the typelib value cannot be converted to the intermediate opaque type' do
+            task = new_ruby_task_context 'task'
+            task.create_output_port 'out', '/base/geometry/Spline3'
+            sample = Orocos.registry.get('/wrappers/geometry/Spline').new
+            sample.dimension = 0
+            e = assert_raises(Orocos::CORBAError) do
+                task.out.write sample
+            end
+            assert_match(
+                /failed to marshal.*dimension must be strictly/,
+                e.message
+            )
+        end
+    end
 end
 

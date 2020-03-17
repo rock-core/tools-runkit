@@ -163,9 +163,7 @@ module Orocos
         #   is mostly to avoid crashes / misbehaviours in case smart pointers are
         #   used
         # @return [Property] the property object
-        def create_property(name, type, options = Hash.new)
-            options = Kernel.validate_options options, :init => true
-
+        def create_property(name, type, init: true)
             Orocos.load_typekit_for(type, false)
             orocos_type_name = Orocos.find_orocos_type_name_by_type(type)
             Orocos.load_typekit_for(orocos_type_name, true)
@@ -173,7 +171,7 @@ module Orocos
             local_property = @local_task.do_create_property(Property, name, orocos_type_name)
             @local_properties[local_property.name] = local_property
             @properties[local_property.name] = local_property
-            if options[:init]
+            if init
                 local_property.write(local_property.new_sample)
             end
             local_property
