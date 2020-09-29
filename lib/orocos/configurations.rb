@@ -918,7 +918,7 @@ module Orocos
         # @overload save(section_name, file, replace: false, task_model: self.model)
         #   @param [String] section_name the section name
         #   @param [String] file either a file, or a directory. In the latter
-        #     case, the file will be #{conf_dir}/#{model.name}.yml
+        #     case, the file will be #\\{conf_dir\}/#\\{model\.name\}.yml
         #   @return [Hash] the configuration section that just got saved
         #
         # @overload save(task, file, section_name)
