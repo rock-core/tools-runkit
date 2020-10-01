@@ -30,35 +30,31 @@ module Orocos
         #
         # @param [String] name the task name
         # @return [TaskContext]
-        def self.new(name, options = Hash.new, &block)
-            options, _ = Kernel.filter_options options,
-                model: nil,
-                project: OroGen::Spec::Project.new(Orocos.default_loader)
-
-            project = options.delete(:project)
-            if block && !options[:model]
+        def self.new(
+            name, project: OroGen::Spec::Project.new(Orocos.default_loader),
+            model: nil, **options, &block
+        )
+            if block && !model
                 model = OroGen::Spec::TaskContext.new(project, name)
                 model.instance_eval(&block)
-                options[:model] = model
             end
 
             local_task = LocalTaskContext.new(name)
-            if options[:model] && options[:model].name
-                local_task.model_name = options[:model].name
-            end
+            local_task.model_name = model.name if model&.name
 
-            remote_task = super(local_task.ior, name: name, **options)
+            remote_task = super(local_task.ior, name: name, model: model, **options)
             local_task.instance_variable_set :@remote_task, remote_task
             remote_task.instance_variable_set :@local_task, local_task
 
-            if options[:model]
-                remote_task.setup_from_orogen_model(options[:model])
+            if model
+                remote_task.setup_from_orogen_model(model)
             else
                 remote_task.model.extended_state_support
             end
             remote_task
-        rescue ::Exception
-            local_task.dispose if local_task
+
+        rescue StandardError
+            local_task&.dispose
             raise
         end
 
