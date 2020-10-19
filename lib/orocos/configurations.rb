@@ -171,7 +171,16 @@ module Orocos
             end
             sections << document_lines[options[-1][1] + 1, document_lines.size - options[-1][1] - 1]
 
-            options.map(&:first).zip(sections)
+            sections = options.map(&:first).zip(sections)
+            found_sections = []
+            sections.each do |conf_options, doc|
+                name = conf_options[:name]
+                if found_sections.include?(name)
+                    raise ArgumentError, "#{name} defined twice"
+                end
+                found_sections << name
+            end
+            sections
         end
 
         # @api private

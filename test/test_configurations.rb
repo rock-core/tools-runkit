@@ -210,6 +210,22 @@ describe Orocos::TaskConfigurations do
         end
     end
 
+    it "raises if the same section is defined twice in the same file" do
+        assert_raises(ArgumentError) do
+            conf.load_from_yaml(
+                File.join(data_dir, "configurations", "duplicate_sections.yml")
+            )
+        end
+    end
+
+    it "raises even if the duplicate section is the implicit default section" do
+        assert_raises(ArgumentError) do
+            conf.load_from_yaml(
+                File.join(data_dir, "configurations", "duplicate_default.yml")
+            )
+        end
+    end
+
     it "should be able to load complex structures" do
         conf.load_from_yaml(File.join(data_dir, 'configurations', 'complex_config.yml'))
 
