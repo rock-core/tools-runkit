@@ -130,10 +130,18 @@ module Orocos
         def self.load_raw_sections_from_file(file)
             document_lines = File.readlines(file)
 
-            headers = document_lines.each_with_index.
-                find_all { |line, _| line =~ /^---/ }
-            if headers.empty? || headers.first[1] != 0
+            headers =
+                document_lines
+                .each_with_index
+                .find_all { |line, _| line =~ /^---/ }
+
+            if headers.empty?
                 headers.unshift ["--- name:default", -1]
+            elsif headers.first[1] != 0
+                leading_lines = document_lines[0, headers.first[1]].map(&:strip)
+                if leading_lines.any? { |l| !l.empty? && !l.start_with?("#") }
+                    headers.unshift ["--- name:default", -1]
+                end
             end
 
             options = headers.map do |line, line_number|

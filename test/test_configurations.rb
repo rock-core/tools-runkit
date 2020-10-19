@@ -226,6 +226,14 @@ describe Orocos::TaskConfigurations do
         end
     end
 
+    it "ignores a no-op default section at the top of the file" do
+        assert_raises(ArgumentError) do
+            conf.load_from_yaml(
+                File.join(data_dir, "configurations", "noop_default.yml")
+            )
+        end
+    end
+
     it "should be able to load complex structures" do
         conf.load_from_yaml(File.join(data_dir, 'configurations', 'complex_config.yml'))
 
