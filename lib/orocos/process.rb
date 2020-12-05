@@ -1265,12 +1265,19 @@ module Orocos
 
         # Kills the process either cleanly by requesting a shutdown if signal ==
         # nil, or forcefully by using UNIX signals if signal is a signal name.
-        def kill(wait = true, signal = nil)
+        def kill(wait = true, signal = nil, cleanup: !signal, hard: false)
             tpid = pid
             return if !tpid # already dead
 
+            signal ||=
+                if hard
+                    "SIGKILL"
+                else
+                    "SIGINT"
+                end
+
             # Stop all tasks and disconnect the ports
-            if !signal
+            if cleanup
                 clean_shutdown = true
                 begin
                     each_task do |task|
@@ -1290,13 +1297,7 @@ module Orocos
             end
 
             expected_exit = nil
-            if clean_shutdown
-                expected_exit = signal = SIGNAL_NUMBERS['SIGINT']
-	    else
-                signal = SIGNAL_NUMBERS['SIGINT']
-            end
-
-            if signal 
+            if signal
                 if !expected_exit
                     Orocos.warn "sending #{signal} to #{name}"
                 end

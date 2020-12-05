@@ -237,6 +237,56 @@ describe Orocos::Process do
                 assert( !Orocos.task_names.find { |name| name == 'process_Test' } )
             end
         end
+
+        it "stops the task if it is running" do
+            Orocos.run("process") do |process|
+                task = Orocos.get "process_Test"
+                state = nil
+                flexmock(::Process)
+                    .should_receive(:kill)
+                    .with(->(*) { state = task.rtt_state }, Integer)
+                    .pass_thru
+
+                process.kill
+                assert_equal :STOPPED, state
+            end
+        end
+
+        it "does not attempt to stop the task if cleanup is false" do
+            Orocos.run("process") do |process|
+                task = Orocos.get "process_Test"
+                state = nil
+                flexmock(::Process)
+                    .should_receive(:kill)
+                    .with(->(*) { state = task.rtt_state }, Integer)
+                    .pass_thru
+
+                process.kill(cleanup: false)
+                assert_equal :RUNNING, state
+            end
+        end
+
+        it "uses SIGINT by default" do
+            Orocos.run("process") do |process|
+                flexmock(::Process)
+                    .should_receive(:kill)
+                    .with("SIGINT", process.pid)
+                    .pass_thru
+
+                process.kill
+            end
+        end
+
+        it "uses SIGKILL if hard is true" do
+            Orocos.run("process") do |process|
+                flexmock(::Process)
+                    .should_receive(:kill)
+                    .with("SIGKILL", process.pid)
+                    .pass_thru
+
+                process.kill(hard: true)
+            end
+        end
     end
 
     describe "#task" do

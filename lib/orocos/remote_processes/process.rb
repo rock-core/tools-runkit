@@ -37,9 +37,11 @@ module Orocos
             process_client.name_service.get(task_name, process: self)
         end
 
-        # Stops the process
-        def kill(wait = true)
-            process_client.stop(name, wait)
+        # Cleanly stop the process
+        #
+        # @see kill!
+        def kill(wait = true, cleanup: true, hard: false)
+            process_client.stop(name, wait, cleanup: cleanup, hard: hard)
         end
 
         # Wait for the 
