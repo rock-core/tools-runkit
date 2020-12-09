@@ -298,11 +298,11 @@ module Orocos
                     socket.write Marshal.dump(e.message)
                 end
             elsif cmd_code == COMMAND_END
-                name = Marshal.load(socket)
+                name, cleanup, hard = Marshal.load(socket)
                 Server.debug "#{socket} requested end of #{name}"
-                if p = processes[name]
+                if (p = processes[name])
                     begin
-                        end_process(p)
+                        end_process(p, cleanup: cleanup, hard: hard)
                         socket.write(RET_YES)
                     rescue Interrupt
                         raise
@@ -379,8 +379,8 @@ module Orocos
             processes[name] = p
         end
 
-        def end_process(p)
-            p.kill(false)
+        def end_process(p, cleanup: true, hard: false)
+            p.kill(false, cleanup: cleanup, hard: hard)
         end
 
         def quit

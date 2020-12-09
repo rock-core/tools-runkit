@@ -102,10 +102,8 @@ module Orocos
             end
         end
 
-        def kill(wait = true, status = ProcessManager::Status.new(:exit_code => 0))
-            deployed_tasks.each_value do |task|
-                task.dispose
-            end
+        def kill(_wait = true, status = ProcessManager::Status.new(exit_code: 0), **)
+            deployed_tasks.each_value(&:dispose)
             dead!(status)
         end
 
