@@ -9,12 +9,34 @@ module Orocos
                 @log_replay = Replay.new
             end
 
+            describe "#load" do
+                before do
+                    dir = make_tmpdir
+                    registry = Typelib::CXXRegistry.new
+                    @logfile_path = File.join(dir, "somefile.0.log")
+                    logfile = Pocolog::Logfiles.create(@logfile_path, registry)
+                    logfile.create_stream("test.stream", "/double")
+                    logfile.close
+                end
+
+                it "loads a single file" do
+                    @log_replay.load(@logfile_path)
+                    assert @log_replay.task("test").stream
+                end
+
+                it "loads a directory" do
+                    @log_replay.load(File.dirname(@logfile_path))
+                    assert @log_replay.task("test").stream
+                end
+            end
+
             describe "#load_task_from_stream" do
                 before do
                     dir = make_tmpdir
                     registry = Typelib::CXXRegistry.new
                     logfile = Pocolog::Logfiles.create(
-                            File.join(dir, 'somefile.0.log'), registry)
+                        File.join(dir, "somefile.0.log"), registry
+                    )
                     @stream = logfile.create_stream 'test.stream', '/double'
                 end
 

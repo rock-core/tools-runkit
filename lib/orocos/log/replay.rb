@@ -992,6 +992,7 @@ module Orocos
                     opts = paths.pop
                     logreg = opts[:registry] if opts[:registry]
                 end
+                logreg = [logreg].compact
 
                 paths.each do |path|
                     #check if path is a directory
@@ -1023,13 +1024,11 @@ module Orocos
                                 File.open(path)
                             end
 
-                            args << logreg
-
-                            logfile = Pocolog::Logfiles.new(*args.compact)
+                            logfile = Pocolog::Logfiles.new(*args, *logreg)
                             load_log_file(logfile, files.first)
                         end
                     elsif File.file?(path)
-                        file = Pocolog::Logfiles.open(path, logreg)
+                        file = Pocolog::Logfiles.open(path, *logreg)
                         load_log_file(file, path)
                     else
                         raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
