@@ -6,7 +6,7 @@ module Orocos
     class NotInitialized < RuntimeError; end
 
     class TaskContextAttribute < AttributeBase
-        # Returns the operation that has to be called if this is an 
+        # Returns the operation that has to be called if this is an
         # dynamic propery. Nil otherwise
         attr_reader :dynamic_operation
 
@@ -123,7 +123,7 @@ module Orocos
 
         # A new TaskContext instance representing the
         # remote task context with the given IOR
-        # 
+        #
         # If a remote task is only known by its name use {Orocos.name_service}
         # to create an handle to the remote task.
         #
@@ -228,10 +228,10 @@ module Orocos
             @state_symbols[value]
         end
 
-        # Connects all ports of the task with the logger of the deployment 
+        # Connects all ports of the task with the logger of the deployment
         # @param [Hash] options option hash to exclude specific ports
-        # @option options [String,Array<String>] :exclude_ports The name of the excluded ports 
-        # @return [Set<String,String>] Sets of task and port names 
+        # @option options [String,Array<String>] :exclude_ports The name of the excluded ports
+        # @return [Set<String,String>] Sets of task and port names
         #
         # @example logging all ports beside a port called frame
         # task.log_all_ports(:exclude_ports => "frame")
@@ -287,7 +287,7 @@ module Orocos
 
         # Loads the configuration for the TaskContext from a file,
         # into the main configuration manager and applies it to the TaskContext
-        # 
+        #
         # See also #apply_conf and #Orocos.load_config_dir
         def apply_conf_file(file,section_names=Array.new,override=false)
             Orocos.conf.load_file(file,model.name)
@@ -298,7 +298,7 @@ module Orocos
             "#<TaskContext: #{self.class.name}/#{name}>"
         end
 
-        # Applies the TaskContext configuration stored by the main 
+        # Applies the TaskContext configuration stored by the main
         # configuration manager to the TaskContext
         #
         # See also #load_conf and #Orocos.load_config_dir
@@ -306,7 +306,7 @@ module Orocos
             Orocos.conf.apply(self, section_names, override)
         end
 
-        # Saves the current configuration into a file 
+        # Saves the current configuration into a file
         def save_conf(file, section_names = nil)
             Orocos.conf.save(self,file,section_names)
         end
