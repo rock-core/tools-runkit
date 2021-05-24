@@ -5,6 +5,7 @@ compound:
         intg: 30
         str: "test2"
         fp: 0.2
+
 --- name:vector_of_compound
 compound:
     vector_of_compound:
@@ -14,6 +15,12 @@ compound:
           intg: 20
         - enm: Third
           intg: 30
+
+--- name:zero_and_init
+compound:
+    vector_of_compound:
+        - enm: Second
+        - intg: 20
 
 --- name:vector_of_vector_of_compound
 compound:

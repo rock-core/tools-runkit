@@ -498,6 +498,21 @@ describe Orocos::TaskConfigurations do
         end
     end
 
+    it "zeroes out newly created structures and initializes fields that need to" do
+        conf.load_from_yaml(File.join(data_dir, 'configurations', 'complex_config.yml'))
+
+        Orocos.run "configurations_test" do
+            task = Orocos::TaskContext.get "configurations"
+
+            verify_apply_conf task, conf, 'zero_and_init', 'compound', 'vector_of_compound' do
+                assert_conf_value 0, 'enm', "/Enumeration", Typelib::EnumType, :Second
+                assert_conf_value 0, 'intg', "/int32_t", Typelib::NumericType, 0
+                assert_conf_value 1, 'enm', "/Enumeration", Typelib::EnumType, :First
+                assert_conf_value 1, 'intg', "/int32_t", Typelib::NumericType, 20
+            end
+        end
+    end
+
     it "should be able to load a configuration directory, register configurations on a per-model basis, and report what changed" do
         manager = Orocos::ConfigurationManager.new
         manager.load_dir(File.join(data_dir, 'configurations', 'dir'))

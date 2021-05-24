@@ -815,13 +815,13 @@ module Orocos
             if value.kind_of?(Typelib::ArrayType)
                 # This is a fixed-size array, verify that the size matches
                 if conf.size > value.size
-                    raise ArgumentError, "Configuration object size is larger than field #{value}"
+                    raise ArgumentError,
+                          "Configuration object size is larger than field #{value}"
                 end
             else
                 element_t = value.class.deference
                 while value.size < conf.size
-                    new_value = element_t.new
-                    new_value.zero!
+                    new_value = element_t.zero
                     value.push(new_value)
                 end
             end
