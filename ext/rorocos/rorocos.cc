@@ -325,7 +325,7 @@ static VALUE task_context_port_names(VALUE self)
 //
 // Returns the state of the task, as an integer value. The possible values are
 // represented by the various +STATE_+ constants:
-// 
+//
 //   STATE_PRE_OPERATIONAL
 //   STATE_STOPPED
 //   STATE_ACTIVE
@@ -436,7 +436,7 @@ static RTT::corba::CConnPolicy policyFromHash(VALUE options)
 }
 
 /* Actual implementation of #connect_to. Sanity checks are done in Ruby. Just
- * create the connection. 
+ * create the connection.
  */
 static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE options)
 {

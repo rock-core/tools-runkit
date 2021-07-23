@@ -251,20 +251,16 @@ module Orocos
         def stop(deployment_name, wait, cleanup: true, hard: false)
             socket.write(COMMAND_END)
             Marshal.dump([deployment_name, cleanup, hard], socket)
-            if !wait_for_ack
-                raise Failed, "failed to quit #{deployment_name}"
-            end
+            raise Failed, "failed to quit #{deployment_name}" unless wait_for_ack
 
-            if wait
-                join(deployment_name)
-            end
+            join(deployment_name) if wait
         end
 
         def join(deployment_name)
             process = processes[deployment_name]
-            return if !process
+            return unless process
 
-            while true
+            loop do
                 result = wait_termination(nil)
                 return if result[process]
             end

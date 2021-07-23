@@ -70,7 +70,7 @@ module Orocos
         end
 
         # Initialize the CORBA layer
-        # 
+        #
         # It does not need to be called explicitely, as it is called by
         # Orocos.initialize
 	def self.initialize
