@@ -37,6 +37,7 @@ VALUE mCORBA;
 VALUE eComError;
 VALUE eCORBA;
 VALUE eCORBAComError;
+VALUE eCORBATimeoutError;
 VALUE cNameService;
 VALUE cTaskContext;
 VALUE eNotFound;
@@ -616,6 +617,7 @@ extern "C" void Init_rorocos()
     eComError    = rb_define_class_under(mOrocos, "ComError", rb_eRuntimeError);
     eCORBA    = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
     eCORBAComError = rb_define_class_under(mCORBA, "ComError", eComError);
+    eCORBATimeoutError = rb_define_class_under(mCORBA, "TimeoutError", eCORBA);
     eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
     eBlockingCallInForbiddenThread = rb_define_class_under(mOrocos, "BlockingCallInForbiddenThread", rb_eRuntimeError);
 
