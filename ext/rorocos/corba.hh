@@ -21,6 +21,7 @@ using namespace std;
 
 extern VALUE eCORBA;
 extern VALUE eCORBAComError;
+extern VALUE eCORBATimeoutError;
 extern VALUE mCORBA;
 extern VALUE eNotFound;
 extern VALUE eNotInitialized;
@@ -90,6 +91,7 @@ extern void corba_must_be_initialized();
     catch(CORBA::INV_OBJREF& e) { this->rb_raise(eCORBA, "CORBA invalid obj reference: %s", e.NP_minorString()); } \
     catch(CORBA::OBJECT_NOT_EXIST& e) { this->rb_raise(eCORBAComError, "CORBA referenced object does not exist: %s", e.NP_minorString()); } \
     catch(CORBA::OBJ_ADAPTER& e) { this->rb_raise(eCORBAComError, "POA adapter error: %s", e.NP_minorString()); } \
+    catch(CORBA::TIMEOUT& e) { this->rb_raise(eCORBATimeoutError, "Timeout", e.NP_minorString()); } \
     catch(CORBA::SystemException& e) { this->rb_raise(eCORBA, "CORBA system exception: %s", e.NP_minorString()); } \
     catch(CORBA::Exception& e) { this->rb_raise(eCORBA, "unspecified error in the CORBA layer: %s", typeid(e).name()); } \
     catch(InvalidIORError &e) { this->rb_raise(rb_eArgError, e.what());}
