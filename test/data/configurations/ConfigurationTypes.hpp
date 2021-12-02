@@ -1,12 +1,12 @@
 #ifndef CONFIGURATION_TYPES_HPP
-#define CONFIGURATION_TYPES_HPP 
+#define CONFIGURATION_TYPES_HPP
 
 #include <string>
 #include <vector>
 
 enum Enumeration
 {
-    First,
+    First = 1, // To be able to detect zero vs init
     Second,
     Third
 };

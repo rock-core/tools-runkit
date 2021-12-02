@@ -6,7 +6,7 @@ module Orocos
     #
     # @example getting a remote/local task context.
     #   require 'orocos'
-    #   Orocos.initialize 
+    #   Orocos.initialize
     #   task = Orocos.name_service.get "task_name"
     #
     # @example changing the default underlying CORBA name service
@@ -48,14 +48,14 @@ module Orocos
     end
 
     # Enumerates the tasks that are currently available on this sytem (i.e.
-    # registered on the global name service {Orocos.name_service}). 
-    # 
+    # registered on the global name service {Orocos.name_service}).
+    #
     # @yield [TaskContext] code block which is called for each TaskContext
     def self.each_task(&block)
         Orocos.name_service.each_task(&block)
     end
 
-    # Removes dangling references from all name services added to the global 
+    # Removes dangling references from all name services added to the global
     # name service {Orocos.name_service}
     def self.cleanup
         name_service.cleanup
@@ -113,7 +113,7 @@ module Orocos
             raise NotImplementedError
         end
 
-        # Returns all Orocos Task names known by the name service 
+        # Returns all Orocos Task names known by the name service
         # inclusive the namespace of the NameService instance.
         #
         # @return [Array<String>]
@@ -130,7 +130,7 @@ module Orocos
         # raises a ComError.
         #
         # @return [nil]
-        # @raise [Orocos::ComError] 
+        # @raise [Orocos::ComError]
         def validate
         end
 
@@ -149,7 +149,7 @@ module Orocos
         #
         # @param [String] type the type
         # @return [Orocos::TaskContext]
-        # @raise [Orocos::NotFound] 
+        # @raise [Orocos::NotFound]
         def get_provides(type) # :nodoc:
             results = enum_for(:each_task).find_all do |task|
                 task.implements?(type)
@@ -262,12 +262,14 @@ module Orocos
         # @param [NameServiceBase] name_service The name service.
         def add_front(name_service)
             return if @name_services.include? name_service
+
             @name_services.insert(0,name_service)
         end
 
         # (see #<<)
         def add(name_service)
             return if @name_services.include? name_service
+
             @name_services << name_service
         end
 
@@ -364,7 +366,7 @@ module Orocos
         def clear
             @name_services.clear
         end
-        
+
         private
         # NameService does not support its own namespace as it abstracts all underlying name services.
         # Therefore, overwrite the one from the included module.
@@ -394,7 +396,7 @@ module Orocos
 
             attr_reader :registered_tasks
 
-            # A new NameService instance 
+            # A new NameService instance
             #
             # @param [Hash<String,Orocos::TaskContext>] tasks The tasks which are known by the name service.
             # @note The namespace is always "Local"
@@ -469,7 +471,7 @@ module Orocos
 
             # (see NameServiceBase#names)
             def names
-                ns = registered_tasks.map &:name 
+                ns = registered_tasks.map &:name
 		ns + @alias.keys
             end
         end
@@ -482,7 +484,7 @@ module Orocos
             # added to the global Orocos::NameService instance
             # {Orocos.name_service}
             #
-            # @return [Orocos::CORBA::NameService] The global CORBA name service 
+            # @return [Orocos::CORBA::NameService] The global CORBA name service
             def name_service
                 @name_service ||= NameService.new
             end
@@ -545,7 +547,7 @@ module Orocos
             end
 
             # Sets the ip address or host name where the CORBA name service is running
-            # 
+            #
             # @param [String] host The ip address or host name
             def ip=(host)
                 reset(host)
@@ -579,7 +581,7 @@ module Orocos
             # Resets the CORBA name service client.
             #
             # @param [String] ip The ip address or host name where the CORBA name service is running
-            # @param [String] port The port of the CORBA name service 
+            # @param [String] port The port of the CORBA name service
             def reset(ip=ip(),port=port())
                 do_reset(ip,port)
             end
@@ -617,7 +619,7 @@ module Orocos
             rescue ComError => e
                 raise Orocos::NotFound, "task context #{name} is registered but cannot be reached."
             end
- 
+
             # Registers the IOR of the given {Orocos::TaskContext} on the CORBA name service.
             #
             # @param [Orocos::TaskContext] task The task.
@@ -661,7 +663,7 @@ module Orocos
             # Removes dangling references from the name service
             #
             # This method removes objects that are not accessible anymore from the
-            # name service 
+            # name service
             def cleanup
                 names = names().dup
                 names.each do |n|
@@ -683,12 +685,12 @@ module Orocos
 
     module Avahi
 
-        # Name service to access Orocos Tasks which are publishing their IOR via Avahi 
+        # Name service to access Orocos Tasks which are publishing their IOR via Avahi
         class NameService < NameServiceBase
 
             # A new instance of NameService which is listening on the given search domain.
             # The serach domain must have a ._tcp or ._udp at the end for a protocol type.
-            # 
+            #
             # @param [String] searchdomain The search domain the name service is listening to (_myrobot._tcp / _myrobot._udp)
             def initialize(searchdomain)
 

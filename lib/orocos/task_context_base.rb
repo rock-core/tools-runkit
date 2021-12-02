@@ -1,7 +1,6 @@
 require 'orocos/ports_searchable'
 
 module Orocos
-
     # This class represents both RTT attributes and properties
     class AttributeBase
         # The underlying TaskContext instance
@@ -20,7 +19,8 @@ module Orocos
         attr_reader :orocos_type_name
 
         def initialize(task, name, orocos_type_name)
-            @task, @name = task, name
+            @task = task
+            @name = name
             @orocos_type_name = orocos_type_name
             ensure_type_available(:fallback_to_null_type => true)
         end
@@ -42,11 +42,13 @@ module Orocos
         end
 
         def log_metadata
-            Hash['rock_task_model' => (task.model.name || ''),
-                'rock_task_name' => task.name,
-                'rock_task_object_name' => name,
-                'rock_orocos_type_name' => orocos_type_name,
-                'rock_cxx_type_name' => orocos_type_name]
+            Hash[
+                "rock_task_model" => (task.model.name || ""),
+                "rock_task_name" => task.name,
+                "rock_task_object_name" => name,
+                "rock_orocos_type_name" => orocos_type_name,
+                "rock_cxx_type_name" => orocos_type_name
+            ]
         end
 
         def ensure_type_available(options = Hash.new)
@@ -104,10 +106,9 @@ module Orocos
         end
 
         def doc
-            if task.model
-                property = task.model.find_property(name)
-                property.doc if property
-            end
+            return unless task.model
+
+            task.model.find_property(name)&.doc
         end
     end
 
@@ -123,23 +124,23 @@ module Orocos
     module TaskContextBaseAbstract
         # Returns an object that represents the given port on the task
         # context. The returned object is either an InputPort or an OutputPort
-        def port(name)
+        def port(_name)
             raise Orocos::NotFound, "#port is not implemented in #{self.class}"
         end
 
         # Returns an Attribute object representing the given attribute
-        def attribute(name)
+        def attribute(_name)
             raise Orocos::NotFound, "#attribute is not implemented in #{self.class}"
         end
 
         # Returns a Property object representing the given property
-        def property(name)
+        def property(_name)
             raise Orocos::NotFound, "#property is not implemented in #{self.class}"
         end
 
         # Returns an Operation object that represents the given method on the
         # remote component.
-        def operation(name)
+        def operation(_name)
             raise Orocos::NotFound, "#operation is not implemented in #{self.class}"
         end
 
@@ -179,7 +180,7 @@ module Orocos
 
     end
 
-    # Base implementation for Orocos::TaskContext 
+    # Base implementation for Orocos::TaskContext
     class TaskContextBase
         include TaskContextBaseAbstract
         include PortsSearchable
@@ -232,8 +233,8 @@ module Orocos
             Orocos.name_service.find_one_running(*names)
         end
 
-        # TODO this is bad performance wise 
-        # it will load the model and all extensions 
+        # TODO this is bad performance wise
+        # it will load the model and all extensions
         # use the nameservice for the check
         #
         # Returns true if +task_name+ is a TaskContext object that can be
@@ -271,7 +272,7 @@ module Orocos
             end
             self
         end
-        
+
         # The IOR of this task context
         attr_reader :ior
 
@@ -359,7 +360,7 @@ module Orocos
 
         # call-seq:
         #  task.each_operation { |a| ... } => task
-        # 
+        #
         # Enumerates the operation that are available on
         # this task, as instances of Orocos::Operation
         def each_operation(&block)
@@ -374,7 +375,7 @@ module Orocos
 
         # call-seq:
         #  task.each_property { |a| ... } => task
-        # 
+        #
         # Enumerates the properties that are available on
         # this task, as instances of Orocos::Attribute
         def each_property(&block)
@@ -389,7 +390,7 @@ module Orocos
 
         # call-seq:
         #  task.each_attribute { |a| ... } => task
-        # 
+        #
         # Enumerates the attributes that are available on
         # this task, as instances of Orocos::Attribute
         def each_attribute(&block)
@@ -405,7 +406,7 @@ module Orocos
 
         # call-seq:
         #  task.each_port { |p| ... } => task
-        # 
+        #
         # Enumerates the ports that are available on this task, as instances of
         # either Orocos::InputPort or Orocos::OutputPort
         def each_port(&block)
@@ -545,7 +546,7 @@ module Orocos
 
         # call-seq:
         #  task.each_input_port { |p| ... } => task
-        # 
+        #
         # Enumerates the input ports that are available on this task, as
         # instances of Orocos::InputPort
         def each_input_port
@@ -556,7 +557,7 @@ module Orocos
 
         # call-seq:
         #  task.each_output_port { |p| ... } => task
-        # 
+        #
         # Enumerates the input ports that are available on this task, as
         # instances of Orocos::OutputPort
         def each_output_port
@@ -599,7 +600,7 @@ module Orocos
         def reachable?
             ping
             true
-        rescue RuntimeError
+        rescue Orocos::ComError
             false
         end
 
@@ -708,7 +709,7 @@ module Orocos
 
         # Returns the state of the task, as a symbol. The possible values for
         # all task contexts are:
-        # 
+        #
         #   :PRE_OPERATIONAL
         #   :STOPPED
         #   :ACTIVE
@@ -736,7 +737,7 @@ module Orocos
                 @current_state
             elsif return_current
                 @current_state = @state_queue.last
-                @state_queue.clear 
+                @state_queue.clear
             else
                 @current_state = @state_queue.shift
             end
