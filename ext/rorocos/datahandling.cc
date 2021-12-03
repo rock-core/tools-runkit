@@ -24,7 +24,7 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
         rb_raise(rb_eArgError, "trying to unmarshal %s, but it is not supported by the CORBA transport", type_name.c_str());
     orogen_transports::TypelibMarshallerBase* typelib_transport = get_typelib_transport(ti, false);
 
-    // Fall back to normal typelib behaviour if there is not typelib transport.
+    // Fall back to normal typelib behaviour if there is no typelib transport.
     // Do it for plain types as well, as it requires less operations
     if (!typelib_transport || typelib_transport->isPlainTypelibType())
     {

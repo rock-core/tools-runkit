@@ -18,7 +18,7 @@ module Orocos
     # Sets the working directory that should be used by default in Orocos.run.
     # By default, the current directory at the time where Orocos.run is called
     # is used.
-    # 
+    #
     # Use #reset_working_directory to use the default of using the current
     # directory.
     def self.default_working_directory=(value)
@@ -119,19 +119,19 @@ module Orocos
     #
     #     valgrind_options: ["--track-origins=yes"]
     # cmdline_args::
-    #   When command line arguments are available to deployments, they can be 
+    #   When command line arguments are available to deployments, they can be
     #   set using the following option:
     #      cmdline_args: { "sd-domain" => '_robot._tcp', "prefix" => "test" }
     #   This will be mapped to '--sd-domain=_robot._tcp --prefix=test'
-    #  
+    #
     #   Existing commandline arguments:
-    #   --sd-domain  
+    #   --sd-domain
     #   the service discovery domain in which this process should be published
     #   This is only supported by deployments and orogen if the service_discovery
     #   package has been installed along with orogen
-    #   The sd domain is of the format: <name>.<suffix> where the suffix has to 
+    #   The sd domain is of the format: <name>.<suffix> where the suffix has to
     #   be one of _tcp or _udp
-    #   
+    #
     def self.run(*args, **options, &block)
         Process.run(*args, **options, &block)
     end
@@ -189,7 +189,7 @@ module Orocos
 
         # @api private
         #
-        # use a mapping if exists 
+        # use a mapping if exists
         def get_mapped_name(name)
             name_mappings[name] || name
         end
@@ -427,7 +427,7 @@ module Orocos
                         loader.deployment_model_from_name(model)
                     else model
                     end
-            
+
             @binfile =
                 if loader.respond_to?(:find_deployment_binfile)
                     loader.find_deployment_binfile(model.name)
@@ -450,7 +450,7 @@ module Orocos
 	    rescue Errno::ECHILD
 	    end
         end
-        
+
         # True if the process is running
         def alive?; !!@pid end
         # True if the process is running
@@ -492,7 +492,7 @@ module Orocos
 	end
 
     @@logfile_indexes = Hash.new
-    
+
         class TaskNameRequired < ArgumentError; end
 
         # Converts the options given to Orocos.run in a more normalized format
@@ -522,10 +522,10 @@ module Orocos
         #   options = { valgrind => true }
         #
         # In case multiple instances of a single model need to be started, the
-        # names can be given as an Array. E.g. 
-        # 
+        # names can be given as an Array. E.g.
+        #
         #   Orocos.run 'xsens_imu::Task' => ['imu1', 'imu2']
-        #   
+        #
         def self.partition_run_options(*names, loader: Orocos.default_loader)
             mapped_names = Hash.new
             if names.last.kind_of?(Hash)
@@ -619,16 +619,16 @@ module Orocos
         #   an array of options that should be passed to gdbserver
         #
         # @param [Hash<String>] cmdline_args
-        #   When command line arguments are available to deployments, they can be 
+        #   When command line arguments are available to deployments, they can be
         #   set using the following option:
         #      cmdline_args: { "sd-domain" => '_robot._tcp', "prefix" => "test" }
         #   This will be mapped to '--sd-domain=_robot._tcp --prefix=test'
-        #  
-        #   One notable command line argument is --sd-domain  
+        #
+        #   One notable command line argument is --sd-domain
         #   The service discovery domain in which this process should be published
         #   This is only supported by deployments and orogen if the service_discovery
         #   package has been installed along with orogen
-        #   The sd domain is of the format: <name>.<suffix> where the suffix has to 
+        #   The sd domain is of the format: <name>.<suffix> where the suffix has to
         #   be one of _tcp or _udp
         #
         # @return [(Array<String,Hash,String,Hash>,Object)] the first returned
@@ -753,7 +753,7 @@ module Orocos
                 end
             end
         end
-        
+
         # @api private
         #
         # Resolve the 'prefix' options given to {Orocos.run} into an exhaustive
@@ -781,7 +781,7 @@ module Orocos
                 [deployment.name, name_mappings, mapped_name]
             end
             models.each do |model, desired_names|
-                desired_names = [desired_names] unless desired_names.kind_of? Array 
+                desired_names = [desired_names] unless desired_names.kind_of? Array
                 desired_names.each do |desired_name|
                     process_name = OroGen::Spec::Project.default_deployment_name(model.name)
                     name_mappings = Hash[
@@ -793,7 +793,7 @@ module Orocos
             end
             processes
         end
-        
+
         # @deprecated use {Orocos.run} directly instead
         def self.run(*args, **options)
             if !Orocos.initialized?
@@ -851,7 +851,7 @@ module Orocos
                 processes
             end
         end
-        
+
         # Kills the given processes
         #
         # @param [Array<#kill,#join>] processes a list of processes to kill
@@ -1046,9 +1046,9 @@ module Orocos
                         " Valid options are #{valid_levels}."
                 end
             end
-		    
+
             read, write = IO.pipe
-            @pid = fork do 
+            @pid = fork do
                 if tracing
                     ENV['LD_PRELOAD'] = Orocos.tracing_library_path
                 end
@@ -1094,7 +1094,7 @@ module Orocos
                     cmdline = cmdline_wrapper_options + cmdline
                     cmdline.unshift cmdline_wrapper
                 end
-                
+
                 # Command line arguments have to be of type --<option>=<value>
                 # or if <value> is nil a valueless option, i.e. --<option>
                 if cmdline_args
@@ -1376,7 +1376,7 @@ module Orocos
         processes.each do |p|
             if p.running?
                 Orocos.info "guard: stopping process #{p.name}"
-                p.kill(false) 
+                p.kill(false)
             end
         end
         processes.each do |p|
