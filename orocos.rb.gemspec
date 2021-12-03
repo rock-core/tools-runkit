@@ -3,12 +3,6 @@ lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'orocos/version'
 
-# For backward compatibility with Hoe
-task 'gem' => 'build'
-
-require 'rake/extensiontask'
-Rake::ExtensionTask.new('rorocos')
-
 Gem::Specification.new do |s|
     s.name = "orocos.rb"
     s.version = Orocos::VERSION
