@@ -6,6 +6,7 @@
 #include <boost/function.hpp>
 #include <boost/function_types/result_type.hpp>
 #include <boost/bind.hpp>
+#define RUBY_DONT_SUBST
 #include <ruby.h>
 #include <ruby/thread.h>
 #include <stdarg.h>

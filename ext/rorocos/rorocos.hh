@@ -7,6 +7,8 @@
 
 // !!! ruby.h must be included LAST. It defines macros that break
 // !!! omniORB code
+// !!! also breaks boost nowadays, so keep it from substituting
+#define RUBY_DONT_SUBST
 #include <ruby.h>
 
 //if RTT_VERSION_GTE is not defined by above includes (RTT versions below 2.9)
