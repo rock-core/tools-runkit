@@ -9,7 +9,8 @@
         Sylvain Joyeux/sylvain.joyeux@m4x.org
     </copyright>
     <license>GPL v2 or later</license>
-    <url>https://gitorious.org/rock-toolchain/orocos-rb.git</url>
+    <url>https://github.com/rock-core/tools-orocosrb.git</url>
+    <version>1.0.0</version>
 
     <depend package="base/orogen/std" />
     <depend package="cmake" />
