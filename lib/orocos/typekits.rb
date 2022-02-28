@@ -16,6 +16,32 @@ module Orocos
     @loaded_plugins = Set.new
     @failed_plugins = Set.new
 
+    @enforce_typekit_threading = nil
+    def self.enforce_typekit_threading?
+        if @enforce_typekit_threading.nil?
+            @enforce_typekit_threading = (ENV["OROCOS_ENFORCE_TYPEKIT_THREADING"] == "1")
+        end
+
+        @enforce_typekit_threading
+    end
+
+    @typekit_main_thread = nil
+    def self.update_typekit_main_thread(thread = Thread.current)
+        @typekit_main_thread = (thread if enforce_typekit_threading?)
+    end
+
+    def self.in_typekit_main_thread?
+        !@typekit_main_thread || (Thread.current == @main_thread)
+    end
+
+    def self.require_in_typekit_main_thread(message = nil)
+        return if in_typekit_main_thread?
+
+        raise ThreadError,
+              "#{caller(1).first} must be called from the typekit's main thread "\
+              "(#{@typekit_main_thread}): #{message}"
+    end
+
     # @deprecated use {default_loader}.type_export_namespace instead
     def self.type_export_namespace; default_loader.type_export_namespace end
     # @deprecated use {default_loader}.type_export_namespace= instead
@@ -38,11 +64,15 @@ module Orocos
 
     # Generic loading of a RTT plugin
     def self.load_plugin_library(libpath) # :nodoc:
+        Orocos.require_in_typekit_main_thread
+
         return if @loaded_plugins.include?(libpath)
+
         if @failed_plugins.include?(libpath)
             raise "the RTT plugin system already refused to load #{libpath}, "\
                   "not trying again"
         end
+
         begin
             Orocos.info "loading plugin library #{libpath}"
             unless Orocos.load_rtt_plugin(libpath)
@@ -89,6 +119,8 @@ module Orocos
 
     def self.load_typekit_plugins(name, typekit_pkg = nil)
         return if @loaded_typekit_plugins.include?(name)
+
+        Orocos.require_in_typekit_main_thread
 
         find_typekit_plugin_paths(name, typekit_pkg).each do |path, required|
             load_plugin_library(path)

@@ -265,6 +265,8 @@ module Orocos
     def self.initialize(name = "orocosrb_#{::Process.pid}")
         self.load(name) unless loaded?
 
+        Orocos.update_typekit_main_thread
+
         # Install the SIGCHLD handler if it has not been disabled
         unless disable_sigchld_handler?
             trap("SIGCHLD") do
