@@ -250,9 +250,13 @@ module Orocos
     # @return [Model<Typelib::Type>] a subclass of Typelib::Type that
     #   represents the requested type
     def self.find_type_by_orocos_type_name(orocos_type_name, fallback_to_null_type: false)
-        if !registered_type?(orocos_type_name)
-            load_typekit_for(orocos_type_name)
+        unless registered_type?(orocos_type_name)
+            begin
+                load_typekit_for(orocos_type_name)
+            rescue OroGen::AlreadyRegistered
+            end
         end
+
         typelib_type_for(orocos_type_name)
     rescue Orocos::TypekitTypeNotFound, Typelib::NotFound
         # Create an opaque type as a placeholder for the unknown
