@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Types = Typelib::RegistryExport::Namespace.new
 
 module Orocos
@@ -30,9 +32,7 @@ module Orocos
         libs = libs.grep(/^-L/).map { |s| s[2..-1] }
         libs.find do |dir|
             full_path = File.join(dir, "lib#{libname}.#{Orocos.shared_library_suffix}")
-            if File.file?(full_path)
-                return full_path, libs
-            end
+            return full_path, libs if File.file?(full_path)
         end
     end
 
@@ -40,16 +40,17 @@ module Orocos
     def self.load_plugin_library(libpath) # :nodoc:
         return if @loaded_plugins.include?(libpath)
         if @failed_plugins.include?(libpath)
-            @failed_plugins << libpath
-            raise "the RTT plugin system already refused to load #{libpath}, I'm not trying again"
+            raise "the RTT plugin system already refused to load #{libpath}, "\
+                  "not trying again"
         end
         begin
             Orocos.info "loading plugin library #{libpath}"
-            if !Orocos.load_rtt_plugin(libpath)
+            unless Orocos.load_rtt_plugin(libpath)
                 raise "the RTT plugin system refused to load #{libpath}"
             end
+
             @loaded_plugins << libpath
-        rescue Exception
+        rescue Exception # rubocop:disable Lint/RescueException
             @failed_plugins << libpath
             raise
         end
@@ -87,21 +88,16 @@ module Orocos
     end
 
     def self.load_typekit_plugins(name, typekit_pkg = nil)
-        if @loaded_typekit_plugins.include?(name)
-            return
-        end
+        return if @loaded_typekit_plugins.include?(name)
 
         find_typekit_plugin_paths(name, typekit_pkg).each do |path, required|
-            begin
-                load_plugin_library(path)
-            rescue Exception => e
-                if required
-                    raise
-                else
-                    Orocos.warn "plugin #{p}, which is registered as an optional transport for the #{name} typekit, cannot be loaded"
-                    Orocos.log_pp(:warn, e)
-                end
-            end
+            load_plugin_library(path)
+        rescue Exception => e
+            raise if required
+
+            Orocos.warn "plugin #{p}, which is registered as an optional transport "\
+                        "for the #{name} typekit, cannot be loaded"
+            Orocos.log_pp(:warn, e)
         end
         @loaded_typekit_plugins << name
     end
@@ -160,7 +156,7 @@ module Orocos
             end
         end
 
-        plugins.each_pair do |file, (pkg, required)| 
+        plugins.each_pair do |file, (pkg, required)|
             lib, lib_dirs = find_plugin_library(pkg, file)
             if !lib
                 if required
@@ -184,9 +180,7 @@ module Orocos
     # is true and the type is not exported.
     def self.load_typekit_for(typename, exported = true)
         typekit = default_loader.typekit_for(typename, exported)
-        if !typekit.virtual?
-            load_typekit typekit.name
-        end
+        load_typekit(typekit.name) unless typekit.virtual?
         typekit
     end
 
@@ -255,10 +249,7 @@ module Orocos
     #   typekit registers it
     # @return [Model<Typelib::Type>] a subclass of Typelib::Type that
     #   represents the requested type
-    def self.find_type_by_orocos_type_name(orocos_type_name, options = Hash.new)
-        options = Kernel.validate_options options,
-            :fallback_to_null_type => false
-
+    def self.find_type_by_orocos_type_name(orocos_type_name, fallback_to_null_type: false)
         if !registered_type?(orocos_type_name)
             load_typekit_for(orocos_type_name)
         end
@@ -266,10 +257,11 @@ module Orocos
     rescue Orocos::TypekitTypeNotFound, Typelib::NotFound
         # Create an opaque type as a placeholder for the unknown
         # type name
-        if options[:fallback_to_null_type]
+        if fallback_to_null_type
             type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
             create_or_get_null_type(type_name)
-        else raise
+        else
+            raise
         end
     end
 
