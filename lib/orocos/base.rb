@@ -263,13 +263,13 @@ module Orocos
     # problem. See the "Error messages" package in the user's guide for more
     # information on how to fix those.
     def self.initialize(name = "orocosrb_#{::Process.pid}")
-        if !loaded?
-            self.load(name)
-        end
+        self.load(name) unless loaded?
+
+        Orocos.update_typekit_main_thread
 
         # Install the SIGCHLD handler if it has not been disabled
-        if !disable_sigchld_handler?
-            trap('SIGCHLD') do
+        unless disable_sigchld_handler?
+            trap("SIGCHLD") do
                 begin
                     while dead = ::Process.wait(-1, ::Process::WNOHANG)
                         if mod = Orocos::Process.from_pid(dead)
@@ -281,9 +281,7 @@ module Orocos
             end
         end
 
-        if !Orocos::CORBA.initialized?
-            Orocos::CORBA.initialize
-        end
+        Orocos::CORBA.initialize unless Orocos::CORBA.initialized?
         @initialized = true
 
         if Orocos::ROS.enabled?

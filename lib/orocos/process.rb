@@ -1160,11 +1160,11 @@ module Orocos
             end
         end
 
-	# Wait for a process to become reachable
+        # Wait for a process to become reachable
         #
         def self.wait_running(process, timeout = nil, name_service = Orocos::CORBA.name_service, &block)
-	    if timeout == 0
-		return nil if !process.alive?
+            if timeout == 0
+                return unless process.alive?
 
                 # Use custom block to check if the process is reachable
                 if block_given?
@@ -1186,31 +1186,29 @@ module Orocos
                     end
                     all_reachable
                 end
-	    else
+            else
                 start_time = Time.now
                 got_alive = process.alive?
-                while true
-		    if wait_running(process, 0, name_service, &block)
-			break
-                    elsif not timeout
-                        break
-                    elsif timeout < Time.now - start_time
-                        break
-                    end
+                loop do
+                    break if wait_running(process, 0, name_service, &block)
+                    break unless timeout
+                    # This formulation allows timeout to be infinite
+                    break if timeout < Time.now - start_time
 
                     if got_alive && !process.alive?
                         raise Orocos::NotFound, "#{process.name} was started but crashed"
                     end
+
                     sleep 0.1
                 end
 
-                if process.alive?
-                    return true
-                else
+                unless process.alive?
                     raise Orocos::NotFound, "cannot get a running #{process.name} module"
                 end
-	    end
-	end
+
+                true
+            end
+        end
 
         def resolve_all_tasks(cache = Hash.new, name_service: Orocos::CORBA.name_service)
             Process.resolve_all_tasks(self, cache) do |task_name|
