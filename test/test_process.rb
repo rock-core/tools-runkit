@@ -57,7 +57,7 @@ describe Orocos::Process do
             assert_equal Hash[deployment_m => nil], deployments
         end
         it "raises if an unexisting name is given" do
-            assert_raises(ArgumentError) do
+            assert_raises(OroGen::NotFound) do
                 Orocos::Process.partition_run_options 'does_not_exist', loader: @loader
             end
         end
