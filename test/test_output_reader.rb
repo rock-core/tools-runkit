@@ -146,8 +146,8 @@ describe Orocos::OutputReader do
 
             source_p.kill(true, "KILL")
 
-	    assert_raises(Orocos::CORBA::ComError) { reader.read }
-	    assert(!reader.connected?)
+            reader.read # should not raise
+            refute reader.connected?
         end
     end
 
