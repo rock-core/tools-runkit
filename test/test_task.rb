@@ -9,7 +9,7 @@ describe Orocos::TaskContext do
     end
 
     it "should raise NotFound on unknown task contexts" do
-	assert_raises(Orocos::NotFound) { Orocos::TaskContext.get('Bla_Blo') }
+        assert_raises(Orocos::NotFound) { Orocos::TaskContext.get('Bla_Blo') }
     end
 
     it "should check equality based on CORBA reference" do
@@ -87,11 +87,14 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should raise CORBA::ComError when #port is called on a dead remote process" do
+    it "should raise either CORBA::ComError or TimeoutError when #port is called "\
+       "on a dead remote process" do
         Orocos.run('simple_source') do |p|
             source = Orocos::TaskContext.get("simple_source_source")
             p.kill
-            assert_raises(Orocos::CORBA::ComError) { source.port("cycle") }
+            assert_raises(Orocos::CORBA::ComError, Orocos::CORBA::TimeoutError) do
+                source.port("cycle")
+            end
         end
     end
 
@@ -121,18 +124,24 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should raise CORBA::ComError when the process crashed during a operation call" do
-        Orocos.run 'echo' do
-            echo = Orocos::TaskContext.get('echo_Echo')
-            assert_raises(Orocos::CORBA::ComError) { echo.operation(:kill).callop }
+    it "should raise CORBA::ComError when the process "\
+       "crashed during a operation call" do
+        Orocos.run "echo" do
+            echo = Orocos::TaskContext.get("echo_Echo")
+            assert_raises(Orocos::CORBA::ComError) do
+                echo.operation(:kill).callop
+            end
         end
     end
 
-    it "should raise CORBA::ComError when #operation has communication errors" do
+    it "should raise either CORBA::ComError or CORBA::TimeoutError when #operation "\
+       "has communication errors" do
         Orocos.run 'echo' do |p|
             echo = Orocos::TaskContext.get('echo_Echo')
             p.kill
-            assert_raises(Orocos::CORBA::ComError) { echo.operation(:write) }
+            assert_raises(Orocos::CORBA::ComError, Orocos::CORBA::TimeoutError) do
+                echo.operation(:write)
+            end
         end
     end
 
@@ -165,12 +174,18 @@ describe Orocos::TaskContext do
         end
     end
 
-    it "should raise CORBA::ComError when state-related operations are called on a dead process" do
+    it "should raise either CORBA::ComError or CORBA::TimeoutError when state-related "\
+       "operations are called on a dead process" do
         Orocos.run('simple_source') do |p|
             source = Orocos::TaskContext.get("simple_source_source")
             assert source.state
             p.kill
-            assert_raises(Orocos::CORBA::ComError) { source.state}
+            assert_raises(Orocos::CORBA::ComError, Orocos::CORBA::TimeoutError) do
+                source.state
+            end
+            # TimeoutError is due to a race condition on ORB shutdown. After the
+            # call to 'state', there is no more race condition and this should
+            # always be a ComError
             assert_raises(Orocos::CORBA::ComError) { source.start }
         end
     end
