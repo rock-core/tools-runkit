@@ -70,7 +70,7 @@ module Orocos
         # Returns a new object of this port's type
         def new_sample
             ensure_type_available
-            @type.new
+            @type.zero
         end
 
         def log_metadata
@@ -168,7 +168,7 @@ module Orocos
                     self.class.transient_local_port_name(full_name),
                     orocos_type_name,
                     permanent: false,
-                    class: self.class.writer_class) 
+                    class: self.class.writer_class)
             end
             writer.port = self
             writer.policy = policy

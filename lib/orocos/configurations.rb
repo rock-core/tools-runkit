@@ -768,8 +768,7 @@ module Orocos
                 orocos_type = model.find_property(property_name).type
                 typelib_type = loader.typelib_type_for(orocos_type)
 
-                typelib_value = typelib_type.new
-                typelib_value.zero!
+                typelib_value = typelib_type.zero
                 result[property_name] = TaskConfigurations.apply_conf_on_typelib_value(typelib_value, ruby_value)
             end
             result

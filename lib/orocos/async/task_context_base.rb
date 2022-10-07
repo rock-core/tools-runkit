@@ -41,7 +41,7 @@ module Orocos::Async
                 prop = task.property(prop)
                 prop.wait
                 p = @ruby_task_context.create_property(prop.name,prop.type)
-                p.write p.new_sample.zero!
+                p.write p.new_sample
                 prop.on_change do |data|
                     p.write data
                 end

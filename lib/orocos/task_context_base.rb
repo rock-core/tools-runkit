@@ -94,7 +94,7 @@ module Orocos
 
         def new_sample
             ensure_type_available
-            type.new
+            type.zero
         end
 
         def pretty_print(pp) # :nodoc:
