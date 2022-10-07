@@ -443,12 +443,11 @@ module Orocos
         def join
             return unless alive?
 
-	    begin
-		::Process.waitpid(pid)
-                exit_status = $?
+            begin
+                _, exit_status = ::Process.waitpid2(pid)
                 dead!(exit_status)
-	    rescue Errno::ECHILD
-	    end
+            rescue Errno::ECHILD
+            end
         end
 
         # True if the process is running
