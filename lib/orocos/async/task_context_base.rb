@@ -120,7 +120,7 @@ module Orocos::Async
             # the calling order
             if listener.event == :port_reachable
                 names = @port_names.dup
-                event_loop.once do 
+                event_loop.once do
                     names.each do |name|
                         listener.call name
                     end
@@ -202,7 +202,7 @@ module Orocos::Async
 
         # Disconnectes self from the remote task context and returns its underlying
         # object used to communicate with the remote task (designated object).
-        # 
+        #
         # Returns nil if the TaskContext is not connected.
         # Returns an EventLoop Event if not called from the event loop thread.
         #
@@ -305,7 +305,7 @@ module Orocos::Async
 
         # call-seq:
         #  task.each_property { |a| ... } => task
-        # 
+        #
         # Enumerates the properties that are available on
         # this task, as instances of Orocos::Attribute
         def each_property(&block)
@@ -320,7 +320,7 @@ module Orocos::Async
 
         # call-seq:
         #  task.each_attribute { |a| ... } => task
-        # 
+        #
         # Enumerates the attributes that are available on
         # this task, as instances of Orocos::Attribute
         def each_attribute(&block)
@@ -335,7 +335,7 @@ module Orocos::Async
 
         # call-seq:
         #  task.each_port { |p| ... } => task
-        # 
+        #
         # Enumerates the ports that are available on this task, as instances of
         # either Orocos::InputPort or Orocos::OutputPort
         def each_port(&block)
