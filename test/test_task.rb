@@ -231,15 +231,21 @@ describe Orocos::TaskContext do
 
             # Note: we don't have state_pre_operational as we already read it
             # once
-            assert_equal Orocos::TaskContext::STATE_STOPPED, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNTIME_ERROR, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNTIME_ERROR, state.read
-            assert_equal Orocos::TaskContext::STATE_RUNNING, state.read
-            assert_equal Orocos::TaskContext::STATE_EXCEPTION, state.read
-            assert_equal Orocos::TaskContext::STATE_PRE_OPERATIONAL, state.read
+            expected = [
+                Orocos::TaskContext::STATE_STOPPED,
+                Orocos::TaskContext::STATE_RUNNING,
+                Orocos::TaskContext::STATE_RUNTIME_ERROR,
+                Orocos::TaskContext::STATE_RUNTIME_ERROR,
+                Orocos::TaskContext::STATE_RUNNING,
+                Orocos::TaskContext::STATE_RUNTIME_ERROR,
+                Orocos::TaskContext::STATE_RUNTIME_ERROR,
+                Orocos::TaskContext::STATE_RUNNING,
+                Orocos::TaskContext::STATE_EXCEPTION,
+                Orocos::TaskContext::STATE_EXCEPTION,
+                Orocos::TaskContext::STATE_PRE_OPERATIONAL
+            ]
+            actual = expected.map { state.read }
+            assert_equal expected, actual
         end
     end
 
