@@ -51,9 +51,9 @@ module Orocos
             ]
         end
 
-        def ensure_type_available(options = Hash.new)
+        def ensure_type_available(**options)
             if !type || type.null?
-                @type = Orocos.find_type_by_orocos_type_name(@orocos_type_name, options)
+                @type = Orocos.find_type_by_orocos_type_name(@orocos_type_name, **options)
             end
         end
 
@@ -224,7 +224,7 @@ module Orocos
                 raise ArgumentError, 'no task name' if options.nil?
                 name = options.to_str
             end
-            result = Orocos.name_service.get(name,{:process => process})
+            result = Orocos.name_service.get(name, process: process)
         end
 
         # Find one running tasks from the provided names. Raises if there is not
