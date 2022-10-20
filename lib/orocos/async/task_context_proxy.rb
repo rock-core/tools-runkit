@@ -43,7 +43,7 @@ module Orocos::Async
         end
 
         def new_sample
-            type.new
+            type.zero
         end
 
         def last_sample
@@ -190,7 +190,7 @@ module Orocos::Async
         end
 
         def new_sample
-            type.new
+            type.zero
         end
 
         def to_async(options=Hash.new)
@@ -384,7 +384,7 @@ module Orocos::Async
         end
 
         def new_sample
-            type.new
+            type.zero
         end
 
         def last_sample
