@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module RemoteProcesses
         # A loader object that allows to load models from a remote process
@@ -26,9 +28,9 @@ module Orocos
             #   the model file (or nil if there is no such file)
             def project_model_text_from_name(name)
                 if text = available_projects[name]
-                    return text
+                    text
                 else
-                    raise OroGen::ProjectNotFound, "#{client} has no project called #{name}, available projects: #{available_projects.keys.sort.join(", ")}"
+                    raise OroGen::ProjectNotFound, "#{client} has no project called #{name}, available projects: #{available_projects.keys.sort.join(', ')}"
                 end
             end
 
@@ -39,9 +41,9 @@ module Orocos
             # @return [(String,String)] the typekit registry as XML and the
             #   typekit's typelist
             def typekit_model_text_from_name(name)
-                if text = available_typekits[name]
-                    return *text
-                else 
+                if (text = available_typekits[name])
+                    text
+                else
                     raise OroGen::TypekitNotFound, "#{client} has no typekit called #{name}"
                 end
             end
@@ -51,7 +53,7 @@ module Orocos
             # @param [String] name the project name
             # @return [Boolean]
             def has_project?(name)
-                available_projects.has_key?(name)
+                available_projects.key?(name)
             end
 
             # Tests if a typekit with that name exists
@@ -59,7 +61,7 @@ module Orocos
             # @param [String] name the typekit name
             # @return [Boolean]
             def has_typekit?(name)
-                available_typekits.has_key?(name)
+                available_typekits.key?(name)
             end
 
             # Tests if a deployment with that name exists
@@ -67,24 +69,24 @@ module Orocos
             # @param [String] name the deployment name
             # @return [Boolean]
             def has_deployment?(name)
-                available_deployments.has_key?(name)
+                available_deployments.key?(name)
             end
+
             # Returns the project that defines the given deployment
             #
             # @param [String] deployment_name the deployment we are looking for
             # @return [String,nil]
             def find_project_from_deployment_name(name)
                 if project_name = available_deployments[name]
-                    return project_name
-                else 
+                    project_name
+                else
                     raise OroGen::DeploymentModelNotFound, "#{client} has no deployment called #{name}"
                 end
             end
 
             def each_available_project_name(&block)
-                return available_projects.each_key(&block)
+                available_projects.each_key(&block)
             end
         end
     end
 end
-

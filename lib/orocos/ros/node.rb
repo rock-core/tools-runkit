@@ -1,4 +1,6 @@
-require 'utilrb/spawn'
+# frozen_string_literal: true
+
+require "utilrb/spawn"
 module Orocos
     module ROS
         # A TaskContext-compatible interface of a ROS node
@@ -32,42 +34,41 @@ module Orocos
             #   the exit status object that represents how the node finished
             attr_reader :exit_status
 
-            def initialize(name_service, server, name = nil, options = Hash.new)
+            def initialize(name_service, server, name = nil, options = {})
                 @name_service = name_service
                 @server = server
-                @input_topics = Hash.new
-                @output_topics = Hash.new
+                @input_topics = {}
+                @output_topics = {}
                 @name_mappings = NameMappings.new
 
                 if name.kind_of?(Hash)
-                    name, options = nil, name
+                    options = name
+                    name = nil
                 end
 
                 with_defaults, options = Kernel.filter_options options,
-                    :model => OroGen::ROS::Spec::Node.new(nil,name),
-                    :namespace => name_service.namespace
+                                                               model: OroGen::ROS::Spec::Node.new(nil, name),
+                                                               namespace: name_service.namespace
                 options = options.merge(with_defaults)
 
                 # We allow models to be specified by name
-                if options[:model].respond_to?(:to_str)
-                    options[:model] = Orocos.default_loader.task_model_from_name(options[:model])
-                end
+                options[:model] = Orocos.default_loader.task_model_from_name(options[:model]) if options[:model].respond_to?(:to_str)
                 # Initialize the name from the model if it has one, and no name
                 # was given
-                if !name
+                unless name
                     if options[:model]
-                        name = options[:model].name.gsub(/.*::/, '')
+                        name = options[:model].name.gsub(/.*::/, "")
                     else
                         raise ArgumentError, "no name and no model given. At least one of the two must be provided."
                     end
                 end
                 super(name, options)
 
-                if running?
-                    @state_queue << :RUNNING
-                else
-                    @state_queue << :PRE_OPERATIONAL
-                end
+                @state_queue << if running?
+                                    :RUNNING
+                                else
+                                    :PRE_OPERATIONAL
+                                end
             end
 
             def ros_name
@@ -77,8 +78,8 @@ module Orocos
 
             def ==(other)
                 other.class == self.class &&
-                    other.name_service == self.name_service &&
-                    other.name == self.name
+                    other.name_service == name_service &&
+                    other.name == name
             end
 
             # @return [Boolean] true if this Node is already running (somewhere)
@@ -108,11 +109,9 @@ module Orocos
                     @state_queue << :EXCEPTION
                 end
 
-                if @state_queue.last != :EXCEPTION
-                    @state_queue << :STOPPED
-                end
+                @state_queue << :STOPPED if @state_queue.last != :EXCEPTION
 
-                @pid = nil 
+                @pid = nil
                 @server = nil
             end
 
@@ -137,9 +136,7 @@ module Orocos
                 end
 
                 spawn
-                if wait_for_completion
-                    wait_running
-                end
+                wait_running if wait_for_completion
             end
 
             def stop(wait_for_completion = true)
@@ -148,26 +145,23 @@ module Orocos
             end
 
             def shutdown(wait_for_completion = true)
-                if !running?
-                    raise StateTransitionFailed, "#{self} is not running"
-                end
+                raise StateTransitionFailed, "#{self} is not running" unless running?
+
                 kill
-                if wait_for_completion
-                    join
-                end
+                join if wait_for_completion
             end
 
             def kill
-                ::Process.kill('INT', @pid)
+                ::Process.kill("INT", @pid)
             end
 
             def join
-                return if !running?
+                return unless running?
 
                 begin
                     ::Process.waitpid(pid)
                     exit_status = $?
-                        dead!(exit_status)
+                    dead!(exit_status)
                 rescue Errno::ECHILD
                 end
             end
@@ -185,7 +179,7 @@ module Orocos
             def spawn
                 args = name_mappings.to_command_line
                 package_name, bin_name = *model.name.split("::")
-                binary = OroGen::ROS.rosnode_find(package_name.gsub(/^ros_/, ''), bin_name)
+                binary = OroGen::ROS.rosnode_find(package_name.gsub(/^ros_/, ""), bin_name)
                 @pid = Utilrb.spawn binary, "__name:=#{name}", *args
             end
 
@@ -194,16 +188,14 @@ module Orocos
                 return if @server
 
                 now = Time.now
-                while true
+                loop do
                     begin
                         node = name_service.get name
                         @server = node.server
                         break
                     rescue Orocos::NotFound
                     end
-                    if timeout && (Time.now - now) > timeout
-                        raise Orocos::NotFound, "#{self} is still not reachable after #{timeout} seconds"
-                    end
+                    raise Orocos::NotFound, "#{self} is still not reachable after #{timeout} seconds" if timeout && (Time.now - now) > timeout
                 end
             end
 
@@ -240,7 +232,9 @@ module Orocos
                 false
             end
 
-            def doc?; false end
+            def doc?
+                false
+            end
             attr_reader :doc
 
             def each_property; end
@@ -249,65 +243,64 @@ module Orocos
                 each_port.map(&:name)
             end
 
-            def property_names; [] end
-            def attribute_names; [] end
-            def operation_names; [] end
+            def property_names
+                []
+            end
+
+            def attribute_names
+                []
+            end
+
+            def operation_names
+                []
+            end
 
             def has_port?(name)
                 verify = true
-                if model.spec_available?
-                    verify = false
-                end
+                verify = false if model.spec_available?
                 !!(find_output_port(name, verify) || find_input_port(name, verify))
             end
 
             def port(name, verify = true)
                 p = (find_output_port(name, verify) || find_input_port(name, verify))
-                if !p
-                    raise Orocos::NotFound, "cannot find topic #{name} attached to node #{self.name}"
-                end
+                raise Orocos::NotFound, "cannot find topic #{name} attached to node #{self.name}" unless p
+
                 p
             end
 
             def input_port(name, verify = true)
                 p = find_input_port(name, verify)
-                if !p
-                    raise Orocos::NotFound, "cannot find topic #{name} as a subscription of node #{self.name}"
-                end
+                raise Orocos::NotFound, "cannot find topic #{name} as a subscription of node #{self.name}" unless p
+
                 p
             end
 
             def output_port(name, verify = true)
                 p = find_output_port(name, verify)
-                if !p
-                    raise Orocos::NotFound, "cannot find topic #{name} as a publication of node #{self.name}"
-                end
+                raise Orocos::NotFound, "cannot find topic #{name} as a publication of node #{self.name}" unless p
+
                 p
             end
-            
+
             # Finds the name of a topic this node is publishing
             #
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_output_port(name, verify = true, wait_if_unavailable = true)
                 each_output_port(verify) do |p|
-                    if p.name == name || p.topic_name == OroGen::ROS.normalize_topic_name(name)
-                        return p
-                    end
+                    return p if p.name == name || p.topic_name == OroGen::ROS.normalize_topic_name(name)
                 end
                 if verify && wait_if_unavailable
                     name_service.wait_for_update
                     find_output_port(name, true, false)
                 end
             end
-            
+
             # Finds the name of a topic this node is subscribed to
             #
             # @return [ROS::Topic,nil] the topic if found, nil otherwise
             def find_input_port(name, verify = true, wait_if_unavailable = true)
                 each_input_port(verify) do |p|
-                    if p.name == name || p.topic_name == OroGen::ROS.normalize_topic_name(name)
-                        return p
-                    end
+                    return p if p.name == name || p.topic_name == OroGen::ROS.normalize_topic_name(name)
                 end
                 if verify && wait_if_unavailable
                     name_service.wait_for_update
@@ -316,7 +309,8 @@ module Orocos
             end
 
             def each_port(verify = true)
-                return enum_for(:each_port, verify) if !block_given?
+                return enum_for(:each_port, verify) unless block_given?
+
                 each_output_port(verify) { |p| yield(p) }
                 each_input_port(verify) { |p| yield(p) }
             end
@@ -325,32 +319,26 @@ module Orocos
             # @return [(String,OroGen::ROS::Spec::OutputTopic),(String,nil)]
             def resolve_output_topic_name(topic_name)
                 model.each_output_port do |m|
-                    if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)
-                        return m.name, m
-                    end
+                    return m.name, m if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)
                 end
-                return Topic.default_port_name(topic_name), nil
+                [Topic.default_port_name(topic_name), nil]
             end
 
             # Resolves the given topic name into a port name and a port model.
             # @return [(String,OroGen::ROS::Spec::InputTopic),(String,nil)]
             def resolve_input_topic_name(topic_name)
                 model.each_input_port do |m|
-                    if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)
-                        return m.name, m
-                    end
+                    return m.name, m if apply_name_mappings(m.topic_name) == OroGen::ROS.normalize_topic_name(topic_name)
                 end
-                return Topic.default_port_name(topic_name), nil
+                [Topic.default_port_name(topic_name), nil]
             end
 
             # Enumerates each "output topics" of this node
             def each_output_port(verify = true)
-                return enum_for(:each_output_port, verify) if !block_given?
+                return enum_for(:each_output_port, verify) unless block_given?
 
-                if !verify
-                    return @output_topics.values.each(&proc)
-                end
-                
+                return @output_topics.values.each(&proc) unless verify
+
                 if !running?
                     model.each_output_port do |m|
                         yield(@output_topics[m.name] ||= OutputTopic.new(self, m.topic_name, m.topic_type, m.name))
@@ -369,11 +357,9 @@ module Orocos
 
             # Enumerates each "input topics" of this node
             def each_input_port(verify = true)
-                return enum_for(:each_input_port, verify) if !block_given?
+                return enum_for(:each_input_port, verify) unless block_given?
 
-                if !verify
-                    return @input_topics.values.each(&proc)
-                end
+                return @input_topics.values.each(&proc) unless verify
 
                 if !running?
                     model.each_input_port do |m|
@@ -417,24 +403,22 @@ module Orocos
 
             # @return [Orocos::Async::ROS::Node] an object that gives
             #   asynchronous access to this particular ROS node
-            def to_async(options = Hash.new)
+            def to_async(options = {})
                 Async::ROS::Node.new(name_service, server, name, options)
             end
 
-            def to_proxy(options = Hash.new)
+            def to_proxy(options = {})
                 options[:use] ||= to_async
-                # use name service to check if there is already 
+                # use name service to check if there is already
                 # a proxy for the task
-                Orocos::Async.proxy(name,options.merge(:name_service => name_service))
+                Orocos::Async.proxy(name, options.merge(name_service: name_service))
             end
 
             # Tests if this node is still available
             #
             # @raise [Orocos::ComError] if the node is not available anymore
             def ping
-                if !name_service.has_node?(name)
-                    raise Orocos::ComError, "ROS node #{name} is not available on the ROS graph anymore"
-                end
+                raise Orocos::ComError, "ROS node #{name} is not available on the ROS graph anymore" unless name_service.has_node?(name)
             end
 
             def log_all_configuration(logfile)
@@ -443,5 +427,3 @@ module Orocos
         end
     end
 end
-
-

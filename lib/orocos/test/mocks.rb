@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module Test
         module Mocks
@@ -49,4 +51,3 @@ module Orocos
         end
     end
 end
-

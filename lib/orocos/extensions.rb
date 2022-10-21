@@ -1,34 +1,35 @@
+# frozen_string_literal: true
+
 module Orocos
     class << self
-	attr_accessor :default_log_buffer_size
+        attr_accessor :default_log_buffer_size
     end
     @default_log_buffer_size = 25
 
-    extend_task 'logger::Logger' do
+    extend_task "logger::Logger" do
         # Create a new log port for the given interface object
         #
         # @param [Attribute,Property,OutputPort] object the object that is going
         #   to be logged
         # @param [Hash] options
-        # @option options [String] name (#{object.task.name}.#{object.name}) the created port name 
+        # @option options [String] name (#{object.task.name}.#{object.name}) the created port name
         # @option options [Array<{'key' => String, 'value' => String}>] metadata additional metadata to be stored in the log stream
         # @return [String] the stream name, which is also the name of the
         #   created input port
-        def create_log(object, options = Hash.new)
+        def create_log(object, options = {})
             options = Kernel.validate_options options,
-                :name => "#{object.task.name}.#{object.name}",
-                :metadata => []
+                                              name: "#{object.task.name}.#{object.name}",
+                                              metadata: []
 
             stream_name = options[:name]
-            if !has_port?(stream_name)
+            unless has_port?(stream_name)
                 stream_metadata = object.log_metadata.map do |key, value|
-                    Hash['key' => key, 'value' => value]
+                    Hash["key" => key, "value" => value]
                 end
                 stream_metadata.concat(options[:metadata])
 
-                if !createLoggingPort(stream_name, object.orocos_type_name, stream_metadata)
-                    raise ArgumentError, "cannot create log port on log task #{name} for #{stream_name} and type #{object.orocos_type_name}"
-                end
+                raise ArgumentError, "cannot create log port on log task #{name} for #{stream_name} and type #{object.orocos_type_name}" unless createLoggingPort(stream_name, object.orocos_type_name, stream_metadata)
+
                 Orocos.info "created logging port #{stream_name} of type #{object.orocos_type_name}"
             end
             stream_name
@@ -46,7 +47,7 @@ module Orocos
         def log(object, buffer_size = Orocos.default_log_buffer_size)
             stream_name = create_log(object)
             if object.kind_of?(Port)
-                port(stream_name).connect_to(object, :type => :buffer, :size => buffer_size)
+                port(stream_name).connect_to(object, type: :buffer, size: buffer_size)
             else
                 object.log_port = port(stream_name)
                 object.log_current_value
@@ -54,12 +55,12 @@ module Orocos
             nil
         end
 
-        #creates a log stream for annotations
-        def create_log_annotations(stream_name,metadata=Hash.new)
-            if !has_port?(stream_name)
-                metadata = {"rock_stream_type" => "annotations"}.merge metadata
+        # creates a log stream for annotations
+        def create_log_annotations(stream_name, metadata = {})
+            unless has_port?(stream_name)
+                metadata = { "rock_stream_type" => "annotations" }.merge metadata
                 metadata = metadata.map do |key, value|
-                    Hash['key' => key, 'value' => value]
+                    Hash["key" => key, "value" => value]
                 end
                 createLoggingPort(stream_name, Types::Logger::Annotations.name, metadata)
                 Orocos.info "created logging port #{stream_name} of type #{Types::Logger::Annotations.name}"
@@ -67,50 +68,50 @@ module Orocos
             stream_name
         end
 
-        def log_annotations(time,key,value,stream_name = "")
+        def log_annotations(time, key, value, stream_name = "")
             stream_name = create_log_annotations("log_annotations")
             sample = Types::Logger::Annotations.new
             sample.time = time
             sample.key = key
             sample.value = value
             sample.stream_name = stream_name
-            @log_annotations_writer ||= port(stream_name).writer :type => :buffer, :size => 25
+            @log_annotations_writer ||= port(stream_name).writer type: :buffer, size: 25
             @log_annotations_writer.write sample
         end
 
-        def marker_start(index,comment)
-            log_annotations(Time.now,"log_marker_start","<#{index}>;#{comment}")
+        def marker_start(index, comment)
+            log_annotations(Time.now, "log_marker_start", "<#{index}>;#{comment}")
         end
 
-        def marker_stop(index,comment)
-            log_annotations(Time.now,"log_marker_stop","<#{index}>;#{comment}")
+        def marker_stop(index, comment)
+            log_annotations(Time.now, "log_marker_stop", "<#{index}>;#{comment}")
         end
 
-        def marker_abort(index,comment)
-            log_annotations(Time.now,"log_marker_abort","<#{index}>;#{comment}")
+        def marker_abort(index, comment)
+            log_annotations(Time.now, "log_marker_abort", "<#{index}>;#{comment}")
         end
 
         def marker_event(comment)
-            log_annotations(Time.now,"log_marker_event",comment)
+            log_annotations(Time.now, "log_marker_event", comment)
         end
 
         def marker_stop_all(comment)
-            log_annotations(Time.now,"log_marker_stop_all",comment)
+            log_annotations(Time.now, "log_marker_stop_all", comment)
         end
 
         def marker_abort_all(comment)
-            log_annotations(Time.now,"log_marker_abort_all",comment)
+            log_annotations(Time.now, "log_marker_abort_all", comment)
         end
 
-        #indicates that this task belongs to the tooling of rock
+        # indicates that this task belongs to the tooling of rock
         def tooling?
             true
         end
     end
 
-    extend_task 'taskmon::Task' do
-        attribute(:watched_pids) { Hash.new { |h, k| Array.new } }
-        attribute(:watched_tids) { Hash.new }
+    extend_task "taskmon::Task" do
+        attribute(:watched_pids) { Hash.new { |h, k| [] } }
+        attribute(:watched_tids) { {} }
 
         def resolve_process_threads(pid, process_name, threads)
             # First, convert the process IDs into their corresponding threads
@@ -122,9 +123,9 @@ module Orocos
         end
 
         def add_watches(processes, _threads)
-            watch_op = operation('watch')
+            watch_op = operation("watch")
             if _threads.respond_to?(:to_ary)
-                threads = Hash.new
+                threads = {}
                 _threads.each do |orocos_task|
                     tid = orocos_task.tid
                     if tid == 0
@@ -172,7 +173,7 @@ module Orocos
 
         def remove_watches(threads)
             # Now remove existing watches that are not required anymore
-            remove_watch_op = operation('removeWatchFromPID')
+            remove_watch_op = operation("removeWatchFromPID")
             sent_operations = []
             threads.each do |thread|
                 tid = if thread.kind_of?(Orocos::TaskContext) then thread.tid
@@ -201,7 +202,7 @@ module Orocos
 
         def watch_process(process)
             processes = { process.pid => process.name }
-            threads = Hash.new
+            threads = {}
             process.each_task do |task|
                 threads[task.tid] = task.name
             end
@@ -213,4 +214,3 @@ module Orocos
         end
     end
 end
-

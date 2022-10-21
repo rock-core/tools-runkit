@@ -1,8 +1,10 @@
-require 'orocos/test'
-require 'orocos/async'
+# frozen_string_literal: true
+
+require "orocos/test"
+require "orocos/async"
 
 describe Orocos::Async::NameService do
-    before do 
+    before do
         Orocos::Async.clear
     end
 
@@ -12,7 +14,7 @@ describe Orocos::Async::NameService do
 
     it "should raise NotFound if remote task is not reachable" do
         ns = Orocos::Async::NameService.new
-        assert_raises Orocos::NotFound do 
+        assert_raises Orocos::NotFound do
             ns.get "bla"
         end
     end
@@ -21,8 +23,8 @@ describe Orocos::Async::NameService do
         assert Orocos::Async.name_service.reachable?
     end
 
-    it "should return a TaskContextProxy" do 
-        Orocos.run('process') do
+    it "should return a TaskContextProxy" do
+        Orocos.run("process") do
             ns = Orocos::Async::NameService.new
             ns << Orocos::Async::CORBA::NameService.new
 
@@ -39,8 +41,8 @@ describe Orocos::Async::NameService do
         end
     end
 
-    it "should report that new task are added and removed" do 
-        ns = Orocos::Async::NameService.new(:period => 0)
+    it "should report that new task are added and removed" do
+        ns = Orocos::Async::NameService.new(period: 0)
         ns << Orocos::Async::CORBA::NameService.new
         names_added = []
         names_removed = []
@@ -51,16 +53,16 @@ describe Orocos::Async::NameService do
             names_removed << n
         end
         Orocos::Async.steps
-        Orocos.run('process') do
+        Orocos.run("process") do
             Orocos::Async.steps
-            assert_equal 1,names_added.size
-            assert_equal 0,names_removed.size
-            assert_equal "/process_Test",names_added.first
+            assert_equal 1, names_added.size
+            assert_equal 0, names_removed.size
+            assert_equal "/process_Test", names_added.first
         end
         Orocos::Async.steps
-        assert_equal 1,names_added.size
-        assert_equal 1,names_removed.size
-        assert_equal "/process_Test",names_removed.first
+        assert_equal 1, names_added.size
+        assert_equal 1, names_removed.size
+        assert_equal "/process_Test", names_removed.first
     end
 end
 
@@ -73,7 +75,7 @@ describe Orocos::Async::CORBA::NameService do
 
     it "should raise NotFound if remote task is not reachable" do
         ns = Orocos::Async::CORBA::NameService.new
-        assert_raises Orocos::NotFound do 
+        assert_raises Orocos::NotFound do
             ns.get "bla"
         end
     end
@@ -87,7 +89,7 @@ describe Orocos::Async::CORBA::NameService do
         end
 
         error = nil
-        ns.get "bla" do |task,err|
+        ns.get "bla" do |task, err|
             error = err
         end
 
@@ -101,8 +103,8 @@ describe Orocos::Async::CORBA::NameService do
         Orocos::Async::CORBA.name_service.must_be_instance_of Orocos::Async::CORBA::NameService
     end
 
-    it "should return a TaskContextProxy" do 
-        Orocos.run('process') do
+    it "should return a TaskContextProxy" do
+        Orocos.run("process") do
             ns = Orocos::Async::CORBA::NameService.new
             t = ns.get "process_Test"
             t.must_be_instance_of Orocos::Async::CORBA::TaskContext
@@ -127,7 +129,7 @@ describe Orocos::Async::Local::NameService do
 
     it "should raise NotFound if remote task is not reachable" do
         ns = Orocos::Async::Local::NameService.new
-        assert_raises Orocos::NotFound do 
+        assert_raises Orocos::NotFound do
             ns.get "bla"
         end
     end
@@ -141,7 +143,7 @@ describe Orocos::Async::Local::NameService do
         end
 
         error = nil
-        ns.get "bla" do |task,err|
+        ns.get "bla" do |task, err|
             error = err
         end
 
@@ -152,8 +154,8 @@ describe Orocos::Async::Local::NameService do
     end
 
     describe "#get" do
-        it "should return a TaskContextProxy" do 
-            Orocos.run('process') do
+        it "should return a TaskContextProxy" do
+            Orocos.run("process") do
                 ns = Orocos::Async::Local::NameService.new
                 t = Orocos.get "process_Test"
                 ns.register t
@@ -166,8 +168,8 @@ describe Orocos::Async::Local::NameService do
     end
 
     describe "#proxy" do
-        it "should return a TaskContextProxy" do 
-            Orocos.run('process') do
+        it "should return a TaskContextProxy" do
+            Orocos.run("process") do
                 ns = Orocos::Async::Local::NameService.new
                 t = Orocos.get "process_Test"
                 ns.register t
@@ -179,4 +181,3 @@ describe Orocos::Async::Local::NameService do
         end
     end
 end
-

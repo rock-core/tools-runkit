@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module ROS
         # @return [String] the type name that should be used on the oroGen
@@ -11,10 +13,8 @@ module Orocos
         class DefaultLoader < OroGen::ROS::Loader
             def clear
                 super
-                if !search_path.include?(OroGen::ROS::OROGEN_ROS_LIB_DIR)
-                    search_path << OroGen::ROS::OROGEN_ROS_LIB_DIR
-                end
-                root_loader.project_model_from_name 'ros'
+                search_path << OroGen::ROS::OROGEN_ROS_LIB_DIR unless search_path.include?(OroGen::ROS::OROGEN_ROS_LIB_DIR)
+                root_loader.project_model_from_name "ros"
             end
         end
 
@@ -28,8 +28,10 @@ module Orocos
             @loaded = true
         end
 
-        def self.loaded?; !!@loaded end
-        
+        def self.loaded?
+            !!@loaded
+        end
+
         def self.clear
             default_loader.clear
             @loaded = false
@@ -45,19 +47,17 @@ module Orocos
         # Test whether roscore is available or not
         # @return [Boolean] True if roscore is available, false otherwise
         def self.roscore_available?
-            begin
-                !rosnode_list.empty?
-            rescue InternalError => e
-                false
-            end
+            !rosnode_list.empty?
+        rescue InternalError => e
+            false
         end
 
         # Start the roscore process
         # @return[INT] Pid of the roscore process see #roscore_pid
         def self.roscore_start(*args)
-            options = args.last.kind_of?(Hash) ? args.pop : Hash.new
+            options = args.last.kind_of?(Hash) ? args.pop : {}
             options, unknown_options = Kernel.filter_options options,
-                :redirect => File.join("/var/tmp/roscore.log")
+                                                             redirect: File.join("/var/tmp/roscore.log")
 
             args << options
 
@@ -71,11 +71,9 @@ module Orocos
                 info "roscore is already running, pid '#{@roscore_pid}'"
             end
 
-            if unknown_options[:wait]
-                while !roscore_available?
-                    sleep 0.1
-                end
-            end
+            return unless unknown_options[:wait]
+
+            sleep 0.1 until roscore_available?
         end
 
         # Shutdown roscore if controlled by this process, otherwise
@@ -87,7 +85,7 @@ module Orocos
             begin
                 if @roscore_pid
                     info "roscore will be shutdown"
-                    status = ::Process.kill('INT',@roscore_pid)
+                    status = ::Process.kill("INT", @roscore_pid)
                     @roscore_pid = nil
                     return status
                 end
@@ -105,8 +103,8 @@ module Orocos
         #     :nice
         #     :redirect
         # @return [Int] Pid of the roslaunch process
-        def self.roslaunch(package_name, launch_name, options = Hash.new)
-            launch_name = launch_name.gsub(/\.launch/,'')
+        def self.roslaunch(package_name, launch_name, options = {})
+            launch_name = launch_name.gsub(/\.launch/, "")
             launch_name = launch_name + ".launch"
             arguments = [package_name, launch_name]
             arguments += [options]
@@ -116,4 +114,3 @@ module Orocos
         end
     end
 end
-

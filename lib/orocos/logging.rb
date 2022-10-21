@@ -1,5 +1,7 @@
-require 'logger'
-require 'utilrb/logger'
+# frozen_string_literal: true
+
+require "logger"
+require "utilrb/logger"
 module Orocos
     def self.log_all
         log_all_ports
@@ -47,9 +49,8 @@ module Orocos
     # default). This log file becomes the new default log file for all following
     # calls to Orocos.log_all_configuration
     def self.configuration_log
-        if !HAS_POCOLOG
-            raise ArgumentError, "the pocolog Ruby library is not available, configuration logging cannot be used"
-        end
+        raise ArgumentError, "the pocolog Ruby library is not available, configuration logging cannot be used" unless HAS_POCOLOG
+
         @configuration_log ||= Pocolog::Logfiles.create(File.expand_path(Orocos.configuration_log_name, Orocos.default_working_directory))
     end
 
@@ -66,13 +67,14 @@ module Orocos
     #
     # This is shared by local and remote processes alike
     def self.log_all_process_ports(process, tasks: nil, exclude_ports: nil, exclude_types: nil, **logger_options)
-        if !(logger = process.default_logger)
+        unless (logger = process.default_logger)
             return Set.new
         end
 
         process.setup_default_logger(
             logger,
-            **logger_options)
+            **logger_options
+        )
 
         logged_ports = Set.new
         process.task_names.each do |task_name|
@@ -90,14 +92,9 @@ module Orocos
                 logger.log(port)
             end
         end
-        if logger.pre_operational?
-            logger.configure
-        end
-        if !logger.running?
-            logger.start
-        end
+        logger.configure if logger.pre_operational?
+        logger.start unless logger.running?
 
         logged_ports
     end
 end
-

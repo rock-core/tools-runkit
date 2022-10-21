@@ -1,44 +1,44 @@
+# frozen_string_literal: true
+
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
-if ENV['TEST_ENABLE_COVERAGE'] == '1'
+if ENV["TEST_ENABLE_COVERAGE"] == "1"
     begin
-        require 'simplecov'
+        require "simplecov"
         SimpleCov.start
     rescue LoadError
-        require 'orocos'
+        require "orocos"
         Orocos.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
     rescue Exception => e
-        require 'orocos'
+        require "orocos"
         Orocos.warn "coverage is disabled: #{e.message}"
     end
-elsif ENV['TEST_ENABLE_PRY'] != '0'
+elsif ENV["TEST_ENABLE_PRY"] != "0"
     begin
-        require 'pry'
-        if ENV['TEST_DEBUG'] == '1'
-            require 'pry-rescue/minitest'
-        end
+        require "pry"
+        require "pry-rescue/minitest" if ENV["TEST_DEBUG"] == "1"
     rescue Exception
-        require 'orocos'
+        require "orocos"
         Orocos.warn "debugging is disabled because the 'pry' gem cannot be loaded"
     end
 end
 
-if ENV['TEST_ENABLE_PRY'] != '0'
+if ENV["TEST_ENABLE_PRY"] != "0"
     begin
-        require 'pry'
+        require "pry"
     rescue Exception
         Orocos.warn "debugging is disabled because the 'pry' gem cannot be loaded"
     end
 end
 
-require 'minitest/autorun'
-require 'minitest/spec'
-require 'flexmock/minitest'
+require "minitest/autorun"
+require "minitest/spec"
+require "flexmock/minitest"
 
-require 'orocos'
-require 'orocos/rake'
-require 'orocos/test/mocks'
-require 'orocos/test/ruby_tasks'
+require "orocos"
+require "orocos/rake"
+require "orocos/test/mocks"
+require "orocos/test/ruby_tasks"
 
 module Orocos
     module SelfTest
@@ -47,11 +47,11 @@ module Orocos
 
         # A set of "modes" that can be used to control how the tests will be
         # performed
-        TEST_MODES = (ENV['OROCOS_TEST_MODES'] || "").split(',')
+        TEST_MODES = (ENV["OROCOS_TEST_MODES"] || "").split(",")
         # Test without models
-        TEST_MODEL_LESS = TEST_MODES.include?('no_model')
+        TEST_MODEL_LESS = TEST_MODES.include?("no_model")
         # Test with models that cannot be loaded
-        TEST_MISSING_MODELS = TEST_MODES.include?('missing_model')
+        TEST_MISSING_MODELS = TEST_MODES.include?("missing_model")
         # Whether we should enable MQ support during tests
         USE_MQUEUE = Orocos::Rake::USE_MQUEUE
 
@@ -60,24 +60,29 @@ module Orocos
             include FlexMock::MockContainer
         end
 
-        def work_dir; File.join(@test_dir, 'working_copy') end
-        def data_dir; File.join(@test_dir, 'data') end
+        def work_dir
+            File.join(@test_dir, "working_copy")
+        end
+
+        def data_dir
+            File.join(@test_dir, "data")
+        end
 
         def setup
-            @old_pkg_config_path = ENV['PKG_CONFIG_PATH'].dup
+            @old_pkg_config_path = ENV["PKG_CONFIG_PATH"].dup
             @__warn_for_missing_default_loggers = Orocos.warn_for_missing_default_loggers?
             Orocos.warn_for_missing_default_loggers = false
             Orocos::MQueue.auto = USE_MQUEUE
 
-            @test_dir = File.expand_path(File.join("..", "..", 'test'), File.dirname(__FILE__))
-            @__tmpdirs = Array.new
+            @test_dir = File.expand_path(File.join("..", "..", "test"), File.dirname(__FILE__))
+            @__tmpdirs = []
 
             # Since we are loading typekits over and over again, we need to
             # disable type export
             Orocos.export_types = false
             if File.directory?(work_dir)
                 Orocos.default_working_directory = work_dir
-                ENV['PKG_CONFIG_PATH'] += ":#{File.join(work_dir, "prefix", 'lib', 'pkgconfig')}"
+                ENV["PKG_CONFIG_PATH"] += ":#{File.join(work_dir, 'prefix', 'lib', 'pkgconfig')}"
                 Orocos.default_pkgconfig_loader.clear
             end
 
@@ -89,43 +94,36 @@ module Orocos
                 Orocos::Async::CORBA::OutputReader.default_period = 0
             end
 
-            @processes = Array.new
+            @processes = []
 
             Orocos.initialize
             @__orocos_corba_timeouts = [Orocos::CORBA.call_timeout, Orocos::CORBA.connect_timeout]
-            Orocos::CORBA.call_timeout = 10000
-            Orocos::CORBA.connect_timeout = 10000
+            Orocos::CORBA.call_timeout = 10_000
+            Orocos::CORBA.connect_timeout = 10_000
 
-	    if TEST_MODEL_LESS
-		flexmock(Orocos::TaskContext).new_instances(:get_from_ior).should_receive('model').and_return(nil)
-		flexmock(Orocos::TaskContext).new_instances(:do_get).should_receive('model').and_return(nil)
-	    elsif TEST_MISSING_MODELS
-		flexmock(Orocos).should_receive(:task_model_from_name).and_raise(Orocos::NotFound)
-	    end
+            if TEST_MODEL_LESS
+                flexmock(Orocos::TaskContext).new_instances(:get_from_ior).should_receive("model").and_return(nil)
+                flexmock(Orocos::TaskContext).new_instances(:do_get).should_receive("model").and_return(nil)
+            elsif TEST_MISSING_MODELS
+                flexmock(Orocos).should_receive(:task_model_from_name).and_raise(Orocos::NotFound)
+            end
             super
         end
 
         def teardown
-            if defined? FlexMock
-                flexmock_teardown
-            end
+            flexmock_teardown if defined? FlexMock
             @__tmpdirs.each do |dir|
                 FileUtils.rm_rf dir
             end
             processes.each do |p|
-                begin p.kill
-                rescue Exception => e
-                    Orocos.warn "failed, in teardown, to stop process #{p}: #{e}"
-                end
+                p.kill
+            rescue Exception => e
+                Orocos.warn "failed, in teardown, to stop process #{p}: #{e}"
             end
             processes.clear
             super
-            if @__orocos_corba_timeouts # can be nil if setup failed
-                Orocos::CORBA.call_timeout, Orocos::CORBA.connect_timeout = *@__orocos_corba_timeouts
-            end
-            if @old_pkg_config_path # can be nil if setup failed
-                ENV['PKG_CONFIG_PATH'] = @old_pkg_config_path
-            end
+            Orocos::CORBA.call_timeout, Orocos::CORBA.connect_timeout = *@__orocos_corba_timeouts if @__orocos_corba_timeouts # can be nil if setup failed
+            ENV["PKG_CONFIG_PATH"] = @old_pkg_config_path if @old_pkg_config_path # can be nil if setup failed
             Orocos::CORBA.instance_variable_set :@loaded_typekits, []
             Orocos.warn_for_missing_default_loggers = @__warn_for_missing_default_loggers
         ensure
@@ -154,7 +152,7 @@ module Orocos
                 process.spawn
                 process.wait_running(0.5)
             rescue Exception
-                process.kill if process
+                process&.kill
                 raise
             end
 
@@ -167,8 +165,8 @@ module Orocos
                 if value = reader.read_new
                     return value
                 end
-                sleep 0.01
 
+                sleep 0.01
             end
             flunk("expected to receive one new sample on #{reader}, but got none (state: #{reader.port.task.rtt_state}")
         end
@@ -176,14 +174,11 @@ module Orocos
         def assert_state_equals(state, task, timeout = 1)
             expected_toplevel = task.toplevel_state(state)
             toplevel = task.rtt_state
-            if expected_toplevel != toplevel
-                flunk("#{task} was expected to be in toplevel state #{expected_toplevel} because of #{state} but is in #{toplevel}")
-            end
+            flunk("#{task} was expected to be in toplevel state #{expected_toplevel} because of #{state} but is in #{toplevel}") if expected_toplevel != toplevel
 
             Integer(timeout / 0.01).times do
-                if task.state == state
-                    return
-                end
+                return if task.state == state
+
                 sleep 0.01
             end
             flunk("#{task} was expected to be in state #{state} but is in #{task.state}")
@@ -215,18 +210,16 @@ module Orocos
         #   the condition is not met within that many seconds
         def assert_async_polls_until(period: 0.01, timeout: 5)
             start = Time.now
-            while true
+            loop do
                 Orocos::Async.step
                 if result = yield
                     return result
                 end
-                if Time.now - start > timeout
-                    flunk("timed out while waiting for condition")
-                end
+
+                flunk("timed out while waiting for condition") if Time.now - start > timeout
                 sleep period
             end
         end
-
     end
 end
 
@@ -235,4 +228,3 @@ module Minitest
         include Orocos::SelfTest
     end
 end
-

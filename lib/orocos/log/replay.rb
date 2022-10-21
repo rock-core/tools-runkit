@@ -1,29 +1,31 @@
-require 'utilrb/logger'
+# frozen_string_literal: true
+
+require "utilrb/logger"
 
 module Orocos
     # Module for replaying log files
     module Log
-	extend Logger::Hierarchy
-	extend Logger::Forward
+        extend Logger::Hierarchy
+        extend Logger::Forward
 
-        #class which is storing stream annotions
+        # class which is storing stream annotions
         class Annotations
             attr_reader :samples
             attr_reader :stream
             attr_reader :file_name
             attr_reader :current_state
 
-            def initialize(path,stream)
-                @samples = Array.new
+            def initialize(path, stream)
+                @samples = []
                 @file_name = path
                 @stream = stream
-                @current_state = Hash.new
+                @current_state = {}
 
-                stream.samples.each do |rt,lg,sample|
+                stream.samples.each do |rt, lg, sample|
                     @samples << sample
                 end
 
-                @samples.sort! do |a,b|
+                @samples.sort! do |a, b|
                     a.time <=> b.time
                 end
             end
@@ -71,29 +73,29 @@ module Orocos
             #   {#register_tasks} and removed with {#unregister_tasks}
             attr_accessor :name_service_async
 
-            #desired replay speed = 1 --> record time
+            # desired replay speed = 1 --> record time
             attr_accessor :speed
 
-            #name of the log file which holds the logged properties
-            #is converted into Regexp
+            # name of the log file which holds the logged properties
+            # is converted into Regexp
             attr_accessor :log_config_file
 
-            #last replayed sample
+            # last replayed sample
             attr_reader :current_sample
 
-            #array of all replayed ports
-            #this array is filled after {align} was called
+            # array of all replayed ports
+            # this array is filled after {align} was called
             attr_accessor :replayed_ports
 
-            #array of all replayed properties
-            #this array is filled after {align} was called
+            # array of all replayed properties
+            # this array is filled after {align} was called
             attr_accessor :replayed_properties
 
-            #array of all replayed annotaions
-            #this array is filled after {align} was called
+            # array of all replayed annotaions
+            # this array is filled after {align} was called
             attr_accessor :replayed_annotations
 
-            #set it to true if processing of qt events is needed during synced replay
+            # set it to true if processing of qt events is needed during synced replay
             attr_accessor :process_qt_events
 
             # @return [Hash<String,#call>] a mapping from a typelib type name to
@@ -125,7 +127,7 @@ module Orocos
             # @return [Float]
             attr_reader :actual_speed
 
-            #array of stream annotations
+            # array of stream annotations
             attr_reader :annotations
 
             # The streams that are actually replayed
@@ -140,7 +142,7 @@ module Orocos
             # annotation with that key that has a timestamp lower than the
             # current time)
             def current_annotations
-                annotations.inject(Hash.new) do |current, ann|
+                annotations.inject({}) do |current, ann|
                     current.merge(ann.current_state)
                 end
             end
@@ -159,8 +161,8 @@ module Orocos
             # See #use_sample_time, #use_sample_time=
             def time_source
                 if use_sample_time
-                    return :use_sample_time
-                else return false
+                    :use_sample_time
+                else false
                 end
             end
 
@@ -183,47 +185,49 @@ module Orocos
                 raise e
             end
 
-            #Creates a new instance of Replay
+            # Creates a new instance of Replay
             #
-            #If a path is givien load is called after
-            #creation to load the log files.
+            # If a path is givien load is called after
+            # creation to load the log files.
             def initialize(*path)
-                if !path.empty?
-                    raise ArgumentError, "Replay.new(*path) is deprecated, use Replay.open(*path) to create and load files at the same time"
+                unless path.empty?
+                    raise ArgumentError,
+                          "Replay.new(*path) is deprecated, use Replay.open(*path) "\
+                          "to create and load files at the same time"
                 end
 
                 @default_timestamp = nil
-                @timestamps = Hash.new
-                @tasks = Hash.new
-                @annotations = Array.new
-                @current_annotations = Hash.new
+                @timestamps = {}
+                @tasks = {}
+                @annotations = []
+                @current_annotations = {}
                 @speed = 1
-                @replayed_ports = Array.new
-                @replayed_properties = Array.new
-                @replayed_objects = Array.new
-                @used_streams = Array.new
+                @replayed_ports = []
+                @replayed_properties = []
+                @replayed_objects = []
+                @used_streams = []
                 @stream = nil
                 @current_sample = nil
                 @process_qt_events = false
-                @log_config_file = Replay::log_config_file
-                @namespace = ''
+                @log_config_file = Replay.log_config_file
+                @namespace = ""
                 reset_time_sync
                 time_sync
             end
 
-            #returns an array of all simulated tasks
+            # returns an array of all simulated tasks
             def tasks
                 @tasks.values
             end
 
-            #returns the time of the current sample replayed
+            # returns the time of the current sample replayed
             def time
                 @base_time
             end
 
-            #returns false if no ports are or will be replayed
+            # returns false if no ports are or will be replayed
             def replay?
-                #check if stream was initialized
+                # check if stream was initialized
                 if @stream
                     return true
                 else
@@ -231,10 +235,11 @@ module Orocos
                         return true if task.used?
                     end
                 end
-                return false
+
+                false
             end
 
-            #pretty print for Replay
+            # pretty print for Replay
             def pretty_print(pp)
                 pp.text "Orocos::Log::Replay"
                 pp.nest(2) do
@@ -261,21 +266,20 @@ module Orocos
                 seek(time)
                 target_sample_pos = sample_index
                 seek(prev_pos)
-                return target_sample_pos
+                target_sample_pos
             end
 
-            def sample_index()
+            def sample_index
                 return @stream.sample_index if @stream
-                return nil
+
+                nil
             end
 
             def single_data(id)
-                if @stream
-                    return @stream.single_data(id)
-                end
+                return @stream.single_data(id) if @stream
             end
 
-            #Sets a code block to calculate the default timestamp duricng replay.
+            # Sets a code block to calculate the default timestamp duricng replay.
             def default_timestamp(&block)
                 if block_given? then @default_timestamp = block
                 else @default_timestamp
@@ -293,22 +297,22 @@ module Orocos
                 timestamps[type_name] = block
             end
 
-            #If set to true all ports are replayed and are not filtered out by the
-            #filter
-            #otherwise only ports are replayed which have a reader or
-            #a connection to an other port
-            def track(value,filter=Hash.new)
-                options, filter = Kernel::filter_options(filter,[:tasks])
+            # If set to true all ports are replayed and are not filtered out by the
+            # filter
+            # otherwise only ports are replayed which have a reader or
+            # a connection to an other port
+            def track(value, filter = {})
+                options, filter = Kernel.filter_options(filter, [:tasks])
                 @tasks.each_value do |task|
-                    task.track(value,filter) if !options.has_key?(:tasks) || task.name =~ options[:tasks]
+                    task.track(value, filter) if !options.key?(:tasks) || task.name =~ options[:tasks]
                 end
             end
 
-            #Tries to find a OutputPort for a specefic data type.
-            #For port_name Regexp is allowed.
-            #If precise is set to true an error will be raised if more
-            #than one port is matching type_name and port_name.
-            def port_for(type_name, port_name, precise=true)
+            # Tries to find a OutputPort for a specefic data type.
+            # For port_name Regexp is allowed.
+            # If precise is set to true an error will be raised if more
+            # than one port is matching type_name and port_name.
+            def port_for(type_name, port_name, precise = true)
                 Log.warn "#port_for is deprecated. Use either #find_all_ports or #find_port"
                 if precise
                     find_port(type_name, port_name)
@@ -316,38 +320,34 @@ module Orocos
                 end
             end
 
-            #Tries to connect all input ports of the OROCOS task to simulated OutputPorts
+            # Tries to connect all input ports of the OROCOS task to simulated OutputPorts
             #
             #==Parameter:
             # *task => task to connect to
             # *port_mappings => hash to define port mappings {src_port_name => dst_port_name}
             # *ports_ignored => array of port names which shall be ignored
             #
-            def connect_to(task,port_mappings = Hash.new ,port_policies = Hash.new,ports_ignored = Array.new)
-                #convenience block to do connect_to(task,:auto_ignore)
+            def connect_to(task, port_mappings = {}, port_policies = {}, ports_ignored = [])
+                # convenience block to do connect_to(task,:auto_ignore)
                 if port_mappings == :auto_ignore
                     ports_ignored = port_mappings
-                    port_mappings = Hash.new
+                    port_mappings = {}
                 end
                 ports_ignored = Array.new(ports_ignored)
 
-                #start task if necessary
-                if task.state == :PRE_OPERATIONAL
-                    task.configure
-                end
-                if task.state == :STOPPED
-                    task.start
-                end
+                # start task if necessary
+                task.configure if task.state == :PRE_OPERATIONAL
+                task.start if task.state == :STOPPED
 
-                #to have a better user interface the hash is inverted
-                #port1 connect_to port2 is written as ('port1' => 'port2')
+                # to have a better user interface the hash is inverted
+                # port1 connect_to port2 is written as ('port1' => 'port2')
                 port_mappings = port_mappings.invert
 
                 task.each_port do |port|
                     if port.to_orocos_port.kind_of?(Orocos::InputPort) && !ports_ignored.include?(port.name)
-                        target_port = find_port(port.type_name,port_mappings[port.name]||port.name)
+                        target_port = find_port(port.type_name, port_mappings[port.name] || port.name)
                         if target_port
-                            target_port.connect_to(port,port_policies[port.name])
+                            target_port.connect_to(port, port_policies[port.name])
                         elsif !ports_ignored.include? :auto_ignore
                             raise ArgumentError, "cannot find an output port for #{port.name}"
                         else
@@ -361,29 +361,30 @@ module Orocos
             def full_name(name)
                 # use full name
                 name = name.to_s
-                return name if @tasks.has_key?(name)
+                return name if @tasks.key?(name)
 
                 # use namespace of replay
                 name2 = map_to_namespace(name)
-                return name2 if @tasks.has_key?(name2)
+                return name2 if @tasks.key?(name2)
 
                 # use all namespaces
-                t = @tasks.find do |key,task|
+                t = @tasks.find do |key, task|
                     task.basename == name
                 end
-                t.first if t
+                t&.first
             end
 
-            #returns true if a task with the given name exists
+            # returns true if a task with the given name exists
             def task?(name)
                 !!full_name(name)
             end
 
-            #Returns the simulated task with the given namen.
+            # Returns the simulated task with the given namen.
             def task(name)
                 name2 = full_name(name)
-                raise "cannot find TaskContext called #{name}" if !name2
-                return @tasks[name2]
+                raise "cannot find TaskContext called #{name}" unless name2
+
+                @tasks[name2]
             end
 
             # Aligns all streams which have at least:
@@ -397,43 +398,43 @@ module Orocos
             # to override the global #time_source parameter. See #time_source
             # for available values.
             #
-            def align( time_source = self.time_source )
-                @replayed_ports = Array.new
-                @used_streams = Array.new
-                @replayed_annotations = Array.new
+            def align(time_source = self.time_source)
+                @replayed_ports = []
+                @used_streams = []
+                @replayed_annotations = []
 
-                if !replay?
+                unless replay?
                     Log.warn "No ports are selected. Assuming that all ports shall be replayed."
                     Log.warn "Connect port(s) or set their track flag to true to get rid of this message."
                     track(true)
                 end
 
-                #get all properties which shall be replayed
+                # get all properties which shall be replayed
                 each_task do |task|
                     if task.used?
-                        task.port("state").tracked=true if task.has_port?("state")
+                        task.port("state").tracked = true if task.has_port?("state")
                         task.properties.values.each do |property|
                             property.tracked = true
                             next if property.stream.empty?
+
                             @replayed_properties << property
                         end
                     end
                 end
 
-                #get all streams which shall be replayed
+                # get all streams which shall be replayed
                 each_port do |port|
                     @replayed_ports << port if port.used?
                 end
 
                 Log.info "Aligning streams --> all ports which are unused will not be loaded!!!"
-                if @replayed_properties.empty? && @replayed_ports.empty?
-                    raise "No log data are replayed. All selected streams are empty."
-                end
+                raise "No log data are replayed. All selected streams are empty." if @replayed_properties.empty? && @replayed_ports.empty?
 
                 # If we do have something to replay, then add the annotations as
                 # well
                 annotations.each do |annotation|
                     next if annotation.stream.empty?
+
                     @replayed_annotations << annotation
                 end
 
@@ -441,19 +442,19 @@ module Orocos
                 @used_streams = @replayed_objects.map(&:stream)
 
                 Log.info "Replayed Ports:"
-                @replayed_ports.each {|port| Log.info PP.pp(port,"")}
+                @replayed_ports.each { |port| Log.info PP.pp(port, "") }
 
-                #join streams
+                # join streams
                 @stream = Pocolog::StreamAligner.new(time_source, *@used_streams)
                 @stream.rewind
 
                 reset_time_sync
-                return step
+                step
             end
 
             def advance
-                if(@stream)
-                    return @stream.advance
+                if @stream
+                    @stream.advance
                 else
                     throw "Stream is not initialized yet"
                 end
@@ -470,45 +471,41 @@ module Orocos
             # registers all replayed log tasks on the local name server
             def register_tasks
                 @name_service ||= Local::NameService.new
-                @name_service_async ||= Orocos::Async::Local::NameService.new :tasks => @tasks.values if defined?(Orocos::Async)
-                @tasks.each_pair do |name,task|
+                @name_service_async ||= Orocos::Async::Local::NameService.new tasks: @tasks.values if defined?(Orocos::Async)
+                @tasks.each_pair do |name, task|
                     @name_service.register task
-                    @name_service_async.register task if @name_service_async
+                    @name_service_async&.register task
                 end
-                Orocos::name_service.add @name_service
+                Orocos.name_service.add @name_service
                 Orocos::Async.name_service.add @name_service_async if @name_service_async
             end
 
-	    # deregister the local name service again
-	    def deregister_tasks
-		if @name_service
-		    Orocos::name_service.delete @name_service
-		end
-	    end
+            # deregister the local name service again
+            def deregister_tasks
+                Orocos.name_service.delete @name_service if @name_service
+            end
 
-	    # close the log file, deregister from name service
-	    # and also close all available streams
-	    def close
-		deregister_tasks
-		# TODO close all streams
-	    end
+            # close the log file, deregister from name service
+            # and also close all available streams
+            def close
+                deregister_tasks
+                # TODO close all streams
+            end
 
             def stream_index_for_name(name)
-                if @stream
-                    return @stream.stream_index_for_name(name)
-                end
+                return @stream.stream_index_for_name(name) if @stream
+
                 throw "Stream is not initialized yet"
             end
 
             def stream_index_for_type(name)
-                if @stream
-                    return @stream.stream_index_for_type(name)
-                end
+                return @stream.stream_index_for_type(name) if @stream
+
                 throw "Stream is not initialized yet"
             end
 
             def aligned?
-                return @stream != nil
+                @stream != nil
             end
 
             # The total duration of the replayed data, in seconds
@@ -524,8 +521,8 @@ module Orocos
                 end
             end
 
-            #Resets the simulated time.
-            #This should be called after the replay was paused.
+            # Resets the simulated time.
+            # This should be called after the replay was paused.
             def reset_time_sync
                 @start_time = nil
                 @base_time  = nil
@@ -533,46 +530,42 @@ module Orocos
                 @out_of_sync_delta = 0
             end
 
-            #this can be used to set a different time sync logic
-            #the code block has three parameters
-            #time = current sample time
-            #actual_delta = time between start of replay and now
-            #required_delta = time which should have elapsed between start and now
-            #to replay at the desired speed
-            #the code block must return the number of seconds which
-            #the replay shall wait before the sample is repalyed
+            # this can be used to set a different time sync logic
+            # the code block has three parameters
+            # time = current sample time
+            # actual_delta = time between start of replay and now
+            # required_delta = time which should have elapsed between start and now
+            # to replay at the desired speed
+            # the code block must return the number of seconds which
+            # the replay shall wait before the sample is repalyed
             #
-            #Do not block the program otherwise qt events are no longer processed!!!
+            # Do not block the program otherwise qt events are no longer processed!!!
             #
-            #Example
-            #time_sync do |time,actual_delta,required_delta|
+            # Example
+            # time_sync do |time,actual_delta,required_delta|
             #   my_object.busy? ? 1 : 0
-            #end
+            # end
             #
             def time_sync(&block)
-                if block_given?
-                    @time_sync_proc = block
-                else
-                    @time_sync_proc = Proc.new do |time,actual_delta,required_delta|
-                        required_delta - actual_delta
-                    end
-                end
+                @time_sync_proc = if block_given?
+                                      block
+                                  else
+                                      proc do |time, actual_delta, required_delta|
+                                          required_delta - actual_delta
+                                      end
+                                  end
             end
 
-            #returns ture if the next sample must be replayed to
-            #meet synchronous replay
+            # returns ture if the next sample must be replayed to
+            # meet synchronous replay
             def sync_step?
                 calc_statistics
-                if @out_of_sync_delta > 0.001
-                    false
-                else
-                    true
-                end
+                @out_of_sync_delta <= 0.001
             end
 
             def current_time
                 stream_idx, time, sample_info = @current_sample
-                return if !time
+                return unless time
 
                 stream_type = @stream.stream_by_index(stream_idx).type
                 if getter = (timestamps[stream_type.name] || default_timestamp)
@@ -588,10 +581,10 @@ module Orocos
                 @base_time ||= time
                 @start_time ||= Time.now
 
-                required_delta = (time - @base_time)/@speed
+                required_delta = (time - @base_time) / @speed
                 actual_delta   = Time.now - @start_time
-                @out_of_sync_delta = @time_sync_proc.call(time,actual_delta,required_delta)
-                @actual_speed = required_delta/actual_delta*@speed
+                @out_of_sync_delta = @time_sync_proc.call(time, actual_delta, required_delta)
+                @actual_speed = required_delta / actual_delta * @speed
             end
 
             # Gets the next sample, writes it to the ports which are connected
@@ -607,13 +600,12 @@ module Orocos
             #   sample has been read
             # @yieldparam sample the data sample
             #
-            def step(time_sync=false,&block)
-                #check if stream was generated otherwise call align
-                if @stream == nil
-                    return align
-                end
+            def step(time_sync = false, &block)
+                # check if stream was generated otherwise call align
+                return align if @stream.nil?
+
                 stream_idx, time = @stream.advance
-                if !stream_idx
+                unless stream_idx
                     @current_sample = nil
                     return
                 end
@@ -621,18 +613,17 @@ module Orocos
                 @current_sample = [stream_idx, time, sample_info]
                 calc_statistics(time)
 
-                #wait if replay is faster than the desired speed and time_sync is set to true
+                # wait if replay is faster than the desired speed and time_sync is set to true
                 if time_sync && @out_of_sync_delta > 0.001
                     if @process_qt_events == true
                         start_wait = Time.now
-                        while true
-                            if $qApp
-                                $qApp.processEvents()
-                            end
-                            break if !@start_time                           #break if start_time was reseted throuh processEvents
-                            wait = @out_of_sync_delta -(Time.now - start_wait)
+                        loop do
+                            $qApp&.processEvents
+                            break unless @start_time # break if start_time was reseted throuh processEvents
+
+                            wait = @out_of_sync_delta - (Time.now - start_wait)
                             if wait > 0.001
-                                sleep [0.01,wait].min
+                                sleep [0.01, wait].min
                             else
                                 break
                             end
@@ -647,37 +638,38 @@ module Orocos
             end
 
             def push_sample(stream_idx, sample_info)
-                #write sample to simulated ports or properties
+                # write sample to simulated ports or properties
                 log_output = @replayed_objects[stream_idx]
                 log_output.update(sample_info)
                 if block_given?
                     data = sample_info[0].read_one_raw_data_sample(sample_info[1])
-                    yield(log_output,Typelib.to_ruby(data))
+                    yield(log_output, Typelib.to_ruby(data))
                 end
-                return *@current_sample[0, 2]
+                @current_sample[0, 2]
             end
 
-            #Gets the previous sample and writes it to the ports which are connected
-            #to the OutputPort and updated its readers (see step).
-            def step_back(time_sync=false,&block)
-                #check if stream was generated otherwise call start
-                if !@stream
+            # Gets the previous sample and writes it to the ports which are connected
+            # to the OutputPort and updated its readers (see step).
+            def step_back(time_sync = false, &block)
+                # check if stream was generated otherwise call start
+                unless @stream
                     align
                     return
                 end
                 @current_sample = @stream.step_back
-                return if !@current_sample
+                return unless @current_sample
+
                 @current_sample[2] = @stream.sample_info(@current_sample[0])
                 push_sample(@current_sample[0], @current_sample[2])
             end
 
-            #Rewinds all streams and replays the first sample.
-            def rewind()
+            # Rewinds all streams and replays the first sample.
+            def rewind
                 @stream.rewind
                 step
             end
 
-            #returns the last port which recieved data
+            # returns the last port which recieved data
             def current_port
                 if @current_sample
                     stream_idx = @current_sample[0]
@@ -685,7 +677,7 @@ module Orocos
                 end
             end
 
-            #returns the current data of the current sample
+            # returns the current data of the current sample
             def current_sample_data
                 if @current_sample
                     sample_info = @current_sample[2]
@@ -714,32 +706,35 @@ module Orocos
             # @yieldreturn [Boolean]
             #
             # @return [Array<Array<Time>>] extracted intervals
-            def extract_intervals(start_time=nil,end_time=nil, min_val=0.8,kernel_size=5.0,&block)
-                #replay given intervals and collect results of the code block
-                result,times = [],[]
+            def extract_intervals(start_time = nil, end_time = nil, min_val = 0.8, kernel_size = 5.0, &block)
+                # replay given intervals and collect results of the code block
+                result = []
+                times = []
                 start_time ||= begin
                               rewind
                               time
                           end
                 seek(start_time)
                 begin
-                    if block.call(current_port,current_sample_data)
-                        result << 1
-                    else
-                        result << 0
-                    end
+                    result << if block.call(current_port, current_sample_data)
+                                  1
+                              else
+                                  0
+                              end
                     times << time
                 end while(step && (!end_time || time <= end_time))
 
-                #filter result vector
-                idx,sum,size = 0,0,0
+                # filter result vector
+                idx = 0
+                sum = 0
+                size = 0
                 filtered = result.map do |e|
-                    while times[idx+size] - times[idx] < kernel_size && idx+size < times.size-1
+                    while times[idx + size] - times[idx] < kernel_size && idx + size < times.size - 1
                         size += 1
-                        sum += result[idx+size]
+                        sum += result[idx + size]
                     end
                     val = if size > 0
-                            sum/size
+                              sum / size
                           else
                               0
                           end
@@ -749,13 +744,14 @@ module Orocos
                     val
                 end
 
-                #extract intervals
-                intervals,start = [],nil
-                filtered.each_with_index do |e,i|
+                # extract intervals
+                intervals = []
+                start = nil
+                filtered.each_with_index do |e, i|
                     if e >= min_val
                         start ||= times[i]
                     elsif start
-                        intervals << [start,times[i]] if times[i]-start >= kernel_size
+                        intervals << [start, times[i]] if times[i] - start >= kernel_size
                         start = nil
                     end
                 end
@@ -766,13 +762,13 @@ module Orocos
             #
             # @param [Array<Array<Time>>] intervals The intervals
             # @param [String] comment Comment of the log markers
-            def add_intervals_as_log_markers(intervals,comment)
+            def add_intervals_as_log_markers(intervals, comment)
                 markers = log_markers # fill @markers from log file
                 intervals.each do |interval|
-                    markers << LogMarker.new(interval.first,:start,-1,comment)
-                    markers << LogMarker.new(interval.last,:stop,-1,comment)
+                    markers << LogMarker.new(interval.first, :start, -1, comment)
+                    markers << LogMarker.new(interval.last, :stop, -1, comment)
                 end
-                markers.sort! do |a,b|
+                markers.sort! do |a, b|
                     a.time <=> b.time
                 end
                 markers
@@ -794,49 +790,47 @@ module Orocos
             # @return [Array<Array<Time>>] extracted intervals
             # @see extract_intervals
             # @see add_intervals_as_log_markers
-            def generate_log_markers(comment,min_val=0.8,kernel_size=5.0,&block)
-                intervals = extract_intervals(nil,nil, min_val,kernel_size,&block)
-                add_intervals_as_log_markers(intervals,comment)
+            def generate_log_markers(comment, min_val = 0.8, kernel_size = 5.0, &block)
+                intervals = extract_intervals(nil, nil, min_val, kernel_size, &block)
+                add_intervals_as_log_markers(intervals, comment)
                 rewind
                 intervals
             end
 
-            #Runs through the log files until the end is reached.
-            def run(time_sync = false,speed=1,&block)
+            # Runs through the log files until the end is reached.
+            def run(time_sync = false, speed = 1, &block)
                 reset_time_sync
                 @speed = speed
-                while step(time_sync,&block) do
+                while step(time_sync, &block)
                 end
             end
 
-            #Iterates through all simulated ports.
+            # Iterates through all simulated ports.
             def each_port(&block)
                 @tasks.each_value do |task|
                     task.each_port(&block)
                 end
             end
 
-            #Returns an array of all simulated ports
+            # Returns an array of all simulated ports
             def ports
-                result = Array.new
+                result = []
                 each_port do |port|
                     result << port
                 end
                 result
             end
 
-            #returns an array of log_markers
+            # returns an array of log_markers
             def log_markers
-                @markers ||= Array.new
-                return @markers if !@markers.empty?
+                @markers ||= []
+                return @markers unless @markers.empty?
 
                 annotations.each do |annotation|
-                    #check if this is the right type
-                    if annotation.stream.type_name == "/logger/Annotations"
-                        @markers.concat LogMarker::parse(annotation.samples)
-                    end
+                    # check if this is the right type
+                    @markers.concat LogMarker.parse(annotation.samples) if annotation.stream.type_name == "/logger/Annotations"
                 end
-                @markers.sort! do |a,b|
+                @markers.sort! do |a, b|
                     a.time <=> b.time
                 end
                 @markers
@@ -844,47 +838,45 @@ module Orocos
 
             def has_task?(name)
                 name = map_to_namespace name
-                @tasks.has_key?(name.to_s)
+                @tasks.key?(name.to_s)
             end
 
-            #Iterates through all simulated tasks
-            def each_task (&block)
+            # Iterates through all simulated tasks
+            def each_task(&block)
                 @tasks.each_value do |task|
                     yield(task) if block_given?
                 end
             end
 
-            #Returns the current position of the replayed sample.
+            # Returns the current position of the replayed sample.
             def sample_index
                 @stream.sample_index
             end
 
-            #Returns the number of samples.
+            # Returns the number of samples.
             def size
-                return @stream.size
+                @stream.size
             end
 
-            #Returns the time of the current sample.
+            # Returns the time of the current sample.
             def time
-                return @stream.time
+                @stream.time
             end
 
-            #Returns true if the end of file is reached.
+            # Returns true if the end of file is reached.
             def eof?
-                return @stream.eof?
+                @stream.eof?
             end
 
-            #Seeks to the given position
+            # Seeks to the given position
             def seek(pos)
-                #check if stream was generated otherwise call align
-                align if @stream == nil
-                @current_sample = @stream.seek(pos)
-                if !@current_sample
-                    return
-                end
+                # check if stream was generated otherwise call align
+                align if @stream.nil?
+                return unless (@current_sample = @stream.seek(pos))
+
                 @current_sample[2] = @stream.sample_info(@current_sample[0])
 
-                #write all data to the ports
+                # write all data to the ports
                 @stream.streams.length.times do |stream_idx|
                     if info = @stream.sample_info(stream_idx)
                         @replayed_objects[stream_idx].update(info)
@@ -892,52 +884,52 @@ module Orocos
                 end
             end
 
-            #replays the last sample to the log port
+            # replays the last sample to the log port
             def refresh
                 index, _, sample_info = @current_sample
                 @replayed_objects[index].update(sample_info)
             end
 
             def load_task_from_stream(stream, path)
-                #get the name of the task which was logged into the stream
-                task_name = if stream.metadata.has_key? "rock_task_name"
+                # get the name of the task which was logged into the stream
+                task_name = if stream.metadata.key? "rock_task_name"
                                 begin
                                     namespace, _ = Namespace.split_name(stream.metadata["rock_task_name"])
                                     Namespace.validate_namespace_name(namespace)
                                 rescue ArgumentError => e
-                                    Orocos.warn "invalid metadata rock_task_name:'#{stream.metadata["rock_task_name"]}' for stream #{stream.name}: #{e}"
+                                    Orocos.warn "invalid metadata rock_task_name:'#{stream.metadata['rock_task_name']}' for stream #{stream.name}: #{e}"
                                     stream.metadata.delete("rock_task_name")
-                                    return load_task_from_stream(stream,path)
+                                    return load_task_from_stream(stream, path)
                                 end
                                 stream.metadata["rock_task_name"]
                             else
                                 result = stream.name.to_s.match(/^(.*)\./)
                                 result[1] if result
                             end
-                if task_name == nil
+                if task_name.nil?
                     task_name = "unknown"
                     Log.warn "Stream name (#{stream.name}) does not follow the convention TASKNAME.PORTNAME and has no metadata, assuming as TASKNAME \"#{task_name}\""
                 end
 
-                #check if there is a namespace
+                # check if there is a namespace
                 task_name = if task_name == basename(task_name)
                                 map_to_namespace(task_name)
                             else
                                 task_name
                             end
 
-                task = @tasks[task_name]
-                if !task
-                    task = @tasks[task_name]= TaskContext.new(self,task_name, path,@log_config_file)
+                unless (task = @tasks[task_name])
+                    task = TaskContext.new(self, task_name, path, @log_config_file)
+                    @tasks[task_name] = task
                 end
 
                 # Guess the stream type if it's not stored in the file
-                unless (stream_type = stream.metadata['rock_stream_type'])
-                    if File.basename(path).start_with?(@log_config_file)
-                        stream_type = 'property'
-                    else
-                        stream_type = 'port'
-                    end
+                unless (stream_type = stream.metadata["rock_stream_type"])
+                    stream_type = if File.basename(path).start_with?(@log_config_file)
+                                      "property"
+                                  else
+                                      "port"
+                                  end
                 end
 
                 begin
@@ -955,10 +947,10 @@ module Orocos
                 Log.info "  loading log file #{path}"
                 file.streams.each do |s|
                     if s.metadata["rock_stream_type"] == "annotations"
-                        @annotations << Annotations.new(path,s)
+                        @annotations << Annotations.new(path, s)
                         next
                     end
-                    load_task_from_stream(s,path)
+                    load_task_from_stream(s, path)
                 end
             end
 
@@ -983,9 +975,7 @@ module Orocos
                 raise ArgumentError, "No log file was given" if paths.empty?
 
                 logreg = nil
-                if paths.last.kind_of?(Typelib::Registry)
-                    logreg = paths.pop
-                end
+                logreg = paths.pop if paths.last.kind_of?(Typelib::Registry)
 
                 opts = {}
                 if paths.last.kind_of?(Hash)
@@ -995,15 +985,16 @@ module Orocos
                 logreg = [logreg].compact
 
                 paths.each do |path|
-                    #check if path is a directory
+                    # check if path is a directory
                     path = File.expand_path(path)
                     if File.directory?(path)
-                        all_files = Dir.enum_for(:glob, File.join(path, '*.*.log'))
-                        by_basename = all_files.inject(Hash.new) do |h, path|
+                        all_files = Dir.enum_for(:glob, File.join(path, "*.*.log"))
+                        by_basename = all_files.inject({}) do |h, path|
                             split = path.match(/^(.*)\.(\d+)\.log$/)
                             if split
-                                basename, number = split[1], Integer(split[2])
-                                h[basename] ||= Array.new
+                                basename = split[1]
+                                number = Integer(split[2])
+                                h[basename] ||= []
                                 h[basename][number] = path
                                 h
                             else
@@ -1017,9 +1008,7 @@ module Orocos
                         end
 
                         by_basename.each_value do |files|
-                            if opts[:multifile] == :last
-                                files = files[-1,1]
-                            end
+                            files = files[-1, 1] if opts[:multifile] == :last
                             args = files.compact.map do |path|
                                 File.open(path)
                             end
@@ -1034,37 +1023,35 @@ module Orocos
                         raise ArgumentError, "Can not load log file: #{path} is neither a directory nor a file"
                     end
                 end
-                raise ArgumentError, "Nothing was loaded from the following log files #{paths.join("; ")}" if @tasks.empty?
+                raise ArgumentError, "Nothing was loaded from the following log files #{paths.join('; ')}" if @tasks.empty?
 
-                #register task on the local name server
+                # register task on the local name server
                 register_tasks
             end
 
             # Clears all reader buffers.
             # This is usefull if you are changing the replay direction.
             def clear_reader_buffers
-                @tasks.each_value do |task|
-                    task.clear_reader_buffers
-                end
+                @tasks.each_value(&:clear_reader_buffers)
             end
 
             # exports all aligned stream to a new log file
             # if no start and end index is given all data are exported
             # otherwise the data are truncated according to the given global indexes
             # the block is called for each sample to update a progress bar
-            def export_to_file(file,start_index=0,end_index=0,&block)
-                @stream.export_to_file(file,start_index,end_index,&block)
+            def export_to_file(file, start_index = 0, end_index = 0, &block)
+                @stream.export_to_file(file, start_index, end_index, &block)
             end
 
-            #This is used to support the syntax.
-            #log_replay.task
-            def method_missing(m,*args,&block) #:nodoc:
+            # This is used to support the syntax.
+            # log_replay.task
+            def method_missing(m, *args, &block) #:nodoc:
                 task_name = full_name(m)
                 return @tasks[task_name] if task_name
 
                 begin
-                    super(m.to_sym,*args,&block)
-                rescue  NoMethodError => e
+                    super(m.to_sym, *args, &block)
+                rescue NoMethodError => e
                     Log.error "#{m} is not a Log::Task of the current log file(s)"
                     Log.error "The following tasks are availabe:"
                     @tasks.each_value do |task|
@@ -1076,4 +1063,3 @@ module Orocos
         end
     end
 end
-

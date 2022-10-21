@@ -1,7 +1,9 @@
 # coding: utf-8
-lib = File.expand_path('../lib', __FILE__)
+# frozen_string_literal: true
+
+lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'orocos/version'
+require "orocos/version"
 
 Gem::Specification.new do |s|
     s.name = "orocos.rb"
@@ -12,15 +14,14 @@ Gem::Specification.new do |s|
     s.homepage = "http://rock-robotics.org"
     s.licenses = ["LGPLv2+"]
 
-    s.bindir = 'bin'
+    s.bindir = "bin"
     s.require_paths = ["lib"]
     s.extensions = []
     s.extra_rdoc_files = ["README.markdown"]
-    s.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
+    s.files = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
 
     s.add_runtime_dependency "utilrb"
-    s.add_development_dependency "rake-compiler"
     s.add_development_dependency "flexmock", ">= 2.0.0"
     s.add_development_dependency "minitest", ">= 5.0", "~> 5.0"
+    s.add_development_dependency "rake-compiler"
 end
-

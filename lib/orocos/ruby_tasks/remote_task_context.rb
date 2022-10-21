@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module RubyTasks
         # Facade that hides a ruby task behind an object that behaves exactly
@@ -28,4 +30,3 @@ module Orocos
         end
     end
 end
-

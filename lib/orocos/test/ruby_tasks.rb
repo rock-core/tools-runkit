@@ -1,14 +1,16 @@
+# frozen_string_literal: true
+
 module Orocos
     module Test
         # Support for using ruby tasks in tests
         module RubyTasks
             def helpers_dir
-                File.join(__dir__, 'helpers')
+                File.join(__dir__, "helpers")
             end
 
             def setup
-                @allocated_task_contexts = Array.new
-                @started_external_ruby_task_contexts = Array.new
+                @allocated_task_contexts = []
+                @started_external_ruby_task_contexts = []
                 super
             end
 
@@ -16,13 +18,11 @@ module Orocos
                 super
                 @allocated_task_contexts.each(&:dispose)
                 @started_external_ruby_task_contexts.each do |pid|
-                    begin Process.kill 'INT', pid
+                    begin Process.kill "INT", pid
                     rescue Errno::ESRCH
                     end
                     _, status = Process.waitpid2 pid
-                    if !status.success?
-                        raise "subprocess #{pid} failed with #{status.inspect}"
-                    end
+                    raise "subprocess #{pid} failed with #{status.inspect}" unless status.success?
                 end
             end
 
@@ -30,14 +30,15 @@ module Orocos
                 @allocated_task_contexts.concat(tasks)
             end
 
-            def new_ruby_task_context(name, options = Hash.new, &block)
+            def new_ruby_task_context(name, options = {}, &block)
                 task = Orocos::RubyTasks::TaskContext.new(name, options, &block)
                 @allocated_task_contexts << task
                 task
             end
-            
+
             def new_external_ruby_task_context(
-                name, typekits: ['std'], input_ports: [], output_ports: [], timeout: 2)
+                name, typekits: ["std"], input_ports: [], output_ports: [], timeout: 2
+            )
 
                 typekits = typekits.map do |typekit_name|
                     "--typekit=#{typekit_name}"
@@ -48,7 +49,7 @@ module Orocos
                 input_ports = input_ports.map do |name, type|
                     "--input-port=#{name}::#{type}"
                 end
-                pid = spawn(Gem.ruby, File.join(helpers_dir, 'ruby_task_spawner'),
+                pid = spawn(Gem.ruby, File.join(helpers_dir, "ruby_task_spawner"),
                             name, *typekits, *input_ports, *output_ports)
 
                 start_time = Time.now
@@ -63,4 +64,3 @@ module Orocos
         end
     end
 end
-

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     # OperationHandle instances represent asynchronous operation calls. They are
     # returned by Operation#sendop and TaskContext#sendop
@@ -79,8 +81,10 @@ module Orocos
         attr_reader :inout_arguments
 
         def initialize(task, name, return_spec, arguments_spec)
-            @task, @name, @return_spec, @arguments_spec =
-                task, name, return_spec, arguments_spec
+            @task = task
+            @name = name
+            @return_spec = return_spec
+            @arguments_spec = arguments_spec
 
             @orocos_return_typenames = return_spec.map do |type_name|
                 type_name = OroGen.unqualified_cxx_type(type_name)
@@ -91,15 +95,13 @@ module Orocos
                 Orocos.normalize_typename(type_name)
             end
             @inout_arguments = arguments_spec.each_with_index.map do |(_, _, type_name), i|
-                if type_name =~ /&/ && type_name !~ /(^|[^\w])const($|[^\w])/
-                    i
-                end
+                i if type_name =~ /&/ && type_name !~ /(^|[^\w])const($|[^\w])/
             end.compact
 
             # Remove a void return type
             if Orocos.registry.get(orocos_return_typenames.first).null?
                 @void_return = true
-                orocos_return_typenames.shift 
+                orocos_return_typenames.shift
             else
                 @void_return = false
             end
@@ -112,12 +114,10 @@ module Orocos
         # on the Ruby side
         def typelib_types_for(types)
             types.map do |t|
-                begin
-                    Orocos.typelib_type_for(t)
-                rescue Typelib::NotFound
-                    Orocos.load_typekit_for(t)
-                    Orocos.typelib_type_for(t)
-                end
+                Orocos.typelib_type_for(t)
+            rescue Typelib::NotFound
+                Orocos.load_typekit_for(t)
+                Orocos.typelib_type_for(t)
             end
         end
 
@@ -128,9 +128,7 @@ module Orocos
 
         # Helper method for RTTMethod and Command
         def common_call(args) # :nodoc:
-            if args.size != arguments_spec.size
-                raise ArgumentError, "expected #{arguments_spec.size} arguments but got #{args.size}"
-            end
+            raise ArgumentError, "expected #{arguments_spec.size} arguments but got #{args.size}" if args.size != arguments_spec.size
 
             filtered = []
             args.each_with_index do |v, i|
@@ -174,18 +172,16 @@ module Orocos
         def callop(*args)
             raw_result = common_call(args) do |filtered|
                 return_typename, return_value = nil
-                if !@void_return
+                unless @void_return
                     return_typename = orocos_return_typenames[0]
                     return_value = result_value_for(return_types.first)
                 end
 
                 task.do_operation_call(name, return_typename, return_value,
-                           orocos_arguments_typenames, filtered)
+                                       orocos_arguments_typenames, filtered)
 
                 result = []
-                if return_value
-                    result << return_value
-                end
+                result << return_value if return_value
                 inout_arguments.each do |index|
                     result << filtered[index]
                 end
@@ -203,4 +199,3 @@ module Orocos
         end
     end
 end
-

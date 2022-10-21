@@ -1,8 +1,10 @@
-require 'orocos/rorocos'
-require 'typelib'
+# frozen_string_literal: true
+
+require "orocos/rorocos"
+require "typelib"
 
 module Orocos
-    Port.transport_names[TRANSPORT_CORBA] = 'CORBA'
+    Port.transport_names[TRANSPORT_CORBA] = "CORBA"
 
     module CORBA
         extend Logger::Forward
@@ -16,11 +18,9 @@ module Orocos
             attr_reader :max_message_size
 
             def max_message_size=(value)
-                if initialized?
-                    raise "the maximum message size can only be changed before the CORBA layer is initialized"
-                end
+                raise "the maximum message size can only be changed before the CORBA layer is initialized" if initialized?
 
-                ENV['ORBgiopMaxMsgSize'] = value.to_int.to_s
+                ENV["ORBgiopMaxMsgSize"] = value.to_int.to_s
             end
         end
 
@@ -30,9 +30,7 @@ module Orocos
         #
         # Since it does get in the way, just set it to the maximum admissible
         # value
-        if !ENV['ORBgiopMaxMsgSize']
-            self.max_message_size = 1 << 32 - 1
-        end
+        self.max_message_size = 1 << 32 - 1 unless ENV["ORBgiopMaxMsgSize"]
 
         class << self
             # Returns the current timeout for method calls, in milliseconds
@@ -73,30 +71,26 @@ module Orocos
         #
         # It does not need to be called explicitely, as it is called by
         # Orocos.initialize
-	def self.initialize
-            #setup environment which is used by the orocos.rb
-	    if !CORBA.name_service.ip.empty?
-	        ENV['ORBInitRef'] = "NameService=corbaname::#{CORBA.name_service.ip}"
-	    end
+        def self.initialize
+            # setup environment which is used by the orocos.rb
+            ENV["ORBInitRef"] = "NameService=corbaname::#{CORBA.name_service.ip}" unless CORBA.name_service.ip.empty?
 
-            self.call_timeout    ||= 20000
+            self.call_timeout    ||= 20_000
             self.connect_timeout ||= 2000
             do_init
 
-            #check if name service is reachable
+            # check if name service is reachable
             CORBA.name_service.validate
-	end
+        end
 
-	def self.get(method, name)
-            if !Orocos::CORBA.initialized?
-                raise NotInitialized, "the CORBA layer is not initialized, call Orocos.initialize first"
-            end
+        def self.get(method, name)
+            raise NotInitialized, "the CORBA layer is not initialized, call Orocos.initialize first" unless Orocos::CORBA.initialized?
 
             result = ::Orocos::CORBA.refine_exceptions("naming service") do
                 ::Orocos::TaskContext.send(method, name)
             end
-	    result
-	end
+            result
+        end
 
         # Deinitializes the CORBA layer
         #
@@ -114,7 +108,6 @@ module Orocos
         # C++ extension
         def self.refine_exceptions(obj0, obj1 = nil) # :nodoc:
             yield
-
         rescue ComError => e
             if !obj1
                 raise ComError, "Communication failed with corba #{obj0}", e.backtrace
@@ -123,6 +116,4 @@ module Orocos
             end
         end
     end
-
 end
-

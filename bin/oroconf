@@ -1,9 +1,10 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
 
-require 'optparse'
-require 'orocos'
-require 'time'
-require 'rock/bundle'
+require "optparse"
+require "orocos"
+require "time"
+require "rock/bundle"
 
 debug = false
 save_configuration = nil
@@ -41,53 +42,49 @@ specified file or, if it is a directory, to the <task_model_name>.yml file in th
 directory.
     EOT
 
-    opt.on('--help') do
+    opt.on("--help") do
         puts parser
         exit(0)
     end
-    opt.on('--host HOSTNAME', 'the host to contact for name service') do |host|
+    opt.on("--host HOSTNAME", "the host to contact for name service") do |host|
         Orocos::CORBA.name_service = host
     end
 
-    opt.on('--save FILE:SECTION', 'in extract and display modes, saves the configuration in the specified file. If a file is a directory, an automatic name will be generated') do |conf_config|
-        if !conf_config
-            save_configuration = nil
-        elsif conf_config =~ /:(\w+)$/
-            save_configuration = [$`, $1]
-        else
-            save_configuration = [conf_config]
-        end
+    opt.on("--save FILE:SECTION", "in extract and display modes, saves the configuration in the specified file. If a file is a directory, an automatic name will be generated") do |conf_config|
+        save_configuration = if !conf_config
+                                 nil
+                             elsif conf_config =~ /:(\w+)$/
+                                 [$`, $1]
+                             else
+                                 [conf_config]
+                             end
     end
-    opt.on('--debug') do
+    opt.on("--debug") do
         debug = true
     end
 end
 
-
 Rock::Bundles.public_logs = false
 Rock::Bundles.initialize
 if Rock::Bundles.has_selected_bundle?
-    config_dir = File.join(Rock::Bundles.current_bundle.path, 'config', 'orogen')
+    config_dir = File.join(Rock::Bundles.current_bundle.path, "config", "orogen")
     FileUtils.mkdir_p config_dir
     save_configuration = [config_dir]
 end
 
 remaining = parser.parse(ARGV)
 
-
 def dump_configuration(task, save_configuration)
     model_name = task.model.name
     Orocos.task_model_from_name(model_name)
     if save_configuration
         file, section_name = *save_configuration
-        if File.directory?(file)
-            file = File.join(file, "#{model_name}.yml")
-        end
+        file = File.join(file, "#{model_name}.yml") if File.directory?(file)
         section_name ||= "default"
         Orocos::TaskConfigurations.save(task, file, section_name)
     else
-	task_conf = Orocos::TaskConfigurations.read_task_conf(task)
-	puts YAML.dump(Orocos::TaskConfigurations.to_yaml(task_conf))
+        task_conf = Orocos::TaskConfigurations.read_task_conf(task)
+        puts YAML.dump(Orocos::TaskConfigurations.to_yaml(task_conf))
     end
 end
 
@@ -95,37 +92,29 @@ mode = remaining.shift
 case mode
 when "extract"
     model_name = remaining.shift
-    if !model_name
-        STDERR.puts "missing a model name as argument"
-    end
-    if !Orocos.default_pkgconfig_loader.find_task_library_from_task_model_name(model_name)
-        STDERR.puts "#{model_name} is not a known model name"
-    end
+    STDERR.puts "missing a model name as argument" unless model_name
+    STDERR.puts "#{model_name} is not a known model name" unless Orocos.default_pkgconfig_loader.find_task_library_from_task_model_name(model_name)
 
     Orocos.run model_name => "oroconf_extract" do
         task = Orocos::TaskContext.get "oroconf_extract"
         dump_configuration(task, save_configuration)
     end
     if save_configuration
-	path, section = *save_configuration
-	if File.directory?(path)
-	    path = File.join(save_configuration[0], "#{model_name}.yml")
-	end
+        path, section = *save_configuration
+        path = File.join(save_configuration[0], "#{model_name}.yml") if File.directory?(path)
         puts "saved in #{path}"
     end
 
 when "logextract"
-    require 'pocolog'
+    require "pocolog"
     logfile = remaining.shift
-    if !logfile || !File.file?(logfile)
-        STDERR.puts "missing a log file name as argument"
-    end
+    STDERR.puts "missing a log file name as argument" if !logfile || !File.file?(logfile)
     logfile = Pocolog::Logfiles.open(logfile)
-    if !(task_name = remaining.shift)
-        STDERR.puts "no task name given. Available tasks: #{logfile.streams.map { |s| s.name.gsub(/\..*$/, '') }.uniq.sort.join(", ")}"
+    unless (task_name = remaining.shift)
+        STDERR.puts "no task name given. Available tasks: #{logfile.streams.map { |s| s.name.gsub(/\..*$/, '') }.uniq.sort.join(', ')}"
         exit 1
     end
-    if !(time = remaining.shift)
+    unless (time = remaining.shift)
         STDERR.puts "no time given. Expected either a time as a floating-point value or @last"
         exit 1
     end
@@ -141,39 +130,33 @@ when "logextract"
             time = Time.at(Float(time))
             lambda do |s|
                 _, _, sample = s.seek(time)
-                if !sample
-                    raise ArgumentError, "no sample in #{s.name} at #{time}"
-                end
+                raise ArgumentError, "no sample in #{s.name} at #{time}" unless sample
+
                 sample
             end
         end
 
-    result = Hash.new
+    result = {}
     model_name = nil
     logfile.streams.each do |stream|
-        if !stream.metadata.empty?  && stream.metadata['rock_stream_type'] != 'property'
-            next
-        end
-        model_name ||= stream.metadata['rock_task_model']
+        next if !stream.metadata.empty? && stream.metadata["rock_stream_type"] != "property"
 
-        if stream.name =~ /^#{task_name}\.(.*)/
-            result[$1] = Orocos::TaskConfigurations.typelib_to_yaml_value(Typelib.from_ruby(sample_accessor[stream], stream.type))
-        end
+        model_name ||= stream.metadata["rock_task_model"]
+
+        result[$1] = Orocos::TaskConfigurations.typelib_to_yaml_value(Typelib.from_ruby(sample_accessor[stream], stream.type)) if stream.name =~ /^#{task_name}\.(.*)/
     end
     result = YAML.dump(result)
 
     if save_configuration
         file, section_name = *save_configuration
         if File.directory?(file)
-            if !model_name
-                STDERR.puts "cannot use logextract --save=DIR with old logs. When running pocolog <file> --metadata, only streams that have a rock_task_model metadata can be saved in directories"
-            end
+            STDERR.puts "cannot use logextract --save=DIR with old logs. When running pocolog <file> --metadata, only streams that have a rock_task_model metadata can be saved in directories" unless model_name
             file = File.join(file, "#{model_name}.yml")
         end
         FileUtils.mkdir_p File.dirname(file)
         result = result.split("\n")
         result[0] = "--- name:#{section_name || 'default'}"
-        File.open(file, 'a') do |io|
+        File.open(file, "a") do |io|
             io.puts result.join("\n")
         end
     else
@@ -189,9 +172,7 @@ when "apply"
 
     task = Orocos::TaskContext.get task_name
 
-    if !File.exists?(path)
-        STDERR.puts "no such file or directory #{path}"
-    end
+    STDERR.puts "no such file or directory #{path}" unless File.exists?(path)
     Orocos.apply_conf(task, path, conf_names)
 
 when "load"
@@ -210,4 +191,3 @@ else
     end
     exit 1
 end
-

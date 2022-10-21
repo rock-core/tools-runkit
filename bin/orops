@@ -1,16 +1,17 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
 
-require 'orocos'
-require 'pp'
-require 'utilrb/pkgconfig'
-require 'optparse'
+require "orocos"
+require "pp"
+require "utilrb/pkgconfig"
+require "optparse"
 
 do_cleanup = false
 parser = OptionParser.new do |opt|
-    opt.on('--host=HOST', String, 'the CORBA name server') do |hostname|
+    opt.on("--host=HOST", String, "the CORBA name server") do |hostname|
         Orocos::CORBA.name_service.ip = hostname
     end
-    opt.on('--cleanup', 'try to remove unreachable tasks from the name server') do
+    opt.on("--cleanup", "try to remove unreachable tasks from the name server") do
         do_cleanup = true
     end
 end
@@ -33,9 +34,10 @@ Orocos.name_service.names.each do |name|
             if current_state = task.state
                 break
             end
+
             sleep 0.01
         end
-        result << (current_state || '[unknown]').to_s
+        result << (current_state || "[unknown]").to_s
     rescue Orocos::NoModel => e
         result << "[cannot find model definition]"
     rescue Orocos::NotFound
@@ -46,7 +48,6 @@ Orocos.name_service.names.each do |name|
         else
             result << "[defunct]"
         end
-
     end
     result.map(&:size).each_with_index do |size, i|
         sizes[i] = size if sizes[i] < size
@@ -55,12 +56,11 @@ Orocos.name_service.names.each do |name|
 end
 
 state_ordering = {
-    :RUNNING => 0,
-    :PRE_OPERATIONAL => 1,
-    :default => 2,
-    :STOPPED => 3
+    RUNNING: 0,
+    PRE_OPERATIONAL: 1,
+    default: 2,
+    STOPPED: 3
 }
-
 
 all_tasks = all_tasks.sort_by do |name, state|
     order = state_ordering[state] || state_ordering[:default]
@@ -71,4 +71,3 @@ format = sizes.map { |s| "% #{s}s" }.join(" ")
 all_tasks.each do |content|
     puts format % content
 end
-

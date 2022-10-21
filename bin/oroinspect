@@ -1,7 +1,8 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
 
-require 'optparse'
-require 'orocos'
+require "optparse"
+require "orocos"
 
 search_for = []
 
@@ -15,28 +16,28 @@ usage: oroinspect <search term>"
  it searches for: task context, types and deployments
     EOT
 
-    opt.on('--help') do
+    opt.on("--help") do
         puts self
         exit(0)
     end
-    opt.on('-t', '--tasks', 'if given, will search only for tasks. Can be combined with --deployments and --types to search for the other categories as well.') do
+    opt.on("-t", "--tasks", "if given, will search only for tasks. Can be combined with --deployments and --types to search for the other categories as well.") do
         search_for << :tasks
     end
-    opt.on('-T', '--types', 'if given, will search only for types. Can be combined with --deployments and --tasks to search for the other categories as well.') do
+    opt.on("-T", "--types", "if given, will search only for types. Can be combined with --deployments and --tasks to search for the other categories as well.") do
         search_for << :types
     end
-    opt.on('-d', '--deployments', 'if given, will search only for deployments. Can be combined with --tasks and --types to search for the other categories as well.') do
+    opt.on("-d", "--deployments", "if given, will search only for deployments. Can be combined with --tasks and --types to search for the other categories as well.") do
         search_for << :deployments
     end
-    opt.on('-C', 'invalid option. This functionality is now moved to oroconf') do
+    opt.on("-C", "invalid option. This functionality is now moved to oroconf") do
         STDERR.puts "the configuration display mode of oroinspect has been moved to oroconf"
         STDERR.puts "  see http://rock-robotics.org/documentation/runtime/configuration.html for more information"
         exit 1
     end
-    opt.on('--debug') do
+    opt.on("--debug") do
         debug = true
     end
-    opt.on('--help') do
+    opt.on("--help") do
         puts parser
         exit 0
     end
@@ -50,9 +51,7 @@ if pattern.empty?
     exit(1)
 end
 
-if search_for.empty?
-    search_for = [:tasks, :types, :deployments]
-end
+search_for = %i[tasks types deployments] if search_for.empty?
 
 regexp = /#{pattern.first}/i
 
@@ -61,9 +60,8 @@ Orocos.load
 def load_orogen_project(loader, name, debug)
     loader.project_model_from_name(name)
 rescue Exception => e
-    if debug
-        raise
-    end
+    raise if debug
+
     STDERR.puts "WARN: cannot load the installed oroGen project #{name}"
     STDERR.puts "WARN:     #{e.message}"
 end
@@ -93,9 +91,9 @@ if search_for.include?(:deployments)
         project_name = pkg.project_name
         if name =~ regexp || project_name =~ regexp
             if tasklib = load_orogen_project(Orocos.default_loader, project_name, debug)
-		if deployer = tasklib.deployers.find { |_, n| n.name == name }
-		    found << [deployer.last, project_name]
-		end
+                if deployer = tasklib.deployers.find { |_, n| n.name == name }
+                    found << [deployer.last, project_name]
+                end
             end
         end
     end
@@ -110,14 +108,14 @@ end
 if search_for.include?(:types)
     Orocos.default_loader.each_available_project_name do |project_name|
         seen = Set.new
-        found = Array.new
-        next if !Orocos.default_loader.has_typekit?(project_name)
+        found = []
+        next unless Orocos.default_loader.has_typekit?(project_name)
 
         typekit = Orocos.default_loader.typekit_model_from_name(project_name)
         matching_types = typekit.typelist.grep(regexp)
-        if !matching_types.empty?
+        unless matching_types.empty?
             matching_types.each do |type_name|
-                if !seen.include?(type_name)
+                unless seen.include?(type_name)
                     found << [Orocos.default_loader.registry.get(type_name), project_name]
                     seen << type_name
                 end

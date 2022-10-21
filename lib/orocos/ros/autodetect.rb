@@ -1,1 +1,3 @@
-require 'orocos/ros'
+# frozen_string_literal: true
+
+require "orocos/ros"

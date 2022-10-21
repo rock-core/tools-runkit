@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos::Async::Log
     class OutputReader < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
@@ -8,16 +10,16 @@ module Orocos::Async::Log
 
         attr_reader :policy
         attr_reader :port
-        define_events :data,:raw_data
+        define_events :data, :raw_data
 
         # @param [Async::OutputPort] port The Asyn::OutputPort
         # @param [Orocos::OutputReader] reader The designated reader
-        def initialize(port,reader,options=Hash.new)
-            super(port.name,port.event_loop)
-            @options = Kernel.validate_options options, :period => default_period
+        def initialize(port, reader, options = {})
+            super(port.name, port.event_loop)
+            @options = Kernel.validate_options options, period: default_period
             @port = port
             # do not queue reachable event no listeners are registered so far
-            disable_emitting do 
+            disable_emitting do
                 reachable! reader
             end
             @port.connect_to do |sample|
@@ -50,8 +52,9 @@ module Orocos::Async::Log
         end
 
         private
-        forward_to :@delegator_obj,:@event_loop,:on_error => :emit_error  do
-            methods = Orocos::Log::OutputReader.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+
+        forward_to :@delegator_obj, :@event_loop, on_error: :emit_error do
+            methods = Orocos::Log::OutputReader.instance_methods.find_all { |method| (method.to_s =~ /^do.*/).nil? }
             methods -= Orocos::Async::Log::OutputReader.instance_methods
             methods << :type
             def_delegators methods
@@ -60,17 +63,17 @@ module Orocos::Async::Log
 
     class OutputPort < Orocos::Async::ObjectBase
         extend Utilrb::EventLoop::Forwardable
-        define_events :data,:raw_data
+        define_events :data, :raw_data
         attr_reader :task
 
-        def initialize(async_task,port,options=Hash.new)
+        def initialize(async_task, port, options = {})
             @options ||= options
-            @readers ||= Array.new
+            @readers ||= []
             @task = async_task
-            super(port.name,async_task.event_loop)
+            super(port.name, async_task.event_loop)
 
             # do not queue reachable event no listeners are registered so far
-            disable_emitting do 
+            disable_emitting do
                 reachable! port
             end
             @on_raw_data = port.on_raw_data do |sample, _|
@@ -88,11 +91,11 @@ module Orocos::Async::Log
             true
         end
 
-        def to_async(options=Hash.new)
+        def to_async(options = {})
             self
         end
 
-        def to_proxy(options=Hash.new)
+        def to_proxy(options = {})
             task.to_proxy(options).port(name).wait
         end
 
@@ -127,18 +130,18 @@ module Orocos::Async::Log
             super
         end
 
-        def reader(options = Hash.new,&block)
+        def reader(options = {}, &block)
             if block
                 orig_reader(policy) do |reader|
-                    block.call OutputReader.new(self,reader,options)
+                    block.call OutputReader.new(self, reader, options)
                 end
             else
-                OutputReader.new(self,orig_reader(policy),options)
+                OutputReader.new(self, orig_reader(policy), options)
             end
         end
 
         def period
-            if @options.has_key?(:period)
+            if @options.key?(:period)
                 @options[:period]
             else
                 OutputReader.default_period
@@ -149,7 +152,7 @@ module Orocos::Async::Log
             @options[:period] = value
         end
 
-        def on_data(policy = Hash.new,&block)
+        def on_data(policy = {}, &block)
             @options = if policy.empty?
                            @options
                        elsif @options.empty? && !@global_reader
@@ -162,17 +165,18 @@ module Orocos::Async::Log
                            Orocos.warn "Ignoring policy: #{policy}."
                            @options
                        end
-            on_event :data,&block
+            on_event :data, &block
         end
 
         private
-        forward_to :@delegator_obj,:@event_loop,:on_error => :emit_error do
-            methods = Orocos::Log::OutputPort.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+
+        forward_to :@delegator_obj, :@event_loop, on_error: :emit_error do
+            methods = Orocos::Log::OutputPort.instance_methods.find_all { |method| (method.to_s =~ /^do.*/).nil? }
             methods -= Orocos::Async::Log::OutputPort.instance_methods
             methods << :type
             def_delegators methods
-            def_delegator :reader, :alias => :orig_reader
-            def_delegator :read, :alias => :orig_read
+            def_delegator :reader, alias: :orig_reader
+            def_delegator :read, alias: :orig_read
         end
     end
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     # This is hardcoded here, as we need it to make sure people don't use
     # MQueues on systems where it is not available
@@ -5,7 +7,7 @@ module Orocos
     # The comparison with the actual value from the RTT is done in
     # MQueue.available?
     TRANSPORT_MQ = 2
-    Port.transport_names[TRANSPORT_MQ] = 'MQueue'
+    Port.transport_names[TRANSPORT_MQ] = "MQueue"
 
     # Support for the POSIX Message Queues transport in RTT
     module MQueue
@@ -13,7 +15,7 @@ module Orocos
         # built in RTT)
         def self.available?
             if @available.nil?
-                @available=
+                @available =
                     if !defined?(RTT_TRANSPORT_MQ_ID)
                         false
                     elsif error = MQueue.try_mq_open
@@ -51,11 +53,12 @@ module Orocos
             if MQueue.available?
                 attr_predicate :auto?, true
             else
-                def auto?; false end
+                def auto?
+                    false
+                end
+
                 def auto=(value)
-                    if value
-                        raise ArgumentError, "cannot turn automatic MQ handling. It is either not built into the RTT, or you don't have enough permissions to create message queues (in which case a warning message has been displayed)"
-                    end
+                    raise ArgumentError, "cannot turn automatic MQ handling. It is either not built into the RTT, or you don't have enough permissions to create message queues (in which case a warning message has been displayed)" if value
                 end
             end
 
@@ -151,34 +154,29 @@ module Orocos
                 Orocos.warn "#{msg}: required sample size #{data_size} is greater than the maximum that the system allows (#{msgsize_max}). On linux systems, you can use /proc/sys/fs/mqueue/msgsize_max to change this limit"
                 return false
             end
-            return true
+            true
         end
 
         # Returns the maximum message queue size, in the number of samples
         def self.msg_max
-            if !@msg_max.nil?
-                return @msg_max
-            end
+            return @msg_max unless @msg_max.nil?
 
-            if !File.readable?('/proc/sys/fs/mqueue/msg_max')
-                @msg_max = false
-            else
-                @msg_max = Integer(File.read('/proc/sys/fs/mqueue/msg_max').chomp)
-            end
+            @msg_max = if !File.readable?("/proc/sys/fs/mqueue/msg_max")
+                           false
+                       else
+                           Integer(File.read("/proc/sys/fs/mqueue/msg_max").chomp)
+                       end
         end
 
         # Returns the maximum message size allowed in a message queue, in bytes
         def self.msgsize_max
-            if !@msgsize_max.nil?
-                return @msgsize_max
-            end
+            return @msgsize_max unless @msgsize_max.nil?
 
-            if !File.readable?('/proc/sys/fs/mqueue/msgsize_max')
-                @msgsize_max = false
-            else
-                @msgsize_max = Integer(File.read('/proc/sys/fs/mqueue/msgsize_max').chomp)
-            end
+            @msgsize_max = if !File.readable?("/proc/sys/fs/mqueue/msgsize_max")
+                               false
+                           else
+                               Integer(File.read("/proc/sys/fs/mqueue/msgsize_max").chomp)
+                           end
         end
     end
 end
-

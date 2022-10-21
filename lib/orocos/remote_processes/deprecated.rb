@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Orocos.warn "orocos/process_server is deprecated."
 Orocos.warn "The new class and file layouts are:"
 Orocos.warn "require 'orocos/remote_processes'"
@@ -10,12 +12,11 @@ caller.each do |line|
     Orocos.warn "  #{line}"
 end
 
-require 'orocos/remote_processes'
-require 'orocos/remote_processes/server'
+require "orocos/remote_processes"
+require "orocos/remote_processes/server"
 
 module Orocos
     ProcessClient = RemoteProcesses::Client
     ProcessServer = RemoteProcesses::Server
     RemoteProcess = RemoteProcesses::Process
 end
-

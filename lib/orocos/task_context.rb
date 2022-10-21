@@ -1,4 +1,6 @@
-require 'utilrb/object/attribute'
+# frozen_string_literal: true
+
+require "utilrb/object/attribute"
 
 module Orocos
     # Exception raised when an operation requires the CORBA layer to be
@@ -10,7 +12,9 @@ module Orocos
         # dynamic propery. Nil otherwise
         attr_reader :dynamic_operation
 
-        def dynamic?; !!@dynamic_operation end
+        def dynamic?
+            !!@dynamic_operation
+        end
 
         def initialize(task, name, orocos_type_name)
             super
@@ -20,15 +24,13 @@ module Orocos
         end
 
         def do_write_dynamic(value)
-            if !@dynamic_operation.callop(value)
-                raise PropertyChangeRejected, "the change of property #{name} was rejected by the remote task"
-            end
+            raise PropertyChangeRejected, "the change of property #{name} was rejected by the remote task" unless @dynamic_operation.callop(value)
         end
     end
 
     class Property < TaskContextAttribute
         def log_metadata
-            super.merge('rock_stream_type' => 'property')
+            super.merge("rock_stream_type" => "property")
         end
 
         def do_write(type_name, value, direct: false)
@@ -38,6 +40,7 @@ module Orocos
                 task.do_property_write(name, type_name, value)
             end
         end
+
         def do_read(type_name, value)
             task.do_property_read(name, type_name, value)
         end
@@ -45,7 +48,7 @@ module Orocos
 
     class Attribute < TaskContextAttribute
         def log_metadata
-            super.merge('rock_stream_type' => 'attribute')
+            super.merge("rock_stream_type" => "attribute")
         end
 
         def do_write(type_name, value, direct: false)
@@ -55,6 +58,7 @@ module Orocos
                 task.do_attribute_write(name, type_name, value)
             end
         end
+
         def do_read(type_name, value)
             task.do_attribute_read(name, type_name, value)
         end
@@ -77,8 +81,8 @@ module Orocos
         # extension
         def self.corba_wrap(m, *args) # :nodoc:
             class_eval <<-EOD
-            def #{m}(#{args.join(". ")})
-                CORBA.refine_exceptions(self) { do_#{m}(#{args.join(", ")}) }
+            def #{m}(#{args.join('. ')})
+                CORBA.refine_exceptions(self) { do_#{m}(#{args.join(', ')}) }
             end
             EOD
         end
@@ -136,9 +140,7 @@ module Orocos
             super(name, model: model, **other_options)
             @ior = ior
 
-            if process && (process.default_logger_name != name)
-                self.logger = process.default_logger
-            end
+            self.logger = process.default_logger if process && (process.default_logger_name != name)
         end
 
         def ping
@@ -169,9 +171,9 @@ module Orocos
             def read_with_result(sample = nil, copy_old_data = false)
                 result, value = super
                 if value
-                    return result, @state_symbols[value]
+                    [result, @state_symbols[value]]
                 else
-                    return result
+                    result
                 end
             end
         end
@@ -195,11 +197,12 @@ module Orocos
         # The following call to #state will first look at @state_queue before
         # accessing the task context
         def peek_state
-            if model && model.extended_state_support?
-	    	if !@state_reader || !@state_reader.connected?
+            if model&.extended_state_support?
+                if !@state_reader || !@state_reader.connected?
                     @state_reader = state_reader
                     @state_queue << rtt_state
-		end
+                end
+
                 while new_state = @state_reader.read_new
                     @state_queue << new_state
                 end
@@ -214,9 +217,9 @@ module Orocos
         # This is available only on oroGen task, for which oroGen adds an
         # orogen_getPID operation that returns this information
         def tid
-            if !@tid
-                if has_operation?('__orogen_getTID')
-                    @tid = operation('__orogen_getTID').callop()
+            unless @tid
+                if has_operation?("__orogen_getTID")
+                    @tid = operation("__orogen_getTID").callop
                 else
                     raise ArgumentError, "#tid is available only on oroGen tasks, not #{self}"
                 end
@@ -226,7 +229,7 @@ module Orocos
 
         # Reads the state announced by the task's getState() operation
         def rtt_state
-            value = CORBA.refine_exceptions(self) { do_state() }
+            value = CORBA.refine_exceptions(self) { do_state }
             @state_symbols[value]
         end
 
@@ -237,26 +240,27 @@ module Orocos
         #
         # @example logging all ports beside a port called frame
         # task.log_all_ports(:exclude_ports => "frame")
-        def log_all_ports(options = Hash.new)
+        def log_all_ports(options = {})
             # Right now, the only allowed option is :exclude_ports
-            options, logger_options = Kernel.filter_options options,:exclude_ports => nil
+            options, logger_options = Kernel.filter_options options, exclude_ports: nil
             exclude_ports = Array(options[:exclude_ports])
 
             logger_options[:tasks] = Regexp.new(basename)
-            ports = Orocos.log_all_process_ports(process,logger_options) do |port|
+            ports = Orocos.log_all_process_ports(process, logger_options) do |port|
                 !exclude_ports.include? port.name
             end
             raise "#{name}: no ports were selected for logging" if ports.empty?
+
             ports
         end
 
         def create_property_log_stream(p)
-            stream_name = "#{self.name}.#{p.name}"
-            if !configuration_log.has_stream?(stream_name)
-                p.log_stream = configuration_log.create_stream(stream_name, p.type, p.log_metadata)
-            else
-                p.log_stream = configuration_log.stream(stream_name)
-            end
+            stream_name = "#{name}.#{p.name}"
+            p.log_stream = if !configuration_log.has_stream?(stream_name)
+                               configuration_log.create_stream(stream_name, p.type, p.log_metadata)
+                           else
+                               configuration_log.stream(stream_name)
+                           end
         end
 
         # Tell the task to use the given Pocolog::Logfile object to log all
@@ -278,10 +282,9 @@ module Orocos
 
             start = Time.now
             peek_state
-            while !@state_queue.include?(state_name)
-                if timeout && (Time.now - start) > timeout
-                    raise "timing out while waiting for #{self} to be in state #{state_name}. It currently is in state #{current_state}"
-                end
+            until @state_queue.include?(state_name)
+                raise "timing out while waiting for #{self} to be in state #{state_name}. It currently is in state #{current_state}" if timeout && (Time.now - start) > timeout
+
                 sleep polling
                 peek_state
             end
@@ -291,9 +294,9 @@ module Orocos
         # into the main configuration manager and applies it to the TaskContext
         #
         # See also #apply_conf and #Orocos.load_config_dir
-        def apply_conf_file(file,section_names=Array.new,override=false)
-            Orocos.conf.load_file(file,model.name)
-            apply_conf(section_names,override)
+        def apply_conf_file(file, section_names = [], override = false)
+            Orocos.conf.load_file(file, model.name)
+            apply_conf(section_names, override)
         end
 
         def to_s
@@ -304,13 +307,13 @@ module Orocos
         # configuration manager to the TaskContext
         #
         # See also #load_conf and #Orocos.load_config_dir
-        def apply_conf(section_names = Array.new, override=false)
+        def apply_conf(section_names = [], override = false)
             Orocos.conf.apply(self, section_names, override)
         end
 
         # Saves the current configuration into a file
         def save_conf(file, section_names = nil)
-            Orocos.conf.save(self,file,section_names)
+            Orocos.conf.save(self, file, section_names)
         end
 
         ##
@@ -322,7 +325,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in
         # STATE_PRE_OPERATIONAL state before the call, or if the component
         # refused to do the transition (startHook() returned false)
-        state_transition_call :configure, 'PRE_OPERATIONAL', 'STOPPED'
+        state_transition_call :configure, "PRE_OPERATIONAL", "STOPPED"
 
         ##
         # :method: start
@@ -333,7 +336,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_STOPPED
         # state before the call, or if the component refused to do the
         # transition (startHook() returned false)
-        state_transition_call :start, 'STOPPED', 'RUNNING'
+        state_transition_call :start, "STOPPED", "RUNNING"
 
         ##
         # :method: reset_exception
@@ -344,7 +347,7 @@ module Orocos
         #
         # Raises StateTransitionFailed if the component was not in a proper
         # state before the call.
-        state_transition_call :reset_exception, 'EXCEPTION', nil
+        state_transition_call :reset_exception, "EXCEPTION", nil
 
         ##
         # :method: stop
@@ -355,7 +358,7 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_RUNNING
         # state before the call. The component cannot refuse to perform the
         # transition (but can take an arbitrarily long time to do it).
-        state_transition_call :stop, 'RUNNING', 'STOPPED'
+        state_transition_call :stop, "RUNNING", "STOPPED"
 
         ##
         # :method: cleanup
@@ -366,17 +369,15 @@ module Orocos
         # Raises StateTransitionFailed if the component was not in STATE_STOPPED
         # state before the call. The component cannot refuse to perform the
         # transition (but can take an arbitrarily long time to do it).
-        state_transition_call :cleanup, 'STOPPED', 'PRE_OPERATIONAL'
+        state_transition_call :cleanup, "STOPPED", "PRE_OPERATIONAL"
 
         # Returns true if this task context has a command with the given name
         def has_operation?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
-                begin
-                    do_has_operation?(name)
-                rescue Orocos::NotFound
-                    false
-                end
+                do_has_operation?(name)
+            rescue Orocos::NotFound
+                false
             end
         end
 
@@ -384,11 +385,9 @@ module Orocos
         def has_port?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
-                begin
-                    do_has_port?(name)
-                rescue Orocos::NotFound
-                    false
-                end
+                do_has_port?(name)
+            rescue Orocos::NotFound
+                false
             end
         end
 
@@ -397,7 +396,7 @@ module Orocos
         def operation_names
             CORBA.refine_exceptions(self) do
                 do_operation_names.each do |str|
-                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                    str.force_encoding("ASCII") if str.respond_to?(:force_encoding)
                 end
             end
         end
@@ -407,7 +406,7 @@ module Orocos
         def property_names
             CORBA.refine_exceptions(self) do
                 do_property_names.each do |str|
-                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                    str.force_encoding("ASCII") if str.respond_to?(:force_encoding)
                 end
             end
         end
@@ -447,11 +446,9 @@ module Orocos
             end
 
             type_name = CORBA.refine_exceptions(self) do
-                begin
-                    do_attribute_type_name(name)
-                rescue ArgumentError => e
-                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an attribute named #{name}", e.backtrace
-                end
+                do_attribute_type_name(name)
+            rescue ArgumentError => e
+                raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an attribute named #{name}", e.backtrace
             end
 
             a = Attribute.new(self, name, type_name)
@@ -465,11 +462,9 @@ module Orocos
         # Return the property object without caching nor validation
         def raw_property(name)
             type_name = CORBA.refine_exceptions(self) do
-                begin
-                    do_property_type_name(name)
-                rescue ArgumentError => e
-                    raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
-                end
+                do_property_type_name(name)
+            rescue ArgumentError => e
+                raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
             end
             Property.new(self, name, type_name)
         end
@@ -514,7 +509,6 @@ module Orocos
         def raw_port(name)
             port_model = model.find_port(name)
             do_port(name, port_model)
-
         rescue Orocos::NotFound => e
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
         end
@@ -549,12 +543,11 @@ module Orocos
             end
         end
 
-
         # Returns the names of all the ports defined on this task context
         def port_names
             CORBA.refine_exceptions(self) do
                 do_port_names.each do |str|
-                    str.force_encoding('ASCII') if str.respond_to?(:force_encoding)
+                    str.force_encoding("ASCII") if str.respond_to?(:force_encoding)
                 end
             end
         end
@@ -570,7 +563,6 @@ module Orocos
                 arguments = operation_argument_types(name)
                 Operation.new(self, name, return_types, arguments)
             end
-
         rescue Orocos::NotFound => e
             raise Orocos::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an operation named #{name}", e.backtrace
         end
@@ -596,21 +588,17 @@ module Orocos
         # See also #info
         def model
             model = super
-            if model
-                return model
-            end
+            return model if model
 
             model_name = begin
-                             self.getModelName
+                             getModelName
                          rescue NoMethodError
                              nil
                          end
 
             self.model =
                 if !model_name
-                    if name !~ /.*orocosrb_(\d+)$/
-                        Orocos.warn "#{name} is a task context not generated by orogen, using default task model"
-                    end
+                    Orocos.warn "#{name} is a task context not generated by orogen, using default task model" if name !~ /.*orocosrb_(\d+)$/
                     Orocos.create_orogen_task_context_model(name)
                 elsif model_name.empty?
                     Orocos.create_orogen_task_context_model
@@ -624,36 +612,30 @@ module Orocos
                 end
         end
 
-        def connect_to(sink, policy = Hash.new)
+        def connect_to(sink, policy = {})
             port = find_output_port(sink.type, nil)
-            if !port
-                raise ArgumentError, "port #{sink.name} does not match any output port of #{name}"
-            end
+            raise ArgumentError, "port #{sink.name} does not match any output port of #{name}" unless port
+
             port.connect_to(sink, policy)
         end
 
-        def disconnect_from(sink, policy = Hash.new)
+        def disconnect_from(sink, policy = {})
             each_output_port do |out_port|
-                if out_port.type == sink.type
-                    out_port.disconnect_from(sink)
-                end
+                out_port.disconnect_from(sink) if out_port.type == sink.type
             end
             nil
         end
 
-        def resolve_connection_from(source, policy = Hash.new)
-            port = find_input_port(source.type,nil)
-            if !port
-                raise ArgumentError, "port #{source.name} does not match any input port of #{name}."
-            end
+        def resolve_connection_from(source, policy = {})
+            port = find_input_port(source.type, nil)
+            raise ArgumentError, "port #{source.name} does not match any input port of #{name}." unless port
+
             source.connect_to(port, policy)
         end
 
         def resolve_disconnection_from(source)
             each_input_port do |in_port|
-                if in_port.type == source.type
-                    source.disconnect_from(in_port)
-                end
+                source.disconnect_from(in_port) if in_port.type == source.type
             end
             nil
         end

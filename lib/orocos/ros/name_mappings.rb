@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 module Orocos
     module ROS
         # Implementation of the ROS name mappings rules
         class NameMappings
             attr_reader :mappings
 
-            def initialize(mappings = Hash.new)
+            def initialize(mappings = {})
                 @mappings = mappings
             end
 
@@ -15,9 +17,7 @@ module Orocos
             def to_command_line
                 result = []
                 mappings.each do |from, to|
-                    if from =~ /^~/
-                        from = "_#{from[1..-1]}"
-                    end
+                    from = "_#{from[1..-1]}" if from =~ /^~/
                     result << "#{from}:=#{to}"
                 end
                 result.join(" ")
@@ -25,4 +25,3 @@ module Orocos
         end
     end
 end
-

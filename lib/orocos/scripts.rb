@@ -1,13 +1,13 @@
+# frozen_string_literal: true
+
 module Orocos
     # @deprecated renamed to Orocos::Scripts.watch
     #--
     # TODO move the code and test
     def self.watch(*objects, &block)
-        options = Hash.new
-        if objects.last.kind_of?(Hash)
-            options = objects.pop
-        end
-        options = Kernel.validate_options options, :sleep => 0.1, :display => true, :main => nil
+        options = {}
+        options = objects.pop if objects.last.kind_of?(Hash)
+        options = Kernel.validate_options options, sleep: 0.1, display: true, main: nil
 
         tasks, ports = objects.partition do |obj|
             obj.kind_of?(TaskContext)
@@ -16,17 +16,17 @@ module Orocos
             obj.kind_of?(OutputPort)
         end
 
-        tasks = tasks.sort_by { |t| t.name }
-        readers.concat(ports.map { |p| p.reader })
+        tasks = tasks.sort_by(&:name)
+        readers.concat(ports.map(&:reader))
         readers = readers.sort_by { |r| r.port.full_name }
         readers = readers.map do |r|
             [r, r.new_sample]
         end
 
         dead_processes = Set.new
-        
+
         should_quit = false
-        while true
+        loop do
             updated_tasks = Set.new
             updated_ports = Set.new
 
@@ -35,7 +35,7 @@ module Orocos
                 needs_display = false
                 info = tasks.map do |t|
                     if t.process && !t.process.running?
-                        if !dead_processes.include?(t)
+                        unless dead_processes.include?(t)
                             needs_display = true
                             updated_tasks << t
                             dead_processes << t
@@ -50,9 +50,7 @@ module Orocos
                     end
                 end
 
-                if needs_display
-                    puts info.join(" | ")
-                end
+                puts info.join(" | ") if needs_display
             end
 
             readers.each do |r, sample|
@@ -69,16 +67,10 @@ module Orocos
                 end
             end
 
-            if should_quit
-                break
-            end
+            break if should_quit
 
-            if block_given?
-                should_quit = yield(updated_tasks, updated_ports) 
-            end
-            if options[:main]
-                should_quit = !options[:main].runtime_state?(options[:main].peek_current_state)
-            end
+            should_quit = yield(updated_tasks, updated_ports) if block_given?
+            should_quit = !options[:main].runtime_state?(options[:main].peek_current_state) if options[:main]
             sleep options[:sleep]
         end
     end
@@ -126,7 +118,7 @@ module Orocos
     #
     #       Orocos::Scripts.watch(task)
     #   end
-    #   
+    #
     module Scripts
         class << self
             # If true, the script should try to attach to running tasks instead of
@@ -145,54 +137,50 @@ module Orocos
             # Options that should be passed to Orocos.run
             attr_reader :run_options
         end
-        @conf_setup = Hash.new
-        @conf_default = ['default']
-        @run_options = Hash.new
+        @conf_setup = {}
+        @conf_default = ["default"]
+        @run_options = {}
 
         def self.common_optparse_setup(optparse)
             @attach = false
             @gui = false
-            @run_options = Hash.new
-            optparse.on('--host=HOSTNAME', String) do |hostname|
+            @run_options = {}
+            optparse.on("--host=HOSTNAME", String) do |hostname|
                 Orocos::CORBA.name_service = hostname.to_str
             end
-            optparse.on('--gui', "start vizkit's task inspector instead of having a text state monitoring") do
+            optparse.on("--gui", "start vizkit's task inspector instead of having a text state monitoring") do
                 @gui = true
             end
-            optparse.on('--attach', "do not actually start the components, simply attach to running ones") do
+            optparse.on("--attach", "do not actually start the components, simply attach to running ones") do
                 @attach = true
             end
-            optparse.on('--conf-dir=DIR', String, "load the configuration files in this directory (not needed when using bundles)") do |conf_source|
+            optparse.on("--conf-dir=DIR", String, "load the configuration files in this directory (not needed when using bundles)") do |conf_source|
                 Orocos.conf.load_dir(conf_source)
             end
-            optparse.on('--conf=TASK[:FILE],conf0,conf1', String, "load this specific configuration for the given task. The task is given by its deployed name") do |conf_setup|
-                task, *conf_sections = conf_setup.split(',')
-                task, *file = task.split(':')
+            optparse.on("--conf=TASK[:FILE],conf0,conf1", String, "load this specific configuration for the given task. The task is given by its deployed name") do |conf_setup|
+                task, *conf_sections = conf_setup.split(",")
+                task, *file = task.split(":")
                 if !file.empty?
-                    task = "#{task}:#{file[0..-2].join(":")}"
+                    task = "#{task}:#{file[0..-2].join(':')}"
                     file = file.pop
 
-                    if !File.file?(file)
-                        raise ArgumentError, "no such file #{file}"
-                    end
+                    raise ArgumentError, "no such file #{file}" unless File.file?(file)
                 else file = nil
                 end
-                if conf_sections.empty?
-                    conf_sections = ['default']
-                end
+                conf_sections = ["default"] if conf_sections.empty?
                 if !task
                     @conf_default = conf_sections
                 else
                     @conf_setup[task] = [file, conf_sections]
                 end
             end
-            optparse.on '--gdbserver', 'start the component(s) with gdb' do
+            optparse.on "--gdbserver", "start the component(s) with gdb" do
                 run_options[:gdb] = true
             end
-            optparse.on '--valgrind', 'start the component(s) with gdb' do
+            optparse.on "--valgrind", "start the component(s) with gdb" do
                 run_options[:valgrind] = true
             end
-            optparse.on '--help', 'show this help message' do
+            optparse.on "--help", "show this help message" do
                 puts optparse
                 exit 0
             end
@@ -210,7 +198,7 @@ module Orocos
         end
 
         def self.parse_stream_option(opt, type_name = nil)
-            logfile, stream_name = opt.split(':')
+            logfile, stream_name = opt.split(":")
             if !stream_name && type_name
                 Pocolog::Logfiles.open(logfile).stream_from_type(type_name)
             elsif !stream_name
@@ -276,4 +264,3 @@ module Orocos
         end
     end
 end
-

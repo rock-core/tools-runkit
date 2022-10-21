@@ -1,13 +1,15 @@
-require 'orocos/test'
-require 'orocos/async'
+# frozen_string_literal: true
+
+require "orocos/test"
+require "orocos/async"
 
 describe Orocos::Async::ObjectBase do
-    before do 
+    before do
         Orocos::Async.clear
     end
 
-    describe "when subclassed" do 
-        before do 
+    describe "when subclassed" do
+        before do
             Orocos::Async.clear
         end
 
@@ -15,21 +17,21 @@ describe Orocos::Async::ObjectBase do
             define_event :test
 
             def initialize(name)
-                super(name,Orocos::Async.event_loop)
+                super(name, Orocos::Async.event_loop)
             end
         end
 
-        it "should define on and emit functions on the class" do 
+        it "should define on and emit functions on the class" do
             assert TestObject.instance_methods.include?(:on_test)
             assert TestObject.instance_methods.include?(:emit_test)
             assert TestObject.instance_methods.include?(:on_error)
             assert TestObject.instance_methods.include?(:emit_error)
         end
 
-        describe "method event" do 
+        describe "method event" do
             it "should raise if event is unknown" do
                 obj = TestObject.new("name")
-                assert_raises RuntimeError do 
+                assert_raises RuntimeError do
                     obj.event(:bla)
                 end
             end
@@ -45,9 +47,9 @@ describe Orocos::Async::ObjectBase do
                 obj.on_error do |val|
                     called = val
                 end
-                obj.event(:error,123)
+                obj.event(:error, 123)
                 Orocos::Async.step
-                assert_equal 123,called
+                assert_equal 123, called
             end
 
             it "should call the listener with the last value" do
@@ -57,7 +59,7 @@ describe Orocos::Async::ObjectBase do
                     called = true
                 end
                 Orocos::Async.step
-                assert_equal true,called
+                assert_equal true, called
             end
 
             it "should not call the listener with the last value" do
@@ -67,24 +69,24 @@ describe Orocos::Async::ObjectBase do
                     called = true
                 end
                 Orocos::Async.step
-                assert_equal false,called
+                assert_equal false, called
             end
         end
 
-        describe "method on_event" do 
+        describe "method on_event" do
             it "should raise if event is unknown" do
                 obj = TestObject.new("name")
-                assert_raises RuntimeError do 
+                assert_raises RuntimeError do
                     obj.on_event :bla do
                     end
                 end
             end
         end
 
-        describe "method number_of_listeners" do 
+        describe "method number_of_listeners" do
             it "should raise if event is unknown" do
                 obj = TestObject.new("name")
-                assert_raises RuntimeError do 
+                assert_raises RuntimeError do
                     obj.number_of_listeners :bla
                 end
             end
@@ -100,10 +102,10 @@ describe Orocos::Async::ObjectBase do
             end
         end
 
-        describe "method validate_event" do 
+        describe "method validate_event" do
             it "should raise if event is unknown" do
                 obj = TestObject.new("name")
-                assert_raises RuntimeError do 
+                assert_raises RuntimeError do
                     obj.validate_event :bla
                 end
             end
@@ -113,7 +115,7 @@ describe Orocos::Async::ObjectBase do
             end
         end
 
-        describe "method valid_event?" do 
+        describe "method valid_event?" do
             it "should return false for an unknown event" do
                 obj = TestObject.new("name")
                 assert !obj.valid_event?(:bla)
@@ -124,25 +126,25 @@ describe Orocos::Async::ObjectBase do
             end
         end
 
-        describe "method listener?" do 
+        describe "method listener?" do
             it "should return false for a listener which is not active" do
                 obj = TestObject.new("name")
-                listener = Orocos::Async::EventListener.new(obj,:error)
+                listener = Orocos::Async::EventListener.new(obj, :error)
                 assert !obj.listener?(listener)
             end
             it "should return true for a active listner" do
                 obj = TestObject.new("name")
-                l = obj.on_error do 
+                l = obj.on_error do
                 end
                 Orocos::Async.event_loop.step
                 assert obj.listener? l
             end
         end
 
-        describe "method remove_listener" do 
+        describe "method remove_listener" do
             it "should remove a listner" do
                 obj = TestObject.new("name")
-                l = obj.on_error do 
+                l = obj.on_error do
                 end
                 Orocos::Async.step
                 assert obj.listener? l
@@ -181,14 +183,14 @@ describe Orocos::Async::ObjectBase do
             end
         end
 
-        describe "method proxy_event" do 
+        describe "method proxy_event" do
             it "should set up a listner which is proxying events" do
                 obj = TestObject.new("name")
                 assert_equal 0, obj.number_of_listeners(:reachable)
 
                 obj2 = TestObject.new("name")
-                obj2.proxy_event(obj,:reachable)
-                #should be still 0 because no listener is registered to obj2
+                obj2.proxy_event(obj, :reachable)
+                # should be still 0 because no listener is registered to obj2
                 assert_equal 0, obj.number_of_listeners(:reachable)
                 assert_equal 0, obj2.number_of_listeners(:reachable)
 
@@ -200,11 +202,11 @@ describe Orocos::Async::ObjectBase do
                 assert_equal 1, obj2.number_of_listeners(:reachable)
                 assert_equal 1, obj.number_of_listeners(:reachable)
 
-                obj.event :reachable,222
+                obj.event :reachable, 222
                 Orocos::Async.steps
-                assert_equal 222,called
+                assert_equal 222, called
 
-                #this should also remove the listener from obj 
+                # this should also remove the listener from obj
                 l.stop
                 Orocos::Async.event_loop.steps
                 assert_equal 0, obj2.number_of_listeners(:reachable)
@@ -213,4 +215,3 @@ describe Orocos::Async::ObjectBase do
         end
     end
 end
-

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module PortBase
         # The task this port is part of
@@ -5,7 +7,9 @@ module Orocos
         # The port name
         attr_reader :name
         # The port full name. It is task_name.port_name
-        def full_name; "#{task.name}.#{name}" end
+        def full_name
+            "#{task.name}.#{name}"
+        end
         # The port's type name as used by the RTT
         attr_reader :orocos_type_name
         # The port's type as a Typelib::Type object
@@ -20,13 +24,13 @@ module Orocos
             @orocos_type_name = orocos_type_name
             @model = model
 
-            ensure_type_available(:fallback_to_null_type => true)
+            ensure_type_available(fallback_to_null_type: true)
 
-            if model
-                @max_sizes = model.max_sizes.dup
-            else
-                @max_sizes = Hash.new
-            end
+            @max_sizes = if model
+                             model.max_sizes.dup
+                         else
+                             {}
+                         end
             @max_sizes.merge!(Orocos.max_sizes_for(type))
 
             super() if defined? super
@@ -35,36 +39,35 @@ module Orocos
         D_UNKNOWN      = 0
         D_SAME_PROCESS = 1
         D_SAME_HOST    = 2
-        D_DIFFERENT_HOSTS   = 3
+        D_DIFFERENT_HOSTS = 3
 
         # How "far" from the given input port this port is
         #
         # @return one of the D_ constants
         def distance_to(input_port)
             if !task.process || !input_port.task.process
-                return D_UNKNOWN
+                D_UNKNOWN
             elsif task.process == input_port.task.process
-                return D_SAME_PROCESS
+                D_SAME_PROCESS
             elsif task.process.host_id == input_port.task.process.host_id
-                return D_SAME_HOST
-            else return D_DIFFERENT_HOSTS
+                D_SAME_HOST
+            else D_DIFFERENT_HOSTS
             end
         end
 
         def to_s
-            "#{full_name}"
+            full_name.to_s
         end
 
         # True if +self+ and +other+ represent the same port
         def ==(other)
-            return false if !other.kind_of?(PortBase)
-            other.task == self.task && other.name == self.name
+            return false unless other.kind_of?(PortBase)
+
+            other.task == task && other.name == name
         end
 
         def ensure_type_available(**options)
-            if !type || type.null?
-                @type = Orocos.find_type_by_orocos_type_name(orocos_type_name, **options)
-            end
+            @type = Orocos.find_type_by_orocos_type_name(orocos_type_name, **options) if !type || type.null?
         end
 
         # Returns a new object of this port's type
@@ -74,29 +77,27 @@ module Orocos
         end
 
         def log_metadata
-            metadata = Hash['rock_task_model' => (task.model.name || ''),
-                'rock_task_name' => task.name,
-                'rock_task_object_name' => name,
-                'rock_stream_type' => 'port',
-                'rock_orocos_type_name' => orocos_type_name,
-                'rock_cxx_type_name' => orocos_type_name]
+            metadata = Hash["rock_task_model" => (task.model.name || ""),
+                            "rock_task_name" => task.name,
+                            "rock_task_object_name" => name,
+                            "rock_stream_type" => "port",
+                            "rock_orocos_type_name" => orocos_type_name,
+                            "rock_cxx_type_name" => orocos_type_name]
 
-	    if Orocos.logger_guess_timestamp_field?
-		# see if we can find a time field in the type, which
-		# would qualify as being used as the default time stamp
-		if @type.respond_to? :each_field
-		    @type.each_field do |name, type|
-			if type.name == "/base/Time"
-			    metadata['rock_timestamp_field'] = name
-			    break
-			end
-		    end
-		else
-		    # TODO what about if the type is a base::Time itself
-		end
-	    end
+            if Orocos.logger_guess_timestamp_field?
+                # see if we can find a time field in the type, which
+                # would qualify as being used as the default time stamp
+                if @type.respond_to? :each_field
+                    @type.each_field do |name, type|
+                        if type.name == "/base/Time"
+                            metadata["rock_timestamp_field"] = name
+                            break
+                        end
+                    end
+                end
+            end
 
-	    metadata
+            metadata
         end
 
         # @overload max_sizes('name.to[].field' => value, 'name.other' => value) => self
@@ -152,10 +153,9 @@ module Orocos
     # singleton method, and must be able to connect to an input port
     module InputPortBase
         # For convenience, automatically reverts the connection direction
-        def connect_to(other, policy = Hash.new)
-            if other.respond_to?(:writer) # This is also an input port !
-                raise ArgumentError, "cannot connect #{self} with #{other}, as they are both inputs"
-            end
+        def connect_to(other, policy = {})
+            raise ArgumentError, "cannot connect #{self} with #{other}, as they are both inputs" if other.respond_to?(:writer) # This is also an input port !
+
             other.connect_to(self, policy)
         end
 
@@ -168,7 +168,8 @@ module Orocos
                     self.class.transient_local_port_name(full_name),
                     orocos_type_name,
                     permanent: false,
-                    class: self.class.writer_class)
+                    class: self.class.writer_class
+                )
             end
             writer.port = self
             writer.policy = policy
@@ -196,7 +197,7 @@ module Orocos
         # @param source the source object in the connection that is being
         #   created
         # @raise [ArgumentError] if the connection cannot be created
-        def resolve_connection_from(source, policy = Hash.new)
+        def resolve_connection_from(source, policy = {})
             raise ArgumentError, "I don't know how to connect #{source} to #{self}"
         end
 
@@ -239,7 +240,8 @@ module Orocos
                     self.class.transient_local_port_name(full_name),
                     orocos_type_name,
                     permanent: false,
-                    class: self.class.reader_class)
+                    class: self.class.reader_class
+                )
             end
             reader.port = self
             reader.policy = policy
@@ -251,7 +253,7 @@ module Orocos
         #
         # It calls #resolve_connection_from, as a fallback for
         # out.connect_to(in) calls where 'out' does not know how to handle 'in'
-        def connect_to(sink, policy = Hash.new)
+        def connect_to(sink, policy = {})
             sink.resolve_connection_from(self, policy)
         end
 
@@ -263,7 +265,4 @@ module Orocos
             sink.resolve_disconnection_from(self)
         end
     end
-
 end
-
-

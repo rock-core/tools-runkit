@@ -1,47 +1,51 @@
-require 'uri'
+# frozen_string_literal: true
+
+require "uri"
 module URI
     class Orocos < URI::Generic
         class << self
             def from_port(port)
-                hash = {:type_name => port.orocos_type_name}
-                Orocos.new("OROCOS",nil,nil,nil,nil,"/port/#{port.full_name}",nil,to_query(hash),nil)
+                hash = { type_name: port.orocos_type_name }
+                Orocos.new("OROCOS", nil, nil, nil, nil, "/port/#{port.full_name}", nil, to_query(hash), nil)
             end
 
             def to_query(hash)
                 str = ""
-                hash.each_pair do |key,value|
+                hash.each_pair do |key, value|
                     value = DEFAULT_PARSER.escape(value)
                     str += "#{key}=#{value}&"
                 end
-                str[0,str.size-1]
+                str[0, str.size - 1]
             end
 
             def from_query(str)
                 uri = str
-                hash = Hash.new
+                hash = {}
                 a = str.split("&")
                 a << str if a.empty?
                 a.each do |val|
                     val =~ /(.*)=(.*)/
-                    raise InvalidURIError,uri if !$1 || !$2
+                    raise InvalidURIError, uri if !$1 || !$2
+
                     hash[$1.to_sym] = DEFAULT_PARSER.unescape $2
                 end
                 hash
             end
         end
 
-        attr_reader :hash,:task_name,:port_name
+        attr_reader :hash, :task_name, :port_name
 
         def initialize(scheme, userinfo, host, port, registry, path, opaque, query, fragment, parser = DEFAULT_PARSER, arg_check = false)
             super
-            @hash = Orocos::from_query(query)
+            @hash = Orocos.from_query(query)
 
             if klass_match = Regexp.new("/(port)/(.+)").match(path)
                 klass = klass_match [1]
                 case klass
                 when "port"
                     if port_match = klass_match[2].match(/(.*)\.(\w+)$/)
-                        @task_name, @port_name = port_match[1], port_match[2]
+                        @task_name = port_match[1]
+                        @port_name = port_match[2]
                     else
                         raise ArgumentError, "expected task_name.port_name as path, but got #{klass_match[2]}"
                     end
@@ -61,13 +65,15 @@ module URI
         end
 
         def task_proxy
-            raise ArgumentError,"URI does not point to a TaskContext" unless task_proxy?
+            raise ArgumentError, "URI does not point to a TaskContext" unless task_proxy?
+
             ::Orocos::Async.name_service.proxy(task_name)
         end
 
         def port_proxy
-            raise ArgumentError,"URI does not point to a Port" unless port_proxy?
-            type = if @hash.has_key? :type_name
+            raise ArgumentError, "URI does not point to a Port" unless port_proxy?
+
+            type = if @hash.key? :type_name
                        name = @hash[:type_name]
                        begin
                            ::Orocos.load_typekit_for name
@@ -77,7 +83,7 @@ module URI
                            nil
                        end
                    end
-            task_proxy.port(port_name,:type => type)
+            task_proxy.port(port_name, type: type)
         end
     end
 end

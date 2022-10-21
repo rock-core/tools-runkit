@@ -1,7 +1,9 @@
-require 'stringio'
-require 'yaml'
-require 'utilrb/hash/map_key'
-require 'digest'
+# frozen_string_literal: true
+
+require "stringio"
+require "yaml"
+require "utilrb/hash/map_key"
+require "digest"
 
 module Orocos
     # Class handling multiple possible configuration for a single task
@@ -77,16 +79,16 @@ module Orocos
 
         def initialize(task_model)
             @model = task_model
-            @sections = Hash['default' => Hash.new]
-            @merged_conf = Hash.new
-            @context = Array.new
+            @sections = Hash["default" => {}]
+            @merged_conf = {}
+            @context = []
         end
 
         def initialize_copy(source)
             super
             @sections = sections.map_value { |k, v| v.dup }
-            @merged_conf = Hash.new
-            @context = Array.new
+            @merged_conf = {}
+            @context = []
         end
 
         # Retrieves the configuration for the given section name
@@ -108,7 +110,7 @@ module Orocos
                 value.gsub!(/<%=((.|\n)*?)%>/) do |match|
                     if match =~ /<%=((.|\n)*?)%>/
                         ruby_content = $1.strip
-                        p = Proc.new {}
+                        p = proc {}
                         eval(ruby_content, p.binding, filename)
                     else
                         match
@@ -139,13 +141,11 @@ module Orocos
                 headers.unshift ["--- name:default", -1]
             elsif headers.first[1] != 0
                 leading_lines = document_lines[0, headers.first[1]].map(&:strip)
-                if leading_lines.any? { |l| !l.empty? && !l.start_with?("#") }
-                    headers.unshift ["--- name:default", -1]
-                end
+                headers.unshift ["--- name:default", -1] if leading_lines.any? { |l| !l.empty? && !l.start_with?("#") }
             end
 
             options = headers.map do |line, line_number|
-                line_options = Hash.new
+                line_options = {}
                 line = line.chomp
                 line.split(/\s+/)[1..-1].each do |opt|
                     if opt =~ /^(\w+):(.*)$/
@@ -156,21 +156,17 @@ module Orocos
                 end
 
                 section_options = Hash[
-                    name: line_options.delete('name'),
-                    merge: (line_options.delete('merge') == 'true'),
-                    chain: (line_options.delete('chain') || '').split(',')]
-                if !line_options.empty?
-                    ConfigurationManager.warn "unrecognized options #{line_options.keys.sort.join(", ")} in #{file}"
-                end
+                    name: line_options.delete("name"),
+                    merge: (line_options.delete("merge") == "true"),
+                    chain: (line_options.delete("chain") || "").split(",")]
+                ConfigurationManager.warn "unrecognized options #{line_options.keys.sort.join(', ')} in #{file}" unless line_options.empty?
 
                 [section_options, line_number]
             end
-            options[0][0][:name] ||= 'default'
+            options[0][0][:name] ||= "default"
 
             options.each do |line_options, line_number|
-                if !line_options[:name]
-                    raise ArgumentError, "#{file}:#{line_number}: missing a 'name' option"
-                end
+                raise ArgumentError, "#{file}:#{line_number}: missing a 'name' option" unless line_options[:name]
             end
 
             sections = []
@@ -183,9 +179,8 @@ module Orocos
             found_sections = []
             sections.each do |conf_options, doc|
                 name = conf_options[:name]
-                if found_sections.include?(name)
-                    raise ArgumentError, "#{name} defined twice"
-                end
+                raise ArgumentError, "#{name} defined twice" if found_sections.include?(name)
+
                 found_sections << name
             end
             sections
@@ -211,7 +206,7 @@ module Orocos
         # Write the YAML to the cache directory, if available
         def save_yaml_to_cache(cache_dir, cache_id, contents)
             path = File.join(cache_dir, cache_id)
-            File.open(path, 'w') do |io|
+            File.open(path, "w") do |io|
                 io.write Marshal.dump(contents)
             end
         end
@@ -235,22 +230,16 @@ module Orocos
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
-                if cache_dir
-                    cache_id, cached_yaml = read_yaml_from_cache(cache_dir, doc)
-                end
-                unless cached_yaml
-                    loaded_yaml = YAML.load(StringIO.new(doc)) || Hash.new
-                end
+                cache_id, cached_yaml = read_yaml_from_cache(cache_dir, doc) if cache_dir
+                loaded_yaml = YAML.load(StringIO.new(doc)) || {} unless cached_yaml
 
                 begin
-                    result = normalize_conf(cached_yaml || loaded_yaml || Hash.new)
+                    result = normalize_conf(cached_yaml || loaded_yaml || {})
                 rescue ConversionFailed => e
                     raise e, "while loading section #{conf_options[:name] || 'default'} #{e.message}", e.backtrace
                 end
 
-                if cache_id && !cached_yaml
-                    save_yaml_to_cache(cache_dir, cache_id, loaded_yaml)
-                end
+                save_yaml_to_cache(cache_dir, cache_id, loaded_yaml) if cache_id && !cached_yaml
 
                 name  = conf_options.delete(:name)
                 chain = conf(conf_options.delete(:chain), true)
@@ -259,55 +248,51 @@ module Orocos
                     add(name, result, normalize: false, **conf_options)
                 end
 
-                if changed
-                    changed_sections << name
-                end
+                changed_sections << name if changed
             end
 
-            if !changed_sections.empty?
-                @merged_conf.clear
-            end
+            @merged_conf.clear unless changed_sections.empty?
             changed_sections
         rescue Exception => e
             raise e, "error loading #{file}: #{e.message}", e.backtrace
         end
 
         UNITS = Hash[
-            'm' => 1,
-            'N' => 1,
-            'deg' => Math::PI / 180,
-            's' => 1,
-            'g' => 1e-3,
-            'Pa' => 1,
-            'bar' => 100_000]
+            "m" => 1,
+            "N" => 1,
+            "deg" => Math::PI / 180,
+            "s" => 1,
+            "g" => 1e-3,
+            "Pa" => 1,
+            "bar" => 100_000]
         SCALES = Hash[
-            'M' => 1e6,
-            'k' => 1e3,
-            'd' => 1e-1,
-            'c' => 1e-2,
-            'm' => 1e-3,
-            'mu' => 1e-6,
-            'n' => 1e-9,
-            'p' => 1e-12]
+            "M" => 1e6,
+            "k" => 1e3,
+            "d" => 1e-1,
+            "c" => 1e-2,
+            "m" => 1e-3,
+            "mu" => 1e-6,
+            "n" => 1e-9,
+            "p" => 1e-12]
 
-        def self.convert_unit_to_SI(expr)
-            unit, power = expr.split('^')
-            power = Integer(power || '1')
+        def self.convert_unit_to_SI(expr) # rubocop:disable Naming/MethodName
+            unit, power = expr.split("^")
+            power = Integer(power || "1")
             if unit_to_si = UNITS[unit]
-                return unit_to_si ** power
+                return unit_to_si**power
             end
 
             SCALES.each do |prefix, scale|
                 if unit.start_with?(prefix)
                     if unit_to_si = UNITS[unit[prefix.size..-1]]
-                        return (unit_to_si*scale) ** power
+                        return (unit_to_si * scale)**power
                     end
                 end
             end
             raise ArgumentError, "does not know how to convert #{expr} to SI"
         end
 
-        ROUNDING_MODES = ['ceil', 'floor', 'round']
+        ROUNDING_MODES = %w[ceil floor round].freeze
 
         def evaluate_numeric_field(field, field_type)
             rounding_mode = nil
@@ -318,7 +303,8 @@ module Orocos
                     # user with a float-to-integer rounding mode warning
                     return Integer(field)
                 elsif field =~ /^([+-]?\d+(?:\.\d+)?(?:e[+-]\d+)?)(.*)/
-                    value, unit = Float($1), $2
+                    value = Float($1)
+                    unit = $2
                 else
                     raise ArgumentError, "#{field} does not look like a numeric field"
                 end
@@ -338,7 +324,7 @@ module Orocos
             end
 
             if value.kind_of?(Float) && field_type.integer?
-                if !rounding_mode
+                unless rounding_mode
                     ConfigurationManager.warn "#{current_context} #{field} used for an integer field, but no rounding mode specified. Append one of .round, .floor or .ceil. This defaults to .floor"
                     rounding_mode = :floor
                 end
@@ -362,16 +348,12 @@ module Orocos
         #   otherwise
         # @see extract
         def add(name, conf, normalize: true, merge: true)
-            if normalize
-                conf = normalize_conf(conf)
-            end
+            conf = normalize_conf(conf) if normalize
 
             changed = false
-            if self.sections[name]
-                if merge
-                    conf = TaskConfigurations.merge_conf(self.sections[name], conf, true)
-                end
-                changed = (self.sections[name] != conf)
+            if sections[name]
+                conf = TaskConfigurations.merge_conf(sections[name], conf, true) if merge
+                changed = (sections[name] != conf)
                 if changed
                     # This happens rarely, be brutal about cache invalidation
                     @merged_conf.clear
@@ -379,7 +361,7 @@ module Orocos
             else
                 changed = true
             end
-            self.sections[name] = conf
+            sections[name] = conf
             changed
         end
 
@@ -409,7 +391,6 @@ module Orocos
             end
         end
 
-
         # Exception raised when a field in a configuration field cannot be
         # converted to the requested path
         class ConversionFailed < ArgumentError
@@ -421,11 +402,11 @@ module Orocos
             def initialize(original_error = nil)
                 super()
                 @original_error = original_error
-                @full_path = Array.new
+                @full_path = []
             end
 
             def original_message
-                original_error.message if original_error
+                original_error&.message
             end
         end
 
@@ -436,7 +417,7 @@ module Orocos
         #   formatting
         # @return [Object] a normalized configuration hash
         def normalize_conf(conf)
-            property_types = Hash.new
+            property_types = {}
             conf.each do |k, v|
                 if p = model.find_property(k)
                     property_types[k] = model.loader.typelib_type_for(p.type)
@@ -445,7 +426,7 @@ module Orocos
                 end
             end
 
-            return normalize_conf_hash(conf, property_types)
+            normalize_conf_hash(conf, property_types)
         end
 
         # Converts a value into a normalized representation suitable to be
@@ -484,7 +465,7 @@ module Orocos
                 element_t = value_t.deference
                 value.raw_each.map { |v| normalize_conf_value(v, element_t) }
             when Typelib::CompoundType
-                result = Hash.new
+                result = {}
                 value.raw_each_field do |field_name, field_value|
                     result[field_name] = normalize_conf_value(field_value, value_t[field_name])
                 end
@@ -513,22 +494,21 @@ module Orocos
         def normalize_conf_terminal_value(value, value_t)
             if value_t <= Typelib::NumericType
                 ruby_value = Typelib.to_ruby(value)
-                if ruby_value.respond_to?(:to_str)
-                    converted_value = evaluate_numeric_field(ruby_value, value_t)
-                else
-                    converted_value = value
-                end
+                converted_value = if ruby_value.respond_to?(:to_str)
+                                      evaluate_numeric_field(ruby_value, value_t)
+                                  else
+                                      value
+                                  end
                 typelib_value = Typelib.from_ruby(converted_value, value_t)
             else
                 typelib_value = Typelib.from_ruby(value, value_t)
             end
 
             if typelib_value.class != value.class
-                return normalize_conf_value(typelib_value, value_t)
+                normalize_conf_value(typelib_value, value_t)
             else
                 typelib_value
             end
-
         rescue ArgumentError => e
             raise ConversionFailed.new(e), e.message, e.backtrace
         end
@@ -537,9 +517,7 @@ module Orocos
         #
         # Helper for {.}. See it for details
         def normalize_conf_array(array, value_t)
-            if value_t.respond_to?(:length) && value_t.length < array.size
-                raise ConversionFailed.new, "array too big (got #{array.size} for a maximum of #{value_t.length}"
-            end
+            raise ConversionFailed.new, "array too big (got #{array.size} for a maximum of #{value_t.length}" if value_t.respond_to?(:length) && value_t.length < array.size
 
             element_t = value_t.deference
             if element_t <= Typelib::NumericType
@@ -563,12 +541,10 @@ module Orocos
             end
 
             array.each_with_index.map do |value, i|
-                begin
-                    normalize_conf_value(value, element_t)
-                rescue ConversionFailed => e
-                    e.full_path.unshift "[#{i}]"
-                    raise e, "failed to convert configuration value for #{e.full_path.join("")}", e.backtrace
-                end
+                normalize_conf_value(value, element_t)
+            rescue ConversionFailed => e
+                e.full_path.unshift "[#{i}]"
+                raise e, "failed to convert configuration value for #{e.full_path.join('')}", e.backtrace
             end
         end
 
@@ -583,7 +559,7 @@ module Orocos
         #   usually be a subclass of Typelib::CompoundType, or a
         #   property-name-to-type mapping.
         def normalize_conf_hash(hash, value_t) # :nodoc:
-            result = Hash.new
+            result = {}
             hash.each do |key, value|
                 begin
                     field_t = value_t[key]
@@ -595,7 +571,7 @@ module Orocos
                     result[key] = normalize_conf_value(value, field_t)
                 rescue ConversionFailed => e
                     e.full_path.unshift ".#{key}"
-                    raise e, "failed to convert configuration value for #{e.full_path.join("")}: #{e.original_message}", e.backtrace
+                    raise e, "failed to convert configuration value for #{e.full_path.join('')}: #{e.original_message}", e.backtrace
                 end
             end
             result
@@ -625,9 +601,7 @@ module Orocos
                 end
             end
 
-            if b.size > a.size
-                result.concat(b[a.size..-1])
-            end
+            result.concat(b[a.size..-1]) if b.size > a.size
             result
         end
 
@@ -637,7 +611,7 @@ module Orocos
         # See {#sections} for a description of how the configuration value
         # formatting allows this to be done.
         def self.merge_conf(a, b, override)
-            result = if override
+            if override
                 a.recursive_merge(b) do |k, v1, v2|
                     if v1.respond_to?(:to_ary) && v2.respond_to?(:to_ary)
                         merge_conf_array(v1, v2, true)
@@ -656,16 +630,16 @@ module Orocos
                     end
                 end
             end
-            result
         end
 
         # Tests whether the given section exists
         def has_section?(name)
-            sections.has_key?(name)
+            sections.key?(name)
         end
 
         def each_resolved_conf
-            return enum_for(__method__) if !block_given?
+            return enum_for(__method__) unless block_given?
+
             sections.each_key do |conf_name|
                 yield(conf_name, conf([conf_name]))
             end
@@ -716,19 +690,18 @@ module Orocos
         def conf(names, override = false)
             names = Array(names)
             if names.empty?
-                return Hash.new
+                {}
             elsif cached = @merged_conf[[names, override]]
-                return cached
+                cached
             else
-                config = names.inject(Hash.new) do |c, section_name|
+                config = names.inject({}) do |c, section_name|
                     section = sections[section_name]
-                    if !section
-                        raise SectionNotFound.new(section_name), "#{section_name} is not a known configuration section for #{model.name}"
-                    end
+                    raise SectionNotFound.new(section_name), "#{section_name} is not a known configuration section for #{model.name}" unless section
+
                     TaskConfigurations.merge_conf(c, section, override)
                 end
                 @merged_conf[[names, override]] = config
-                return config
+                config
             end
         end
 
@@ -784,16 +757,14 @@ module Orocos
         # @param [Boolean] override the override argument of {#conf}
         # @return [void]
         def apply(task, config, override = false)
-            if !config.kind_of?(Hash)
-                config = conf(config, override)
-            end
+            config = conf(config, override) unless config.kind_of?(Hash)
 
-            if !config
-                if names == ['default']
-                    ConfigurationManager.info "required to apply configuration #{names.join(", ")} on #{task.name} of type #{task.model.name}, but this configuration is not registered or empty. Not changing anything."
+            unless config
+                if names == ["default"]
+                    ConfigurationManager.info "required to apply configuration #{names.join(', ')} on #{task.name} of type #{task.model.name}, but this configuration is not registered or empty. Not changing anything."
                     return
                 else
-                    raise ArgumentError, "no configuration #{names.join(", ")} for #{task.model.name}"
+                    raise ArgumentError, "no configuration #{names.join(', ')} for #{task.model.name}"
                 end
             end
 
@@ -843,7 +814,7 @@ module Orocos
             if conf.kind_of?(Hash)
                 conf.each do |conf_key, conf_value|
                     value.raw_set(conf_key,
-                        apply_conf_on_typelib_value(value.raw_get(conf_key), conf_value))
+                                  apply_conf_on_typelib_value(value.raw_get(conf_key), conf_value))
                 end
                 value
             elsif conf.respond_to?(:to_ary)
@@ -864,7 +835,7 @@ module Orocos
             when Typelib::CompoundType
                 value.apply_changes_from_converted_types
 
-                result = Hash.new
+                result = {}
                 value.raw_each_field do |field_name, field_value|
                     result[field_name] = to_yaml(field_value)
                 end
@@ -897,7 +868,7 @@ module Orocos
         # Reads the configuration of a task into a property-name-to-typelib
         # value form
         def self.read_task_conf(task)
-            current_config = Hash.new
+            current_config = {}
             task.each_property do |prop|
                 current_config[prop.name] = prop.raw_read
             end
@@ -926,7 +897,7 @@ module Orocos
         # @return [String] the current context, or an empty string if none has
         #   been specified with {#in_context}
         def current_context
-            @context.last || ''
+            @context.last || ""
         end
 
         # Save a configuration section to disk
@@ -940,8 +911,8 @@ module Orocos
         # @overload save(task, file, section_name)
         #   @deprecated use {#extract} and {#save} instead
         #
-        def save(*args, task_model: self.model, replace: false)
-            if !args.first.respond_to?(:to_str)
+        def save(*args, task_model: model, replace: false)
+            unless args.first.respond_to?(:to_str)
                 Orocos.warn "save(task, file, name) is deprecated, use a combination of #extract and #save(name, file) instead"
                 task, file, name = *args
                 extract(name, task)
@@ -989,9 +960,8 @@ module Orocos
             config = to_yaml(config)
 
             if File.directory?(file)
-                if !task_model.name
-                    raise ArgumentError, "#{file} is a directory and the given model has no name"
-                end
+                raise ArgumentError, "#{file} is a directory and the given model has no name" unless task_model.name
+
                 file = File.join(file, "#{task_model.name}.yml")
             else
                 FileUtils.mkdir_p(File.dirname(file))
@@ -999,11 +969,11 @@ module Orocos
 
             parts = []
             config.keys.sort.each do |property_name|
-                if (p = task_model.find_property(property_name)) && (doc = p.doc)
-                    parts << doc.split("\n").map { |s| "# #{s}" }.join("\n")
-                else
-                    parts << "# no documentation available for this property"
-                end
+                parts << if (p = task_model.find_property(property_name)) && (doc = p.doc)
+                             doc.split("\n").map { |s| "# #{s}" }.join("\n")
+                         else
+                             "# no documentation available for this property"
+                         end
 
                 property_hash = { property_name => config[property_name] }
                 yaml = YAML.dump(property_hash)
@@ -1011,7 +981,7 @@ module Orocos
             end
 
             if !replace
-                File.open(file, 'a') do |io|
+                File.open(file, "a") do |io|
                     io.write("--- name:#{name}\n")
                     io.write(parts.join("\n"))
                     io.puts
@@ -1020,25 +990,24 @@ module Orocos
                 raw_sections =
                     begin load_raw_sections_from_file(file)
                     rescue Errno::ENOENT
-                        Array.new
+                        []
                     end
 
                 raw_sections.delete_if { |options, _| options[:name] == name }
                 raw_sections << [Hash[name: name], parts.map { |l| "#{l}\n" }]
-                File.open(file, 'w') do |io|
+                File.open(file, "w") do |io|
                     raw_sections.each do |options, doc|
                         formatted_options = options.map do |k, v|
                             if v.respond_to?(:to_ary)
-                                next if !v.empty?
+                                next unless v.empty?
+
                                 v = v.join(",")
                             end
                             "#{k}:#{v}"
                         end.compact
-                        io.puts "--- #{formatted_options.join(" ")}"
+                        io.puts "--- #{formatted_options.join(' ')}"
                         io.write doc.join("")
-                        if doc.last != "\n"
-                            io.puts
-                        end
+                        io.puts if doc.last != "\n"
                     end
                 end
             end
@@ -1047,7 +1016,7 @@ module Orocos
     end
 
     # @deprecated use Orocos.apply_conf instead
-    def self.apply_conf_file(task, path, names = ['default'], overrides = true)
+    def self.apply_conf_file(task, path, names = ["default"], overrides = true)
         conf = TaskConfigurations.new(task.model)
         conf.load_from_yaml(path)
         conf.apply(task, names, overrides)
@@ -1063,12 +1032,10 @@ module Orocos
     #
     # +path+ can either be a file or a directory. In the latter case, the
     # configuration stored in path/model_name.yml will be used
-    def self.apply_conf(task, path, names = ['default'], overrides = true)
+    def self.apply_conf(task, path, names = ["default"], overrides = true)
         if File.directory?(path)
             path = File.join(path, "#{task.model.name}.yml")
-            if !File.file?(path)
-                return
-            end
+            return unless File.file?(path)
         end
 
         conf = TaskConfigurations.new(task.model)
@@ -1092,7 +1059,7 @@ module Orocos
 
         def initialize(loader = Orocos.default_loader)
             @loader = loader
-            @conf   = Hash.new
+            @conf   = {}
         end
 
         # Loads all configuration files present in the given directory
@@ -1111,13 +1078,11 @@ module Orocos
         #   name to the list of configuration sections that got modified or added.
         #   Note that the set of sections is guaranteed to not be empty
         def load_dir(dir)
-            if !File.directory?(dir)
-                raise ArgumentError, "#{dir} is not a directory"
-            end
+            raise ArgumentError, "#{dir} is not a directory" unless File.directory?(dir)
 
-            changed = Hash.new
-            Dir.glob(File.join(dir, '*.yml')) do |file|
-                next if !File.file?(file)
+            changed = {}
+            Dir.glob(File.join(dir, "*.yml")) do |file|
+                next unless File.file?(file)
 
                 changed_configurations =
                     begin load_file(file)
@@ -1152,12 +1117,10 @@ module Orocos
         # @raise ArgumentError if the file does not exist
         # @raise OroGen::TaskModelNotFound if the task model cannot be found
         def load_file(file, model = nil)
-            if !File.file?(file)
-                raise ArgumentError, "#{file} does not exist or is not a file"
-            end
+            raise ArgumentError, "#{file} does not exist or is not a file" unless File.file?(file)
 
             if !model || model.respond_to?(:to_str)
-                model_name = model || File.basename(file, '.yml')
+                model_name = model || File.basename(file, ".yml")
                 model = loader.task_model_from_name(model_name)
             end
 
@@ -1165,19 +1128,18 @@ module Orocos
             conf[model.name] ||= TaskConfigurations.new(model)
 
             changed_configurations = conf[model.name].load_from_yaml(file)
-            ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(", ")}"
+            ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(', ')}"
             if changed_configurations.empty?
-                return false
+                false
             else
                 Hash[model.name => changed_configurations]
             end
         end
 
-        def find_task_configuration_object(task, options = Hash.new)
-            if !task.model
-                raise ArgumentError, "cannot use ConfigurationManager#apply for non-orogen tasks"
-            end
-            options = Kernel.validate_options options, :model_name => task.model.name
+        def find_task_configuration_object(task, options = {})
+            raise ArgumentError, "cannot use ConfigurationManager#apply for non-orogen tasks" unless task.model
+
+            options = Kernel.validate_options options, model_name: task.model.name
             conf[options[:model_name]]
         end
 
@@ -1190,20 +1152,19 @@ module Orocos
         # @option options [Boolean] :override (false) see the documentation of
         #   {TaskConfigurations#apply}
         # @raise (see TaskConfigurations#apply)
-        def apply(task, names=Array.new, options = Hash.new)
-            if options == true || options == false
+        def apply(task, names = [], options = {})
+            if [true, false].include?(options)
                 # Backward compatibility
-                options = Hash[:override => options]
+                options = Hash[override: options]
             end
-            options, find_options = Kernel.filter_options options, :override => false, :model_name => task.model.name
+            options, find_options = Kernel.filter_options options, override: false, model_name: task.model.name
 
             model_name = options[:model_name]
-            if model_name.nil?
-                raise ArgumentError, "applying configuration on #{task.name} failed. #{task.class} has no model name."
-            end
-            task_conf = find_task_configuration_object(task, find_options.merge(:model_name => model_name))
+            raise ArgumentError, "applying configuration on #{task.name} failed. #{task.class} has no model name." if model_name.nil?
+
+            task_conf = find_task_configuration_object(task, find_options.merge(model_name: model_name))
             if names = resolve_requested_configuration_names(model_name, task_conf, names)
-                ConfigurationManager.info "applying configuration #{names.join(", ")} on #{task.name} of type #{model_name}"
+                ConfigurationManager.info "applying configuration #{names.join(', ')} on #{task.name} of type #{model_name}"
                 task_conf.apply(task, names, options[:override])
             else
                 ConfigurationManager.info "required default configuration on #{task.name} of type #{model_name}, but #{model_name} has no registered configurations"
@@ -1212,18 +1173,20 @@ module Orocos
         end
 
         def resolve_requested_configuration_names(model_name, task_conf, names)
-            if !task_conf
-                if names == ['default'] || names == []
+            unless task_conf
+                if names.empty? || names == ["default"]
                     return
                 else
-                    section_name = names.find { |n| n != 'default' }
-                    raise TaskConfigurations::SectionNotFound.new(section_name), "no configuration available for #{model_name} (expected #{names.join(", ")})"
+                    section_name = names.find { |n| n != "default" }
+                    raise TaskConfigurations::SectionNotFound.new(section_name),
+                          "no configuration available for #{model_name} "\
+                          "(expected #{names.join(', ')})"
                 end
             end
 
             # If no names are given try to figure them out
             if !names || names.empty?
-                if(task_conf.sections.size == 1)
+                if task_conf.sections.size == 1
                     [task_conf.sections.keys.first]
                 else
                     ["default"]
@@ -1251,19 +1214,15 @@ module Orocos
         #
         # @overload save(task, path, name)
         #   @deprecated old signature. One should use the option hash now.
-        def save(task, path, options = Hash.new)
-            if options.respond_to?(:to_str) || !options # for backward compatibility
-                options = Hash[:name => options]
-            end
+        def save(task, path, options = {})
+            options = Hash[name: options] if options.respond_to?(:to_str) || !options # for backward compatibility
             options, find_options = Kernel.filter_options options,
-                :name => nil,
-                :model => task.model
+                                                          name: nil,
+                                                          model: task.model
 
             model_name = options[:model].name
-            task_conf = find_task_configuration_object(task, find_options.merge(:model_name => model_name))
-            if !task_conf
-                task_conf = conf[model_name] = TaskConfigurations.new(options[:model])
-            end
+            task_conf = find_task_configuration_object(task, find_options.merge(model_name: model_name))
+            task_conf ||= conf[model_name] = TaskConfigurations.new(options[:model])
             name = options[:name] || task.name
             task_conf.extract(name, task)
             task_conf.save(name, path, task_model: task.model)
@@ -1279,14 +1238,12 @@ module Orocos
         #   Otherwise, ArgumentError is thrown when this happens.
         # @return [Object] a configuration object as formatted by the rules
         #   described in the {TaskConfigurations#sections} attribute description
-        def resolve(task_model_name, conf_names = Array.new, override = false)
-            if task_model_name.respond_to?(:model)
-                task_model_name = task_model_name.model.name
-            end
+        def resolve(task_model_name, conf_names = [], override = false)
+            task_model_name = task_model_name.model.name if task_model_name.respond_to?(:model)
             task_conf = conf[task_model_name]
             if conf_names = resolve_requested_configuration_names(task_model_name, task_conf, conf_names)
                 task_conf.conf(conf_names, override)
-            else Hash.new
+            else {}
             end
         end
     end

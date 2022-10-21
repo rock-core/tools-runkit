@@ -1,21 +1,23 @@
-require 'forwardable'
-require 'delegate'
+# frozen_string_literal: true
+
+require "forwardable"
+require "delegate"
 
 module Orocos::Async
     class AttributeBaseProxy < ObjectBase
         extend Forwardable
-        define_events :change,:raw_change
+        define_events :change, :raw_change
         attr_reader :raw_last_sample
 
-        methods = Orocos::AttributeBase.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-        methods -= AttributeBaseProxy.instance_methods + [:method_missing,:name]
+        methods = Orocos::AttributeBase.instance_methods.find_all { |method| (method.to_s =~ /^do.*/).nil? }
+        methods -= AttributeBaseProxy.instance_methods + %i[method_missing name]
         methods << :type
-        def_delegators :@delegator_obj,*methods
+        def_delegators :@delegator_obj, *methods
 
-        def initialize(task_proxy,attribute_name,options=Hash.new)
+        def initialize(task_proxy, attribute_name, options = {})
             @type = options.delete(:type)
             @options = options
-            super(attribute_name,task_proxy.event_loop)
+            super(attribute_name, task_proxy.event_loop)
             @task_proxy = task_proxy
             @raw_last_sample = nil
         end
@@ -34,6 +36,7 @@ module Orocos::Async
 
         def type
             raise Orocos::NotFound, "#{self} is not reachable" unless @type
+
             @type
         end
 
@@ -50,31 +53,26 @@ module Orocos::Async
             Typelib.to_ruby(@raw_last_sample) if @raw_last_sample
         end
 
-        def reachable!(attribute,options = Hash.new)
+        def reachable!(attribute, options = {})
             @options = attribute.options
-            if @type && @type != attribute.type && @type.name != attribute.orocos_type_name
-                raise RuntimeError, "the given type #{@type} for attribute #{attribute.name} differes from the real type name #{attribute.type}"
-            end
+            raise "the given type #{@type} for attribute #{attribute.name} differes from the real type name #{attribute.type}" if @type && @type != attribute.type && @type.name != attribute.orocos_type_name
+
             @type = attribute.type
-            remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
+            remove_proxy_event(@delegator_obj, @delegator_obj.event_names) if valid_delegator?
             @raw_last_sample = attribute.raw_last_sample
-            super(attribute,options)
-            proxy_event(@delegator_obj,@delegator_obj.event_names-[:reachable])
+            super(attribute, options)
+            proxy_event(@delegator_obj, @delegator_obj.event_names - [:reachable])
         rescue Orocos::NotFound
             unreachable!
         end
 
-        def unreachable!(options=Hash.new)
-            remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
+        def unreachable!(options = {})
+            remove_proxy_event(@delegator_obj, @delegator_obj.event_names) if valid_delegator?
             super(options)
         end
 
         def period
-            if @options.has_key? :period
-                @options[:period]
-            else
-                nil
-            end
+            @options[:period] if @options.key? :period
         end
 
         def period=(period)
@@ -103,7 +101,7 @@ module Orocos::Async
             super
         end
 
-        def on_change(policy = Hash.new,&block)
+        def on_change(policy = {}, &block)
             @options = if policy.empty?
                            @options
                        elsif @options.empty? && !valid_delegator?
@@ -116,10 +114,10 @@ module Orocos::Async
                            Orocos.warn "Ignoring policy: #{policy}."
                            @options
                        end
-            on_event :change,&block
+            on_event :change, &block
         end
 
-        def on_raw_change(policy = Hash.new,&block)
+        def on_raw_change(policy = {}, &block)
             @options = if policy.empty?
                            @options
                        elsif @options.empty? && !valid_delegator?
@@ -132,15 +130,15 @@ module Orocos::Async
                            Orocos.warn "Ignoring policy: #{policy}."
                            @options
                        end
-            on_event :raw_change,&block
+            on_event :raw_change, &block
         end
 
         private
-        def process_event(event_name,*args)
+
+        def process_event(event_name, *args)
             @raw_last_sample = args.first if event_name == :raw_change
             super
         end
-
     end
 
     class PropertyProxy < AttributeBaseProxy
@@ -151,16 +149,16 @@ module Orocos::Async
 
     class PortProxy < ObjectBase
         extend Forwardable
-        define_events :data,:raw_data
+        define_events :data, :raw_data
 
-        methods = Orocos::Port.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
-        methods -= PortProxy.instance_methods + [:method_missing,:name]
+        methods = Orocos::Port.instance_methods.find_all { |method| (method.to_s =~ /^do.*/).nil? }
+        methods -= PortProxy.instance_methods + %i[method_missing name]
         methods << :write
         methods << :type
-        def_delegators :@delegator_obj,*methods
+        def_delegators :@delegator_obj, *methods
 
-        def initialize(task_proxy,port_name,options=Hash.new)
-            super(port_name,task_proxy.event_loop)
+        def initialize(task_proxy, port_name, options = {})
+            super(port_name, task_proxy.event_loop)
             @task_proxy = task_proxy
             @type = options.delete(:type)
             @options = options
@@ -181,6 +179,7 @@ module Orocos::Async
 
         def type
             raise Orocos::NotFound, "#{self} is not reachable" unless @type
+
             @type
         end
 
@@ -193,11 +192,11 @@ module Orocos::Async
             type.zero
         end
 
-        def to_async(options=Hash.new)
-            task.to_async(options).port(self.name)
+        def to_async(options = {})
+            task.to_async(options).port(name)
         end
 
-        def to_proxy(options=Hash.new)
+        def to_proxy(options = {})
             self
         end
 
@@ -229,61 +228,53 @@ module Orocos::Async
             super && @delegator_obj.reachable?
         end
 
-        def reachable!(port,options = Hash.new)
+        def reachable!(port, options = {})
             raise ArgumentError, "port must not be kind of PortProxy" if port.is_a? PortProxy
-            if @type && @type != port.type && @type.name != port.orocos_type_name
-                raise RuntimeError, "the given type #{@type} for port #{port.full_name} differes from the real type name #{port.type}"
-            end
+            raise "the given type #{@type} for port #{port.full_name} differes from the real type name #{port.type}" if @type && @type != port.type && @type.name != port.orocos_type_name
 
-            remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
-            super(port,options)
-            proxy_event(@delegator_obj,@delegator_obj.event_names-[:reachable])
+            remove_proxy_event(@delegator_obj, @delegator_obj.event_names) if valid_delegator?
+            super(port, options)
+            proxy_event(@delegator_obj, @delegator_obj.event_names - [:reachable])
             @type = port.type
 
-            #check which port we have
+            # check which port we have
             if port.respond_to?(:reader)
                 @raw_last_sample = port.raw_last_sample
             elsif number_of_listeners(:data) != 0
-                raise RuntimeError, "Port #{name} is an input port but callbacks for on_data are registered"
+                raise "Port #{name} is an input port but callbacks for on_data are registered"
             end
         rescue Orocos::NotFound
             unreachable!
         end
 
-        def unreachable!(options = Hash.new)
-            remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
+        def unreachable!(options = {})
+            remove_proxy_event(@delegator_obj, @delegator_obj.event_names) if valid_delegator?
             super(options)
         end
 
         # returns a sub port for the given subfield
         def sub_port(subfield)
-            raise RuntimeError , "Port #{name} is not an output port" if !output?
-            SubPortProxy.new(self,subfield)
+            raise "Port #{name} is not an output port" unless output?
+
+            SubPortProxy.new(self, subfield)
         end
 
         def period
-            if @options.has_key? :period
-                @options[:period]
-            else
-                nil
-            end
+            @options[:period] if @options.key? :period
         end
 
         def period=(period)
-            raise RuntimeError, "Port #{name} is not an output port" if !output?
+            raise "Port #{name} is not an output port" unless output?
+
             @options[:period] = period
             @delegator_obj.period = period if valid_delegator?
         end
 
         def last_sample
-            if @raw_last_sample
-                Typelib.to_ruby(@raw_last_sample)
-            end
+            Typelib.to_ruby(@raw_last_sample) if @raw_last_sample
         end
 
-        def raw_last_sample
-            @raw_last_sample
-        end
+        attr_reader :raw_last_sample
 
         def really_add_listener(listener)
             return super unless listener.use_last_value?
@@ -304,14 +295,15 @@ module Orocos::Async
             super
         end
 
-        def on_data(policy = Hash.new,&block)
+        def on_data(policy = {}, &block)
             on_raw_data policy do |sample|
-                yield Typelib::to_ruby(sample,type)
+                yield Typelib.to_ruby(sample, type)
             end
         end
 
-        def on_raw_data(policy = Hash.new,&block)
-            raise RuntimeError , "Port #{name} is not an output port" if !output?
+        def on_raw_data(policy = {}, &block)
+            raise "Port #{name} is not an output port" unless output?
+
             @options = if policy.empty?
                            @options
                        elsif @options.empty? && !valid_delegator?
@@ -323,18 +315,19 @@ module Orocos::Async
                            @delegator_obj.options = policy
                            policy
                        end
-            on_event :raw_data,&block
+            on_event :raw_data, &block
         end
 
         private
-        def process_event(event_name,*args)
+
+        def process_event(event_name, *args)
             @raw_last_sample = args.first if event_name == :raw_data
             super
         end
     end
 
     class SubPortProxy < DelegateClass(PortProxy)
-        def initialize(port_proxy,subfield = Array.new)
+        def initialize(port_proxy, subfield = [])
             super(port_proxy)
             @subfield = Array(subfield).map do |field|
                 if field.respond_to?(:to_i) && field.to_i.to_s == field
@@ -345,26 +338,26 @@ module Orocos::Async
             end
         end
 
-        def to_async(options=Hash.new)
-            task.to_async(options).port(port.name,:subfield => @subfield)
+        def to_async(options = {})
+            task.to_async(options).port(port.name, subfield: @subfield)
         end
 
-        def to_proxy(options=Hash.new)
+        def to_proxy(options = {})
             self
         end
 
-        def on_data(policy = Hash.new)
+        def on_data(policy = {})
             on_raw_data(policy) do |sample|
                 sample = Typelib.to_ruby(sample) if sample
                 yield(sample)
             end
         end
 
-        def on_raw_data(policy = Hash.new,&block)
+        def on_raw_data(policy = {}, &block)
             p = proc do |sample|
-                block.call subfield(sample,@subfield)
+                block.call subfield(sample, @subfield)
             end
-            super(policy,&p)
+            super(policy, &p)
         end
 
         def type_name
@@ -388,37 +381,34 @@ module Orocos::Async
         end
 
         def last_sample
-            subfield(__getobj__.last_sample,@subfield)
+            subfield(__getobj__.last_sample, @subfield)
         end
 
         def raw_last_sample
-            subfield(__getobj__.raw_last_sample,@subfield)
+            subfield(__getobj__.raw_last_sample, @subfield)
         end
 
         def sub_port(subfield)
-            raise RuntimeError , "Port #{name} is not an output port" if !output?
-            SubPortProxy.new(__getobj__,@subfield+subfield)
+            raise "Port #{name} is not an output port" unless output?
+
+            SubPortProxy.new(__getobj__, @subfield + subfield)
         end
 
         def type
-            @sub_type ||= if !@subfield.empty?
-                          type ||= super
-                          @subfield.each do |f|
-                              type = if type.respond_to? :deference
-                                         type.deference
-                                     else
-                                         type[f]
-                                     end
-                          end
-                          type
-                      else
-                          super
-                      end
+            @sub_type ||= @subfield.inject(super) do |type, f|
+                if type.respond_to? :deference
+                    type.deference
+                else
+                    type[f]
+                end
+            end
         end
 
         private
-        def subfield(sample,field)
+
+        def subfield(sample, field)
             return unless sample
+
             field.each do |f|
                 f = if f.is_a? Symbol
                         f.to_s
@@ -428,16 +418,15 @@ module Orocos::Async
                 sample = if !f.is_a?(Fixnum) || sample.size > f
                              sample.raw_get(f)
                          else
-                             #if the field name is wrong typelib will raise an ArgumentError
+                             # if the field name is wrong typelib will raise an ArgumentError
                              Vizkit.warn "Cannot extract subfield for port #{full_name}: Subfield #{f} does not exist (out of index)!"
                              nil
                          end
                 return nil unless sample
             end
-            #check if the type is right
-            if(sample.class != type)
-                raise "Type miss match. Expected type #{type} but got #{sample.class} for subfield #{field.join(".")} of port #{full_name}"
-            end
+            # check if the type is right
+            raise "Type miss match. Expected type #{type} but got #{sample.class} for subfield #{field.join('.')} of port #{full_name}" if sample.class != type
+
             sample
         end
     end
@@ -455,47 +444,47 @@ module Orocos::Async
 
         # forward methods to designated object
         extend Forwardable
-        methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+        methods = Orocos::TaskContext.instance_methods.find_all { |method| (method.to_s =~ /^do.*/).nil? }
         methods << :type
-        methods -= TaskContextProxy.instance_methods + [:method_missing,:reachable?,:port]
-        def_delegators :@delegator_obj,*methods
+        methods -= TaskContextProxy.instance_methods + %i[method_missing reachable? port]
+        def_delegators :@delegator_obj, *methods
 
-        def initialize(name,options=Hash.new)
-            @options,@task_options = Kernel.filter_options options,{:name_service => Orocos::Async.name_service,
-                                                       :event_loop => Orocos::Async.event_loop,
-                                                       :reconnect => true,
-                                                       :retry_period => Orocos::Async::TaskContextBase.default_period,
-                                                       :use => nil,
-                                                       :raise => false,
-                                                       :wait => nil }
+        def initialize(name, options = {})
+            @options, @task_options = Kernel.filter_options options, { name_service: Orocos::Async.name_service,
+                                                                       event_loop: Orocos::Async.event_loop,
+                                                                       reconnect: true,
+                                                                       retry_period: Orocos::Async::TaskContextBase.default_period,
+                                                                       use: nil,
+                                                                       raise: false,
+                                                                       wait: nil }
 
             @name_service = @options[:name_service]
-            self.namespace,name = split_name(name)
+            self.namespace, name = split_name(name)
             self.namespace ||= @name_service.namespace
-            super(name,@options[:event_loop])
+            super(name, @options[:event_loop])
 
             @task_options[:event_loop] = @event_loop
             @mutex = Mutex.new
-            @ports = Hash.new
-            @attributes = Hash.new
-            @properties = Hash.new
+            @ports = {}
+            @attributes = {}
+            @properties = {}
             @resolve_timer = @event_loop.async_every(@name_service.method(:get),
-                                                     {:period => @options[:retry_period],:start => false},
-                                                     self.name,@task_options) do |task_context,error|
+                                                     { period: @options[:retry_period], start: false },
+                                                     self.name, @task_options) do |task_context, error|
                 if error
                     case error
                     when Orocos::NotFound, Orocos::ComError
                         raise error if @options[:raise]
+
                         :ignore_error
                     else
                         raise error
                     end
                 else
                     @resolve_timer.stop
-                    if !task_context.respond_to?(:event_loop)
-                        raise "TaskProxy is using a name service#{@name_service} which is returning #{task_context.class} but Async::TaskContext was expected."
-                    end
-                    @event_loop.async_with_options(method(:reachable!),{:sync_key => self,:known_errors => Orocos::Async::KNOWN_ERRORS},task_context) do |val,error|
+                    raise "TaskProxy is using a name service#{@name_service} which is returning #{task_context.class} but Async::TaskContext was expected." unless task_context.respond_to?(:event_loop)
+
+                    @event_loop.async_with_options(method(:reachable!), { sync_key: self, known_errors: Orocos::Async::KNOWN_ERRORS }, task_context) do |val, error|
                         if error
                             @resolve_timer.start
                             :ignore_error
@@ -507,39 +496,39 @@ module Orocos::Async
             on_port_reachable(false) do |name|
                 p = @ports[name]
                 if p && !p.reachable?
-                    error_callback = Proc.new do |error|
+                    error_callback = proc do |error|
                         p.emit_error(error)
                     end
-                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
+                    @event_loop.defer known_errors: Orocos::Async::KNOWN_ERRORS, on_error: error_callback do
                         connect_port(p)
                     end
                 end
             end
             on_property_reachable(false) do |name|
                 p = @properties[name]
-                if(p && !p.reachable?)
-                    error_callback = Proc.new do |error|
+                if p && !p.reachable?
+                    error_callback = proc do |error|
                         p.emit_error(error)
                     end
-                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
+                    @event_loop.defer known_errors: Orocos::Async::KNOWN_ERRORS, on_error: error_callback do
                         connect_property(p)
                     end
                 end
             end
             on_attribute_reachable(false) do |name|
                 a = @attributes[name]
-                if(a && !a.reachable?)
-                    error_callback = Proc.new do |error|
+                if a && !a.reachable?
+                    error_callback = proc do |error|
                         a.emit_error(error)
                     end
-                    @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => error_callback do
+                    @event_loop.defer known_errors: Orocos::Async::KNOWN_ERRORS, on_error: error_callback do
                         connect_attribute(a)
                     end
                 end
             end
 
             @resolve_timer.doc = "#{name} reconnect"
-            if @options.has_key?(:use)
+            if @options.key?(:use)
                 reachable!(@options[:use])
             else
                 reconnect(@options[:wait])
@@ -554,16 +543,16 @@ module Orocos::Async
             @name
         end
 
-        def to_async(options=Hash.new)
-            Orocos::Async.get(name,options)
+        def to_async(options = {})
+            Orocos::Async.get(name, options)
         end
 
-        def to_proxy(options=Hash.new)
+        def to_proxy(options = {})
             self
         end
 
         def to_ruby
-            TaskContextBase::to_ruby(self)
+            TaskContextBase.to_ruby(self)
         end
 
         # asychronsosly tries to connect to the remote task
@@ -572,67 +561,65 @@ module Orocos::Async
             wait if wait_for_task == true
         end
 
-        def property(name,options = Hash.new)
+        def property(name, options = {})
             name = name.to_str
-            options,other_options = Kernel.filter_options options,:wait => @options[:wait]
+            options, other_options = Kernel.filter_options options, wait: @options[:wait]
             wait if options[:wait]
 
             p = @mutex.synchronize do
-                @properties[name] ||= PropertyProxy.new(self,name,other_options)
+                @properties[name] ||= PropertyProxy.new(self, name, other_options)
             end
 
-            if other_options.has_key?(:type) && p.type? && other_options[:type] == p.type
-                other_options.delete(:type)
-            end
+            other_options.delete(:type) if other_options.key?(:type) && p.type? && other_options[:type] == p.type
             if !other_options.empty? && p.options != other_options
                 Orocos.warn "Property #{p.full_name}: is already initialized with options: #{p.options}"
                 Orocos.warn "ignoring options: #{other_options}"
             end
 
             return p if !reachable? || p.reachable?
+
             if options[:wait]
                 connect_property(p)
                 p.wait
             else
-                @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS do
+                @event_loop.defer known_errors: Orocos::Async::KNOWN_ERRORS do
                     connect_property(p)
                 end
             end
             p
         end
 
-        def attribute(name,options = Hash.new)
+        def attribute(name, options = {})
             name = name.to_str
-            options,other_options = Kernel.filter_options options,:wait => @options[:wait]
+            options, other_options = Kernel.filter_options options, wait: @options[:wait]
             wait if options[:wait]
 
             a = @mutex.synchronize do
-                @attributes[name] ||= AttributeProxy.new(self,name,other_options)
+                @attributes[name] ||= AttributeProxy.new(self, name, other_options)
             end
 
-            if other_options.has_key?(:type) && a.type? && other_options[:type] == a.type
-                other_options.delete(:type)
-            end
+            other_options.delete(:type) if other_options.key?(:type) && a.type? && other_options[:type] == a.type
             if !other_options.empty? && a.options != other_options
                 Orocos.warn "Attribute #{a.full_name}: is already initialized with options: #{a.options}"
                 Orocos.warn "ignoring options: #{other_options}"
             end
 
             return a if !reachable? || a.reachable?
+
             if options[:wait]
                 connect_attribute(a)
                 a.wait
             else
-                @event_loop.defer :known_errors => Orocos::Async::KNOWN_ERRORS do
+                @event_loop.defer known_errors: Orocos::Async::KNOWN_ERRORS do
                     connect_attribute(a)
                 end
             end
             a
         end
 
-        def port(name,options = Hash.new)
+        def port(name, options = {})
             name = name.to_str
-            options,other_options = Kernel.filter_options options,:wait => @options[:wait]
+            options, other_options = Kernel.filter_options options, wait: @options[:wait]
             wait if options[:wait]
 
             # support for subports
@@ -646,19 +633,13 @@ module Orocos::Async
                    else
                        fields.shift
                    end
-            type = if !fields.empty?
-                       other_options.delete(:type)
-                   else
-                       nil
-                   end
+            type = (other_options.delete(:type) unless fields.empty?)
 
             p = @mutex.synchronize do
-                @ports[name] ||= PortProxy.new(self,name,other_options)
+                @ports[name] ||= PortProxy.new(self, name, other_options)
             end
 
-            if other_options.has_key?(:type) && p.type? && other_options[:type] == p.type
-                other_options.delete(:type)
-            end
+            other_options.delete(:type) if other_options.key?(:type) && p.type? && other_options[:type] == p.type
             if !other_options.empty? && p.options != other_options
                 Orocos.warn "Port #{p.full_name}: is already initialized with options: #{p.options}"
                 Orocos.warn "ignoring options: #{other_options}"
@@ -669,7 +650,7 @@ module Orocos::Async
                     connect_port(p)
                     p.wait
                 else
-                    @event_loop.defer :known_errors => KNOWN_ERRORS do
+                    @event_loop.defer known_errors: KNOWN_ERRORS do
                         connect_port(p)
                     end
                 end
@@ -681,37 +662,37 @@ module Orocos::Async
             end
         end
 
-        def ports(options = Hash.new,&block)
-           p = proc do |names|
-               names.map{|name| port(name,options)}
-           end
-           if block
-               port_names(&p)
-           else
-               p.call(port_names)
-           end
+        def ports(options = {}, &block)
+            p = proc do |names|
+                names.map { |name| port(name, options) }
+            end
+            if block
+                port_names(&p)
+            else
+                p.call(port_names)
+            end
         end
 
         def properties(&block)
-           p = proc do |names|
-               names.map{|name| property(name)}
-           end
-           if block
-               property_names(&p)
-           else
-               p.call(property_names)
-           end
+            p = proc do |names|
+                names.map { |name| property(name) }
+            end
+            if block
+                property_names(&p)
+            else
+                p.call(property_names)
+            end
         end
 
         def attributes(&block)
-           p = proc do |names|
-               names.map{|name| attribute(name)}
-           end
-           if block
-               attribute_names(&p)
-           else
-               p.call(attribute_names)
-           end
+            p = proc do |names|
+                names.map { |name| attribute(name) }
+            end
+            if block
+                attribute_names(&p)
+            else
+                p.call(attribute_names)
+            end
         end
 
         # call-seq:
@@ -720,9 +701,8 @@ module Orocos::Async
         # Enumerates the properties that are available on
         # this task, as instances of Orocos::Attribute
         def each_property(&block)
-            if !block_given?
-                return enum_for(:each_property)
-            end
+            return enum_for(:each_property) unless block_given?
+
             names = property_names
             names.each do |name|
                 yield(property(name))
@@ -735,9 +715,7 @@ module Orocos::Async
         # Enumerates the attributes that are available on
         # this task, as instances of Orocos::Attribute
         def each_attribute(&block)
-            if !block_given?
-                return enum_for(:each_attribute)
-            end
+            return enum_for(:each_attribute) unless block_given?
 
             names = attribute_names
             names.each do |name|
@@ -751,9 +729,7 @@ module Orocos::Async
         # Enumerates the ports that are available on this task, as instances of
         # either Orocos::InputPort or Orocos::OutputPort
         def each_port(&block)
-            if !block_given?
-                return enum_for(:each_port)
-            end
+            return enum_for(:each_port) unless block_given?
 
             port_names.each do |name|
                 yield(port(name))
@@ -762,9 +738,10 @@ module Orocos::Async
         end
 
         # must be thread safe
-        def reachable!(task_context,options = Hash.new)
+        def reachable!(task_context, options = {})
             raise ArgumentError, "task_context must not be instance of TaskContextProxy" if task_context.is_a?(TaskContextProxy)
-            raise ArgumentError, "task_context must be an async instance but is #{task_context.class}" if !task_context.respond_to?(:event_names)
+            raise ArgumentError, "task_context must be an async instance but is #{task_context.class}" unless task_context.respond_to?(:event_names)
+
             @mutex.synchronize do
                 @last_task_class ||= task_context.class
                 if @last_task_class != task_context.class
@@ -772,32 +749,26 @@ module Orocos::Async
                     @last_task_class = task_context.class
                 end
 
-                remove_proxy_event(@delegator_obj,@delegator_obj.event_names) if valid_delegator?
+                remove_proxy_event(@delegator_obj, @delegator_obj.event_names) if valid_delegator?
                 if @delegator_obj_old
-                    remove_proxy_event(@delegator_obj_old,@delegator_obj_old.event_names)
+                    remove_proxy_event(@delegator_obj_old, @delegator_obj_old.event_names)
                     @delegator_obj_old = nil
                 end
-                super(task_context,options)
+                super(task_context, options)
 
                 # check if the requested ports are available
                 @ports.values.each do |port|
-                    unless task_context.port_names.include? port.name
-                        Orocos.warn "task #{name} has currently no port called #{port.name} - on_data will be called when the port was added"
-                    end
+                    Orocos.warn "task #{name} has currently no port called #{port.name} - on_data will be called when the port was added" unless task_context.port_names.include? port.name
                 end
                 @attributes.values.each do |attribute|
-                    unless task_context.attribute_names.include? attribute.name
-                        Orocos.warn "task #{name} has currently no attribute called #{attribute.name} - on_change will be called when the attribute was added"
-                    end
+                    Orocos.warn "task #{name} has currently no attribute called #{attribute.name} - on_change will be called when the attribute was added" unless task_context.attribute_names.include? attribute.name
                 end
                 @properties.values.each do |property|
-                    unless task_context.property_names.include? property.name
-                        Orocos.warn "task #{name} has currently no property called #{property.name} - on_change will be called when the property was added"
-                    end
+                    Orocos.warn "task #{name} has currently no property called #{property.name} - on_change will be called when the property was added" unless task_context.property_names.include? property.name
                 end
 
                 # this is emitting on_port_reachable, on_property_reachable ....
-                proxy_event(@delegator_obj,@delegator_obj.event_names-[:reachable])
+                proxy_event(@delegator_obj, @delegator_obj.event_names - [:reachable])
             end
         end
 
@@ -806,12 +777,12 @@ module Orocos::Async
                 super && @delegator_obj.reachable?
             end
         rescue Orocos::NotFound => e
-            unreachable! :error => e,:reconnect => @options[:reconnect]
+            unreachable! error: e, reconnect: @options[:reconnect]
             false
         end
 
-        def unreachable!(options = {:reconnect => false})
-            Kernel.validate_options options,:reconnect,:error
+        def unreachable!(options = { reconnect: false })
+            Kernel.validate_options options, :reconnect, :error
             @mutex.synchronize do
                 # do not stop proxing events here (see reachable!)
                 # otherwise unrechable event might get lost
@@ -828,32 +799,34 @@ module Orocos::Async
             disconnect_ports
             disconnect_attributes
             disconnect_properties
-            re = if options.has_key?(:reconnect)
-                    options[:reconnect]
+            re = if options.key?(:reconnect)
+                     options[:reconnect]
                  else
-                    @options[:reconnect]
+                     @options[:reconnect]
                  end
             reconnect if re
         end
 
         private
+
         # blocking call shoud be called from a different thread
         # all private methods must be thread safe
         def connect_port(port)
             return if port.reachable?
+
             p = @mutex.synchronize do
                 return unless valid_delegator?
+
                 @delegator_obj.disable_emitting do
-                    #called in the context of @delegator_obj
-                    begin
-                        port(port.name,true,port.options)
-                    rescue Orocos::NotFound
-                        Orocos.warn "task #{name} has currently no port called #{port.name}"
-                        raise
-                    rescue Orocos::CORBA::ComError => e
-                        Orocos.warn "task #{name} with error on port: #{port.name} -- #{e}"
-                        raise
-                    end
+                    # called in the context of @delegator_obj
+
+                    port(port.name, true, port.options)
+                rescue Orocos::NotFound
+                    Orocos.warn "task #{name} has currently no port called #{port.name}"
+                    raise
+                rescue Orocos::CORBA::ComError => e
+                    Orocos.warn "task #{name} with error on port: #{port.name} -- #{e}"
+                    raise
                 end
             end
             @event_loop.call do
@@ -871,19 +844,20 @@ module Orocos::Async
         # blocking call shoud be called from a different thread
         def connect_attribute(attribute)
             return if attribute.reachable?
+
             a = @mutex.synchronize do
                 return unless valid_delegator?
+
                 @delegator_obj.disable_emitting do
-                    #called in the context of @delegator_obj
-                    begin
-                        attribute(attribute.name,attribute.options)
-                    rescue Orocos::NotFound
-                        Orocos.warn "task #{name} has currently no attribtue called #{attribute.name} -> on_change will not be called!"
-                        raise
-                    rescue Orocos::CORBA::ComError => e
-                        Orocos.warn "task #{name} with error on port: #{attribute.name} -- #{e}"
-                        raise
-                    end
+                    # called in the context of @delegator_obj
+
+                    attribute(attribute.name, attribute.options)
+                rescue Orocos::NotFound
+                    Orocos.warn "task #{name} has currently no attribtue called #{attribute.name} -> on_change will not be called!"
+                    raise
+                rescue Orocos::CORBA::ComError => e
+                    Orocos.warn "task #{name} with error on port: #{attribute.name} -- #{e}"
+                    raise
                 end
             end
             @event_loop.call do
@@ -901,18 +875,18 @@ module Orocos::Async
         # blocking call shoud be called from a different thread
         def connect_property(property)
             return if property.reachable?
+
             p = @mutex.synchronize do
                 return unless valid_delegator?
+
                 @delegator_obj.disable_emitting do
-                    begin
-                        property(property.name,property.options)
-                    rescue Orocos::NotFound
-                        Orocos.warn "task #{name} has currently no property called #{property.name} -> on_change will not be called!"
-                        raise
-                    rescue Orocos::CORBA::ComError => e
-                        Orocos.warn "task #{name} with error on port: #{property.name} -- #{e}"
-                        raise
-                    end
+                    property(property.name, property.options)
+                rescue Orocos::NotFound
+                    Orocos.warn "task #{name} has currently no property called #{property.name} -> on_change will not be called!"
+                    raise
+                rescue Orocos::CORBA::ComError => e
+                    Orocos.warn "task #{name} with error on port: #{property.name} -- #{e}"
+                    raise
                 end
             end
             @event_loop.call do
@@ -931,9 +905,9 @@ module Orocos::Async
             (reachable? && @delegator_obj.respond_to?(method_name)) || super
         end
 
-        def method_missing(m,*args)
+        def method_missing(m, *args)
             if respond_to_missing?(m)
-                event_loop.sync(@delegator_obj,args) do |args|
+                event_loop.sync(@delegator_obj, args) do |args|
                     @delegator_obj.method(m).call(*args)
                 end
             else

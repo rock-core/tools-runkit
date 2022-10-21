@@ -1,8 +1,10 @@
-require 'orocos/test'
+# frozen_string_literal: true
+
+require "orocos/test"
 
 describe Orocos::RubyTasks::TaskContext do
     before do
-        Orocos.load_typekit 'base'
+        Orocos.load_typekit "base"
     end
 
     it "should be registered on the name server" do
@@ -51,27 +53,27 @@ describe Orocos::RubyTasks::TaskContext do
     describe "properties" do
         it "creates them" do
             task = new_ruby_task_context("task")
-            property = task.create_property('prop', 'int')
+            property = task.create_property("prop", "int")
             assert_kind_of Orocos::Property, property
-            assert_same property, task.property('prop')
-            assert task.has_property?('prop')
+            assert_same property, task.property("prop")
+            assert task.has_property?("prop")
         end
         it "initializes them with a sample by default" do
-            Orocos.load_typekit 'echo'
-            opaque_t       = Orocos.registry.get '/OpaquePoint'
-            intermediate_t = Orocos.registry.get '/echo/Point'
+            Orocos.load_typekit "echo"
+            opaque_t       = Orocos.registry.get "/OpaquePoint"
+            intermediate_t = Orocos.registry.get "/echo/Point"
             initial_sample = intermediate_t.new
             initial_sample.x = 1
             initial_sample.y = 0
             flexmock(intermediate_t).should_receive(:new).and_return(initial_sample)
-            task = new_ruby_task_context('task')
-            task.create_property 'p', '/OpaquePoint'
+            task = new_ruby_task_context("task")
+            task.create_property "p", "/OpaquePoint"
             assert_equal initial_sample, task.p
         end
 
         it "reads and writes them" do
             task = new_ruby_task_context("task")
-            property = task.create_property('prop', 'int')
+            property = task.create_property("prop", "int")
             property.write(10)
             assert_equal 10, property.read
             property.write(20)
@@ -82,7 +84,7 @@ describe Orocos::RubyTasks::TaskContext do
             task = new_ruby_task_context("task")
             # create_property initializes the property, which fails in this case
             e = assert_raises(Orocos::CORBAError) do
-                task.create_property 'out', '/base/geometry/Spline3'
+                task.create_property "out", "/base/geometry/Spline3"
             end
             assert_match(
                 /failed to marshal.*dimension must be strictly/,
@@ -92,9 +94,9 @@ describe Orocos::RubyTasks::TaskContext do
 
         it "raises a Ruby exception on write the opaque conversion fails" do
             task = new_ruby_task_context("task")
-            prop = task.create_property 'out', '/base/geometry/Spline3', init: false
+            prop = task.create_property "out", "/base/geometry/Spline3", init: false
             e = assert_raises(Orocos::CORBAError) do
-                sample = Orocos.registry.get('/wrappers/geometry/Spline').new
+                sample = Orocos.registry.get("/wrappers/geometry/Spline").new
                 sample.dimension = 0
                 prop.write(sample)
             end
@@ -108,27 +110,27 @@ describe Orocos::RubyTasks::TaskContext do
     describe "attributes" do
         it "can create a attribute" do
             task = new_ruby_task_context("task")
-            attribute = task.create_attribute('prop', 'int')
+            attribute = task.create_attribute("prop", "int")
             assert_kind_of Orocos::Attribute, attribute
-            assert_same attribute, task.attribute('prop')
-            assert task.has_attribute?('prop')
+            assert_same attribute, task.attribute("prop")
+            assert task.has_attribute?("prop")
         end
         it "initializes the attribute with a sample" do
-            Orocos.load_typekit 'echo'
-            opaque_t       = Orocos.registry.get '/OpaquePoint'
-            intermediate_t = Orocos.registry.get '/echo/Point'
+            Orocos.load_typekit "echo"
+            opaque_t       = Orocos.registry.get "/OpaquePoint"
+            intermediate_t = Orocos.registry.get "/echo/Point"
             initial_sample = intermediate_t.new
             initial_sample.x = 1
             initial_sample.y = 0
             flexmock(intermediate_t).should_receive(:new).and_return(initial_sample)
-            task = new_ruby_task_context('task')
-            task.create_attribute 'p', '/OpaquePoint'
+            task = new_ruby_task_context("task")
+            task.create_attribute "p", "/OpaquePoint"
             assert_equal initial_sample, task.p
         end
 
         it "reads and writes attributes" do
             task = new_ruby_task_context("task")
-            attribute = task.create_attribute('prop', 'int')
+            attribute = task.create_attribute("prop", "int")
             attribute.write(10)
             assert_equal 10, attribute.read
             attribute.write(20)
@@ -139,7 +141,7 @@ describe Orocos::RubyTasks::TaskContext do
             task = new_ruby_task_context("task")
             # create_attribute initializes the attribute, which fails in this case
             e = assert_raises(Orocos::CORBAError) do
-                task.create_attribute 'out', '/base/geometry/Spline3'
+                task.create_attribute "out", "/base/geometry/Spline3"
             end
             assert_match(
                 /failed to marshal.*dimension must be strictly/,
@@ -149,9 +151,9 @@ describe Orocos::RubyTasks::TaskContext do
 
         it "raises a Ruby exception on write the opaque conversion fails" do
             task = new_ruby_task_context("task")
-            prop = task.create_attribute 'out', '/base/geometry/Spline3', init: false
+            prop = task.create_attribute "out", "/base/geometry/Spline3", init: false
             e = assert_raises(Orocos::CORBAError) do
-                sample = Orocos.registry.get('/wrappers/geometry/Spline').new
+                sample = Orocos.registry.get("/wrappers/geometry/Spline").new
                 sample.dimension = 0
                 prop.write(sample)
             end
@@ -164,20 +166,20 @@ describe Orocos::RubyTasks::TaskContext do
 
     it "allows to get access to the model name if one is given" do
         project = OroGen::Spec::Project.new(Orocos.default_loader)
-        model = OroGen::Spec::TaskContext.new(project, 'myModel')
-        task = new_ruby_task_context('task', :model => model)
+        model = OroGen::Spec::TaskContext.new(project, "myModel")
+        task = new_ruby_task_context("task", model: model)
         assert_equal "myModel", task.getModelName
     end
 
     it "makes #model returns the oroGen model if given" do
         project = OroGen::Spec::Project.new(Orocos.default_loader)
         model = Orocos::Spec::TaskContext.new(project)
-        task = new_ruby_task_context('task', :model => model)
+        task = new_ruby_task_context("task", model: model)
         assert_same model, task.model
     end
 
     it "allows to handle the normal state changes" do
-        task = new_ruby_task_context('task')
+        task = new_ruby_task_context("task")
         assert_equal :PRE_OPERATIONAL, task.rtt_state
         task.configure
         assert_equal :STOPPED, task.rtt_state
@@ -187,11 +189,11 @@ describe Orocos::RubyTasks::TaskContext do
         assert_equal :STOPPED, task.rtt_state
     end
 
-    describe 'local output ports' do
-        it 'gets an exception if the typelib value cannot be converted to the intermediate opaque type' do
-            task = new_ruby_task_context 'task'
-            task.create_output_port 'out', '/base/geometry/Spline3'
-            sample = Orocos.registry.get('/wrappers/geometry/Spline').new
+    describe "local output ports" do
+        it "gets an exception if the typelib value cannot be converted to the intermediate opaque type" do
+            task = new_ruby_task_context "task"
+            task.create_output_port "out", "/base/geometry/Spline3"
+            sample = Orocos.registry.get("/wrappers/geometry/Spline").new
             sample.dimension = 0
             e = assert_raises(Orocos::CORBAError) do
                 task.out.write sample
@@ -203,4 +205,3 @@ describe Orocos::RubyTasks::TaskContext do
         end
     end
 end
-

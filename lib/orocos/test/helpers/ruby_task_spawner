@@ -1,23 +1,24 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
 
-require 'optparse'
-input_ports  = Array.new
-output_ports = Array.new
-typekits     = Array.new
+require "optparse"
+input_ports  = []
+output_ports = []
+typekits     = []
 parser = OptionParser.new do |opt|
-    opt.on '--input-port=PORT::TYPE', String do |spec|
-        input_ports << spec.split('::')
+    opt.on "--input-port=PORT::TYPE", String do |spec|
+        input_ports << spec.split("::")
     end
-    opt.on '--output-port=PORT::TYPE', String do |spec|
-        output_ports << spec.split('::')
+    opt.on "--output-port=PORT::TYPE", String do |spec|
+        output_ports << spec.split("::")
     end
-    opt.on '--typekit=NAME', String do |name|
+    opt.on "--typekit=NAME", String do |name|
         typekits << name
     end
 end
 name = parser.parse(ARGV).first
 
-require 'orocos'
+require "orocos"
 
 Orocos.initialize
 typekits.each do |name|
@@ -36,5 +37,3 @@ begin
 ensure
     task.dispose
 end
-
-

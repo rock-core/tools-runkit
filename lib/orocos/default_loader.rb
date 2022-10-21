@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     class DefaultLoader < OroGen::Loaders::Aggregate
         # @return [Boolean] whether the types that get registered on {registry}
@@ -40,9 +42,7 @@ module Orocos
             super
             OroGen::Loaders::RTT.setup_loader(self)
 
-            if export_types? && registry
-                type_export_namespace.reset_registry_export(registry)
-            end
+            type_export_namespace.reset_registry_export(registry) if export_types? && registry
         end
 
         def register_project_model(project)
@@ -61,5 +61,3 @@ module Orocos
         end
     end
 end
-    
-

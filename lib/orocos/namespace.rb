@@ -1,9 +1,10 @@
-module Orocos
+# frozen_string_literal: true
 
-    # The Namespace mixin provides collection classes with several 
-    # methods for namespace handling. 
+module Orocos
+    # The Namespace mixin provides collection classes with several
+    # methods for namespace handling.
     module Namespace
-        #The Delimator between the namespace and the basename.
+        # The Delimator between the namespace and the basename.
         DELIMATOR = "/"
 
         # Sets the namespace name.
@@ -28,45 +29,43 @@ module Orocos
         # @param [String,Array] names the names which shall be mapped
         # @return [String,Array] the mapped names
         def map_to_namespace(names)
-            if !namespace
-                return names
-            end
+            return names unless namespace
 
             ary = Array(names)
             ary.map! do |n|
-                _,name = split_name(n)
+                _, name = split_name(n)
                 "#{namespace}#{DELIMATOR}#{name}"
             end
             if names.is_a? Array
-                ary 
+                ary
             else
                 ary.first
             end
         end
 
-        # Checks if the given name is in the 
+        # Checks if the given name is in the
         # same namespace.
         #
         # @param [String] name the name which shall be checked
         # @return [Boolean]
         def same_namespace?(name)
-            ns,_ = split_name(name)
-            if(!ns || !namespace || ns == namespace)
-               true
+            ns, _ = split_name(name)
+            if !ns || !namespace || ns == namespace
+                true
             else
-               false
+                false
             end
         end
 
-        # Checks if the given name is in the 
+        # Checks if the given name is in the
         # same namespace and raises an ArgumentError if not.
         #
         # @param [String] name the name which shall be checked
         # @return [nil]
         # @raise [ArgumentError]
         def verify_same_namespace(name)
-            if !same_namespace?(name)
-                ns,_ = split_name(name)
+            unless same_namespace?(name)
+                ns, _ = split_name(name)
                 raise ArgumentError, "namespace '#{namespace}' was expected but got '#{ns}' for name '#{name}'"
             end
         end
@@ -76,12 +75,12 @@ module Orocos
         # @param [String] name the name
         # @return [String] the name without its namespace
         def basename(name)
-            _,name = split_name(name)
+            _, name = split_name(name)
             name
         end
 
         # Splits the given name into its namespace name and basename.
-        # 
+        #
         # @param [String] name the name which shall be split
         # @return [Array<String, String>] its namespace and basename
         def split_name(name)
@@ -93,10 +92,10 @@ module Orocos
         # @param [String] name the name which shall be split
         # @return [Array<String, String>] its namespace and basename
         def self.split_name(name)
-            if(nil != (name =~ Regexp.new("^(.*)#{DELIMATOR}(.*)$")))
-               [$1, $2]
+            if (m = Regexp.new("^(.*)#{DELIMATOR}(.*)$").match(name))
+                [m[1], m[2]]
             else
-               [nil, name]
+                [nil, name]
             end
         end
 
@@ -108,9 +107,7 @@ module Orocos
         # @param [String] name the namespace name that should be validated
         # @raise [ArgumentError] if name is not a valid namespace name
         def self.validate_namespace_name(name)
-            if name =~ /#{DELIMATOR}/
-                raise ArgumentError, "namespace #{name} contains #{DELIMATOR} which is not support."
-            end
+            raise ArgumentError, "namespace #{name} contains #{DELIMATOR} which is not support." if name =~ /#{DELIMATOR}/
         end
     end
 end

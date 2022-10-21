@@ -1,12 +1,14 @@
+# frozen_string_literal: true
+
 module Orocos
     module ROS
         # This class corresponds to the ProcessClient and is a drop-in replacement for
-        # ProcessClient. 
+        # ProcessClient.
         # It allows to start ROS launch files using the process server
         #
         # In this context launch files correspond to oroGen deployments
         # The naming 'deployments' is kept when required by the top level interface
-        # otherwise 'launcher' is being used to clarify that this should be a 
+        # otherwise 'launcher' is being used to clarify that this should be a
         # ROS Launcher object
         class ProcessManager
             extend Logger::Root("Orocos::ROS", Logger::INFO)
@@ -35,27 +37,24 @@ module Orocos
 
             # Initialize process server
             def initialize(loader = Orocos::ROS.default_loader)
-                @launcher_processes = Hash.new
-                @dying_launcher_processes = Array.new
+                @launcher_processes = {}
+                @dying_launcher_processes = []
                 @loader = loader
-            end 
-
-            def disconnect
             end
+
+            def disconnect; end
 
             # Start a launcher process under the given process_name
             # @return [Orocos::ROS::LauncherProcess] The launcher process which started by the process manager
-            def start(process_name, launcher, name_mappings = Hash.new, options = Hash.new)
+            def start(process_name, launcher, name_mappings = {}, options = {})
                 launcher_model = if launcher.respond_to?(:to_str)
                                      loader.deployment_model_from_name(launcher)
                                  else launcher
                                  end
 
                 ProcessManager.debug "launcher: '#{launcher_model.name}' with processname '#{process_name}'"
-                launcher_processes.each do |process_name, l| 
-                    if l.name == launcher_model.name
-                        raise ArgumentError, "launcher #{launcher_model.name} is already started with processname #{process_name} in #{self}"
-                    end
+                launcher_processes.each do |process_name, l|
+                    raise ArgumentError, "launcher #{launcher_model.name} is already started with processname #{process_name} in #{self}" if l.name == launcher_model.name
                 end
 
                 ros_launcher = LauncherProcess.new(self, process_name, launcher_model)
@@ -66,13 +65,11 @@ module Orocos
 
             # Requests that the process server moves the log directory at +log_dir+
             # to +results_dir+
-            def save_log_dir(log_dir, results_dir)
-            end
+            def save_log_dir(log_dir, results_dir); end
 
             # Creates a new log dir, and save the given time tag in it (used later
             # on by save_log_dir)
-            def create_log_dir(log_dir, time_tag, metadata = Hash.new)
-            end
+            def create_log_dir(log_dir, time_tag, metadata = {}); end
 
             # Waits for processes to terminate. +timeout+ is the number of
             # milliseconds we should wait. If set to nil, the call will block until
@@ -81,11 +78,9 @@ module Orocos
             # Returns a hash that maps launcher names to the Status
             # object that represents their exit status.
             def wait_termination(timeout = nil)
-                if timeout != 0
-                    raise ArgumentError, "#{self.class} does not support non-zero timeouts in #wait_termination"
-                end
+                raise ArgumentError, "#{self.class} does not support non-zero timeouts in #wait_termination" if timeout != 0
 
-                terminated_launchers = Hash.new
+                terminated_launchers = {}
                 dying_launcher_processes.delete_if do |launcher_process|
                     _, status = ::Process.waitpid2(launcher_process.pid, ::Process::WUNTRACED | ::Process::WNOHANG)
                     if status
@@ -108,7 +103,7 @@ module Orocos
             # @return [void]
             def kill(launcher_process)
                 ROS.info "ProcessManager is killing launcher process #{launcher_process.name} with pid '#{launcher_process.pid}'"
-                ::Process.kill('SIGTERM', launcher_process.pid)
+                ::Process.kill("SIGTERM", launcher_process.pid)
                 dying_launcher_processes << launcher_process
                 nil
             end
@@ -118,11 +113,11 @@ module Orocos
         class LauncherProcess < ProcessBase
             extend Logger::Root("Orocos::ROS::LauncherProcess", Logger::INFO)
 
-            # Parse run options to 
+            # Parse run options to
             # @return [String, Hash] Names and options
             def self.parse_run_options(*names)
-                options = names.last.kind_of?(Hash) ? names.pop : Hash.new
-                [ names, options ]
+                options = names.last.kind_of?(Hash) ? names.pop : {}
+                [names, options]
             end
 
             attr_reader :ros_process_server
@@ -133,13 +128,21 @@ module Orocos
             # The process ID of this process on the machine of the process server
             attr_reader :pid
 
-            def host_id; 'localhost' end
-            def on_localhost?; true end
-            def alive; !!@pid end
+            def host_id
+                "localhost"
+            end
+
+            def on_localhost?
+                true
+            end
+
+            def alive
+                !!@pid
+            end
 
             def initialize(ros_process_server, name, model)
                 @ros_process_server = ros_process_server
-                @nodes = Hash.new
+                @nodes = {}
                 @launcher = model
                 @pid = nil
                 super(name, model)
@@ -147,24 +150,22 @@ module Orocos
 
             # Spawn the launch file
             # @return [int] pid of the launch process
-            def spawn(options = Hash.new)
+            def spawn(options = {})
                 options, unknown_options = Kernel.filter_options options,
-                    :wait => false,
-                    :redirect => "ros-#{@launcher.name}.txt"
+                                                                 wait: false,
+                                                                 redirect: "ros-#{@launcher.name}.txt"
 
                 wait = options[:wait]
                 options.delete(:wait)
                 options.merge!(unknown_options)
 
                 task_names.each do |name|
-                    if ros_process_server.name_service.task_reachable?(name)
-                        raise ArgumentError, "there is already a task called '#{name}', are you starting the same component twice ?"
-                    end
+                    raise ArgumentError, "there is already a task called '#{name}', are you starting the same component twice ?" if ros_process_server.name_service.task_reachable?(name)
                 end
 
                 LauncherProcess.debug "Launcher '#{@launcher.name}' spawning"
                 @pid = Orocos::ROS.roslaunch(@launcher.project.name, @launcher.name, options)
-                LauncherProcess.info "Launcher '#{@launcher.name}' started, pid '#{@pid}'. Nodes #{@launcher.nodes.map(&:name).join(", ")}  available."
+                LauncherProcess.info "Launcher '#{@launcher.name}' started, pid '#{@pid}'. Nodes #{@launcher.nodes.map(&:name).join(', ')}  available."
 
                 @pid
             end
@@ -177,28 +178,30 @@ module Orocos
             end
 
             # True if the process is running. This is an alias for running?
-            def alive?; !!@pid end
+            def alive?
+                !!@pid
+            end
+
             # True if the process is running. This is an alias for alive?
-            def running?; alive? end
+            def running?
+                alive?
+            end
 
             # Wait for all nodes of the launcher to become available
             # @raise [Orocos::NotFound] if the nodes are not available after a given timeout
             # @return [Boolean] True if process is running, false otherwise
             def wait_running(timeout = nil)
-
-                is_running = Orocos::Process.wait_running(self,timeout) do |launcher_process|
+                is_running = Orocos::Process.wait_running(self, timeout) do |launcher_process|
                     all_nodes_available = true
                     all_topics_available = true
                     topics = []
                     begin
                         nodes = launcher_process.launcher.nodes
-                        if nodes.empty?
-                            LauncherProcess.warn "launcher_process: #{launcher_process} does not have any nodes"
-                        end
+                        LauncherProcess.warn "launcher_process: #{launcher_process} does not have any nodes" if nodes.empty?
 
                         nodes.each do |n|
                             # Wait till node is visible in ROS
-                            if !ROS.rosnode_running?(n.name)
+                            unless ROS.rosnode_running?(n.name)
                                 all_nodes_available = false
                                 break
                             end
@@ -238,9 +241,9 @@ module Orocos
                         all_topics_available = false
                     end
 
-                    if ! (all_nodes_available && all_topics_available)
-                        LauncherProcess.debug "reachable nodes: #{nodes.map(&:name).join(", ")}"
-                        LauncherProcess.debug "reachable topics: #{topics.join(", ")}"
+                    unless all_nodes_available && all_topics_available
+                        LauncherProcess.debug "reachable nodes: #{nodes.map(&:name).join(', ')}"
+                        LauncherProcess.debug "reachable topics: #{topics.join(', ')}"
                     end
 
                     all_nodes_available && all_topics_available
@@ -252,24 +255,20 @@ module Orocos
             # Wait for termination of the launcher process
             # @return [Process::Status] Final process status
             def wait_termination(timeout = nil)
-                if timeout
-                    raise NotImplementedError, "ROS::ProcessManager#wait_termination cannot be called with a timeout"
-                end
+                raise NotImplementedError, "ROS::ProcessManager#wait_termination cannot be called with a timeout" if timeout
 
                 _, status = begin ::Process.waitpid2(@pid, ::Process::WUNTRACED | Process::WNOHANG)
-                              rescue Errno::ECHILD
+                            rescue Errno::ECHILD
                               end
                 status
             end
 
             # Kill the launcher
             def kill(wait = true)
-                LauncherProcess.debug "Sending SIGTERM to launcher '#{@launcher.name}', pid #{@pid}. Nodes #{@launcher.nodes.map(&:name).join(", ")} will be teared down."
-                ::Process.kill('SIGTERM', @pid)
+                LauncherProcess.debug "Sending SIGTERM to launcher '#{@launcher.name}', pid #{@pid}. Nodes #{@launcher.nodes.map(&:name).join(', ')} will be teared down."
+                ::Process.kill("SIGTERM", @pid)
                 ros_process_server.kill(self)
-                if wait
-                    status = @launcher.wait_termination
-                end
+                status = @launcher.wait_termination if wait
             end
 
             # Called to announce that this process has quit
@@ -279,4 +278,4 @@ module Orocos
             end
         end
     end # module ROS
-end #module Orocos
+end # module Orocos

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     # This class represents output ports on remote task contexts.
     #
@@ -12,7 +14,9 @@ module Orocos
 
         # Used by OutputPortReadAccess to determine which output reader class
         # should be used
-        def self.reader_class; OutputReader end
+        def self.reader_class
+            OutputReader
+        end
 
         # Connect this output port to an input port. +options+ defines the
         # connection policy for the connection. If a task is given instead of
@@ -38,9 +42,7 @@ module Orocos
         # Note that new samples will be lost if they are received when the
         # buffer is full.
         def connect_to(input_port, distance: D_UNKNOWN, **options)
-            if !input_port.respond_to?(:to_orocos_port)
-                return super
-            end
+            return super unless input_port.respond_to?(:to_orocos_port)
 
             input_port = input_port.to_orocos_port
             if !input_port.kind_of?(InputPort)
@@ -50,15 +52,9 @@ module Orocos
             end
 
             policy = Port.prepare_policy(**options)
-            if distance == D_UNKNOWN
-                distance = distance_to(input_port)
-            end
-            if distance == D_SAME_HOST
-                policy = handle_mq_transport(input_port.full_name, policy)
-            end
-            if policy[:pull]
-                input_port.blocking_read = true
-            end
+            distance = distance_to(input_port) if distance == D_UNKNOWN
+            policy = handle_mq_transport(input_port.full_name, policy) if distance == D_SAME_HOST
+            input_port.blocking_read = true if policy[:pull]
 
             begin
                 refine_exceptions(input_port) do
@@ -72,7 +68,7 @@ module Orocos
                 end
                 raise
             end
-                    
+
             self
         rescue Orocos::ConnectionFailed => e
             raise e, "failed to connect #{full_name} => #{input_port.full_name} with policy #{policy.inspect}"
@@ -80,9 +76,7 @@ module Orocos
 
         # Require this port to disconnect from the provided input port
         def disconnect_from(input)
-            if !input.respond_to?(:to_orocos_port)
-                return super
-            end
+            return super unless input.respond_to?(:to_orocos_port)
 
             input = input.to_orocos_port
             refine_exceptions(input) do
@@ -91,4 +85,3 @@ module Orocos
         end
     end
 end
-

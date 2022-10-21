@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # The Orocos main class
 module Orocos
     # Result value when reading a port whose value has already been read
@@ -39,8 +41,8 @@ module Orocos
     end
 
     def self.register_pkgconfig_path(path)
-    	base_path = caller(1).first.gsub(/:\d+:.*/, '')
-	ENV['PKG_CONFIG_PATH'] = "#{File.expand_path(path, File.dirname(base_path))}:#{ENV['PKG_CONFIG_PATH']}"
+        base_path = caller(1).first.gsub(/:\d+:.*/, "")
+        ENV["PKG_CONFIG_PATH"] = "#{File.expand_path(path, File.dirname(base_path))}:#{ENV['PKG_CONFIG_PATH']}"
     end
 
     # Exception raised when the user tries an operation that requires the
@@ -99,7 +101,7 @@ module Orocos
     # @return [OroGen::Loaders::Aggregate]
     # @see default_loader
     def self.default_loader
-        if !@default_loader
+        unless @default_loader
             @default_loader = DefaultLoader.new
             # Instanciate all the sub-loaders
             default_pkgconfig_loader
@@ -127,29 +129,25 @@ module Orocos
         @default_pkgconfig_loader ||= OroGen::Loaders::PkgConfig.new(orocos_target, default_loader)
     end
 
-    @macos =  RbConfig::CONFIG["host_os"] =~%r!([Dd]arwin)!
+    @macos = RbConfig::CONFIG["host_os"] =~ %r!([Dd]arwin)!
     def self.macos?
         @macos
     end
 
-    @windows = RbConfig::CONFIG["host_os"] =~%r!(msdos|mswin|djgpp|mingw|[Ww]indows)!
+    @windows = RbConfig::CONFIG["host_os"] =~ %r!(msdos|mswin|djgpp|mingw|[Ww]indows)!
     def self.windows?
         @windows
     end
 
     def self.shared_library_suffix
-        if macos? then 'dylib'
-        elsif windows? then 'dll'
-        else 'so'
+        if macos? then "dylib"
+        elsif windows? then "dll"
+        else "so"
         end
     end
 
     def self.orocos_target
-        if ENV['OROCOS_TARGET']
-            ENV['OROCOS_TARGET']
-        else
-            'gnulinux'
-        end
+        ENV["OROCOS_TARGET"] || "gnulinux"
     end
 
     class << self
@@ -172,7 +170,7 @@ module Orocos
     end
 
     def self.load_extension_runtime_library(extension_name)
-        if !known_orogen_extensions.include?(extension_name)
+        unless known_orogen_extensions.include?(extension_name)
             begin
                 require "runtime/#{extension_name}"
             rescue LoadError
@@ -187,25 +185,22 @@ module Orocos
     end
 
     def self.load(name = nil)
-        if @loaded
-            raise AlreadyInitialized, "Orocos is already loaded. Try to call 'clear' before callign load a second time."
-        end
+        raise AlreadyInitialized, "Orocos is already loaded. Try to call 'clear' before callign load a second time." if @loaded
 
-        if ENV['ORO_LOGFILE'] && orocos_logfile && (ENV['ORO_LOGFILE'] != orocos_logfile)
-            raise "trying to change the path to ORO_LOGFILE from #{orocos_logfile} to #{ENV['ORO_LOGFILE']}. This is not supported"
-        end
-        ENV['ORO_LOGFILE'] ||= File.expand_path("orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt")
-        @orocos_logfile = ENV['ORO_LOGFILE']
+        raise "trying to change the path to ORO_LOGFILE from #{orocos_logfile} to #{ENV['ORO_LOGFILE']}. This is not supported" if ENV["ORO_LOGFILE"] && orocos_logfile && (ENV["ORO_LOGFILE"] != orocos_logfile)
+
+        ENV["ORO_LOGFILE"] ||= File.expand_path("orocos.#{name || 'orocosrb'}-#{::Process.pid}.txt")
+        @orocos_logfile = ENV["ORO_LOGFILE"]
 
         @conf = ConfigurationManager.new
         @loaded_typekit_plugins.clear
-        @max_sizes = Hash.new { |h, k| h[k] = Hash.new }
+        @max_sizes = Hash.new { |h, k| h[k] = {} }
 
-        load_typekit 'std'
+        load_typekit "std"
         load_standard_typekits
 
         if Orocos::ROS.enabled?
-            if !Orocos::ROS.loaded?
+            unless Orocos::ROS.loaded?
                 # Loads all ROS projects that can be found in
                 # Orocos::ROS#spec_search_directories
                 Orocos::ROS.load
@@ -217,11 +212,9 @@ module Orocos
     end
 
     def self.clear
-        if !keep_orocos_logfile? && orocos_logfile
-            FileUtils.rm_f orocos_logfile
-        end
+        FileUtils.rm_f orocos_logfile if !keep_orocos_logfile? && orocos_logfile
 
-        @ruby_task.dispose if @ruby_task
+        @ruby_task&.dispose
         default_loader.clear
         known_orogen_extensions.clear
 
@@ -229,12 +222,8 @@ module Orocos
 
         Orocos::CORBA.clear
         @name_service = nil
-        if defined? Orocos::Async
-            Orocos::Async.clear
-        end
-        if Orocos::ROS.enabled?
-            Orocos::ROS.clear
-        end
+        Orocos::Async.clear if defined? Orocos::Async
+        Orocos::ROS.clear if Orocos::ROS.enabled?
         @loaded = false
         @initialized = false
     end
@@ -270,15 +259,13 @@ module Orocos
         # Install the SIGCHLD handler if it has not been disabled
         unless disable_sigchld_handler?
             trap("SIGCHLD") do
-                begin
-                    loop do
-                        dead_pid, dead_status = ::Process.wait2(-1, ::Process::WNOHANG)
-                        break unless dead_pid
+                loop do
+                    dead_pid, dead_status = ::Process.wait2(-1, ::Process::WNOHANG)
+                    break unless dead_pid
 
-                        Orocos::Process.from_pid(dead_pid)&.dead!(dead_status)
-                    end
-                rescue Errno::ECHILD
+                    Orocos::Process.from_pid(dead_pid)&.dead!(dead_status)
                 end
+            rescue Errno::ECHILD
             end
         end
 
@@ -287,16 +274,12 @@ module Orocos
 
         if Orocos::ROS.enabled?
             # ROS does not support being teared down and reinitialized.
-            if !Orocos::ROS.initialized?
-                Orocos::ROS.initialize(name)
-            end
+            Orocos::ROS.initialize(name) unless Orocos::ROS.initialized?
         end
 
         # add default name services
-        self.name_service << Orocos::CORBA.name_service
-        if defined?(Orocos::ROS) && Orocos::ROS.enabled?
-            self.name_service << Orocos::ROS.name_service
-        end
+        name_service << Orocos::CORBA.name_service
+        name_service << Orocos::ROS.name_service if defined?(Orocos::ROS) && Orocos::ROS.enabled?
         if defined?(Orocos::Async)
             Orocos.name_service.name_services.each do |ns|
                 Orocos::Async.name_service.add(ns)
@@ -308,6 +291,7 @@ module Orocos
     def self.create_orogen_task_context_model(name = nil)
         OroGen::Spec::TaskContext.new(default_project, name)
     end
+
     def self.create_orogen_deployment_model(name = nil)
         OroGen::Spec::Deployment.new(default_project, name)
     end
@@ -325,17 +309,13 @@ module Orocos
     def self.allow_blocking_calls
         if block_given?
             forbidden = Orocos.no_blocking_calls_in_thread
-            if forbidden && (forbidden != Thread.current)
-                raise ThreadError, "cannot call #allow_blocking_calls with a block outside of the forbidden thread"
-            end
+            raise ThreadError, "cannot call #allow_blocking_calls with a block outside of the forbidden thread" if forbidden && (forbidden != Thread.current)
 
             Orocos.no_blocking_calls_in_thread = nil
             begin
-                return yield
+                yield
             ensure
-                if forbidden
-                    Orocos.no_blocking_calls_in_thread = forbidden
-                end
+                Orocos.no_blocking_calls_in_thread = forbidden if forbidden
             end
         else
             current_thread = Orocos.no_blocking_calls_in_thread
@@ -350,8 +330,5 @@ module Orocos
 end
 
 at_exit do
-    if !Orocos.keep_orocos_logfile? && Orocos.orocos_logfile
-        FileUtils.rm_f Orocos.orocos_logfile
-    end
+    FileUtils.rm_f Orocos.orocos_logfile if !Orocos.keep_orocos_logfile? && Orocos.orocos_logfile
 end
-

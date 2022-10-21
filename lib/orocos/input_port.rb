@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     # This class represents output ports on remote task contexts.
     #
@@ -28,4 +30,3 @@ module Orocos
         end
     end
 end
-

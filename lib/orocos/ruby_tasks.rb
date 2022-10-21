@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     # Implementation of task interfaces that live inside the Ruby code
     #
@@ -6,5 +8,5 @@ module Orocos
     end
 end
 
-require 'orocos/ruby_tasks/task_context'
-require 'orocos/ruby_tasks/ports'
+require "orocos/ruby_tasks/task_context"
+require "orocos/ruby_tasks/ports"

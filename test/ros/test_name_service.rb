@@ -1,4 +1,6 @@
-require 'orocos/test'
+# frozen_string_literal: true
+
+require "orocos/test"
 
 describe Orocos::ROS::NameService do
     include Orocos
@@ -9,11 +11,10 @@ describe Orocos::ROS::NameService do
     before do
         @name_service = Orocos::ROS::NameService.new
 
-        Orocos.load_typekit 'base'
-        task = new_ruby_task_context 'ros_test'
-        port = task.create_input_port('out', '/base/Time')
+        Orocos.load_typekit "base"
+        task = new_ruby_task_context "ros_test"
+        port = task.create_input_port("out", "/base/Time")
         port.create_stream(Orocos::TRANSPORT_ROS, "/ros_test_in")
-
     end
 
     it "should allow to list registered nodes" do
@@ -31,11 +32,9 @@ describe Orocos::ROS::NameService do
 
     it "should accept to return a topic by name" do
         sleep 0.1
-        topic = name_service.find_topic_by_name('/ros_test_in')
+        topic = name_service.find_topic_by_name("/ros_test_in")
         assert(topic)
-        assert_equal 'ros_test_in', topic.name
+        assert_equal "ros_test_in", topic.name
         assert_equal Orocos::ROS.caller_id, topic.task.name
     end
 end
-
-

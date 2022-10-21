@@ -1,23 +1,25 @@
-require 'orocos/test'
-require 'orocos/async'
+# frozen_string_literal: true
+
+require "orocos/test"
+require "orocos/async"
 
 describe Orocos::Async::CORBA::OutputPort do
     attr_reader :source
     before do
-        @source = new_ruby_task_context 'source'
-        source.create_output_port 'cycle', 'int'
+        @source = new_ruby_task_context "source"
+        source.create_output_port "cycle", "int"
     end
 
-    after do 
+    after do
         Orocos::Async.clear
     end
 
-    it "synchronously returns a reader for output ports if called without a block" do 
+    it "synchronously returns a reader for output ports if called without a block" do
         t1 = Orocos::Async::CORBA::TaskContext.new(source.ior)
         t1.port("cycle").reader.must_be_kind_of Orocos::Async::CORBA::OutputReader
     end
 
-    it "asynchronously returns a reader for output ports if called with a block" do 
+    it "asynchronously returns a reader for output ports if called with a block" do
         t1 = Orocos::Async::CORBA::TaskContext.new(source.ior)
         reader = nil
         t1.port("cycle").reader do |r|
@@ -31,21 +33,21 @@ end
 describe Orocos::Async::CORBA::InputPort do
     attr_reader :sink
     before do
-        @sink = new_ruby_task_context 'sink'
-        sink.create_input_port 'cycle', 'int'
+        @sink = new_ruby_task_context "sink"
+        sink.create_input_port "cycle", "int"
     end
 
-    after do 
+    after do
         Orocos::Async.clear
     end
 
-    describe "When connect to a remote task" do 
-        it "must return a writer for input ports" do 
+    describe "When connect to a remote task" do
+        it "must return a writer for input ports" do
             t1 = Orocos::Async::CORBA::TaskContext.new(sink.ior)
             t1.port("cycle").writer.must_be_kind_of Orocos::Async::CORBA::InputWriter
         end
 
-        it "must asynchronously return a writer for input ports" do 
+        it "must asynchronously return a writer for input ports" do
             t1 = Orocos::Async::CORBA::TaskContext.new(sink.ior)
             writer = nil
             t1.port("cycle").writer { |w| writer = w }
@@ -58,15 +60,15 @@ end
 describe Orocos::Async::CORBA::OutputReader do
     attr_reader :source
     before do
-        @source = new_ruby_task_context 'source'
-        source.create_output_port 'cycle', 'int'
+        @source = new_ruby_task_context "source"
+        source.create_output_port "cycle", "int"
     end
 
-    after do 
+    after do
         Orocos::Async.clear
     end
 
-    it "reads data" do 
+    it "reads data" do
         t1 = Orocos::Async::CORBA::TaskContext.new(source.ior)
         reader = t1.port("cycle").reader(type: :buffer, size: 10)
 
@@ -80,7 +82,7 @@ describe Orocos::Async::CORBA::OutputReader do
         end
     end
 
-    it "calls on_data if new data are available and a block is registered" do 
+    it "calls on_data if new data are available and a block is registered" do
         t1 = Orocos::Async::CORBA::TaskContext.new(source.ior)
         data = []
         t1.port("cycle").on_data(period: 0.01) do |d|
@@ -96,7 +98,7 @@ describe Orocos::Async::CORBA::OutputReader do
         assert_equal (0...10).to_a, data
     end
 
-    it "reads buffers in a loop" do 
+    it "reads buffers in a loop" do
         t1 = Orocos::Async::CORBA::TaskContext.new(source.ior)
         port = t1.port("cycle")
 

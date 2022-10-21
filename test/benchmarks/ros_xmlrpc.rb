@@ -1,5 +1,7 @@
-require 'orocos'
-require 'benchmark'
+# frozen_string_literal: true
+
+require "orocos"
+require "benchmark"
 
 Orocos::ROS.initialize
 name_service = Orocos::ROS::NameService.new

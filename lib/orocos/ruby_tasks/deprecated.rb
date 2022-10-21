@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Orocos.warn "orocos/ruby_process_server and orocos/ruby_task_context are deprecated."
 Orocos.warn "The new class and file layouts are:"
 Orocos.warn "require 'orocos/ruby_tasks'"
@@ -12,8 +14,8 @@ caller.each do |line|
     Orocos.warn "  #{line}"
 end
 
-require 'orocos/ruby_tasks'
-require 'orocos/ruby_tasks/process_manager'
+require "orocos/ruby_tasks"
+require "orocos/ruby_tasks/process_manager"
 
 module Orocos
     RubyProcessServer = RubyTasks::ProcessManager
@@ -22,4 +24,3 @@ module Orocos
     LocalInputPort  = RubyTasks::LocalInputPort
     LocalOutputPort = RubyTasks::LocalOutputPort
 end
-

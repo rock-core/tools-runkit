@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module ROS
         # A Port-compatible implementation of a ROS topic. To map topics to
@@ -13,7 +15,9 @@ module Orocos
             # Documentation string
             attr_reader :doc
 
-            def doc?; false end
+            def doc?
+                false
+            end
 
             @@local_transient_port_id = 0
             def self.transient_local_port_name(topic_name)
@@ -22,18 +26,17 @@ module Orocos
 
             # @return [String] the default port name generated from a topic name
             def self.default_port_name(topic_name)
-                topic_name.gsub(/^~?\//, '')
+                topic_name.gsub(/^~?\//, "")
             end
 
             def initialize(task, topic_name, ros_message_type, model = nil,
-                           name = Topic.default_port_name(topic_name),
-                           orocos_type_name = nil)
+                name = Topic.default_port_name(topic_name),
+                orocos_type_name = nil)
 
-                if !orocos_type_name
+                unless orocos_type_name
                     candidates = ROS.find_all_types_for(ros_message_type)
-                    if candidates.empty?
-                        raise ArgumentError, "ROS message type #{ros_message_type} has no corresponding type on the oroGen side"
-                    end
+                    raise ArgumentError, "ROS message type #{ros_message_type} has no corresponding type on the oroGen side" if candidates.empty?
+
                     orocos_type_name = candidates.first
                 end
 
@@ -49,8 +52,8 @@ module Orocos
 
             def ==(other)
                 other.class == self.class &&
-                    other.topic_name == self.topic_name &&
-                    other.task == self.task
+                    other.topic_name == topic_name &&
+                    other.task == task
             end
         end
 
@@ -59,24 +62,24 @@ module Orocos
 
             # Used by OutputPortReadAccess to determine which output reader class
             # should be used
-            def self.reader_class; OutputReader end
+            def self.reader_class
+                OutputReader
+            end
 
             # Subscribes an input to this topic
             #
             # @param [#to_orocos_port] sink the sink port
-            def connect_to(sink, policy = Hash.new)
+            def connect_to(sink, policy = {})
                 ROS.debug "connect output topic #{self} to #{sink} with policy: #{policy}"
                 if sink.respond_to?(:to_topic)
                     sink = sink.to_topic
-                    if self.task.running? || sink.task.running?
-                        raise ArgumentError, "cannot use #connect_to on topics from running nodes"
-                    end
+                    raise ArgumentError, "cannot use #connect_to on topics from running nodes" if task.running? || sink.task.running?
 
-                    sink.topic_name = self.topic_name
+                    sink.topic_name = topic_name
                 elsif sink.respond_to?(:to_orocos_port)
                     sink.to_orocos_port.subscribe_to_ros(topic_name, policy)
                 else
-                    return super
+                    super
                 end
             end
 
@@ -86,27 +89,25 @@ module Orocos
             def disconnect_from(sink)
                 if sink.respond_to?(:to_topic)
                     sink = sink.to_topic
-                    if self.task.running? || sink.task.running?
-                        raise ArgumentError, "cannot use #disconnect_from topics from running nodes"
-                    end
+                    raise ArgumentError, "cannot use #disconnect_from topics from running nodes" if task.running? || sink.task.running?
 
                     sink.topic_name = "#{sink.task.name}/#{sink.name}"
                 elsif sink.respond_to?(:to_orocos_port)
                     sink.to_orocos_port.unsubscribe_from_ros(topic_name)
                 else
-                    return super
+                    super
                 end
             end
 
-            def to_async(options = Hash.new)
+            def to_async(options = {})
                 if use = options.delete(:use)
-                    Orocos::Async::CORBA::OutputPort.new(use,self)
-                else to_async(:use => task.to_async(options))
+                    Orocos::Async::CORBA::OutputPort.new(use, self)
+                else to_async(use: task.to_async(options))
                 end
             end
 
-            def to_proxy(options = Hash.new)
-                task.to_proxy(options).port(name,:type => type)
+            def to_proxy(options = {})
+                task.to_proxy(options).port(name, type: type)
             end
         end
 
@@ -125,15 +126,15 @@ module Orocos
                 InputWriter
             end
 
-            def to_async(options = Hash.new)
+            def to_async(options = {})
                 if use = options.delete(:use)
-                    Orocos::Async::CORBA::InputPort.new(use,self)
-                else to_async(:use => task.to_async(options))
+                    Orocos::Async::CORBA::InputPort.new(use, self)
+                else to_async(use: task.to_async(options))
                 end
             end
 
-            def to_proxy(options = Hash.new)
-                task.to_proxy(options).port(name,:type => type)
+            def to_proxy(options = {})
+                task.to_proxy(options).port(name, type: type)
             end
 
             # This method is part of the connection protocol
@@ -146,7 +147,7 @@ module Orocos
             #   published on ROS
             # @raise [ArgumentError] if the given object cannot be published on
             #   this ROS topic
-            def resolve_connection_from(port, options = Hash.new)
+            def resolve_connection_from(port, options = {})
                 # Note that we are sure that +port+ is an output. We now 'just'
                 # have to check what kind of output, and act accordingly
                 if port.respond_to?(:publish_on_ros)
@@ -166,7 +167,7 @@ module Orocos
             #   published on ROS
             # @raise [ArgumentError] if the given object cannot be unpublished from
             #   this ROS topic
-            def resolve_disconnection_from(port, options = Hash.new)
+            def resolve_disconnection_from(port, options = {})
                 # Note that we are sure that +port+ is an output. We now 'just'
                 # have to check what kind of output, and act accordingly
                 if port.respond_to?(:unpublish_from_ros)
@@ -192,4 +193,3 @@ module Orocos
         end
     end
 end
-

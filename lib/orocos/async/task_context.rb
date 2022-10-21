@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 
 module Orocos::Async::CORBA
     class TaskContext < Orocos::Async::TaskContextBase
@@ -25,22 +26,22 @@ module Orocos::Async::CORBA
         # @overload initialize(options)
         # @overload initialize(task,options)
         #       @option options [#ior,#name] :task a task context.
-        def initialize(ior,options=Hash.new)
-            if ior.respond_to?(:ior)
-                ior = ior.ior
-            end
-            ior,options = if ior.is_a? Hash
-                              [nil,ior]
-                          else
-                              [ior,options]
-                          end
-            ior ||= if options.has_key? :ior
+        def initialize(ior, options = {})
+            ior = ior.ior if ior.respond_to?(:ior)
+            ior, options =
+                if ior.is_a? Hash
+                    [nil, ior]
+                else
+                    [ior, options]
+                end
+
+            ior ||= if options.key? :ior
                         options[:ior]
-                    elsif options.has_key? :use
+                    elsif options.key? :use
                         options[:use].ior
                     end
             name = options[:name] || ior
-            super(name,options.merge(:ior => ior))
+            super(name, options.merge(ior: ior))
             @ior = ior.to_str
         end
 
@@ -54,13 +55,13 @@ module Orocos::Async::CORBA
                 state = @mutex.synchronize do
                     @delegator_obj.current_state if valid_delegator?
                 end
-                event_loop.once{listener.call state} if state
+                event_loop.once { listener.call state } if state
             end
         end
 
         def ior
             @mutex.synchronize do
-                @ior.dup if @ior
+                @ior&.dup
             end
         end
 
@@ -68,32 +69,30 @@ module Orocos::Async::CORBA
         #
         # @option options [String] name the task name
         # @option options [String] ior the task IOR
-        def configure_delegation(options = Hash.new)
+        def configure_delegation(options = {})
             options = Kernel.validate_options options,
-                :name=> nil,
-                :ior => nil
+                                              name: nil,
+                                              ior: nil
 
             ior = options[:ior]
-            @ior,@name = if valid_delegator?
-                             [@delegator_obj.ior,@delegator_obj.name]
-                         elsif ior.respond_to?(:ior)
-                             [ior.ior, ior.name]
-                         else
-                             [ior, @name]
-                         end
+            @ior, @name = if valid_delegator?
+                              [@delegator_obj.ior, @delegator_obj.name]
+                          elsif ior.respond_to?(:ior)
+                              [ior.ior, ior.name]
+                          else
+                              [ior, @name]
+                          end
 
-            if !@ior
-                raise ArgumentError, "no IOR or task has been given"
-            end
+            raise ArgumentError, "no IOR or task has been given" unless @ior
         end
 
         def respond_to_missing?(method_name, include_private = false)
             (reachable? && @delegator_obj.respond_to?(method_name)) || super
         end
 
-        def method_missing(m,*args)
+        def method_missing(m, *args)
             if respond_to_missing?(m)
-                event_loop.sync(@delegator_obj,args) do |args|
+                event_loop.sync(@delegator_obj, args) do |args|
                     @delegator_obj.method(m).call(*args)
                 end
             else
@@ -105,12 +104,12 @@ module Orocos::Async::CORBA
 
         # Called by #task_context to create the underlying task context object
         def access_remote_task_context
-            Orocos::TaskContext.new @ior ,:name => @name
+            Orocos::TaskContext.new @ior, name: @name
         end
 
         # add methods which forward the call to the underlying task context
-        forward_to :task_context,:@event_loop, :known_errors => Orocos::Async::KNOWN_ERRORS,:on_error => :emit_error do
-            methods = Orocos::TaskContext.instance_methods.find_all{|method| nil == (method.to_s =~ /^do.*/)}
+        forward_to :task_context, :@event_loop, known_errors: Orocos::Async::KNOWN_ERRORS, on_error: :emit_error do
+            methods = Orocos::TaskContext.instance_methods.find_all { |method| (method.to_s =~ /^do.*/).nil? }
             methods -= Orocos::Async::CORBA::TaskContext.instance_methods + [:method_missing]
             def_delegators methods
         end

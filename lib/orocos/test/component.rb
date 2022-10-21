@@ -1,19 +1,19 @@
-require 'orocos'
-require 'orocos/test/ruby_tasks'
-require 'utilrb/module/include'
+# frozen_string_literal: true
+
+require "orocos"
+require "orocos/test/ruby_tasks"
+require "utilrb/module/include"
 
 module Orocos
     module Test
         module Component
             include Test::RubyTasks
 
-            attribute(:processes)  { Array.new }
-            attribute(:data_readers)  { Array.new }
-            attribute(:data_writers) { Array.new }
+            attribute(:processes) { [] }
+            attribute(:data_readers) { [] }
+            attribute(:data_writers) { [] }
             def setup
-                if !Orocos.initialized?
-                    Orocos.initialize
-                end
+                Orocos.initialize unless Orocos.initialized?
 
                 self.class.run_specs.each do |name, task_name, run_spec|
                     start(run_spec)
@@ -21,22 +21,22 @@ module Orocos
                 end
 
                 self.class.reader_specs.each do |task_name, port_name, reader_name, policy|
-                    reader = self.data_reader(send(task_name).port(port_name), policy)
+                    reader = data_reader(send(task_name).port(port_name), policy)
                     instance_variable_set("@#{reader_name}", reader)
                 end
                 self.class.writer_specs.each do |task_name, port_name, writer_name, policy|
-                    writer = self.data_writer(send(task_name).port(port_name), policy)
+                    writer = data_writer(send(task_name).port(port_name), policy)
                     instance_variable_set("@#{writer_name}", writer)
                 end
                 super if defined? super
             end
 
             def teardown
-                data_readers.each { |r| r.disconnect }
+                data_readers.each(&:disconnect)
                 data_readers.clear
-                data_writers.each { |w| w.disconnect }
+                data_writers.each(&:disconnect)
                 data_writers.clear
-                processes.each { |p| p.kill }
+                processes.each(&:kill)
                 processes.clear
                 super if defined? super
             end
@@ -53,6 +53,7 @@ module Orocos
                     if sample = reader.read_new
                         return sample
                     end
+
                     sleep poll_period
                 end
                 flunk("expected to get one new sample out of #{reader.port.name}, but got none")
@@ -60,7 +61,7 @@ module Orocos
 
             # call-seq:
             #   assert_state_change(task, timeout = 1) { |state|   test_if_state_is_the_expected_state }
-            #   
+            #
             # Tests if the state of +task+ changes to an expected value.  The
             # block should return whether the passed state is the expected state
             # or not.
@@ -68,9 +69,8 @@ module Orocos
                 sleep_time = Float(timeout) / 10
                 10.times do
                     queued_state_changes = task.peek_state
-                    if queued_state_changes.any? { |s| yield(s) }
-                        return
-                    end
+                    return if queued_state_changes.any? { |s| yield(s) }
+
                     sleep sleep_time
                 end
 
@@ -118,7 +118,7 @@ module Orocos
 
             # Gets the data reader for this port. It gets disconnected on
             # teardown
-            def data_reader(port, policy = Hash.new)
+            def data_reader(port, policy = {})
                 reader = port.reader(policy)
                 data_readers << reader
                 reader
@@ -126,7 +126,7 @@ module Orocos
 
             # Gets the data writer for this port. It gets disconnected on
             # teardown
-            def data_writer(port, policy = Hash.new)
+            def data_writer(port, policy = {})
                 writer = port.writer(policy)
                 data_writers << writer
                 writer
@@ -134,16 +134,16 @@ module Orocos
 
             # Support module for declarations in tests
             module ClassExtension
-                attribute(:run_specs) { Array.new }
-                attribute(:reader_specs) { Array.new }
-                attribute(:writer_specs) { Array.new }
+                attribute(:run_specs) { [] }
+                attribute(:reader_specs) { [] }
+                attribute(:writer_specs) { [] }
 
                 # Starts a new task context on test setup and assigns it to a local variable
                 #
                 # @overload start(attr_name, task_name, run_spec)
                 #   @param [String,Symbol] attr_name the attribute name
                 #   @param [String] task_name the name of the orocos task that
-                #     should be assigned to 
+                #     should be assigned to
                 #   @param [Hash] run_spec arguments that should be passed to
                 #     {Orocos.run}. Once Orocos.run is called, there should
                 #     exists a task called task_name
@@ -184,22 +184,18 @@ module Orocos
                     end
                 end
 
-                def reader(name, port_name, options = Hash.new)
-                    if options.respond_to?(:to_str)
-                        options = { :attr_name => options }
-                    end
+                def reader(name, port_name, options = {})
+                    options = { attr_name: options } if options.respond_to?(:to_str)
                     options, policy = Kernel.filter_options options,
-                        :attr_name => "#{name}_#{port_name}"
+                                                            attr_name: "#{name}_#{port_name}"
                     attr_reader options[:attr_name]
                     reader_specs << [name, port_name, options[:attr_name], policy]
                 end
 
-                def writer(name, port_name, options = Hash.new)
-                    if options.respond_to?(:to_str)
-                        options = { :attr_name => options }
-                    end
+                def writer(name, port_name, options = {})
+                    options = { attr_name: options } if options.respond_to?(:to_str)
                     options, policy = Kernel.filter_options options,
-                        :attr_name => "#{name}_#{port_name}"
+                                                            attr_name: "#{name}_#{port_name}"
                     attr_reader options[:attr_name]
                     writer_specs << [name, port_name, options[:attr_name], policy]
                 end

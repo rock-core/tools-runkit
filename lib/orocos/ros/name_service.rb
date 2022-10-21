@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module ROS
         # A representation of the overall ROS node graph. This is used as it is
@@ -19,8 +21,8 @@ module Orocos
             attr_reader :node_graph
 
             def initialize
-                @topic_types = Hash.new
-                @node_graph = Hash.new
+                @topic_types = {}
+                @node_graph = {}
             end
 
             def initialize_from_system_state(state, topics)
@@ -47,18 +49,16 @@ module Orocos
             # Returns the set of topic names that are published by the given
             # node
             def output_topics_for(node_name)
-                if !node_graph[node_name]
-                    raise ArgumentError, "#{node_name} is not a known node"
-                end
+                raise ArgumentError, "#{node_name} is not a known node" unless node_graph[node_name]
+
                 node_graph[node_name][1] || Set.new
             end
 
             # Returns the set of topic names that are subscribed by the given
             # node
             def input_topics_for(node_name)
-                if !node_graph[node_name]
-                    raise ArgumentError, "#{node_name} is not a known node"
-                end
+                raise ArgumentError, "#{node_name} is not a known node" unless node_graph[node_name]
+
                 node_graph[node_name][0] || Set.new
             end
 
@@ -76,7 +76,7 @@ module Orocos
 
             # Returns true if the given name is a known name for a topic
             def has_topic?(name)
-                topic_types.has_key?(name)
+                topic_types.key?(name)
             end
 
             # Returns the set of known node names
@@ -86,7 +86,7 @@ module Orocos
 
             # Returns true if the given name is a known name for a node
             def has_node?(name)
-                node_graph.has_key?(name)
+                node_graph.key?(name)
             end
         end
 
@@ -109,9 +109,9 @@ module Orocos
             # @return [Utilrb::ThreadPool]
             attr_reader :thread_pool
 
-            def initialize(uri = ROS.default_ros_master_uri, caller_id = ROS.caller_id, options = Hash.new)
+            def initialize(uri = ROS.default_ros_master_uri, caller_id = ROS.caller_id, options = {})
                 options = Kernel.validate_options options,
-                    :poll_period => 1
+                                                  poll_period: 1
 
                 @uri = uri
                 @caller_id = caller_id
@@ -130,18 +130,18 @@ module Orocos
 
             def ==(other)
                 other.class == self.class &&
-                    other.uri == self.uri
+                    other.uri == uri
             end
 
-            def to_async(options = Hash.new)
+            def to_async(options = {})
                 Async::ROS::NameService.new(uri, caller_id, options)
             end
 
             def poll_system_state
                 thread_pool.process_with_options(
-                    Hash[:sync_key => @ros_master,
-                         :callback => method(:done_system_state)]) do
-
+                    Hash[sync_key: @ros_master,
+                         callback: method(:done_system_state)]
+                ) do
                     @ros_master_sync.synchronize do
                         state  = @ros_master.system_state
                         topics = @ros_master.topics
@@ -153,7 +153,7 @@ module Orocos
 
             def update_system_state(update_time, graph, exception)
                 @mutex.synchronize do
-                    if !exception
+                    unless exception
                         @update_time = update_time
                         @ros_graph = graph
                     end
@@ -169,20 +169,20 @@ module Orocos
                 poll_system_state
             end
 
-            def get(name, options = Hash.new)
-                options = Kernel.validate_options options, :retry => true, :process => nil
+            def get(name, options = {})
+                options = Kernel.validate_options options, retry: true, process: nil
                 _, name = split_name(name)
-                name = "/#{name}".gsub(/\/\//,'/')
+                name = "/#{name}".gsub(/\/\//, "/")
                 has_node = access_ros_graph do
                     ros_graph.has_node?(name)
                 end
 
-                if !has_node
+                unless has_node
                     if options[:retry]
                         # Wait for a single update of the graph and try
                         # again
                         wait_for_update
-                        get(name, :retry => false)
+                        get(name, retry: false)
                     else
                         raise Orocos::NotFound, "no such ROS node #{name}"
                     end
@@ -191,13 +191,13 @@ module Orocos
                 slave_uri =
                     begin
                         @ros_master_sync.synchronize do
-                           @ros_master.lookup_node(name)
+                            @ros_master.lookup_node(name)
                         end
                     rescue ArgumentError
                         raise Orocos::NotFound, "no such ROS node #{name}"
                     end
                 server = ROSSlave.new(slave_uri, caller_id)
-                return Node.new(self, server, name)
+                Node.new(self, server, name)
             end
 
             def names
@@ -233,9 +233,8 @@ module Orocos
                             end
                         end
 
-                    if node_name
-                        return get(node_name).send(direction, topic_name)
-                    end
+                    return get(node_name).send(direction, topic_name) if node_name
+
                     nil
                 end
             end
@@ -248,10 +247,9 @@ module Orocos
             #
             # It must be called with @mutex locked
             def process_ros_master_exception
-                exception, @ros_master_exception = @ros_master_exception, nil
-                if exception
-                    raise exception
-                end
+                exception = @ros_master_exception
+                @ros_master_exception = nil
+                raise exception if exception
             end
 
             # Wait for the ROS graph to be updated at least once
@@ -271,9 +269,7 @@ module Orocos
                         @updated_graph_signal.wait(@mutex)
                     end
 
-                    if block_given?
-                        result = yield
-                    end
+                    result = yield if block_given?
                     process_ros_master_exception
                 end
                 result
@@ -300,13 +296,11 @@ module Orocos
             # Provide thread-safe access to the ROS graph API
             def method_missing(m, *args, &block)
                 access_ros_graph do
-                    if ros_graph.respond_to?(m)
-                        return ros_graph.send(m, *args, &block)
-                    end
-                super
+                    return ros_graph.send(m, *args, &block) if ros_graph.respond_to?(m)
+
+                    super
                 end
             end
         end
     end
 end
-

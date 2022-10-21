@@ -18,9 +18,7 @@ module Orocos
 
     @enforce_typekit_threading = nil
     def self.enforce_typekit_threading?
-        if @enforce_typekit_threading.nil?
-            @enforce_typekit_threading = (ENV["OROCOS_ENFORCE_TYPEKIT_THREADING"] == "1")
-        end
+        @enforce_typekit_threading = (ENV["OROCOS_ENFORCE_TYPEKIT_THREADING"] == "1") if @enforce_typekit_threading.nil?
 
         @enforce_typekit_threading
     end
@@ -43,18 +41,29 @@ module Orocos
     end
 
     # @deprecated use {default_loader}.type_export_namespace instead
-    def self.type_export_namespace; default_loader.type_export_namespace end
+    def self.type_export_namespace
+        default_loader.type_export_namespace
+    end
+
     # @deprecated use {default_loader}.type_export_namespace= instead
-    def self.type_export_namespace=(namespace); default_loader.type_export_namespace = namespace end
+    def self.type_export_namespace=(namespace)
+        default_loader.type_export_namespace = namespace
+    end
+
     # @deprecated use {default_loader}.export_types? instead
-    def self.export_types?; default_loader.export_types? end
+    def self.export_types?
+        default_loader.export_types?
+    end
+
     # @deprecated use {default_loader}.export_types= instead
-    def self.export_types=(value); default_loader.export_types = value end
+    def self.export_types=(value)
+        default_loader.export_types = value
+    end
 
     # Given a pkg-config file and a base name for a shared library, finds the
     # full path to the library
     def self.find_plugin_library(pkg, libname)
-        libs = pkg.expand_field('Libs', pkg.raw_fields['Libs'])
+        libs = pkg.expand_field("Libs", pkg.raw_fields["Libs"])
         libs = libs.grep(/^-L/).map { |s| s[2..-1] }
         libs.find do |dir|
             full_path = File.join(dir, "lib#{libname}.#{Orocos.shared_library_suffix}")
@@ -75,12 +84,10 @@ module Orocos
 
         begin
             Orocos.info "loading plugin library #{libpath}"
-            unless Orocos.load_rtt_plugin(libpath)
-                raise "the RTT plugin system refused to load #{libpath}"
-            end
+            raise "the RTT plugin system refused to load #{libpath}" unless Orocos.load_rtt_plugin(libpath)
 
             @loaded_plugins << libpath
-        rescue Exception # rubocop:disable Lint/RescueException
+        rescue Exception
             @failed_plugins << libpath
             raise
         end
@@ -91,11 +98,11 @@ module Orocos
     # boolean is true if an exception should be raised if the typekit fails to
     # load, and false otherwise
     AUTOLOADED_TRANSPORTS = {
-        'typelib' => true,
-        'corba' => true,
-        'mqueue' => false,
-        'ros' => false
-    }
+        "typelib" => true,
+        "corba" => true,
+        "mqueue" => false,
+        "ros" => false
+    }.freeze
 
     @lock = Mutex.new
 
@@ -165,8 +172,8 @@ module Orocos
     #   this library is optional (from orocos.rb's point of view), or required
     #   to use the typekit-defined types on transports
     def self.find_typekit_plugin_paths(name, typekit_pkg = nil)
-        plugins = Hash.new
-        libs = Array.new
+        plugins = {}
+        libs = []
 
         plugin_name = typekit_library_name(name, Orocos.orocos_target)
         plugins[plugin_name] = [typekit_pkg || find_typekit_pkg(name), true]
@@ -181,9 +188,7 @@ module Orocos
                         raise NotFound, "the '#{name}' typekit has a #{transport_name} transport installed, but it is disabled"
                     end
                 rescue Utilrb::PkgConfig::NotFound => e
-                    if required
-                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport: could not find pkg-config package #{e.name} in #{ENV['PKG_CONFIG_PATH']}"
-                    end
+                    raise NotFound, "the '#{name}' typekit has no #{transport_name} transport: could not find pkg-config package #{e.name} in #{ENV['PKG_CONFIG_PATH']}" if required
                 end
             end
         end
@@ -225,7 +230,8 @@ module Orocos
     # Raises Typelib::NotFound if this type is not registered anywhere.
     def self.typelib_type_for(t)
         if t.respond_to?(:name)
-            return t if !t.contains_opaques?
+            return t unless t.contains_opaques?
+
             t = t.name
         end
 
@@ -254,9 +260,8 @@ module Orocos
     def self.create_or_get_null_type(type_name)
         if registry.include?(type_name)
             type = registry.get type_name
-            if !type.null?
-                return create_or_get_null_type("/orocos#{type_name}")
-            end
+            return create_or_get_null_type("/orocos#{type_name}") unless type.null?
+
             type
         else
             registry.create_null(type_name)
@@ -294,7 +299,7 @@ module Orocos
         # Create an opaque type as a placeholder for the unknown
         # type name
         if fallback_to_null_type
-            type_name = '/' + orocos_type_name.gsub(/[^\w]/, '_')
+            type_name = "/" + orocos_type_name.gsub(/[^\w]/, "_")
             create_or_get_null_type(type_name)
         else
             raise
@@ -302,15 +307,11 @@ module Orocos
     end
 
     def self.find_orocos_type_name_by_type(type)
-        if type.respond_to?(:name)
-            type = type.name
-        end
+        type = type.name if type.respond_to?(:name)
         type = default_loader.resolve_type(type)
         type = default_loader.opaque_type_for(type)
         type = default_loader.resolve_interface_type(type)
-        if !registered_type?(type.name)
-            load_typekit_for(type.name)
-        end
+        load_typekit_for(type.name) unless registered_type?(type.name)
         type.name
     end
 
@@ -362,13 +363,9 @@ module Orocos
     #   value that should be stored
     #
     def self.max_sizes(typename = nil, *sizes, &block)
-        if !@max_sizes
-            raise ArgumentError, "cannot call Orocos.max_sizes before Orocos.load"
-        end
+        raise ArgumentError, "cannot call Orocos.max_sizes before Orocos.load" unless @max_sizes
 
-        if !typename && sizes.empty?
-            return @max_sizes
-        end
+        return @max_sizes if !typename && sizes.empty?
 
         type = default_loader.resolve_type(typename)
         type = default_loader.intermediate_type_for(type)
@@ -382,16 +379,13 @@ module Orocos
     # @return [Hash] the maximum size specification, see {Orocos.max_sizes} for
     #   details
     def self.max_sizes_for(type)
-        if type.respond_to?(:name)
-            type = type.name
-        end
-        @max_sizes.fetch(type, Hash.new)
+        type = type.name if type.respond_to?(:name)
+        @max_sizes.fetch(type, {})
     end
-    @max_sizes = Hash.new
+    @max_sizes = {}
 
     def self.normalize_typename(typename)
         load_typekit_for(typename)
         registry.get(typename).name
     end
 end
-

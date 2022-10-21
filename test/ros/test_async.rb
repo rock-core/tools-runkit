@@ -1,6 +1,8 @@
-require 'orocos/test'
-require 'orocos/async'
-require 'orocos/ros/async'
+# frozen_string_literal: true
+
+require "orocos/test"
+require "orocos/async"
+require "orocos/ros/async"
 
 describe Orocos::Async::ROS::NameService do
     # The name service instance that is being tested
@@ -13,7 +15,7 @@ describe Orocos::Async::ROS::NameService do
 
     describe "#get" do
         it "should raise NotFound if remote task is not reachable" do
-            assert_raises Orocos::NotFound do 
+            assert_raises Orocos::NotFound do
                 ns.get "bla"
             end
         end
@@ -23,20 +25,20 @@ describe Orocos::Async::ROS::NameService do
             recorder.should_receive(:callback_without_error).with(nil).never
             recorder.should_receive(:callback_with_error).with(nil, Orocos::NotFound).once
             ns.get("bla") { |task| recorder.callback_without_error(task) }
-            ns.get("bla") { |task,err| recorder.callback_with_error(task, err) }
+            ns.get("bla") { |task, err| recorder.callback_with_error(task, err) }
 
             Orocos::Async.steps
         end
 
         def create_test_node
-            Orocos.load_typekit 'base'
-            task = new_ruby_task_context 'ros_test'
-            port = task.create_input_port('out', '/base/Time')
+            Orocos.load_typekit "base"
+            task = new_ruby_task_context "ros_test"
+            port = task.create_input_port("out", "/base/Time")
             port.create_stream(Orocos::TRANSPORT_ROS, "/ros_test_in")
             task
         end
 
-        it "should be able to resolve a task into a Async::ROS::Node synchronously" do 
+        it "should be able to resolve a task into a Async::ROS::Node synchronously" do
             expected = create_test_node
             t = ns.get Orocos::ROS.caller_id
             assert_is_ros_node_proxy Orocos::ROS.caller_id, t
@@ -70,9 +72,9 @@ describe Orocos::ROS::OutputTopic do
     before do
         @name_service = Orocos::ROS::NameService.new
 
-        Orocos.load_typekit 'base'
-        task = new_ruby_task_context 'ros_test'
-        port = task.create_output_port('out', '/base/Time')
+        Orocos.load_typekit "base"
+        task = new_ruby_task_context "ros_test"
+        port = task.create_output_port("out", "/base/Time")
         port.publish_on_ros("/ros_test_out")
         @local_port = port
     end
@@ -80,7 +82,7 @@ describe Orocos::ROS::OutputTopic do
         attr_reader :async_name_service, :node, :port
         before do
             node = name_service.get Orocos::ROS.caller_id
-            port = node.output_port '/ros_test_out'
+            port = node.output_port "/ros_test_out"
             @sync_reader = port.reader
             @node = node.to_async
             @port = port.to_async
@@ -106,4 +108,3 @@ describe Orocos::ROS::OutputTopic do
         end
     end
 end
-

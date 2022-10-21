@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 module Orocos
     module RemoteProcesses
-        DEFAULT_PORT = 20202
+        DEFAULT_PORT = 20_202
 
         COMMAND_GET_INFO   = "I"
         COMMAND_GET_PID    = "D"

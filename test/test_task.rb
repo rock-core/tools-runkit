@@ -1,61 +1,63 @@
-require 'orocos/test'
+# frozen_string_literal: true
+
+require "orocos/test"
 
 describe Orocos::TaskContext do
     it "should be possible to create one directly" do
-        Orocos.run('process') do
+        Orocos.run("process") do
             ior = Orocos.name_service.ior("process_Test")
             assert(t1 = Orocos::TaskContext.new(ior))
         end
     end
 
     it "should raise NotFound on unknown task contexts" do
-        assert_raises(Orocos::NotFound) { Orocos::TaskContext.get('Bla_Blo') }
+        assert_raises(Orocos::NotFound) { Orocos::TaskContext.get("Bla_Blo") }
     end
 
     it "should check equality based on CORBA reference" do
-        Orocos.run('process') do
-            assert(t1 = Orocos::TaskContext.get('process_Test'))
-            assert(t2 = Orocos::TaskContext.get('process_Test'))
+        Orocos.run("process") do
+            assert(t1 = Orocos::TaskContext.get("process_Test"))
+            assert(t2 = Orocos::TaskContext.get("process_Test"))
             refute_equal(t1.object_id, t2.object_id)
             assert_equal(t1, t2)
         end
     end
 
     it "should give access to its own process if it is known" do
-        Orocos.run('simple_source') do |process|
+        Orocos.run("simple_source") do |process|
             source = Orocos::TaskContext.get("simple_source_source")
             assert_same process, source.process
         end
     end
 
     it "should allow enumerating its ports" do
-        Orocos.run('simple_source', 'simple_sink') do
+        Orocos.run("simple_source", "simple_sink") do
             source = Orocos::TaskContext.get("simple_source_source")
             sink   = Orocos::TaskContext.get("simple_sink_sink")
 
-            expected_ports = %w{cycle cycle_struct out0 out1 out2 out3 state}.
-                map { |name| source.port(name) }
+            expected_ports = %w{cycle cycle_struct out0 out1 out2 out3 state}
+                             .map { |name| source.port(name) }
             source.enum_for(:each_port).map(&:name).to_set.must_equal expected_ports.map(&:name).to_set
             source.enum_for(:each_port).sort_by(&:name).must_equal expected_ports.sort_by(&:name)
-            expected_ports = %w{cycle in0 in1 in2 in3 state}.
-                map { |name| sink.port(name) }
+            expected_ports = %w{cycle in0 in1 in2 in3 state}
+                             .map { |name| sink.port(name) }
             sink.enum_for(:each_port).map(&:name).to_set.must_equal expected_ports.map(&:name).to_set
             sink.enum_for(:each_port).sort_by(&:name).must_equal expected_ports.sort_by(&:name)
         end
     end
 
     it "should allow getting its ports" do
-        Orocos.run('simple_source', 'simple_sink') do
+        Orocos.run("simple_source", "simple_sink") do
             source = Orocos::TaskContext.get("simple_source_source")
             sink   = Orocos::TaskContext.get("simple_sink_sink")
 
-            assert(source_p = source.port('cycle'))
+            assert(source_p = source.port("cycle"))
             source_p.must_be_kind_of(Orocos::OutputPort)
             source_p.name.must_equal("cycle")
             source_p.task.must_equal(source)
             source_p.orocos_type_name.must_equal("/int32_t")
 
-            assert(sink_p   = sink.port('cycle'))
+            assert(sink_p = sink.port("cycle"))
             sink_p.must_be_kind_of(Orocos::InputPort)
             sink_p.name.must_equal("cycle")
             sink_p.task.must_equal(sink)
@@ -64,7 +66,7 @@ describe Orocos::TaskContext do
     end
 
     it "should allow to check an operation availability" do
-        Orocos.run('states') do
+        Orocos.run("states") do
             t = Orocos::TaskContext.get "states_Task"
             assert(!t.has_operation?("does_not_exist"))
             assert(t.has_operation?("do_runtime_error"))
@@ -72,16 +74,15 @@ describe Orocos::TaskContext do
     end
 
     it "should allow to check a port availability" do
-        Orocos.run('simple_source') do
+        Orocos.run("simple_source") do
             t = Orocos::TaskContext.get "simple_source_source"
             assert(!t.has_port?("does_not_exist"))
             assert(t.has_port?("cycle"))
         end
     end
 
-
     it "should raise NotFound if a port does not exist" do
-        Orocos.run('simple_source') do
+        Orocos.run("simple_source") do
             task = Orocos::TaskContext.get("simple_source_source")
             assert_raises(Orocos::InterfaceObjectNotFound) { task.port("does_not_exist") }
         end
@@ -89,7 +90,7 @@ describe Orocos::TaskContext do
 
     it "should raise either CORBA::ComError or TimeoutError when #port is called "\
        "on a dead remote process" do
-        Orocos.run('simple_source') do |p|
+        Orocos.run("simple_source") do |p|
             source = Orocos::TaskContext.get("simple_source_source")
             p.kill
             assert_raises(Orocos::CORBA::ComError, Orocos::CORBA::TimeoutError) do
@@ -99,15 +100,14 @@ describe Orocos::TaskContext do
     end
 
     it "should allow getting an operation object" do
-        Orocos.run 'echo' do
-            echo = Orocos::TaskContext.get('echo_Echo')
+        Orocos.run "echo" do
+            echo = Orocos::TaskContext.get("echo_Echo")
             m = echo.operation(:write)
             assert_equal "write", m.name
             assert_equal ["/int32_t"], m.return_spec
             assert_equal [["value", "value_arg", "/int32_t"]], m.arguments_spec
         end
     end
-
 
     # it "should allow getting an operation documentation" do
     #     Orocos.run 'echo' do
@@ -118,8 +118,8 @@ describe Orocos::TaskContext do
     # end
 
     it "should raise NotFound on an unknown operation object" do
-        Orocos.run 'echo' do
-            echo = Orocos::TaskContext.get('echo_Echo')
+        Orocos.run "echo" do
+            echo = Orocos::TaskContext.get("echo_Echo")
             assert_raises(Orocos::InterfaceObjectNotFound) { echo.operation(:unknown) }
         end
     end
@@ -136,8 +136,8 @@ describe Orocos::TaskContext do
 
     it "should raise either CORBA::ComError or CORBA::TimeoutError when #operation "\
        "has communication errors" do
-        Orocos.run 'echo' do |p|
-            echo = Orocos::TaskContext.get('echo_Echo')
+        Orocos.run "echo" do |p|
+            echo = Orocos::TaskContext.get("echo_Echo")
             p.kill
             assert_raises(Orocos::CORBA::ComError, Orocos::CORBA::TimeoutError) do
                 echo.operation(:write)
@@ -146,7 +146,7 @@ describe Orocos::TaskContext do
     end
 
     it "should be able to manipulate the task state machine and read its state" do
-        Orocos.run('simple_source') do
+        Orocos.run("simple_source") do
             source = Orocos::TaskContext.get("simple_source_source")
             assert_equal(:PRE_OPERATIONAL, source.state)
             assert_raises(Orocos::StateTransitionFailed) { source.start }
@@ -176,7 +176,7 @@ describe Orocos::TaskContext do
 
     it "should raise either CORBA::ComError or CORBA::TimeoutError when state-related "\
        "operations are called on a dead process" do
-        Orocos.run('simple_source') do |p|
+        Orocos.run("simple_source") do |p|
             source = Orocos::TaskContext.get("simple_source_source")
             assert source.state
             p.kill
@@ -191,19 +191,19 @@ describe Orocos::TaskContext do
     end
 
     it "should be pretty-printable" do
-        Orocos.run('echo', 'process') do
+        Orocos.run("echo", "process") do
             source = Orocos::TaskContext.get("echo_Echo")
-            process = Orocos::TaskContext.get('process_Test')
-            PP.pp(source, '')
-            PP.pp(process, '')
+            process = Orocos::TaskContext.get("process_Test")
+            PP.pp(source, "")
+            PP.pp(process, "")
         end
     end
 
     it "should allow to record its state trace when using extended state support" do
-        Orocos.run('states') do |p|
+        Orocos.run("states") do |p|
             t = Orocos::TaskContext.get("states_Task")
 
-            state = t.port('state').reader :type => :buffer, :size => 20, :init => true
+            state = t.port("state").reader type: :buffer, size: 20, init: true
 
             # First check the nominal state changes
             t.configure
@@ -250,7 +250,7 @@ describe Orocos::TaskContext do
     end
 
     it "should handle uncaught exceptions in a nice way" do
-        Orocos.run('uncaught') do
+        Orocos.run("uncaught") do
             t = Orocos::TaskContext.get("Uncaught")
 
             assert_raises(Orocos::StateTransitionFailed) { t.configure }
@@ -279,7 +279,7 @@ describe Orocos::TaskContext do
     end
 
     it "should allow to restart after an exception error if resetException has been called" do
-        Orocos.run('states') do
+        Orocos.run("states") do
             t = Orocos::TaskContext.get("states_Task")
 
             t.configure
@@ -292,10 +292,10 @@ describe Orocos::TaskContext do
     end
 
     it "should allow to trace custom states trace when using extended state support" do
-        Orocos.run('states') do
+        Orocos.run("states") do
             t = Orocos::TaskContext.get("states_Task")
 
-            state = t.state_reader :type => :buffer, :size => 20
+            state = t.state_reader type: :buffer, size: 20
 
             sleep 0.05
             assert !t.ready?, "expected to be in state PRE_OPERATIONAL but is in #{t.state}"
@@ -358,14 +358,14 @@ describe Orocos::TaskContext do
     end
 
     it "should report its model name" do
-        Orocos.run('echo') do
+        Orocos.run("echo") do
             t = Orocos::TaskContext.get "echo_Echo"
             assert_equal("echo::Echo", Orocos::TaskContext.get("echo_Echo").getModelName)
         end
     end
 
     it "should allow getting its model even though its process is unknown" do
-        Orocos.run('echo') do
+        Orocos.run("echo") do
             t = Orocos::TaskContext.get "echo_Echo"
 
             assert t.process
@@ -381,45 +381,44 @@ describe Orocos::TaskContext do
     describe "#input_port" do
         attr_reader :task, :in_p, :out_p
         before do
-            @task = new_ruby_task_context 'test'
-            @in_p  = task.create_input_port 'in', '/double'
-            @out_p = task.create_output_port 'out', '/double'
+            @task = new_ruby_task_context "test"
+            @in_p = task.create_input_port "in", "/double"
+            @out_p = task.create_output_port "out", "/double"
         end
         it "returns the input port object if there is one" do
-            assert_equal in_p, task.input_port('in')
+            assert_equal in_p, task.input_port("in")
         end
         it "raises NotFound if the port is an input port" do
-            assert_raises(Orocos::InterfaceObjectNotFound) { task.input_port 'out' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.input_port "out" }
         end
         it "raises NotFound if the port does not exist" do
-            assert_raises(Orocos::InterfaceObjectNotFound) { task.input_port 'does_not_exist' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.input_port "does_not_exist" }
         end
     end
 
     describe "#output_port" do
         attr_reader :task, :in_p, :out_p
         before do
-            @task = new_ruby_task_context 'test'
-            @in_p  = task.create_input_port 'in', '/double'
-            @out_p = task.create_output_port 'out', '/double'
+            @task = new_ruby_task_context "test"
+            @in_p = task.create_input_port "in", "/double"
+            @out_p = task.create_output_port "out", "/double"
         end
         it "returns the output port object if there is one" do
-            assert_equal out_p, task.output_port('out')
+            assert_equal out_p, task.output_port("out")
         end
         it "raises NotFound if the port is an input port" do
-            assert_raises(Orocos::InterfaceObjectNotFound) { task.output_port 'in' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.output_port "in" }
         end
         it "raises NotFound if the port does not exist" do
-            assert_raises(Orocos::InterfaceObjectNotFound) { task.output_port 'does_not_exist' }
+            assert_raises(Orocos::InterfaceObjectNotFound) { task.output_port "does_not_exist" }
         end
     end
-
 
     describe "#model" do
         attr_reader :task
         before do
-            start 'echo'
-            @task = Orocos.name_service.get 'echo_Echo'
+            start "echo"
+            @task = Orocos.name_service.get "echo_Echo"
             task.process = nil
             task.model = nil
         end
@@ -427,8 +426,8 @@ describe Orocos::TaskContext do
         it "should create a default model if the task does not have a getModelName operation" do
             m = Orocos.create_orogen_task_context_model("/echo_Echo")
             flexmock(task).should_receive(:getModelName).and_raise(NoMethodError)
-            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once.
-                with("/echo_Echo").and_return(m)
+            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once
+                            .with("/echo_Echo").and_return(m)
             flexmock(task).should_receive(:model=).with(m).once.pass_thru
 
             assert_equal m, task.model
@@ -438,8 +437,8 @@ describe Orocos::TaskContext do
         it "should create a default model if the task getModelName operation returns an empty name" do
             m = Orocos.create_orogen_task_context_model("/echo_Echo")
             flexmock(task).should_receive(:getModelName).and_return("")
-            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once.
-                with().and_return(m)
+            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once
+                            .with.and_return(m)
             flexmock(task).should_receive(:model=).with(m).once.pass_thru
 
             assert_equal m, task.model
@@ -449,10 +448,10 @@ describe Orocos::TaskContext do
         it "should create a default model if the returned model name cannot be resolved" do
             m = Orocos.create_orogen_task_context_model("/echo_Echo")
             flexmock(task).should_receive(:getModelName).and_return("test::Task")
-            flexmock(Orocos.default_loader).should_receive(:task_model_from_name).
-                with('test::Task').and_raise(OroGen::NotFound)
-            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once.
-                with('test::Task').and_return(m)
+            flexmock(Orocos.default_loader).should_receive(:task_model_from_name)
+                                           .with("test::Task").and_raise(OroGen::NotFound)
+            flexmock(Orocos).should_receive(:create_orogen_task_context_model).once
+                            .with("test::Task").and_return(m)
             flexmock(task).should_receive(:model=).with(m).once.pass_thru
 
             assert_equal m, task.model
@@ -462,8 +461,8 @@ describe Orocos::TaskContext do
         it "sets as model the value returned by the loader" do
             m = Orocos.create_orogen_task_context_model("/echo_Echo")
             flexmock(task).should_receive(:getModelName).and_return("test::Task")
-            flexmock(Orocos.default_loader).should_receive(:task_model_from_name).
-                with('test::Task').and_return(m)
+            flexmock(Orocos.default_loader).should_receive(:task_model_from_name)
+                                           .with("test::Task").and_return(m)
             flexmock(task).should_receive(:model=).with(m).once.pass_thru
 
             assert_equal m, task.model
@@ -471,4 +470,3 @@ describe Orocos::TaskContext do
         end
     end
 end
-

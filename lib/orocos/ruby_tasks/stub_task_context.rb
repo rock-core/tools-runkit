@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 module Orocos
     module RubyTasks
         class StubTaskContext < TaskContext
             def setup_from_orogen_model(orogen_model)
-                setter_operations = Hash.new
+                setter_operations = {}
                 orogen_model.each_property.each do |prop|
                     if op = prop.setter_operation
                         setter_operations[op.name] = prop
@@ -42,20 +44,23 @@ module Orocos
                 attr_reader :error
 
                 def initialize(result, error)
-                    @result, @error = Array(result), error
+                    @result = Array(result)
+                    @error = error
                 end
 
                 def collect
                     if error
-                        return Orocos::SEND_FAILURE
+                        Orocos::SEND_FAILURE
                     elsif result.empty?
-                        return Orocos::SEND_SUCCESS
+                        Orocos::SEND_SUCCESS
                     else
-                        return [Orocos::SEND_SUCCESS, *result]
+                        [Orocos::SEND_SUCCESS, *result]
                     end
                 end
 
-                def collect_if_done; collect end
+                def collect_if_done
+                    collect
+                end
             end
 
             class Operation
@@ -63,7 +68,8 @@ module Orocos
                 attr_reader :task_context
 
                 def initialize(name, task_context)
-                    @name, @task_context = name, task_context
+                    @name = name
+                    @task_context = task_context
                 end
 
                 def callop(*args)

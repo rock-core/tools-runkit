@@ -1,7 +1,9 @@
-require 'utilrb/pkgconfig'
-require 'orogen'
-require 'fcntl'
-require 'json'
+# frozen_string_literal: true
+
+require "utilrb/pkgconfig"
+require "orogen"
+require "fcntl"
+require "json"
 
 module Orocos
     # Exception raised when there is no IOR registered for a given task name.
@@ -30,31 +32,29 @@ module Orocos
     # directory.
     def self.default_working_directory=(value)
         value = File.expand_path(value)
-        if !File.directory?(value)
-            raise ArgumentError, "#{value} is not an existing directory"
-        end
+        raise ArgumentError, "#{value} is not an existing directory" unless File.directory?(value)
+
         @default_working_directory = value
     end
 
     # The default commandline arguments that will be passed by default in Orocos.run
     def self.default_cmdline_arguments
-	@default_cmdline_arguments || {}
+        @default_cmdline_arguments || {}
     end
 
     # Resets the default arguments that should be used by default in Orocos.run
     # which is the default setting of the underlying oroGen components
     def self.reset_default_cmdline_arguments
-	@default_cmdline_arguments = {}
+        @default_cmdline_arguments = {}
     end
 
     # Sets the default commandline arguments that will be passed by default in Orocos.run
     #
     # Use #reset_default_arguments to use the default of the underlying oroGen components
     def self.default_cmdline_arguments=(value)
-	if not default_cmdline_arguments.kind_of?(Hash)
-	    raise ArgumentError, "Orocos::default_cmdline_arguments expects to be set as hash"
-	end
-	@default_cmdline_arguments = value
+        raise ArgumentError, "Orocos::default_cmdline_arguments expects to be set as hash" unless default_cmdline_arguments.kind_of?(Hash)
+
+        @default_cmdline_arguments = value
     end
 
     def self.tracing?
@@ -159,7 +159,9 @@ module Orocos
         attr_reader :model
         # @deprecated
         # For backward compatibility only
-        def orogen; model end
+        def orogen;
+            model
+        end
         # A set of mappings from task names in the deployment model to the
         # actual name in the running process
         attr_reader :name_mappings
@@ -171,9 +173,10 @@ module Orocos
         attr_reader :tasks
         attr_reader :ior_mappings
 
-        def initialize(name, model, name_mappings: Hash.new)
-            @name, @model = name, model
-            @name_mappings = Hash.new
+        def initialize(name, model, name_mappings: {})
+            @name = name
+            @model = model
+            @name_mappings = {}
             self.name_mappings = name_mappings
             @logged_ports = Set.new
             @tasks = []
@@ -224,7 +227,8 @@ module Orocos
         #
         # See also #task_names
         def each_task
-            return enum_for(:each_task) if !block_given?
+            return enum_for(:each_task) unless block_given?
+
             task_names.each do |name|
                 yield(task(name))
             end
@@ -257,11 +261,11 @@ module Orocos
         end
 
         # Requires all known ports of +self+ to be logged by the default logger
-        def log_all_ports(options = Hash.new)
+        def log_all_ports(options = {})
             @logged_ports |= Orocos.log_all_process_ports(self, options)
         end
 
-        @@logfile_indexes = Hash.new
+        @@logfile_indexes = {}
 
         # Computes the default log file name for a given orocos name
         def default_log_file_name(orocos_name)
@@ -271,7 +275,7 @@ module Orocos
         # @api private
         #
         # Sets up the default logger of this process
-        def setup_default_logger(logger = self.default_logger, log_file_name: default_log_file_name(logger.basename), remote: false, log_dir: Orocos.default_working_directory)
+        def setup_default_logger(logger = default_logger, log_file_name: default_log_file_name(logger.basename), remote: false, log_dir: Orocos.default_working_directory)
             if remote
                 index = (@@logfile_indexes[log_file_name] ||= -1) + 1
                 @@logfile_indexes[log_file_name] = index
@@ -282,7 +286,7 @@ module Orocos
                     index += 1
                 end
             end
-            logger.property('file').write(log_file_path)
+            logger.property("file").write(log_file_path)
             logger
         end
 
@@ -290,16 +294,16 @@ module Orocos
         #
         # @return [String] the name of the default logger for this process
         def default_logger_name
-            candidates = model.task_activities.
-                find_all { |d| d.task_model.name == "logger::Logger" }.
-                map { |c| name_mappings[c.name] || c.name }
+            candidates = model.task_activities
+                              .find_all { |d| d.task_model.name == "logger::Logger" }
+                              .map { |c| name_mappings[c.name] || c.name }
 
             if candidates.size > 1
                 if t = candidates.find { |c| c.name == "#{process.name}_Logger" }
-                    return t.name
+                    t.name
                 end
             elsif candidates.size == 1
-                return candidates.first
+                candidates.first
             end
         end
 
@@ -310,9 +314,7 @@ module Orocos
         #    default, to log data coming out of this process, or false if none
         #    can be found
         def default_logger
-            if !@default_logger.nil?
-                return @default_logger
-            end
+            return @default_logger unless @default_logger.nil?
 
             if logger_name = default_logger_name
                 begin
@@ -322,9 +324,7 @@ module Orocos
                     @default_logger = false # use false to mark "can not find"
                 end
             else
-                if Orocos.warn_for_missing_default_loggers?
-                    Orocos.warn "cannot determine the default logger name for process #{name}"
-                end
+                Orocos.warn "cannot determine the default logger name for process #{name}" if Orocos.warn_for_missing_default_loggers?
                 @default_logger = false
             end
 
@@ -342,13 +342,13 @@ module Orocos
         # @return [Hash<String,String>] the name mappings that should be applied
         #   when spawning the process
         def self.resolve_prefix(model, prefix)
-            name_mappings = Hash.new
+            name_mappings = {}
             if prefix
                 model.task_activities.each do |act|
                     name_mappings[act.name] = "#{prefix}#{act.name}"
                 end
             end
-            return name_mappings
+            name_mappings
         end
 
         # Read the IOR pipe and parse the received message, closing the read file
@@ -365,7 +365,7 @@ module Orocos
                     @ior_message += @ior_read_fd.read_nonblock(4096)
                 end
             rescue IO::WaitReadable
-                return
+                nil
             rescue EOFError
                 @ior_read_fd.close
                 load_and_validate_ior_message(@ior_message)
@@ -394,9 +394,7 @@ module Orocos
                 return @ior_mappings if @ior_mappings
                 break if timeout < Time.now - start_time
 
-                if got_alive && !alive?
-                    raise Orocos::NotFound, "#{name} was started but crashed"
-                end
+                raise Orocos::NotFound, "#{name} was started but crashed" if got_alive && !alive?
 
                 time_until_deadline = [deadline - Time.now, 0].max if deadline
                 IO.select([@ior_read_fd], nil, nil, time_until_deadline)
@@ -451,7 +449,7 @@ module Orocos
         # @return [nil,Process] the process object whose PID matches, or nil
         def self.from_pid(pid)
             if result = registered_processes[pid]
-                return result
+                result
             end
         end
 
@@ -462,7 +460,7 @@ module Orocos
             #   corresponding Process object
             attr_accessor :registered_processes
         end
-        @registered_processes = Hash.new
+        @registered_processes = {}
 
         # Registers a PID-to-process mapping.
         #
@@ -472,9 +470,8 @@ module Orocos
         # @return [void]
         # @see deregister each
         def self.register(process)
-            if !process.alive?
-                raise ArgumentError, "cannot register a non-running process"
-            end
+            raise ArgumentError, "cannot register a non-running process" unless process.alive?
+
             registered_processes[process.pid] = process
             nil
         end
@@ -499,13 +496,13 @@ module Orocos
         # A string describing the host. It can be used to check if two processes
         # are running on the same host
         def host_id
-            'localhost'
+            "localhost"
         end
 
         # Returns true if the process is located on the same host than the Ruby
         # interpreter
         def on_localhost?
-            host_id == 'localhost'
+            host_id == "localhost"
         end
 
         # Creates a new Process instance which will be able to
@@ -521,8 +518,8 @@ module Orocos
         #   @param [String] model_name the name of the deployment model
         #
         def initialize(name, model = name,
-                loader: Orocos.default_pkgconfig_loader,
-                name_mappings: Hash.new)
+            loader: Orocos.default_pkgconfig_loader,
+            name_mappings: {})
             model = if model.respond_to?(:to_str)
                         loader.deployment_model_from_name(model)
                     else model
@@ -551,9 +548,14 @@ module Orocos
         end
 
         # True if the process is running
-        def alive?; !!@pid end
+        def alive?;
+            !!@pid
+        end
+
         # True if the process is running
-        def running?; alive? end
+        def running?;
+            alive?
+        end
 
         # Called externally to announce a component dead.
         def dead!(exit_status) # :nodoc:
@@ -591,7 +593,7 @@ module Orocos
             # end
         end
 
-        @@logfile_indexes = Hash.new
+        @@logfile_indexes = {}
 
         class TaskNameRequired < ArgumentError; end
 
@@ -627,12 +629,11 @@ module Orocos
         #   Orocos.run 'xsens_imu::Task' => ['imu1', 'imu2']
         #
         def self.partition_run_options(*names, loader: Orocos.default_loader)
-            mapped_names = Hash.new
-            if names.last.kind_of?(Hash)
-                mapped_names = names.pop
-            end
+            mapped_names = {}
+            mapped_names = names.pop if names.last.kind_of?(Hash)
 
-            deployments, models = Hash.new, Hash.new
+            deployments = {}
+            models = {}
             names.each { |n| mapped_names[n] = nil }
             mapped_names.each do |object, new_name|
                 # If given a name, resolve to the corresponding oroGen spec
@@ -652,16 +653,15 @@ module Orocos
 
                 case object
                 when OroGen::Spec::TaskContext
-                    if !new_name
-                        raise TaskNameRequired, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'"
-                    end
+                    raise TaskNameRequired, "you must provide a task name when starting a component by type, as e.g. Orocos.run 'xsens_imu::Task' => 'xsens'" unless new_name
+
                     models[object] = Array(new_name)
                 when OroGen::Spec::Deployment
-                    deployments[object] = (new_name if new_name)
+                    deployments[object] = new_name
                 else raise ArgumentError, "expected a task context model or a deployment model, got #{object}"
                 end
             end
-            return deployments, models
+            [deployments, models]
         end
 
         # @api private
@@ -736,27 +736,27 @@ module Orocos
         #   spawn_options) tuples. The second element is the wait option (either
         #   a Numeric or false)
         def self.parse_run_options(*names, wait: nil, loader: Orocos.default_loader,
-                                   valgrind: false, valgrind_options: Hash.new,
-                                   gdb: false, gdb_options: Hash.new,
-                                   log_level: nil,
-                                   output: nil, oro_logfile:  "orocos.%m-%p.txt",
-                                   working_directory: Orocos.default_working_directory,
-                                   cmdline_args: Hash.new)
+            valgrind: false, valgrind_options: {},
+            gdb: false, gdb_options: {},
+            log_level: nil,
+            output: nil, oro_logfile: "orocos.%m-%p.txt",
+            working_directory: Orocos.default_working_directory,
+            cmdline_args: {})
             deployments, models = partition_run_options(*names, loader: loader)
             wait = normalize_wait_option(wait, valgrind, gdb)
 
             all_deployments = deployments.keys.map(&:name) + models.values.flatten
             valgrind = parse_cmdline_wrapper_option(
-                'valgrind', valgrind, valgrind_options, all_deployments)
+                "valgrind", valgrind, valgrind_options, all_deployments
+            )
             gdb = parse_cmdline_wrapper_option(
-                'gdbserver', gdb, gdb_options, all_deployments)
+                "gdbserver", gdb, gdb_options, all_deployments
+            )
             log_level = parse_log_level_option(log_level, all_deployments)
 
             name_mappings = resolve_name_mappings(deployments, models)
             processes = name_mappings.map do |deployment_name, mappings, name|
-                output = if output
-                             output.gsub '%m', name
-                         end
+                output = (output&.gsub "%m", name)
 
                 spawn_options = Hash[
                     working_directory: working_directory,
@@ -769,7 +769,7 @@ module Orocos
                     oro_logfile: oro_logfile]
                 [deployment_name, mappings, name, spawn_options]
             end
-            return processes, wait
+            [processes, wait]
         end
 
         # @api private
@@ -783,9 +783,9 @@ module Orocos
         # @param [Array<String>] all_deployments the name of all deployments
         # @return [Hash<String,Symbol>] a hash from a name in all_deployments to
         #   the log level for that deployment
-        def self.parse_log_level_option( options, all_deployments )
+        def self.parse_log_level_option(options, all_deployments)
             if !options.respond_to?(:to_hash)
-                all_deployments.inject(Hash.new) { |h, name| h[name] = options; h }
+                all_deployments.each_with_object({}) { |name, h| h[name] = options; }
             else
                 options
             end
@@ -796,7 +796,7 @@ module Orocos
         # Checks that the given command can be resolved
         def self.has_command?(cmd)
             if File.file?(cmd) && File.executable?(cmd)
-                return
+                nil
             else
                 system("which #{cmd} > /dev/null 2>&1")
             end
@@ -830,27 +830,21 @@ module Orocos
         #   @param [Array<String>] all_deployments ignored in this form
         #
         def self.parse_cmdline_wrapper_option(cmd, deployments, options, all_deployments)
-            if !deployments
-                return Hash.new
-            end
+            return {} unless deployments
 
-            if !has_command?(cmd)
-                raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed"
-            end
+            raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed" unless has_command?(cmd)
 
-            if !deployments.respond_to?(:to_hash)
+            unless deployments.respond_to?(:to_hash)
                 if deployments.respond_to?(:to_str)
                     deployments = [deployments]
                 elsif !deployments.respond_to?(:to_ary)
                     deployments = all_deployments
                 end
 
-                deployments = deployments.inject(Hash.new) { |h, name| h[name] = options; h }
+                deployments = deployments.each_with_object({}) { |name, h| h[name] = options; }
             end
             deployments.each_key do |name|
-                if !all_deployments.include?(name)
-                    raise ArgumentError, "#{name}, selected to be executed under #{cmd}, is not a known deployment/model"
-                end
+                raise ArgumentError, "#{name}, selected to be executed under #{cmd}, is not a known deployment/model" unless all_deployments.include?(name)
             end
         end
 
@@ -872,7 +866,7 @@ module Orocos
             processes = []
             processes += deployments.map do |deployment, prefix|
                 mapped_name   = deployment.name
-                name_mappings = Hash.new
+                name_mappings = {}
                 if prefix
                     name_mappings = ProcessBase.resolve_prefix(deployment, prefix)
                     mapped_name = "#{prefix}#{deployment.name}"
@@ -896,13 +890,11 @@ module Orocos
 
         # @deprecated use {Orocos.run} directly instead
         def self.run(*args, **options)
-            if !Orocos.initialized?
-                #try to initialize orocos before bothering the user
+            unless Orocos.initialized?
+                # try to initialize orocos before bothering the user
                 Orocos.initialize
             end
-            if !Orocos::CORBA.initialized?
-                raise "CORBA layer is not initialized! There might be problem with the installation."
-            end
+            raise "CORBA layer is not initialized! There might be problem with the installation." unless Orocos::CORBA.initialized?
 
             begin
                 process_specs, wait = parse_run_options(*args, **options)
@@ -925,7 +917,6 @@ module Orocos
                               end
                     processes.each { |p| p.wait_running(timeout) }
                 end
-
             rescue Exception => original_error
                 # Kill the processes that are already running
                 if processes
@@ -959,21 +950,19 @@ module Orocos
         #   to die or not
         def self.kill(processes, wait = true)
             processes.each { |p| p.kill if p.running? }
-            if wait
-                processes.each { |p| p.join }
-            end
+            processes.each(&:join) if wait
         end
 
         def self.gdb_base_port=(port)
             @@gdb_port = port - 1
         end
 
-        @@gdb_port = 30000
+        @@gdb_port = 30_000
         def self.allocate_gdb_port
             @@gdb_port += 1
         end
 
-        VALID_LOG_LEVELS = [:debug, :info, :warn, :error, :fatal, :disable]
+        VALID_LOG_LEVELS = %i[debug info warn error fatal disable].freeze
 
         CommandLine = Struct.new :env, :command, :args, :working_directory
 
@@ -983,29 +972,25 @@ module Orocos
         def command_line(
             working_directory: Orocos.default_working_directory,
             log_level: nil,
-            cmdline_args: Hash.new,
+            cmdline_args: {},
             tracing: Orocos.tracing?, gdb: nil, valgrind: nil,
             name_service_ip: Orocos::CORBA.name_service_ip
         )
 
-            result = CommandLine.new(Hash.new, nil, [], working_directory)
+            result = CommandLine.new({}, nil, [], working_directory)
             result.command = binfile
 
-            if tracing
-                result.env['LD_PRELOAD'] = Orocos.tracing_library_path
-            end
+            result.env["LD_PRELOAD"] = Orocos.tracing_library_path if tracing
             if log_level
-                valid_levels = [:debug, :info, :warn, :error, :fatal, :disable]
+                valid_levels = %i[debug info warn error fatal disable]
                 if valid_levels.include?(log_level)
-                    result.env['BASE_LOG_LEVEL'] = log_level.to_s.upcase
+                    result.env["BASE_LOG_LEVEL"] = log_level.to_s.upcase
                 else
                     raise ArgumentError, "'#{log_level}' is not a valid log level." +
-                        " Valid options are #{valid_levels}."
+                                         " Valid options are #{valid_levels}."
                 end
             end
-            if name_service_ip
-                result.env['ORBInitRef'] = "NameService=corbaname::#{name_service_ip}"
-            end
+            result.env["ORBInitRef"] = "NameService=corbaname::#{name_service_ip}" if name_service_ip
 
             cmdline_args = cmdline_args.dup
             cmdline_args[:rename] ||= []
@@ -1031,17 +1016,15 @@ module Orocos
 
             if gdb
                 result.args.unshift(result.command)
-                if gdb == true
-                    gdb = Process.allocate_gdb_port
-                end
+                gdb = Process.allocate_gdb_port if gdb == true
                 result.args.unshift("0.0.0.0:#{gdb}")
-                result.command = 'gdbserver'
+                result.command = "gdbserver"
             elsif valgrind
                 result.args.unshift(result.command)
-                result.command = 'valgrind'
+                result.command = "valgrind"
             end
 
-            return result
+            result
         end
 
         # Spawns this process
@@ -1077,7 +1060,7 @@ module Orocos
         #   itself. This is obviously incompatible with the gdb option.
         def spawn(
             log_level: nil, working_directory: Orocos.default_working_directory,
-            cmdline_args: Hash.new,
+            cmdline_args: {},
             oro_logfile:  "orocos.%m-%p.txt",
             prefix: nil, tracing: Orocos.tracing?,
             wait: nil,
@@ -1087,6 +1070,7 @@ module Orocos
         )
 
             raise "#{name} is already running" if alive?
+
             Orocos.info "starting deployment #{name}"
 
             # Setup mapping for prefixed tasks in Process class
@@ -1109,14 +1093,14 @@ module Orocos
             end
 
             if valgrind
-                cmdline_wrapper = 'valgrind'
+                cmdline_wrapper = "valgrind"
                 cmdline_wrapper_options =
                     if valgrind.respond_to?(:to_ary)
                         valgrind
                     else []
                     end
             elsif gdb
-                cmdline_wrapper = 'gdbserver'
+                cmdline_wrapper = "gdbserver"
                 cmdline_wrapper_options =
                     if gdb.respond_to?(:to_ary)
                         gdb
@@ -1126,20 +1110,18 @@ module Orocos
                 cmdline_wrapper_options << "localhost:#{gdb_port}"
             end
 
-            if !name_service.ip.empty?
-                ENV['ORBInitRef'] = "NameService=corbaname::#{name_service.ip}"
-            end
+            ENV["ORBInitRef"] = "NameService=corbaname::#{name_service.ip}" unless name_service.ip.empty?
 
             cmdline = [binfile]
 
             # check arguments for log_level
             if log_level
-                valid_levels = [:debug, :info, :warn, :error, :fatal, :disable]
+                valid_levels = %i[debug info warn error fatal disable]
                 if valid_levels.include?(log_level)
                     log_level = log_level.to_s.upcase
                 else
                     raise ArgumentError, "'#{log_level}' is not a valid log level." +
-                        " Valid options are #{valid_levels}."
+                                         " Valid options are #{valid_levels}."
                 end
             end
 
@@ -1150,36 +1132,30 @@ module Orocos
                 # Pass write file descriptor for the IOR pipe as a commandline argument
                 cmdline_args["ior-write-fd"] = ior_write_fd.fileno
 
-                if tracing
-                    ENV['LD_PRELOAD'] = Orocos.tracing_library_path
-                end
+                ENV["LD_PRELOAD"] = Orocos.tracing_library_path if tracing
 
                 pid = ::Process.pid
                 real_name = get_mapped_name(name)
 
-                ENV['BASE_LOG_LEVEL'] = log_level if log_level
+                ENV["BASE_LOG_LEVEL"] = log_level if log_level
 
-                if output && output.respond_to?(:to_str)
-                    output_file_name = output.
-                        gsub('%m', real_name).
-                        gsub('%p', pid.to_s)
-                    if working_directory
-                        output_file_name = File.expand_path(output_file_name, working_directory)
-                    end
+                if output&.respond_to?(:to_str)
+                    output_file_name = output
+                                       .gsub("%m", real_name)
+                                       .gsub("%p", pid.to_s)
+                    output_file_name = File.expand_path(output_file_name, working_directory) if working_directory
 
-                    output = File.open(output_file_name, 'a')
+                    output = File.open(output_file_name, "a")
                 end
 
                 if oro_logfile
-                    oro_logfile = oro_logfile.
-                        gsub('%m', real_name).
-                        gsub('%p', pid.to_s)
-                    if working_directory
-                        oro_logfile = File.expand_path(oro_logfile, working_directory)
-                    end
-                    ENV['ORO_LOGFILE'] = oro_logfile
+                    oro_logfile = oro_logfile
+                                  .gsub("%m", real_name)
+                                  .gsub("%p", pid.to_s)
+                    oro_logfile = File.expand_path(oro_logfile, working_directory) if working_directory
+                    ENV["ORO_LOGFILE"] = oro_logfile
                 else
-                    ENV['ORO_LOGFILE'] = "/dev/null"
+                    ENV["ORO_LOGFILE"] = "/dev/null"
                 end
 
                 if output
@@ -1187,9 +1163,7 @@ module Orocos
                     STDOUT.reopen(output)
                 end
 
-                if output_file_name && valgrind
-                    cmdline.unshift "--log-file=#{output_file_name}.valgrind"
-                end
+                cmdline.unshift "--log-file=#{output_file_name}.valgrind" if output_file_name && valgrind
 
                 if cmdline_wrapper
                     cmdline = cmdline_wrapper_options + cmdline
@@ -1198,19 +1172,17 @@ module Orocos
 
                 # Command line arguments have to be of type --<option>=<value>
                 # or if <value> is nil a valueless option, i.e. --<option>
-                if cmdline_args
-                    cmdline_args.each do |option, value|
-                        if value
-                           if value.respond_to?(:to_ary)
-                                value.each do |v|
-                                    cmdline.push "--#{option}=#{v}"
-                                end
-                           else
-                               cmdline.push "--#{option}=#{value}"
-                           end
+                cmdline_args&.each do |option, value|
+                    if value
+                        if value.respond_to?(:to_ary)
+                            value.each do |v|
+                                cmdline.push "--#{option}=#{v}"
+                            end
                         else
-                            cmdline.push "--#{option}"
+                            cmdline.push "--#{option}=#{value}"
                         end
+                    else
+                        cmdline.push "--#{option}"
                     end
                 end
 
@@ -1227,13 +1199,9 @@ module Orocos
             ior_write_fd.close
 
             write.close
-            if read.read == "FAILED"
-                raise "cannot start #{name}"
-            end
+            raise "cannot start #{name}" if read.read == "FAILED"
 
-            if gdb
-                Orocos.warn "process #{name} has been started under gdbserver, port=#{gdb_port}. The components will not be functional until you attach a GDB to the started server"
-            end
+            Orocos.warn "process #{name} has been started under gdbserver, port=#{gdb_port}. The components will not be functional until you attach a GDB to the started server" if gdb
 
             if wait
                 timeout = if wait.kind_of?(Numeric)
@@ -1267,29 +1235,24 @@ module Orocos
         end
 
         SIGNAL_NUMBERS = {
-            'SIGABRT' => 1,
-            'SIGINT' => 2,
-            'SIGKILL' => 9,
-            'SIGSEGV' => 11
-        }
+            "SIGABRT" => 1,
+            "SIGINT" => 2,
+            "SIGKILL" => 9,
+            "SIGSEGV" => 11
+        }.freeze
 
         # Tries to stop and cleanup the provided task. Returns true if it was
         # successful, and false otherwise
         def self.try_task_cleanup(task)
             begin
                 task.stop(false)
-                if task.model && task.model.needs_configuration?
-                    task.cleanup(false)
-                end
+                task.cleanup(false) if task.model&.needs_configuration?
             rescue StateTransitionFailed
             end
 
-            task.each_port do |port|
-                port.disconnect_all
-            end
+            task.each_port(&:disconnect_all)
 
             true
-
         rescue Exception => e
             Orocos.warn "clean shutdown of #{task.name} failed: #{e.message}"
             e.backtrace.each do |line|
@@ -1302,7 +1265,7 @@ module Orocos
         # nil, or forcefully by using UNIX signals if signal is a signal name.
         def kill(wait = true, signal = nil, cleanup: !signal, hard: false)
             tpid = pid
-            return if !tpid # already dead
+            return unless tpid # already dead
 
             signal ||=
                 if hard
@@ -1316,7 +1279,7 @@ module Orocos
                 clean_shutdown = true
                 begin
                     tasks.each do |task|
-                        if !self.class.try_task_cleanup(task)
+                        unless self.class.try_task_cleanup(task)
                             clean_shutdown = false
                             break
                         end
@@ -1326,20 +1289,14 @@ module Orocos
                     # signal it
                     clean_shutdown = false
                 end
-                if !clean_shutdown
-                    Orocos.warn "clean shutdown of process #{name} failed"
-                end
+                Orocos.warn "clean shutdown of process #{name} failed" unless clean_shutdown
             end
 
             expected_exit = nil
             if signal
-                if !expected_exit
-                    Orocos.warn "sending #{signal} to #{name}"
-                end
+                Orocos.warn "sending #{signal} to #{name}" unless expected_exit
 
-                if signal.respond_to?(:to_str) && signal !~ /^SIG/
-                    signal = "SIG#{signal}"
-                end
+                signal = "SIG#{signal}" if signal.respond_to?(:to_str) && signal !~ /^SIG/
 
                 expected_exit ||=
                     if signal.kind_of?(Integer) then signal
@@ -1357,7 +1314,7 @@ module Orocos
 
             if wait
                 join
-                if @exit_status && @exit_status.signaled?
+                if @exit_status&.signaled?
                     if !expected_exit
                         Orocos.warn "#{name} unexpectedly exited with signal #{@exit_status.termsig}"
                     elsif @exit_status.termsig != expected_exit
@@ -1378,25 +1335,21 @@ module Orocos
     # when the control flow leaves it
     def self.guard(*processes_or_tasks)
         yield
-
     rescue Interrupt
     rescue Exception => e
-	Orocos.warn "killing running task contexts and deployments because of unhandled exception"
-	Orocos.warn "  #{e.backtrace[0]}: #{e.message}"
-	e.backtrace[1..-1].each do |line|
-	    Orocos.warn "    #{line}"
-	end
+        Orocos.warn "killing running task contexts and deployments because of unhandled exception"
+        Orocos.warn "  #{e.backtrace[0]}: #{e.message}"
+        e.backtrace[1..-1].each do |line|
+            Orocos.warn "    #{line}"
+        end
         raise
-
     ensure
         processes, tasks = processes_or_tasks.partition do |obj|
             obj.kind_of?(Orocos::Process)
         end
 
-        if processes.empty?
-            processes = each_process.to_a
-        end
-        if !tasks.empty?
+        processes = each_process.to_a if processes.empty?
+        unless tasks.empty?
             processes.each do |p|
                 tasks -= p.each_task.to_a
             end
@@ -1422,4 +1375,3 @@ module Orocos
         end
     end
 end
-

@@ -1,11 +1,12 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
 
-require 'irb'
-require 'orocos'
-require 'optparse'
+require "irb"
+require "orocos"
+require "optparse"
 
 parser = OptionParser.new do |opt|
-    opt.on('--host=HOST', String, "the host we should connect to for naming") do |hostname|
+    opt.on("--host=HOST", String, "the host we should connect to for naming") do |hostname|
         Orocos::CORBA.name_service.ip = hostname
     end
 end
@@ -21,7 +22,7 @@ b = nil
 Module.new do
     singleton = class << self; self; end
     components.each do |name|
-        *task_name, var_name = name.split(':')
+        *task_name, var_name = name.split(":")
         var_name ||= task_name.last
 
         singleton.class_eval do
@@ -46,4 +47,3 @@ end
 catch(:IRB_EXIT) do
     irb.eval_input
 end
-

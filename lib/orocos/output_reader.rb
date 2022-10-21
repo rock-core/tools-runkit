@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     # Local input port that is specifically designed to read to another task's output port
     class OutputReader < RubyTasks::LocalInputPort
@@ -61,4 +63,3 @@ module Orocos
         end
     end
 end
-

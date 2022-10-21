@@ -1,14 +1,14 @@
-module Orocos::Async
+# frozen_string_literal: true
 
+module Orocos::Async
     class EventListener
         attr_reader :event
         attr_reader :last_args
 
-        def initialize(obj,event,use_last_value=true,&block)
+        def initialize(obj, event, use_last_value = true, &block)
             @block = block
-            if !obj
-                raise ArgumentError, "no object given"
-            end
+            raise ArgumentError, "no object given" unless obj
+
             @obj = obj
             @event = event
             @use_last_value = use_last_value
@@ -39,8 +39,8 @@ module Orocos::Async
             self
         end
 
-        #return true if the listener is listing to 
-        #the event
+        # return true if the listener is listing to
+        # the event
         def listening?
             @obj.listener?(self)
         end
@@ -48,27 +48,28 @@ module Orocos::Async
         # calls the callback
         def call(*args)
             @last_args = args
-            @block.call *args
+            @block.call(*args)
         end
     end
 
     class DelegatorDummy
         attr_reader :event_loop
         attr_reader :name
-        def initialize(parent,name,event_loop)
+        def initialize(parent, name, event_loop)
             @parent = parent
             @name = name
             @event_loop = event_loop
         end
 
-        def method_missing(m,*args,&block)
+        def method_missing(m, *args, &block)
             return super if m == :to_ary
+
             error = Orocos::NotFound.new "#{@name} is not reachable while accessing #{m}"
             error.set_backtrace(Kernel.caller)
             if !block
                 raise error
             else
-                @event_loop.defer :on_error => @parent.method(:emit_error),:callback => block,:known_errors => Orocos::Async::KNOWN_ERRORS do
+                @event_loop.defer on_error: @parent.method(:emit_error), callback: block, known_errors: Orocos::Async::KNOWN_ERRORS do
                     raise error
                 end
             end
@@ -99,11 +100,7 @@ module Orocos::Async
             end
 
             def period=(value)
-                @options[:period]= if value
-                                       value
-                                   else
-                                       default_period
-                                   end
+                @options[:period] = value || default_period
             end
         end
 
@@ -124,8 +121,9 @@ module Orocos::Async
                 names.flatten!
                 names.each do |n|
                     raise "Cannot add event #{n}. It is already added" if event_names.include? n
+
                     event_names << n
-                    str =  %Q{ def on_#{n}(use_last_value = true,&block)
+                    str = " def on_#{n}(use_last_value = true,&block)
                                 on_event #{n.inspect},use_last_value,&block
                             end
                             def once_on_#{n}(use_last_value = true,&block)
@@ -136,7 +134,7 @@ module Orocos::Async
                             end
                             def emit_#{n}(*args)
                                 event #{n.inspect},*args
-                            end }
+                            end "
                     class_eval(str)
                 end
             end
@@ -147,9 +145,8 @@ module Orocos::Async
 
             def validate_event(name)
                 name = name.to_sym
-                if !valid_event?(name)
-                    raise "event #{name} is not emitted by #{self}. The following events are emitted #{event_names.join(", ")}"
-                end
+                raise "event #{name} is not emitted by #{self}. The following events are emitted #{event_names.join(', ')}" unless valid_event?(name)
+
                 name
             end
         end
@@ -158,7 +155,7 @@ module Orocos::Async
         attr_reader :options
         attr_accessor :emitting
         attr_accessor :name
-        define_events :error,:reachable,:unreachable
+        define_events :error, :reachable, :unreachable
 
         # Queue of listener that are going to be added by callbacks registered
         # in the event loop. This is filled and processed by #add_listener and
@@ -170,40 +167,40 @@ module Orocos::Async
         # @return [Array<EventLoop,nil>]
         attr_reader :pending_adds
 
-        def initialize(name,event_loop)
-            raise ArgumentError, "no name was given" if !name
-            @listeners ||= Hash.new{ |hash,key| hash[key] = []}
-            @proxy_listeners ||= Hash.new{|hash,key| hash[key] = Hash.new}
+        def initialize(name, event_loop)
+            raise ArgumentError, "no name was given" unless name
+
+            @listeners ||= Hash.new { |hash, key| hash[key] = [] }
+            @proxy_listeners ||= Hash.new { |hash, key| hash[key] = {} }
             @name ||= name
             @event_loop ||= event_loop
-            @options ||= Hash.new
+            @options ||= {}
             @emitting = true
-            @pending_adds = Array.new
+            @pending_adds = []
             invalidate_delegator!
             on_error do |e|
-                if e.kind_of?(Orocos::ComError)
-                    unreachable!(:error => e)
-                end
+                unreachable!(error: e) if e.kind_of?(Orocos::ComError)
             end
         end
 
         def invalidate_delegator!
-            @delegator_obj = DelegatorDummy.new self,@name,@event_loop
+            @delegator_obj = DelegatorDummy.new self, @name, @event_loop
         end
 
         # sets @emitting to value for the time the given block is called
-        def emitting(value,&block)
-            old,@emitting = @emitting,value
+        def emitting(value, &block)
+            old = @emitting
+            @emitting = value
             instance_eval(&block)
         ensure
             @emitting = old
         end
 
         def disable_emitting(&block)
-            emitting(false,&block)
+            emitting(false, &block)
         end
 
-        #returns true if the event is known
+        # returns true if the event is known
         def valid_event?(event)
             self.class.valid_event?(event)
         end
@@ -216,9 +213,9 @@ module Orocos::Async
             self.class.event_names
         end
 
-        def on_event(event,use_last_value=true,&block)
+        def on_event(event, use_last_value = true, &block)
             event = validate_event event
-            EventListener.new(self,event,use_last_value,&block).start
+            EventListener.new(self, event, use_last_value, &block).start
         end
 
         # returns the number of listener for the given event
@@ -227,12 +224,12 @@ module Orocos::Async
             @listeners[event].size
         end
 
-        #returns true if the listener is active
+        # returns true if the listener is active
         def listener?(listener)
             @listeners[listener.event].include? listener
         end
 
-        #returns the listeners for the given event
+        # returns the listeners for the given event
         def listeners(event)
             event = validate_event event
             @listeners[event]
@@ -241,27 +238,29 @@ module Orocos::Async
         # adds a listener to obj and proxies
         # event like it would be emitted from self
         #
-        # if no listener is registererd to event it 
+        # if no listener is registererd to event it
         # also removes the listener from obj
-        def proxy_event(obj,*events)
+        def proxy_event(obj, *events)
             return if obj == self
+
             events = events.flatten
             events.each do |e|
                 if existing = @proxy_listeners[obj].delete(e)
                     existing.stop
                 end
-                l = @proxy_listeners[obj][e] = EventListener.new(obj,e,true) do |*val|
-                    process_event e,*val
+                l = @proxy_listeners[obj][e] = EventListener.new(obj, e, true) do |*val|
+                    process_event e, *val
                 end
                 l.start if number_of_listeners(e) > 0
             end
         end
 
-        def remove_proxy_event(obj,*events)
+        def remove_proxy_event(obj, *events)
             return if obj == self
+
             events = events.flatten
             if events.empty?
-                remove_proxy_event(obj,@proxy_listeners[obj].keys)
+                remove_proxy_event(obj, @proxy_listeners[obj].keys)
                 @proxy_listeners.delete(obj)
             else
                 events.each do |e|
@@ -275,15 +274,15 @@ module Orocos::Async
         def add_listener(listener)
             event = validate_event listener.event
             return listener if pending_adds.include? listener
+
             pending_adds << listener
             event_loop.once do
                 expected = pending_adds.shift
                 # 'expected' is nil if the listener has been removed before this
                 # block got processed
                 if expected
-                    if expected != listener
-                        raise RuntimeError, "internal error in #{self}#add_listener: pending addition and expected addition mismatch"
-                    end
+                    raise "internal error in #{self}#add_listener: pending addition and expected addition mismatch" if expected != listener
+
                     really_add_listener(listener)
                 end
             end
@@ -295,10 +294,10 @@ module Orocos::Async
                 if listener.event == :reachable
                     listener.call if valid_delegator?
                 elsif listener.event == :unreachable
-                    listener.call if !valid_delegator?
+                    listener.call unless valid_delegator?
                 end
             end
-            @proxy_listeners.each do |obj,listeners|
+            @proxy_listeners.each do |obj, listeners|
                 if l = listeners[listener.event]
                     if listener.use_last_value? && !listener.last_args
                         # replay last value if requested
@@ -331,11 +330,12 @@ module Orocos::Async
 
         # calls all listener which are registered for the given event
         # the next step
-        def event(event_name,*args,&block)
+        def event(event_name, *args, &block)
             validate_event event_name
             return unless @emitting
+
             @event_loop.once do
-                process_event event_name,*args,&block
+                process_event event_name, *args, &block
             end
             self
         end
@@ -345,9 +345,9 @@ module Orocos::Async
         def wait(timeout = 5.0)
             time = Time.now
             @event_loop.wait_for do
-                if timeout && timeout <= Time.now-time
+                if timeout && timeout <= Time.now - time
                     Utilrb::EventLoop.cleanup_backtrace do
-                        raise Orocos::NotFound,"#{self.class}: #{respond_to?(:full_name) ? full_name : name} is not reachable after #{timeout} seconds"
+                        raise Orocos::NotFound, "#{self.class}: #{respond_to?(:full_name) ? full_name : name} is not reachable after #{timeout} seconds"
                     end
                 end
                 reachable?
@@ -355,17 +355,17 @@ module Orocos::Async
             self
         end
 
-        # TODO CODE BLOCK 
+        # TODO CODE BLOCK
         def reachable?(&block)
             valid_delegator?
         end
 
-        def reachable!(obj,options = Hash.new)
+        def reachable!(obj, options = {})
             @delegator_obj = obj
             event :reachable if valid_delegator?
         end
 
-        def unreachable!(options = Hash.new)
+        def unreachable!(options = {})
             if valid_delegator?
                 invalidate_delegator!
                 event :unreachable
@@ -377,22 +377,21 @@ module Orocos::Async
         end
 
         def remove_all_listeners
-            !@listeners.each do |event,listeners|
-                while !listeners.empty?
-                    remove_listener listeners.first
-                end
+            !@listeners.each do |event, listeners|
+                remove_listener listeners.first until listeners.empty?
             end
         end
 
         private
+
         # calls all listener which are registered for the given event
-        def process_event(event_name,*args,&block)
+        def process_event(event_name, *args, &block)
             event = validate_event event_name
             args = block.call if block
-            #@listeners have to be cloned because it might get modified 
-            #by listener.call
+            # @listeners have to be cloned because it might get modified
+            # by listener.call
             @listeners[event_name].clone.each do |listener|
-                listener.call *args
+                listener.call(*args)
             end
             self
         end

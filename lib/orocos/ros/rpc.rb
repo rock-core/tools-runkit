@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     module ROS
         class << self
@@ -5,32 +7,29 @@ module Orocos
             attr_accessor :caller_id
             # Returns the URI to the ROS master
             def self.ros_master_uri
-                ENV['ROS_MASTER_URI']
+                ENV["ROS_MASTER_URI"]
             end
+
             # The global ROS master as a XMLRPC object
             #
             # It gets initialized on first call
             #
             # @raise [Orocos::ComError] if the ROS master is not available
             def self.ros_master
-                @ros_master ||= XMLRPC::Client::Proxy.new(ros_master_uri, '')
+                @ros_master ||= XMLRPC::Client::Proxy.new(ros_master_uri, "")
             end
         end
         @caller_id = "/orocosrb_#{::Process.pid}"
 
         def self.initialize(name = ROS.caller_id[1..-1])
-            if initialized?
-                raise RuntimeError, "cannot initialize the ROS layer multiple times"
-            end
+            raise "cannot initialize the ROS layer multiple times" if initialized?
 
             ROS.load
 
             do_initialize(name)
 
             at_exit do
-                if ROS.initialized?
-                    ROS.shutdown
-                end
+                ROS.shutdown if ROS.initialized?
             end
         end
 
@@ -65,15 +64,15 @@ module Orocos
         # Access to a remote ROS master
         class ROSMaster < ROS_XMLRPC
             def system_state
-                call('getSystemState', caller_id)
+                call("getSystemState", caller_id)
             end
 
             def topics
-                call('getTopicTypes', caller_id)
+                call("getTopicTypes", caller_id)
             end
 
             def lookup_node(name)
-                call('lookupNode', caller_id, name)
+                call("lookupNode", caller_id, name)
             end
         end
 
@@ -82,26 +81,24 @@ module Orocos
             # [Array<Array<(String,String)>>] the list of subscriptions as
             # [topic_name, topic_type_name] pairs
             def subscriptions
-                call('getSubscriptions', caller_id)
+                call("getSubscriptions", caller_id)
             end
 
             # [Array<Array<(String,String)>>] the list of publications as
             # [topic_name, topic_type_name] pairs
             def publications
-                call('getPublications', caller_id)
+                call("getPublications", caller_id)
             end
 
             # [String] the URI of the master that manages this slave
             def pid
-                call('getPid', caller_id)
+                call("getPid", caller_id)
             end
 
             # [String] the URI of the master that manages this slave
             def master_uri
-                call('getMasterUri', caller_id)
+                call("getMasterUri", caller_id)
             end
         end
     end
 end
-
-

@@ -1,4 +1,6 @@
-require 'orocos/test'
+# frozen_string_literal: true
+
+require "orocos/test"
 
 describe Orocos do
     describe "thread interdiction" do
@@ -9,7 +11,7 @@ describe Orocos do
         it "raises if a CORBA-accessing method is called within the forbidden thread" do
             Orocos.forbid_blocking_calls
             assert_raises(Orocos::BlockingCallInForbiddenThread) do
-                Orocos.name_service.get('test')
+                Orocos.name_service.get("test")
             end
         end
         it "returns false in #allow_blocking_calls if no thread was registered" do
@@ -23,7 +25,7 @@ describe Orocos do
             Orocos.forbid_blocking_calls
             Orocos.allow_blocking_calls
             assert_raises(Orocos::NotFound) do
-                Orocos.name_service.get('test')
+                Orocos.name_service.get("test")
             end
         end
     end

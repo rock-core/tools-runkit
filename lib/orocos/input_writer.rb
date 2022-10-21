@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Orocos
     # Local output port that is specifically designed to write to another task's input port
     class InputWriter < RubyTasks::LocalOutputPort
@@ -18,12 +20,12 @@ module Orocos
         # This is only possible if the remote deployment has been started by
         # this Ruby instance
         def write(data)
-	    if process = port.task.process
-		if !process.alive?
-		    disconnect_all
-		    raise CORBA::ComError, "remote end is dead"
-		end
-	    end
+            if process = port.task.process
+                unless process.alive?
+                    disconnect_all
+                    raise CORBA::ComError, "remote end is dead"
+                end
+            end
             if !super
                 raise CORBA::ComError, "remote end was disconnected"
             else true
@@ -31,4 +33,3 @@ module Orocos
         end
     end
 end
-

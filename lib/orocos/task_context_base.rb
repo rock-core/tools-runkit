@@ -1,4 +1,6 @@
-require 'orocos/ports_searchable'
+# frozen_string_literal: true
+
+require "orocos/ports_searchable"
 
 module Orocos
     # This class represents both RTT attributes and properties
@@ -22,9 +24,8 @@ module Orocos
             @task = task
             @name = name
             @orocos_type_name = orocos_type_name
-            ensure_type_available(:fallback_to_null_type => true)
+            ensure_type_available(fallback_to_null_type: true)
         end
-
 
         def full_name
             "#{task.name}.#{name}"
@@ -52,9 +53,7 @@ module Orocos
         end
 
         def ensure_type_available(**options)
-            if !type || type.null?
-                @type = Orocos.find_type_by_orocos_type_name(@orocos_type_name, **options)
-            end
+            @type = Orocos.find_type_by_orocos_type_name(@orocos_type_name, **options) if !type || type.null?
         end
 
         def raw_read
@@ -84,12 +83,8 @@ module Orocos
         end
 
         def log_value(value, timestamp = Time.now)
-            if log_stream
-                log_stream.write(timestamp, timestamp, value)
-            end
-            if log_port
-                log_port.write(value)
-            end
+            log_stream&.write(timestamp, timestamp, value)
+            log_port&.write(value)
         end
 
         def new_sample
@@ -177,7 +172,6 @@ module Orocos
         def ping
             raise NotImplementedError
         end
-
     end
 
     # Base implementation for Orocos::TaskContext
@@ -186,13 +180,13 @@ module Orocos
         include PortsSearchable
         include Namespace
 
-        RUNNING_STATES = []
+        RUNNING_STATES = [].freeze
         RUNNING_STATES[STATE_PRE_OPERATIONAL] = false
         RUNNING_STATES[STATE_STOPPED]         = false
         RUNNING_STATES[STATE_RUNNING]         = true
         RUNNING_STATES[STATE_RUNTIME_ERROR]   = true
         RUNNING_STATES[STATE_FATAL_ERROR]     = false
-        RUNNING_STATES[STATE_EXCEPTION]     = false
+        RUNNING_STATES[STATE_EXCEPTION] = false
 
         # Returns a task which provides the +type+ interface.
         #
@@ -218,10 +212,11 @@ module Orocos
         def self.get(options, process = nil)
             if options.kind_of?(Hash)
                 # Right now, the only allowed option is :provides
-                options = Kernel.validate_options options, :provides => nil
+                options = Kernel.validate_options options, provides: nil
                 return Orocos.name_service.get_provides(options[:provides].to_str)
             else
-                raise ArgumentError, 'no task name' if options.nil?
+                raise ArgumentError, "no task name" if options.nil?
+
                 name = options.to_str
             end
             result = Orocos.name_service.get(name, process: process)
@@ -250,25 +245,22 @@ module Orocos
         #
         # Instead of a task the method can also be called with a port
         # as argument
-        def self.connect_to(task,task2,policy = Hash.new, &block)
-            if task2.respond_to? :each_port
+        def self.connect_to(task, task2, policy = {}, &block)
+            if task2.respond_to?(:each_port)
                 count = 0
                 task.each_port do |port|
-                    next if !port.respond_to? :reader
-                    if other = task2.find_input_port(port.type,nil)
+                    next unless port.respond_to? :reader
+
+                    if other = task2.find_input_port(port.type, nil)
                         port.connect_to other, policy, &block
                         count += 1
                     end
                 end
-                if count == 0
-                    raise NotFound, "#{task.name} has no port matching the ones of #{task2.name}."
-                end
-            else # assuming task2 is a port
-                if port = task.find_output_port(task2.type,nil)
-                    port.connect_to task2, policy, &block
-                else
-                    raise NotFound, "no port of #{task.name} matches the given port #{task2.name}"
-                end
+                raise NotFound, "#{task.name} has no port matching the ones of #{task2.name}." if count == 0
+            elsif (port = task.find_output_port(task2.type, nil))
+                port.connect_to task2, policy, &block
+            else
+                raise NotFound, "no port of #{task.name} matches the given port #{task2.name}"
             end
             self
         end
@@ -304,27 +296,26 @@ module Orocos
         # @option options [Orocos::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
         def initialize(name, namespace: nil, process: nil, model: nil)
-            @ports = Hash.new
-            @properties = Hash.new
-            @attributes = Hash.new
-            @state_queue = Array.new
+            @ports = {}
+            @properties = {}
+            @attributes = {}
+            @state_queue = []
 
             if namespace
-                self.namespace, @name = namespace, name
+                self.namespace = namespace
+                @name = name
             else
                 self.namespace, @name = split_name(name)
                 name = @name
             end
-            @process    = process
+            @process = process
 
-            @process ||= Orocos.enum_for(:each_process).
-                find do |p|
-                    p.task_names.any? { |n| n == name }
-                end
-
-            if process
-                process.register_task(self)
+            @process ||= Orocos.enum_for(:each_process)
+                               .find do |p|
+                p.task_names.any? { |n| n == name }
             end
+
+            process&.register_task(self)
 
             if model
                 self.model = model
@@ -333,7 +324,7 @@ module Orocos
                 self.model
             end
 
-            if !@state_symbols
+            unless @state_symbols
                 @state_symbols = []
                 @state_symbols[STATE_PRE_OPERATIONAL] = :PRE_OPERATIONAL
                 @state_symbols[STATE_STOPPED]         = :STOPPED
@@ -341,8 +332,8 @@ module Orocos
                 @state_symbols[STATE_RUNTIME_ERROR]   = :RUNTIME_ERROR
                 @state_symbols[STATE_EXCEPTION]       = :EXCEPTION
                 @state_symbols[STATE_FATAL_ERROR]     = :FATAL_ERROR
-                @error_states     = Set.new
-                @runtime_states   = Set.new
+                @error_states = Set.new
+                @runtime_states = Set.new
                 @exception_states = Set.new
                 @fatal_states     = Set.new
                 add_default_states
@@ -364,9 +355,8 @@ module Orocos
         # Enumerates the operation that are available on
         # this task, as instances of Orocos::Operation
         def each_operation(&block)
-            if !block_given?
-                return enum_for(:each_operation)
-            end
+            return enum_for(:each_operation) unless block_given?
+
             names = operation_names
             names.each do |name|
                 yield(operation(name))
@@ -379,9 +369,8 @@ module Orocos
         # Enumerates the properties that are available on
         # this task, as instances of Orocos::Attribute
         def each_property(&block)
-            if !block_given?
-                return enum_for(:each_property)
-            end
+            return enum_for(:each_property) unless block_given?
+
             names = property_names
             names.each do |name|
                 yield(property(name))
@@ -394,9 +383,7 @@ module Orocos
         # Enumerates the attributes that are available on
         # this task, as instances of Orocos::Attribute
         def each_attribute(&block)
-            if !block_given?
-                return enum_for(:each_attribute)
-            end
+            return enum_for(:each_attribute) unless block_given?
 
             names = attribute_names
             names.each do |name|
@@ -410,9 +397,7 @@ module Orocos
         # Enumerates the ports that are available on this task, as instances of
         # either Orocos::InputPort or Orocos::OutputPort
         def each_port(&block)
-            if !block_given?
-                return enum_for(:each_port)
-            end
+            return enum_for(:each_port) unless block_given?
 
             port_names.each do |name|
                 yield(port(name))
@@ -451,17 +436,28 @@ module Orocos
         # This requires the process handling to be done by orocos.rb (the method
         # checks if the process runs on the local machine)
         def on_localhost?
-            process && process.on_localhost?
+            process&.on_localhost?
         end
 
         # True if the given symbol is the name of a runtime state
-        def runtime_state?(sym); @runtime_states.include?(sym) end
+        def runtime_state?(sym)
+            @runtime_states.include?(sym)
+        end
+
         # True if the given symbol is the name of an error state
-        def error_state?(sym); @error_states.include?(sym) end
+        def error_state?(sym)
+            @error_states.include?(sym)
+        end
+
         # True if the given symbol is the name of an exception state
-        def exception_state?(sym); @exception_states.include?(sym) end
+        def exception_state?(sym)
+            @exception_states.include?(sym)
+        end
+
         # True if the given symbol is the name of a fatal error state
-        def fatal_error_state?(sym); @fatal_states.include?(sym) end
+        def fatal_error_state?(sym)
+            @fatal_states.include?(sym)
+        end
 
         # Returns true if the task is pre-operational
         def pre_operational?
@@ -473,23 +469,30 @@ module Orocos
         def running?
             runtime_state?(peek_current_state)
         end
+
         # Returns true if the task has been configured.
-        def ready?; peek_current_state && (peek_current_state != :PRE_OPERATIONAL) end
+        def ready?
+            peek_current_state && (peek_current_state != :PRE_OPERATIONAL)
+        end
+
         # Returns true if the task is in an error state (runtime or fatal)
         def error?
             error_state?(peek_current_state)
         end
+
         # Returns true if the task is in a runtime error state
         def runtime_error?
-            state = self.peek_current_state
+            state = peek_current_state
             error_state?(state) &&
                 !exception_state?(state) &&
                 !fatal_error_state?(state)
         end
+
         # Returns true if the task is in an exceptional state
         def exception?
             exception_state?(peek_current_state)
         end
+
         # Returns true if the task is in a fatal error state
         def fatal_error?
             fatal_error_state?(peek_current_state)
@@ -498,9 +501,7 @@ module Orocos
         # Returns an array of symbols that give the tasks' state names from
         # their integer value. This is mostly for internal use.
         def available_states # :nodoc:
-            if @states
-                return @states
-            end
+            return @states if @states
         end
 
         # This is meant to be used internally
@@ -515,16 +516,14 @@ module Orocos
 
         def peek_state
             current_state = rtt_state
-            if (@state_queue.empty? && current_state != @current_state) || (@state_queue.last != current_state)
-                @state_queue << current_state
-            end
+            @state_queue << current_state if (@state_queue.empty? && current_state != @current_state) || (@state_queue.last != current_state)
             @state_queue
         end
 
         def input_port(name)
             p = port(name)
             if p.respond_to?(:writer)
-                return p
+                p
             else
                 raise InterfaceObjectNotFound.new(self, name), "#{name} is an output port of #{self.name}, was expecting an input port"
             end
@@ -533,7 +532,7 @@ module Orocos
         def output_port(name)
             p = port(name)
             if p.respond_to?(:reader)
-                return p
+                p
             else
                 raise InterfaceObjectNotFound.new(self, name), "#{name} is an input port of #{self.name}, was expecting an output port"
             end
@@ -577,17 +576,14 @@ module Orocos
         # @return [OroGen::Spec::TaskDeployment]
         # @see model
         def info
-            if process
-                @info ||= process.orogen.task_activities.find { |act| act.name == name }
-            end
+            @info ||= process.orogen.task_activities.find { |act| act.name == name } if process
         end
 
         # Returns a documentation string describing the task
         # If no documentation is available it returns nil
         def doc
-            model.doc if model
+            model&.doc
         end
-
 
         # True if we got a state change announcement
         def state_changed?
@@ -611,8 +607,8 @@ module Orocos
         #
         # Instead of a task the method can also be called with a port
         # as argument
-        def connect_to(task,policy = Hash.new)
-            TaskContextBase.connect_to(self,task,policy)
+        def connect_to(task, policy = {})
+            TaskContextBase.connect_to(self, task, policy)
         end
 
         def to_s
@@ -641,24 +637,35 @@ module Orocos
             @fatal_states     << :FATAL_ERROR
         end
 
-        #load all informations from the model
+        # load all informations from the model
         def model=(model)
             if model
                 @model = model
 
                 @state_symbols = model.each_state.map { |name, type| name.to_sym }
-                @error_states  = model.each_state.
-                    map { |name, type| name.to_sym if (type == :error || type == :exception || type == :fatal) }.
-                    compact.to_set
-                @exception_states  = model.each_state.
-                    map { |name, type| name.to_sym if type == :exception }.
-                    compact.to_set
-                @runtime_states = model.each_state.
-                    map { |name, type| name.to_sym if (type == :error || type == :runtime) }.
-                    compact.to_set
-                @fatal_states = model.each_state.
-                    map { |name, type| name.to_sym if type == :fatal }.
-                    compact.to_set
+                @error_states  =
+                    model
+                    .each_state
+                    .map { |name, type| name.to_sym if %I[error exception fatal].include?(type) }
+                    .compact.to_set
+
+                @exception_states =
+                    model
+                    .each_state
+                    .map { |name, type| name.to_sym if type == :exception }
+                    .compact.to_set
+
+                @runtime_states =
+                    model
+                    .each_state
+                    .map { |name, type| name.to_sym if %I[error runtime].include?(type) }
+                    .compact.to_set
+
+                @fatal_states =
+                    model
+                    .each_state
+                    .map { |name, type| name.to_sym if type == :fatal }
+                    .compact.to_set
 
                 if ext = Orocos.extension_modules[model.name]
                     ext.each { |m_ext| extend(m_ext) }
@@ -672,10 +679,8 @@ module Orocos
         def model
             if @model
                 @model
-            elsif info && info.context
+            elsif info&.context
                 self.model = info.context
-            else
-                nil
             end
         end
 
@@ -684,7 +689,7 @@ module Orocos
         # This is available only if the deployment in which this task context
         # runs has been generated by orogen.
         def implements?(class_name)
-            model && model.implements?(class_name)
+            model&.implements?(class_name)
         end
 
         # Resolves the model of a port
@@ -750,7 +755,8 @@ module Orocos
             peek_state
             if !@state_queue.empty?
                 @current_state = @state_queue.last
-                @state_queue,old = [],@state_queue
+                old = @state_queue
+                @state_queue = []
                 old
             else
                 []
@@ -763,7 +769,7 @@ module Orocos
             pp.text "  state: #{peek_current_state}"
             pp.breakable
 
-            [['attributes', each_attribute], ['properties', each_property]].each do |kind, enum|
+            [["attributes", each_attribute], ["properties", each_property]].each do |kind, enum|
                 objects = enum.to_a
                 if objects.empty?
                     pp.text "No #{kind}"
@@ -809,29 +815,26 @@ module Orocos
                 rescue Orocos::NotFound
                 end
 
-            else
-                if has_port?(m)
-                    if !args.empty?
-                        raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}"
-                    end
-                    return port(m)
-                elsif has_operation?(m)
-                    return operation(m).callop(*args)
-                elsif has_property?(m) || has_attribute?(m)
-                    if !args.empty?
-                        raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}"
-                    end
-                    prop = if has_property?(m) then property(m)
-                           else attribute(m)
-                           end
-                    value = prop.read
-                    if block_given?
-                        yield(value)
-                        prop.write(value)
-                    end
-                    return value
+            elsif has_port?(m)
+                raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}" unless args.empty?
+
+                return port(m)
+            elsif has_operation?(m)
+                return operation(m).callop(*args)
+            elsif has_property?(m) || has_attribute?(m)
+                raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}" unless args.empty?
+
+                prop = if has_property?(m) then property(m)
+                       else attribute(m)
+                       end
+                value = prop.read
+                if block_given?
+                    yield(value)
+                    prop.write(value)
                 end
+                return value
             end
+
             super(m.to_sym, *args)
         end
 
@@ -847,7 +850,7 @@ module Orocos
     class << self
         attr_reader :extension_modules
     end
-    @extension_modules = Hash.new { |h, k| h[k] = Array.new }
+    @extension_modules = Hash.new { |h, k| h[k] = [] }
 
     # Requires orocos.rb to extend tasks of the given model with the given
     # block.
