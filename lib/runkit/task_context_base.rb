@@ -74,7 +74,6 @@ module Runkit
     class TaskContextBase
         include TaskContextBaseAbstract
         include PortsSearchable
-        include Namespace
 
         RUNNING_STATES = [].freeze
         RUNNING_STATES[STATE_PRE_OPERATIONAL] = false
@@ -197,13 +196,6 @@ module Runkit
             @attributes = {}
             @state_queue = []
 
-            if namespace
-                self.namespace = namespace
-                @name = name
-            else
-                self.namespace, @name = split_name(name)
-                name = @name
-            end
             @process = process
 
             @process ||= Runkit.enum_for(:each_process)
@@ -211,6 +203,7 @@ module Runkit
                 p.task_names.any? { |n| n == name }
             end
 
+            @name = name
             process&.register_task(self)
 
             if model
