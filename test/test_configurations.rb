@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 require "fakefs/safe"
 
-describe Orocos::TaskConfigurations do
-    include Orocos::Spec
+describe Runkit::TaskConfigurations do
+    include Runkit::Spec
 
     attr_reader :conf
     attr_reader :model
 
     def setup
         super
-        @model = Orocos.default_loader.task_model_from_name("configurations::Task")
-        @conf  = Orocos::TaskConfigurations.new(model)
+        @model = Runkit.default_loader.task_model_from_name("configurations::Task")
+        @conf  = Runkit::TaskConfigurations.new(model)
     end
 
     def verify_loaded_conf(conf, name = nil, *base_path)
@@ -162,7 +162,7 @@ describe Orocos::TaskConfigurations do
         it "auto-saves a marshalled version in the provided cache directory" do
             @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
             flexmock(YAML).should_receive(:load).never
-            conf = Orocos::TaskConfigurations.new(model)
+            conf = Runkit::TaskConfigurations.new(model)
             conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
             default = conf.conf("default")
             assert_equal 20, Typelib.to_ruby(default["intg"])
@@ -176,7 +176,7 @@ describe Orocos::TaskConfigurations do
             CONF
 
             flexmock(YAML).should_receive(:load).at_least.once.pass_thru
-            conf = Orocos::TaskConfigurations.new(model)
+            conf = Runkit::TaskConfigurations.new(model)
             conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
             default = conf.conf("default")
             assert_equal 30, Typelib.to_ruby(default["intg"])
@@ -188,7 +188,7 @@ describe Orocos::TaskConfigurations do
             CONF
             @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
             flexmock(YAML).should_receive(:load).at_least.once.pass_thru
-            conf = Orocos::TaskConfigurations.new(model)
+            conf = Runkit::TaskConfigurations.new(model)
             conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
         end
         it "properly deals with an invalid cache" do
@@ -200,7 +200,7 @@ describe Orocos::TaskConfigurations do
             Dir.glob(File.join(@cache_dir, "*")) do |file|
                 File.truncate(file, 0) if File.file?(file)
             end
-            conf = Orocos::TaskConfigurations.new(model)
+            conf = Runkit::TaskConfigurations.new(model)
             conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
             default = conf.conf("default")
             assert_equal 20, Typelib.to_ruby(default["intg"])
@@ -327,7 +327,7 @@ describe Orocos::TaskConfigurations do
         end
 
         it "raises SectionNotFound if given an unknown section" do
-            assert_raises(Orocos::TaskConfigurations::SectionNotFound) { conf.conf(%w[default does_not_exist], false) }
+            assert_raises(Runkit::TaskConfigurations::SectionNotFound) { conf.conf(%w[default does_not_exist], false) }
         end
 
         it "accepts a 'default' section even if it does not exist" do
@@ -383,7 +383,7 @@ describe Orocos::TaskConfigurations do
         conf.load_from_yaml(File.join(data_dir, "configurations", "base_config.yml"))
 
         start "configurations::Task" => "configurations"
-        task = Orocos.get "configurations"
+        task = Runkit.get "configurations"
 
         assert_equal (0...10).to_a, task.simple_container.to_a
         assert_equal :First, task.compound.enm
@@ -427,8 +427,8 @@ describe Orocos::TaskConfigurations do
     it "should be able to apply complex configuration on the task" do
         conf.load_from_yaml(File.join(data_dir, "configurations", "complex_config.yml"))
 
-        Orocos.run "configurations_test" do
-            task = Orocos::TaskContext.get "configurations"
+        Runkit.run "configurations_test" do
+            task = Runkit::TaskContext.get "configurations"
 
             verify_apply_conf task, conf, "compound_in_compound", "compound", "compound" do
                 assert_conf_value "enm", "/Enumeration", Typelib::EnumType, :Third
@@ -490,8 +490,8 @@ describe Orocos::TaskConfigurations do
     it "zeroes out newly created structures and initializes fields that need to" do
         conf.load_from_yaml(File.join(data_dir, "configurations", "complex_config.yml"))
 
-        Orocos.run "configurations_test" do
-            task = Orocos::TaskContext.get "configurations"
+        Runkit.run "configurations_test" do
+            task = Runkit::TaskContext.get "configurations"
 
             verify_apply_conf task, conf, "zero_and_init", "compound", "vector_of_compound" do
                 assert_conf_value 0, "enm", "/Enumeration", Typelib::EnumType, :Second
@@ -503,7 +503,7 @@ describe Orocos::TaskConfigurations do
     end
 
     it "should be able to load a configuration directory, register configurations on a per-model basis, and report what changed" do
-        manager = Orocos::ConfigurationManager.new
+        manager = Runkit::ConfigurationManager.new
         manager.load_dir(File.join(data_dir, "configurations", "dir"))
         result = manager.conf["configurations::Task"].conf(%w[default add], false)
 
@@ -552,7 +552,7 @@ describe Orocos::TaskConfigurations do
 
     describe "#add" do
         before do
-            manager = Orocos::ConfigurationManager.new
+            manager = Runkit::ConfigurationManager.new
             manager.load_dir(File.join(data_dir, "configurations", "dir"))
             @conf = manager.conf["configurations::Task"]
         end
@@ -600,7 +600,7 @@ describe Orocos::TaskConfigurations do
 
         it "should resize a smaller container" do
             vector = vector_t.new
-            Orocos::TaskConfigurations.apply_conf_on_typelib_value(vector, [1, 2, 3])
+            Runkit::TaskConfigurations.apply_conf_on_typelib_value(vector, [1, 2, 3])
             assert_equal 3, vector.size
             assert_equal 1, vector[0]
             assert_equal 2, vector[1]
@@ -608,21 +608,21 @@ describe Orocos::TaskConfigurations do
         end
         it "should keep a bigger container to its current size" do
             vector = Typelib.from_ruby([1, 2], vector_t)
-            Orocos::TaskConfigurations.apply_conf_on_typelib_value(vector, [-1])
+            Runkit::TaskConfigurations.apply_conf_on_typelib_value(vector, [-1])
             assert_equal 2, vector.size
             assert_equal(-1, vector[0])
             assert_equal 2, vector[1]
         end
         it "should only set the relevant values on a bigger array" do
             array = Typelib.from_ruby([1, 2], array_t)
-            Orocos::TaskConfigurations.apply_conf_on_typelib_value(array, [-1])
+            Runkit::TaskConfigurations.apply_conf_on_typelib_value(array, [-1])
             assert_equal(-1, array[0])
             assert_equal 2, array[1]
         end
         it "should raise ArgumentError if the array is too small" do
             array = Typelib.from_ruby([1, 2], array_t)
             assert_raises(ArgumentError) do
-                Orocos::TaskConfigurations.apply_conf_on_typelib_value(array, [0, 1, 2])
+                Runkit::TaskConfigurations.apply_conf_on_typelib_value(array, [0, 1, 2])
             end
         end
     end
@@ -631,7 +631,7 @@ describe Orocos::TaskConfigurations do
         attr_reader :conf
         before do
             FakeFS.activate!
-            @conf = flexmock(Orocos::ConfigurationManager.new)
+            @conf = flexmock(Runkit::ConfigurationManager.new)
         end
         after do
             FakeFS.deactivate!
@@ -670,7 +670,7 @@ describe Orocos::TaskConfigurations do
         before do
             FakeFS.activate!
             FileUtils.mkdir_p "/conf"
-            @conf = flexmock(Orocos::ConfigurationManager.new)
+            @conf = flexmock(Runkit::ConfigurationManager.new)
         end
         after do
             FakeFS.deactivate!
@@ -682,13 +682,13 @@ describe Orocos::TaskConfigurations do
         it "should allow to specify the model name manually" do
             File.open("/conf/first.yml", "w").close
             conf.load_file "/conf/first.yml", "configurations::Task"
-            flexmock(Orocos).should_receive(:task_model_from_name).with("task::Model")
+            flexmock(Runkit).should_receive(:task_model_from_name).with("task::Model")
                             .pass_thru
         end
         it "should infer the model name if it is not given" do
             File.open("/conf/configurations::Task.yml", "w").close
             conf.load_file "/conf/configurations::Task.yml"
-            flexmock(Orocos).should_receive(:task_model_from_name).with("task::Model")
+            flexmock(Runkit).should_receive(:task_model_from_name).with("task::Model")
                             .pass_thru
         end
         it "should raise OroGen::TaskModelNotFound if the model does not exist" do
@@ -722,7 +722,7 @@ describe Orocos::TaskConfigurations do
                 assert_equal 10, conf.evaluate_numeric_field(10, int_t)
             end
             it "floors integer types, but issues a warning" do
-                flexmock(Orocos::ConfigurationManager).should_receive(:warn).once
+                flexmock(Runkit::ConfigurationManager).should_receive(:warn).once
                 assert_equal 9, conf.evaluate_numeric_field(9.7, int_t)
             end
             it "leaves floating-point values as-is" do
@@ -735,7 +735,7 @@ describe Orocos::TaskConfigurations do
                 assert_equal 10, conf.evaluate_numeric_field("10", int_t)
             end
             it "floors by default for integer types, but emits a warning" do
-                flexmock(Orocos::ConfigurationManager).should_receive(:warn).once
+                flexmock(Runkit::ConfigurationManager).should_receive(:warn).once
                 assert_equal 9, conf.evaluate_numeric_field("9.7", int_t)
             end
             it "allows to specify the rounding mode for integer types" do
@@ -877,7 +877,7 @@ describe Orocos::TaskConfigurations do
                         Hash["in_f" => "string"], Hash["in_f" => 10]
                     ]
                 ]
-                e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
+                e = assert_raises(Runkit::TaskConfigurations::ConversionFailed) do
                     conf.normalize_conf_value(bad_value, type)
                 end
                 assert_equal %w{.out_f [1] .in_f}, e.full_path
@@ -889,7 +889,7 @@ describe Orocos::TaskConfigurations do
                         Hash["in_f" => "string"], Hash["f" => 10]
                     ]
                 ]
-                e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
+                e = assert_raises(Runkit::TaskConfigurations::ConversionFailed) do
                     conf.normalize_conf_value(bad_value, type)
                 end
                 assert_equal %w{.out_f [1]}, e.full_path
@@ -901,7 +901,7 @@ describe Orocos::TaskConfigurations do
                         Hash["in_f" => "string"], Hash["in_f" => "blo"], Hash["in_f" => "bla"]
                     ]
                 ]
-                e = assert_raises(Orocos::TaskConfigurations::ConversionFailed) do
+                e = assert_raises(Runkit::TaskConfigurations::ConversionFailed) do
                     conf.normalize_conf_value(bad_value, type)
                 end
                 assert_equal %w{.out_f}, e.full_path
@@ -915,7 +915,7 @@ describe Orocos::TaskConfigurations do
             attr_reader :task
             before do
                 start "configurations::Task" => "task"
-                @task = Orocos.get "task"
+                @task = Runkit.get "task"
                 # We must load all properties before we activate FakeFS
                 task.each_property do |p|
                     v = p.new_sample
@@ -927,7 +927,7 @@ describe Orocos::TaskConfigurations do
             end
 
             it "warns about deprecation" do
-                flexmock(Orocos).should_receive(:warn).once
+                flexmock(Runkit).should_receive(:warn).once
                 flexmock(conf).should_receive(:save)
                               .with("sec", FlexMock.any, FlexMock.any)
                               .once
@@ -935,8 +935,8 @@ describe Orocos::TaskConfigurations do
             end
 
             it "extracts the task's configuration and saves it to disk" do
-                flexmock(Orocos).should_receive(:warn)
-                expected_conf = conf.normalize_conf(Orocos::TaskConfigurations.read_task_conf(task))
+                flexmock(Runkit).should_receive(:warn)
+                expected_conf = conf.normalize_conf(Runkit::TaskConfigurations.read_task_conf(task))
                 flexmock(conf).should_receive(:save)
                               .with("sec", "/conf.yml", task_model: task.model)
                               .once
@@ -953,14 +953,14 @@ describe Orocos::TaskConfigurations do
                 conf.add "sec", section
             end
             it "saves the named configuration to disk" do
-                flexmock(Orocos::TaskConfigurations).should_receive(:save)
+                flexmock(Runkit::TaskConfigurations).should_receive(:save)
                                                     .with(conf.conf("sec"), "/conf.yml", "sec", task_model: conf.model, replace: false)
                                                     .once
                 conf.save("sec", "/conf.yml")
             end
             it "allows to override the model" do
                 task_model = flexmock
-                flexmock(Orocos::TaskConfigurations).should_receive(:save)
+                flexmock(Runkit::TaskConfigurations).should_receive(:save)
                                                     .with(conf.conf("sec"), "/conf.yml", "sec", task_model: task_model, replace: false)
                                                     .once
                 conf.save("sec", "/conf.yml", task_model: task_model)
@@ -973,24 +973,24 @@ describe Orocos::TaskConfigurations do
             attr_reader :task, :expected
             before do
                 start "configurations::Task" => "task"
-                @task = Orocos.get "task"
+                @task = Runkit.get "task"
                 # We must load all properties before we activate FakeFS
                 task.each_property do |p|
                     p.write p.new_sample
                 end
-                conf = Orocos::TaskConfigurations.new(task.model)
-                @expected = conf.normalize_conf(Orocos::TaskConfigurations.read_task_conf(task))
+                conf = Runkit::TaskConfigurations.new(task.model)
+                @expected = conf.normalize_conf(Runkit::TaskConfigurations.read_task_conf(task))
             end
 
             it "extracts the configuration from the task and saves it" do
-                flexmock(Orocos::TaskConfigurations)
+                flexmock(Runkit::TaskConfigurations)
                     .should_receive(:save).once
                     .with(task, "/conf.yml", "sec", task_model: task.model)
                     .pass_thru
-                flexmock(Orocos::TaskConfigurations)
+                flexmock(Runkit::TaskConfigurations)
                     .should_receive(:save).once
                     .with(expected, "/conf.yml", "sec", replace: false, task_model: task.model)
-                Orocos::TaskConfigurations.save(task, "/conf.yml", "sec", task_model: task.model)
+                Runkit::TaskConfigurations.save(task, "/conf.yml", "sec", task_model: task.model)
             end
         end
 
@@ -1005,12 +1005,12 @@ describe Orocos::TaskConfigurations do
 
             it "creates the target directory" do
                 config = Hash["enm" => "First"]
-                Orocos::TaskConfigurations.save(config, "/config/conf.yml", "sec")
+                Runkit::TaskConfigurations.save(config, "/config/conf.yml", "sec")
                 assert File.directory?("/config")
             end
             it "saves the task's configuration file into the specified file and section" do
                 config = Hash["enm" => "First"]
-                Orocos::TaskConfigurations.save(config, "/conf.yml", "sec")
+                Runkit::TaskConfigurations.save(config, "/conf.yml", "sec")
                 conf.load_from_yaml "/conf.yml"
                 c = conf.conf(["sec"])
                 assert_equal ["enm"], c.keys
@@ -1019,15 +1019,15 @@ describe Orocos::TaskConfigurations do
             it "adds the property's documentation to the saved file" do
                 model.find_property("enm").doc("this is a documentation string")
                 config = Hash["enm" => "First"]
-                Orocos::TaskConfigurations.save(config, "/conf.yml", "sec", task_model: model)
+                Runkit::TaskConfigurations.save(config, "/conf.yml", "sec", task_model: model)
                 data = File.readlines("/conf.yml")
                 _, idx = data.each_with_index.find { |line, idx| line.strip == "# this is a documentation string" }
                 assert data[idx + 1].strip =~ /^enm:/
             end
             it "appends the documentation to an existing file" do
                 config = Hash["enm" => "First"]
-                Orocos::TaskConfigurations.save(config, "/conf.yml", "first")
-                Orocos::TaskConfigurations.save(config, "/conf.yml", "second")
+                Runkit::TaskConfigurations.save(config, "/conf.yml", "first")
+                Runkit::TaskConfigurations.save(config, "/conf.yml", "second")
                 conf.load_from_yaml "/conf.yml"
                 assert conf.has_section?("first")
                 assert conf.has_section?("second")
@@ -1039,7 +1039,7 @@ describe Orocos::TaskConfigurations do
                 expected_filename = File.join(conf_dir, "#{model.name}.yml")
 
                 FileUtils.mkdir_p conf_dir
-                Orocos::TaskConfigurations.save(config, expected_filename, "sec", task_model: model)
+                Runkit::TaskConfigurations.save(config, expected_filename, "sec", task_model: model)
                 conf.load_from_yaml expected_filename
                 enm = Typelib.to_ruby(conf.conf("sec")["enm"])
                 assert(Typelib.to_ruby(enm) == :First)
@@ -1051,9 +1051,9 @@ describe Orocos::TaskConfigurations do
                 expected_filename = File.join(conf_dir, "#{model.name}.yml")
 
                 FileUtils.mkdir_p conf_dir
-                flexmock(Orocos::TaskConfigurations).should_receive(:to_yaml)
+                flexmock(Runkit::TaskConfigurations).should_receive(:to_yaml)
                                                     .with(config).and_return("enm" => :First)
-                Orocos::TaskConfigurations.save(config, expected_filename, "sec", task_model: model)
+                Runkit::TaskConfigurations.save(config, expected_filename, "sec", task_model: model)
                 conf.load_from_yaml expected_filename
                 enm = Typelib.to_ruby(conf.conf("sec")["enm"])
                 assert(Typelib.to_ruby(enm) == :First)
@@ -1083,14 +1083,14 @@ describe Orocos::TaskConfigurations do
                 end
                 compound = compound_t.new(f: @converted_t.new(f: 0))
                 compound.f.value = 42
-                assert_equal Hash["f" => Hash["f" => 42]], Orocos::TaskConfigurations.to_yaml(compound)
+                assert_equal Hash["f" => Hash["f" => 42]], Runkit::TaskConfigurations.to_yaml(compound)
             end
         end
     end
 end
 
-class TC_Orocos_Configurations < Minitest::Test
-    TaskConfigurations = Orocos::TaskConfigurations
+class TC_Runkit_Configurations < Minitest::Test
+    TaskConfigurations = Runkit::TaskConfigurations
 
     def test_merge_conf_array
         assert_raises(ArgumentError) { TaskConfigurations.merge_conf_array([nil, 1], [nil, 2], false) }
@@ -1107,11 +1107,11 @@ class TC_Orocos_Configurations < Minitest::Test
     end
 
     def test_override_arrays
-        unless Orocos.registry.include?("/base/Vector3d")
-            type_m = Orocos.registry.create_compound("/base/Vector3d") do |t|
+        unless Runkit.registry.include?("/base/Vector3d")
+            type_m = Runkit.registry.create_compound("/base/Vector3d") do |t|
                 t.data = "/double[4]"
             end
-            Orocos.default_loader.register_type_model(type_m)
+            Runkit.default_loader.register_type_model(type_m)
         end
 
         model = mock_task_context_model do
@@ -1119,7 +1119,7 @@ class TC_Orocos_Configurations < Minitest::Test
             property "gyrorrw", "/base/Vector3d"
         end
 
-        conf = Orocos::TaskConfigurations.new(model)
+        conf = Runkit::TaskConfigurations.new(model)
         default_conf = {
             "gyrorrw" => {
                 "data" => [2.65e-06, 4.01e-06, 5.19e-06]
