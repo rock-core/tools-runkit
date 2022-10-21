@@ -302,22 +302,22 @@ module Runkit
         end
 
         # Returns true if +name+ is the name of a attribute on this task context
-        def has_attribute?(name)
+        def attribute?(name)
             attribute_names.include?(name.to_str)
         end
 
         # Returns true if this task context has either a property or an attribute with the given name
-        def has_property?(name)
+        def property?(name)
             property_names.include?(name.to_str)
         end
 
         # Returns true if this task context has a command with the given name
-        def has_operation?(name)
+        def operation?(name)
             operation_names.include?(name.to_str)
         end
 
         # Returns true if this task context has a port with the given name
-        def has_port?(name)
+        def port?(name)
             port_names.include?(name.to_str)
         end
 
@@ -711,16 +711,16 @@ module Runkit
                 rescue Runkit::NotFound
                 end
 
-            elsif has_port?(m)
+            elsif port?(m)
                 raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}" unless args.empty?
 
                 return port(m)
-            elsif has_operation?(m)
+            elsif operation?(m)
                 return operation(m).callop(*args)
-            elsif has_property?(m) || has_attribute?(m)
+            elsif property?(m) || attribute?(m)
                 raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}" unless args.empty?
 
-                prop = if has_property?(m) then property(m)
+                prop = if property?(m) then property(m)
                        else attribute(m)
                        end
                 value = prop.read

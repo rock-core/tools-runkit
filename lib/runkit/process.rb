@@ -794,7 +794,7 @@ module Runkit
         # @api private
         #
         # Checks that the given command can be resolved
-        def self.has_command?(cmd)
+        def self.command?(cmd)
             if File.file?(cmd) && File.executable?(cmd)
                 nil
             else
@@ -832,7 +832,7 @@ module Runkit
         def self.parse_cmdline_wrapper_option(cmd, deployments, options, all_deployments)
             return {} unless deployments
 
-            raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed" unless has_command?(cmd)
+            raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed" unless command?(cmd)
 
             unless deployments.respond_to?(:to_hash)
                 if deployments.respond_to?(:to_str)

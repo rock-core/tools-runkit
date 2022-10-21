@@ -18,7 +18,7 @@ module Runkit
 
         def initialize(task, name, runkit_type_name)
             super
-            if task.has_operation?(opname = "__orogen_set#{name.capitalize}")
+            if task.operation?(opname = "__orogen_set#{name.capitalize}")
                 @dynamic_operation = task.operation(opname)
             end
         end
@@ -218,7 +218,7 @@ module Runkit
         # orogen_getPID operation that returns this information
         def tid
             unless @tid
-                if has_operation?("__orogen_getTID")
+                if operation?("__orogen_getTID")
                     @tid = operation("__orogen_getTID").callop
                 else
                     raise ArgumentError, "#tid is available only on oroGen tasks, not #{self}"
@@ -256,7 +256,7 @@ module Runkit
 
         def create_property_log_stream(p)
             stream_name = "#{name}.#{p.name}"
-            p.log_stream = if !configuration_log.has_stream?(stream_name)
+            p.log_stream = if !configuration_log.stream?(stream_name)
                                configuration_log.create_stream(stream_name, p.type, p.log_metadata)
                            else
                                configuration_log.stream(stream_name)
@@ -372,7 +372,7 @@ module Runkit
         state_transition_call :cleanup, "STOPPED", "PRE_OPERATIONAL"
 
         # Returns true if this task context has a command with the given name
-        def has_operation?(name)
+        def operation?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
                 do_has_operation?(name)
@@ -382,7 +382,7 @@ module Runkit
         end
 
         # Returns true if this task context has a port with the given name
-        def has_port?(name)
+        def port?(name)
             name = name.to_s
             CORBA.refine_exceptions(self) do
                 do_has_port?(name)
@@ -437,7 +437,7 @@ module Runkit
         def attribute(name)
             name = name.to_s
             if a = attributes[name]
-                if has_attribute?(name)
+                if attribute?(name)
                     return a
                 else
                     attributes.delete(name)
@@ -487,7 +487,7 @@ module Runkit
         def property(name)
             name = name.to_s
             if p = properties[name]
-                if has_property?(name)
+                if property?(name)
                     return p
                 else
                     properties.delete(name)
@@ -531,7 +531,7 @@ module Runkit
             name = name.to_str
             CORBA.refine_exceptions(self) do
                 if @ports[name]
-                    if !verify || has_port?(name) # Check that this port is still valid
+                    if !verify || port?(name) # Check that this port is still valid
                         @ports[name]
                     else
                         @ports.delete(name)

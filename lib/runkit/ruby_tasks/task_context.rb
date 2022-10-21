@@ -182,13 +182,13 @@ module Runkit
                 remove_inputs = []
 
                 orogen_model.each_property do |p|
-                    if has_property?(p.name)
+                    if property?(p.name)
                         raise IncompatibleInterface, "cannot adapt the interface of #{self} to match the model in #{orogen_model}: #{self} already has a property called #{p.name}, but with a different type" if property(p.name).runkit_type_name != p.runkit_type_name
                     else new_properties << p
                     end
                 end
                 orogen_model.each_input_port do |p|
-                    if has_port?(p.name)
+                    if port?(p.name)
                         existing_port = port(p.name)
                         if existing_port.runkit_type_name != p.runkit_type_name
                             remove_inputs << existing_port
@@ -198,7 +198,7 @@ module Runkit
                     end
                 end
                 orogen_model.each_output_port do |p|
-                    if has_port?(p.name)
+                    if port?(p.name)
                         existing_port = port(p.name)
                         if existing_port.runkit_type_name != p.runkit_type_name
                             remove_outputs << existing_port
@@ -223,7 +223,7 @@ module Runkit
                 nil
             end
 
-            def has_port?(name)
+            def port?(name)
                 @local_ports.key?(name) || super
             end
 

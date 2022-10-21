@@ -1029,8 +1029,8 @@ describe Runkit::TaskConfigurations do
                 Runkit::TaskConfigurations.save(config, "/conf.yml", "first")
                 Runkit::TaskConfigurations.save(config, "/conf.yml", "second")
                 conf.load_from_yaml "/conf.yml"
-                assert conf.has_section?("first")
-                assert conf.has_section?("second")
+                assert conf.section?("first")
+                assert conf.section?("second")
             end
             it "uses the model's name as default file name" do
                 config = Hash["enm" => :First]

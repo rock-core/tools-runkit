@@ -169,7 +169,7 @@ module Runkit
                 yield
             end
         rescue NotFound
-            if !other || task.has_port?(name)
+            if !other || task.port?(name)
                 raise InterfaceObjectNotFound.new(task, name), "port '#{name}' disappeared from task '#{task.name}'"
             else
                 raise InterfaceObjectNotFound.new(other.task, other.name), "port '#{other.name}' disappeared from task '#{other.task.name}'"

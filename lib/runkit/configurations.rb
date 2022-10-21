@@ -633,7 +633,7 @@ module Runkit
         end
 
         # Tests whether the given section exists
-        def has_section?(name)
+        def section?(name)
             sections.key?(name)
         end
 
