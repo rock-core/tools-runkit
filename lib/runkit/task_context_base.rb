@@ -18,10 +18,6 @@ module Runkit
         # The IOR of this task context
         attr_reader :ior
 
-        # The underlying process object that represents this node
-        # It is non-nil only if this node has been started by runkit.rb
-        attr_accessor :process
-
         # If set, this is a Pocolog::Logfiles object in which the values of
         # properties and attributes should be logged.
         #
@@ -29,37 +25,22 @@ module Runkit
         # are no ways to log the values changed from within the task context.
         attr_reader :configuration_log
 
-        # Returns the last-known state
-        attr_reader :current_state
-
         # A name => Attribute instance mapping of cached attribute objects
         attr_reader :attributes
 
         # A name => Property instance mapping of cached properties
         attr_reader :properties
 
-        # A mapping from static numeric value to state names
-        attr_reader :state_symbols
-
         # @param [String] name The name of the task.
         # @param [Hash] options The options.
         # @option options [Runkit::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
-        def initialize(name, namespace: nil, process: nil, model: nil)
+        def initialize(name, model:)
             @ports = {}
             @properties = {}
             @attributes = {}
-            @state_queue = []
-
-            @process = process
-
-            @process ||= Runkit.enum_for(:each_process)
-                               .find do |p|
-                p.task_names.any? { |n| n == name }
-            end
 
             @name = name
-            process&.register_task(self)
 
             @model = model
             initialize_model_info(model)
@@ -156,14 +137,6 @@ module Runkit
             (doc && !doc.empty?)
         end
 
-        # True if it is known that this task runs on the local machine
-        #
-        # This requires the process handling to be done by runkit.rb (the method
-        # checks if the process runs on the local machine)
-        def on_localhost?
-            process&.on_localhost?
-        end
-
         # True if the given symbol is the name of a runtime state
         def runtime_state?(sym)
             @runtime_states.include?(sym)
@@ -184,66 +157,11 @@ module Runkit
             @fatal_states.include?(sym)
         end
 
-        # Returns true if the task is pre-operational
-        def pre_operational?
-            peek_current_state && peek_current_state == :PRE_OPERATIONAL
-        end
-
-        # Returns true if the task is in a state where code is executed. This
-        # includes of course the running state, but also runtime error states.
-        def running?
-            runtime_state?(peek_current_state)
-        end
-
-        # Returns true if the task has been configured.
-        def ready?
-            peek_current_state && (peek_current_state != :PRE_OPERATIONAL)
-        end
-
-        # Returns true if the task is in an error state (runtime or fatal)
-        def error?
-            error_state?(peek_current_state)
-        end
-
-        # Returns true if the task is in a runtime error state
-        def runtime_error?
-            state = peek_current_state
-            error_state?(state) &&
-                !exception_state?(state) &&
-                !fatal_error_state?(state)
-        end
-
-        # Returns true if the task is in an exceptional state
-        def exception?
-            exception_state?(peek_current_state)
-        end
-
-        # Returns true if the task is in a fatal error state
-        def fatal_error?
-            fatal_error_state?(peek_current_state)
-        end
-
-        # Returns an array of symbols that give the tasks' state names from
-        # their integer value. This is mostly for internal use.
-        def available_states # :nodoc:
-            return @states if @states
-        end
-
         # This is meant to be used internally
         # Returns the current task's state without "hiding" any state change to
         # the task's user.
         #
         # This is meant to be used internally
-
-        def peek_current_state
-            peek_state.last || @current_state
-        end
-
-        def peek_state
-            current_state = rtt_state
-            @state_queue << current_state if (@state_queue.empty? && current_state != @current_state) || (@state_queue.last != current_state)
-            @state_queue
-        end
 
         def input_port(name)
             p = port(name)
@@ -261,6 +179,7 @@ module Runkit
             else
                 raise InterfaceObjectNotFound.new(self, name), "#{name} is an input port of #{self.name}, was expecting an output port"
             end
+            p
         end
 
         # Returns an array of all the ports defined on this task context
@@ -288,32 +207,6 @@ module Runkit
             each_port do |p|
                 yield(p) if p.respond_to?(:reader)
             end
-        end
-
-        # Returns the Orogen specification object for this task instance.
-        # This is available only if the deployment in which this task context
-        # runs has been generated by orogen *and* this deployment has been
-        # started by this Ruby instance
-        #
-        # To get the Orogen specification for the task context itself (an
-        # OroGen::Spec::TaskContext instance), use {#model}.
-        #
-        # @return [OroGen::Spec::TaskDeployment]
-        # @see model
-        def info
-            @info ||= process.orogen.task_activities.find { |act| act.name == name } if process
-        end
-
-        # Returns a documentation string describing the task
-        # If no documentation is available it returns nil
-        def doc
-            model&.doc
-        end
-
-        # True if we got a state change announcement
-        def state_changed?
-            peek_state
-            !@state_queue.empty?
         end
 
         # Returns true if the remote task context can still be reached through
@@ -379,70 +272,11 @@ module Runkit
                 .compact.to_set
 
             add_default_states
-
-        # True if this task's model is a subclass of the provided class name
-        #
-        # This is available only if the deployment in which this task context
-        # runs has been generated by orogen.
-        def implements?(class_name)
-            model&.implements?(class_name)
-        end
-
-        # Returns the state of the task, as a symbol. The possible values for
-        # all task contexts are:
-        #
-        #   :PRE_OPERATIONAL
-        #   :STOPPED
-        #   :ACTIVE
-        #   :RUNNING
-        #   :RUNTIME_WARNING
-        #   :RUNTIME_ERROR
-        #   :FATAL_ERROR
-        #
-        # If the component is an oroGen component on which custom states have
-        # been defined, these custom states are also reported with their name.
-        # For instance, after the orogen definition
-        #
-        #   runtime_states "CUSTOM_RUNTIME"
-        #
-        # #state will return :CUSTOM_RUNTIME if the component goes into that
-        # state.
-        #
-        # If +return_current+ is true, the current component state is returned.
-        # Otherwise, only the next state in the state queue is returned. This is
-        # only valid for oroGen components with extended state support (for
-        # which all state changes are saved instead of only the last one)
-        def state(return_current = true)
-            peek_state
-            if @state_queue.empty?
-                @current_state
-            elsif return_current
-                @current_state = @state_queue.last
-                @state_queue.clear
-            else
-                @current_state = @state_queue.shift
-            end
-            @current_state
-        end
-
-        # Returns all states which were received since the last call
-        # and sets the current state to the last one.
-        def states
-            peek_state
-            if !@state_queue.empty?
-                @current_state = @state_queue.last
-                old = @state_queue
-                @state_queue = []
-                old
-            else
-                []
-            end
         end
 
         def pretty_print(pp) # :nodoc:
             pp.text "Component #{name}"
             pp.breakable
-            pp.text "  state: #{peek_current_state}"
             pp.breakable
 
             [["attributes", each_attribute], ["properties", each_property]].each do |kind, enum|
