@@ -17,4 +17,3 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
 CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src);
 
 #endif
-
