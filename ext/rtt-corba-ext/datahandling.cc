@@ -1,6 +1,7 @@
-#include "datahandling.hh"
+#include "rtt-corba.hh"
+
 #include "corba.hh"
-#include "rorocos.hh"
+#include "datahandling.hh"
 #include <rtt/base/PortInterface.hpp>
 #include <rtt/transports/corba/CorbaLib.hpp>
 #include <rtt/types/TypeTransporter.hpp>
@@ -37,7 +38,7 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
     else {
         orogen_transports::TypelibMarshallerBase::Handle* handle =
             typelib_transport->createHandle();
-        // Set the typelib sample but don't copy it to the orocos sample as we
+        // Set the typelib sample but don't copy it to the typelib sample as we
         // will copy back anyway
         typelib_transport->setTypelibSample(handle, dest, false);
         RTT::base::DataSourceBase::shared_ptr ds =
@@ -224,7 +225,7 @@ static VALUE attribute_do_write(VALUE rbtask,
     return Qnil;
 }
 
-void Orocos_init_data_handling(VALUE cTaskContext)
+void runkit_init_data_handling(VALUE cTaskContext)
 {
     rb_define_method(cTaskContext,
         "do_property_read_string",

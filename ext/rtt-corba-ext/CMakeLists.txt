@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 2.6)
-PROJECT(corba)
+cmake_minimum_required(VERSION 3.9)
+PROJECT(runkit-rtt-corba-ext)
 
 SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 INCLUDE(RubyExtensions)
@@ -52,16 +52,6 @@ if (RTT_MQUEUE_FOUND)
     list(APPEND ADDITIONAL_RTT_PLUGINS rtt-transport-mqueue)
 else()
     message(STATUS "could not find the RTT MQueue transport, disabling support in orocos.rb")
-endif()
-
-pkg_check_modules(RTT_ROS orocos-rtt-ros-${OROCOS_TARGET} roscpp)
-if (RTT_ROS_FOUND)
-    include_directories( ${RTT_ROS_INCLUDE_DIRS} )
-    add_definitions(-DHAS_ROS)
-    list(APPEND ADDITIONAL_RTT_PLUGINS rtt-transport-ros)
-    list(APPEND ROS_FILES ros.cc)
-else()
-    message(STATUS "could not find the RTT ROS transport, disabling support in orocos.rb")
 endif()
 
 pkg_check_modules(RTT_CORBA REQUIRED orocos-rtt-corba-${OROCOS_TARGET})
@@ -127,14 +117,10 @@ MACRO(OMNIORB)
     SET(ORB_LIBRARIES omniORB4 omniDynamic4)
 ENDMACRO(OMNIORB)
 
-
-link_directories(${RTT_ROS_LIBRARY_DIRS})
-
-
 OMNIORB()
-SET(EXTENSION_NAME rorocos)
-ADD_RUBY_EXTENSION(${EXTENSION_NAME}
-    ruby_task_context.cc rorocos.cc corba.cc datahandling.cc operations.cc
+SET(EXTENSION_NAME rtt-corba-ext)
+add_ruby_extension(${EXTENSION_NAME}
+    ruby_task_context.cc rtt-corba.cc corba.cc datahandling.cc operations.cc
     lib/corba_name_service_client.cc ${ORB_IDL_FILES} ${ROS_FILES})
 
 # OmniORB defines static global variables for internal bookkeeping. They show up

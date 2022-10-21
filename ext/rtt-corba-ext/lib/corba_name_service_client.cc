@@ -2,17 +2,16 @@
  Copyright (c) 2012, Alexander Duda, DFKI
  */
 
-// Topic used to find registered Orocos Task Contexts
-#define TOPIC "TaskContexts"
+//Topic used to find registered Orocos Task Contexts
+#define TOPIC "TaskContexts"    
 
 #include "corba_name_service_client.hh"
 using namespace corba;
 
-NameServiceClient::NameServiceClient(std::string name_service_ip,
-    std::string name_service_port)
-    : name_service_port(name_service_port)
-    , name_service_ip(name_service_ip)
-    , abort_flag(false)
+NameServiceClient::NameServiceClient(std::string name_service_ip,std::string name_service_port):
+    name_service_port(name_service_port),
+    name_service_ip(name_service_ip),
+    abort_flag(false)
 {
 }
 
@@ -20,7 +19,7 @@ NameServiceClient::~NameServiceClient()
 {
 }
 
-void NameServiceClient::reset(std::string const& ip, std::string const& port)
+void NameServiceClient::reset(std::string const &ip,std::string const &port)
 {
     boost::mutex::scoped_lock lock(mut);
     root_context = CosNaming::NamingContext::_nil();
@@ -31,10 +30,9 @@ void NameServiceClient::reset(std::string const& ip, std::string const& port)
 CosNaming::NamingContext_var NameServiceClient::getNameService()
 {
     boost::mutex::scoped_lock lock(mut);
-    // get name service
+    //get name service
     if (CORBA::is_nil(root_context))
-        root_context =
-            NameServiceClient::getNameService(name_service_ip, name_service_port);
+        root_context = NameServiceClient::getNameService(name_service_ip,name_service_port);
     return root_context;
 }
 
@@ -69,12 +67,11 @@ std::vector<std::string> NameServiceClient::getTaskContextNames()
 
     // get all available task names from the name server
     CORBA::Object_var control_tasks_var = root_context->resolve(server_name);
-    CosNaming::NamingContext_var control_tasks =
-        CosNaming::NamingContext::_narrow(control_tasks_var);
+    CosNaming::NamingContext_var control_tasks = CosNaming::NamingContext::_narrow (control_tasks_var);
     if (CORBA::is_nil(control_tasks))
         return task_names;
 
-    if (abort_flag)
+    if(abort_flag)
         return task_names;
 
     control_tasks->list(0, binding_list, binding_it);
@@ -82,7 +79,8 @@ std::vector<std::string> NameServiceClient::getTaskContextNames()
         return task_names;
 
     // iterate over all task names
-    while (!abort_flag && binding_it->next_n(10, binding_list)) {
+    while(!abort_flag && binding_it->next_n(10, binding_list))
+    {
         CosNaming::BindingList list = binding_list.in();
         for (unsigned int i = 0; i < list.length(); ++i)
             task_names.push_back(std::string(list[i].binding_name[0].id.in()));
@@ -90,17 +88,19 @@ std::vector<std::string> NameServiceClient::getTaskContextNames()
     return task_names;
 }
 
-void NameServiceClient::bind(CORBA::Object_var const& obj, std::string const& name)
+void NameServiceClient::bind(CORBA::Object_var const &obj,std::string const& name)
 {
     // no need to lock mutex getNameService is taking care of this.
     CosNaming::NamingContext_var root_context = getNameService();
     CosNaming::Name n;
     n.length(1);
     n[0].id = CORBA::string_dup(TOPIC);
-    try {
+    try
+    {
         CosNaming::NamingContext_var nc = root_context->bind_new_context(n);
     }
-    catch (const CosNaming::NamingContext::AlreadyBound&) {
+    catch (const CosNaming::NamingContext::AlreadyBound &) 
+    {
         // Fine, context already exists.
     }
     // Force binding
@@ -121,15 +121,15 @@ bool NameServiceClient::unbind(std::string const& name)
     // no need to lock mutex getNameService is taking care of this.
     CosNaming::NamingContext_var root_context = getNameService();
     CosNaming::Name server_name;
-    try {
+    try
+    {
         server_name.length(2);
-        server_name[0].id = CORBA::string_dup(TOPIC);
-        server_name[1].id = CORBA::string_dup(name.c_str());
+        server_name[0].id = CORBA::string_dup( TOPIC );
+        server_name[1].id = CORBA::string_dup( name.c_str() );
         root_context->unbind(server_name);
         return true;
     }
-    catch (CosNaming::NamingContext::NotFound) {
-    }
+    catch(CosNaming::NamingContext::NotFound) {}
     return false;
 }
 
@@ -140,30 +140,25 @@ std::string NameServiceClient::getIOR(std::string const& name)
     CosNaming::Name server_name;
     server_name.length(2);
     server_name[0].id = CORBA::string_dup(TOPIC);
-    server_name[1].id = CORBA::string_dup(name.c_str());
+    server_name[1].id = CORBA::string_dup( name.c_str() );
     CORBA::Object_var task_object;
     task_object = root_context->resolve(server_name);
-    CORBA::String_var s =
-        RTT::corba::ApplicationServer::orb->object_to_string(task_object);
+    CORBA::String_var s = RTT::corba::ApplicationServer::orb->object_to_string(task_object);
     return std::string(s.in());
 }
 
-// returns a valid context or throws an exception
-CosNaming::NamingContext_var NameServiceClient::getNameService(
-    const std::string name_service_ip,
-    const std::string name_service_port)
+//returns a valid context or throws an exception
+CosNaming::NamingContext_var NameServiceClient::getNameService(const std::string name_service_ip, const std::string name_service_port)
 {
-    if (CORBA::is_nil(RTT::corba::ApplicationServer::orb))
-        throw NameServiceClientError(
-            "Corba is not initialized. Call Orocos.initialize first.");
+    if(CORBA::is_nil(RTT::corba::ApplicationServer::orb))
+        throw NameServiceClientError("Corba is not initialized. Call Orocos.initialize first.");
 
     CosNaming::NamingContext_var rootContext;
 
     // Obtain reference to Root POA.
-    CORBA::Object_var obj_poa =
-        RTT::corba::ApplicationServer::orb->resolve_initial_references("RootPOA");
+    CORBA::Object_var obj_poa = RTT::corba::ApplicationServer::orb->resolve_initial_references("RootPOA");
     PortableServer::POA_var root_poa = PortableServer::POA::_narrow(obj_poa);
-    if (CORBA::is_nil(root_poa))
+    if(CORBA::is_nil(root_poa))
         throw NameServiceClientError("Failed to narrow poa context.");
 
     // activate poa manager
@@ -171,20 +166,20 @@ CosNaming::NamingContext_var NameServiceClient::getNameService(
 
     // Obtain reference to NameServiceClient
     CORBA::Object_var obj;
-    if (!name_service_ip.empty()) {
+    if(!name_service_ip.empty())
+    {
         std::string temp("corbaloc::");
         temp = temp + name_service_ip;
-        if (!name_service_port.empty())
+        if(!name_service_port.empty())
             temp = temp + ":" + name_service_port;
-        temp = temp + "/NameService";
+        temp = temp +"/NameService";
         obj = RTT::corba::ApplicationServer::orb->string_to_object(temp.c_str());
     }
     else
-        obj =
-            RTT::corba::ApplicationServer::orb->resolve_initial_references("NameService");
+        obj = RTT::corba::ApplicationServer::orb->resolve_initial_references("NameService");
 
     rootContext = CosNaming::NamingContext::_narrow(obj.in());
-    if (CORBA::is_nil(rootContext))
+    if(CORBA::is_nil(rootContext))
         throw NameServiceClientError("Failed to narrow NameService context.");
 
     return rootContext;

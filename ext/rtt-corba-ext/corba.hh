@@ -1,5 +1,5 @@
-#ifndef OROCOS_RB_EXT_CORBA_HH
-#define OROCOS_RB_EXT_CORBA_HH
+#ifndef RUNKIT_CORBA_EXT_CORBA_HH
+#define RUNKIT_CORBA_EXT_CORBA_HH
 
 #include <omniORB4/CORBA.h>
 
@@ -22,7 +22,6 @@ using namespace std;
 extern VALUE eCORBA;
 extern VALUE eCORBAComError;
 extern VALUE eCORBATimeoutError;
-extern VALUE mCORBA;
 extern VALUE eNotFound;
 extern VALUE eNotInitialized;
 

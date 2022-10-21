@@ -1,4 +1,4 @@
-#include "rorocos.hh"
+#include "rtt-corba.hh"
 
 #include <rtt/base/PortInterface.hpp>
 #include <rtt/internal/ConnFactory.hpp>
@@ -196,7 +196,7 @@ static void local_task_context_dispose(RLocalTaskContext* rtask)
 
 static void delete_local_task_context(RLocalTaskContext* rtask)
 {
-    std::auto_ptr<RLocalTaskContext> guard(rtask);
+    std::unique_ptr<RLocalTaskContext> guard(rtask);
     local_task_context_dispose(rtask);
 }
 
@@ -516,12 +516,12 @@ static VALUE local_output_port_write(VALUE _local_port,
     return local_port.connected() ? Qtrue : Qfalse;
 }
 
-void Orocos_init_ruby_task_context(VALUE mOrocos,
+void runkit_init_ruby_task_context(VALUE mRoot,
     VALUE cTaskContext,
     VALUE cOutputPort,
     VALUE cInputPort)
 {
-    VALUE mRubyTasks = rb_define_module_under(mOrocos, "RubyTasks");
+    VALUE mRubyTasks = rb_define_module_under(mRoot, "RubyTasks");
     cRubyTaskContext = rb_define_class_under(mRubyTasks, "TaskContext", cTaskContext);
     cLocalTaskContext =
         rb_define_class_under(cRubyTaskContext, "LocalTaskContext", rb_cObject);

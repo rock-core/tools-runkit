@@ -13,7 +13,7 @@
 
 #include "corba.hh"
 #include "lib/corba_name_service_client.hh"
-#include "rorocos.hh"
+#include "rtt-corba.hh"
 
 using namespace CORBA;
 using namespace std;
@@ -21,6 +21,7 @@ using namespace boost;
 using namespace corba;
 
 static VALUE cNameService;
+static VALUE mCORBA;
 
 CorbaAccess* CorbaAccess::the_instance = NULL;
 void CorbaAccess::init(int argc, char* argv[])
@@ -49,7 +50,7 @@ CorbaAccess::~CorbaAccess()
 
 RTaskContext* CorbaAccess::createRTaskContext(std::string const& ior)
 {
-    std::auto_ptr<RTaskContext> new_context(new RTaskContext);
+    std::unique_ptr<RTaskContext> new_context(new RTaskContext);
     // check if ior is a valid IOR if not an exception is thrown
     new_context->task = getCTaskContext(ior);
     new_context->main_service = new_context->task->getProvider("this");
@@ -63,7 +64,7 @@ RTT::corba::CTaskContext_var CorbaAccess::getCTaskContext(std::string const& ior
 {
     if (CORBA::is_nil(RTT::corba::ApplicationServer::orb))
         throw std::runtime_error(
-            "Corba is not initialized. Call Orocos.initialize first.");
+            "Corba is not initialized. Call Runkit.initialize first.");
 
     // Use the ior to create the task object reference,
     CORBA::Object_var task_object;
@@ -104,13 +105,13 @@ static void corba_deinit(void*)
 }
 
 /* call-seq:
- *   Orocos::CORBA.init => true or false
+ *   Runkit::CORBA.do_init => true or false
  *
  * Initializes the CORBA ORB and gets a reference to the local name server.
  * Returns true if a new connection has been made and false if the CORBA layer
  * was already initialized.
  *
- * It raises Orocos::CORBAError if either the ORB failed to initialize or the
+ * It raises Runkit::CORBAError if either the ORB failed to initialize or the
  * name server cannot be found.
  */
 static VALUE corba_init(VALUE mod)
@@ -138,7 +139,7 @@ static VALUE corba_is_initialized(VALUE mod)
 }
 
 /* call-seq:
- *   Orocos::CORBA.transportable_type_names => name_list
+ *   Runkit::CORBA.transportable_type_names => name_list
  *
  * Returns an array of string that are the type names which can be transported
  * over the CORBA layer
@@ -175,7 +176,7 @@ static VALUE name_service_create(int argc, VALUE* argv, VALUE klass)
             port = StringValueCStr(argv[1]);
     }
 
-    std::auto_ptr<NameServiceClient> new_name_service(new NameServiceClient(ip, port));
+    std::unique_ptr<NameServiceClient> new_name_service(new NameServiceClient(ip, port));
     VALUE obj = simple_wrap(cNameService, new_name_service.release());
     rb_obj_call_init(obj, argc, argv);
     return obj;
@@ -206,7 +207,7 @@ void corba_must_be_initialized()
 {
     if (CORBA::is_nil(RTT::corba::ApplicationServer::orb))
         rb_raise(eNotInitialized,
-            "Corba is not initialized. Call Orocos.initialize first.");
+            "Corba is not initialized. Call Runkit.initialize first.");
 }
 
 static VALUE name_service_task_context_names(VALUE self)
@@ -270,9 +271,9 @@ static VALUE name_service_ior(VALUE self, VALUE task_name)
     return rb_str_new2(ior.c_str());
 }
 
-void Orocos_init_CORBA()
+void runkit_init_CORBA(VALUE mRoot, VALUE mCORBA)
 {
-    VALUE mOrocos = rb_define_module("Orocos");
+    ::mCORBA = mCORBA;
     rb_define_singleton_method(mCORBA,
         "initialized?",
         RUBY_METHOD_FUNC(corba_is_initialized),
@@ -292,8 +293,7 @@ void Orocos_init_CORBA()
         RUBY_METHOD_FUNC(corba_transportable_type_names),
         0);
 
-    VALUE cNameServiceBase =
-        rb_define_class_under(mOrocos, "NameServiceBase", rb_cObject);
+    VALUE cNameServiceBase = rb_define_class_under(mRoot, "NameServiceBase", rb_cObject);
     cNameService = rb_define_class_under(mCORBA, "NameService", cNameServiceBase);
     rb_define_singleton_method(cNameService,
         "new",

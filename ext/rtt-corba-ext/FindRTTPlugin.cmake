@@ -47,6 +47,6 @@ FOREACH(COMPONENT ${RTTPlugin_FIND_COMPONENTS})
     endif()
 
     libfind_process( RTT_PLUGIN_${COMPONENT} )
-    
+
 ENDFOREACH(COMPONENT)
 

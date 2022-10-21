@@ -1,5 +1,5 @@
-#ifndef OROCOS_EXT_RB_DATAHANDLING_HH
-#define OROCOS_EXT_RB_DATAHANDLING_HH
+#ifndef RUNKIT_CORBA_DATAHANDLING_HH
+#define RUNKIT_CORBA_DATAHANDLING_HH
 
 #include <ruby.h>
 #include <typelib_ruby.hh>

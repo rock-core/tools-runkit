@@ -25,14 +25,14 @@
 #endif
 
 #include "corba.hh"
-#include "rorocos.hh"
+#include "rtt-corba.hh"
 #include <typelib_ruby.hh>
 
 using namespace std;
 using namespace boost;
 using namespace RTT::corba;
 
-VALUE mOrocos;
+VALUE mRoot;
 VALUE mCORBA;
 VALUE eComError;
 VALUE eCORBA;
@@ -53,11 +53,10 @@ static VALUE cPort;
 static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
 
-extern void Orocos_init_CORBA();
-extern void Orocos_init_ROS(VALUE mOrocos, VALUE eComError);
-extern void Orocos_init_data_handling(VALUE cTaskContext);
-extern void Orocos_init_methods();
-extern void Orocos_init_ruby_task_context(VALUE mOrocos,
+extern void runkit_init_CORBA();
+extern void runkit_init_data_handling(VALUE cTaskContext);
+extern void runkit_init_operations(VALUE mRoot, VALUE cTaskContext);
+extern void runkit_init_ruby_task_context(VALUE mRunkit,
     VALUE cTaskContext,
     VALUE cOutputPort,
     VALUE cInputPort);
@@ -135,7 +134,7 @@ boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 //  TaskContext.new(ior,process=Hash.new) => task
 //
 // Returns the TaskContext instance representing the remote task context
-// with the given ior. Raises Orocos::NotFound if the task does
+// with the given ior. Raises Runkit::NotFound if the task does
 // not exist. Use the CORBA name service to retrieve a task
 // by its name.
 ///
@@ -294,7 +293,7 @@ static VALUE task_context_operation_names(VALUE self)
 // call-seq:
 //   task.do_port(name) => port
 //
-// Returns the Orocos::DataPort or Orocos::BufferPort object representing the
+// Returns the DataPort or BufferPort object representing the
 // remote port +name+. Raises NotFound if the port does not exist. This is an
 // internal method. Use TaskContext#port to get a port object.
 ///
@@ -322,14 +321,14 @@ static VALUE task_context_do_port(VALUE self, VALUE name, VALUE model)
     return obj;
 }
 
-static VALUE orocos_registered_type_p(VALUE mod, VALUE type_name)
+static VALUE registered_type_p(VALUE mod, VALUE type_name)
 {
     RTT::types::TypeInfo* ti =
         get_type_info(static_cast<char const*>(StringValuePtr(type_name)), false);
     return ti ? Qtrue : Qfalse;
 }
 
-static VALUE orocos_typelib_type_for(VALUE mod, VALUE type_name)
+static VALUE typelib_type_for(VALUE mod, VALUE type_name)
 {
     RTT::types::TypeInfo* ti =
         get_type_info(static_cast<char const*>(StringValuePtr(type_name)), false);
@@ -376,8 +375,6 @@ static VALUE task_context_port_names(VALUE self)
 //   STATE_RUNTIME_WARNING
 //   STATE_RUNTIME_ERROR
 //   STATE_FATAL_ERROR
-//
-// See Orocos own documentation for their meaning
 ///
 static VALUE task_context_state(VALUE task)
 {
@@ -576,19 +573,17 @@ static VALUE do_port_remove_stream(VALUE rport, VALUE stream_name)
     return Qnil;
 }
 
-/* Document-class: Orocos::NotFound
+/* Document-class: Runkit::NotFound
  *
- * This exception is raised every time an Orocos object is required by name,
+ * This exception is raised every time an object is required by name,
  * but the object does not exist.
  *
- * See for instance Orocos::TaskContext.get or Orocos::TaskContext#port
+ * See for instance Runkit::TaskContext.get or Runkit::TaskContext#port
  */
-/* Document-class: Orocos::Attribute
+/* Document-class: Runkit::Attribute
  *
- * Attributes and properties are in Orocos ways to parametrize the task contexts.
- * Instances of Orocos::Attribute actually represent both at the same time.
- */
-/* Document-module: Orocos
+ * Attributes and properties are ways to parametrize the task contexts.
+ * Instances of Attribute actually represent both at the same time.
  */
 namespace RTT {
     namespace Corba {
@@ -596,19 +591,12 @@ namespace RTT {
     }
 }
 
-static VALUE orocos_load_standard_typekits(VALUE mod)
+static VALUE load_standard_typekits(VALUE mod)
 {
-    // load the default toolkit and the CORBA transport
-    RTT::types::TypekitRepository::Import(new RTT::types::RealTimeTypekitPlugin);
-    RTT::types::TypekitRepository::Import(new RTT::corba::CorbaLibPlugin);
-#ifdef HAS_MQUEUE
-    RTT::types::TypekitRepository::Import(new RTT::mqueue::MQLibPlugin);
-#endif
-    // TODO loadCorbaLib();
     return Qnil;
 }
 
-static VALUE orocos_load_rtt_typekit(VALUE orocos, VALUE path)
+static VALUE load_rtt_typekit(VALUE, VALUE path)
 {
     try {
         return RTT::plugin::PluginLoader::Instance()->loadLibrary(StringValuePtr(path))
@@ -620,7 +608,7 @@ static VALUE orocos_load_rtt_typekit(VALUE orocos, VALUE path)
     }
 }
 
-static VALUE orocos_load_rtt_plugin(VALUE orocos, VALUE path)
+static VALUE load_rtt_plugin(VALUE, VALUE path)
 {
     try {
         return RTT::plugin::PluginLoader::Instance()->loadLibrary(StringValuePtr(path))
@@ -637,7 +625,7 @@ static VALUE try_mq_open(VALUE mod)
 {
     int this_pid = getpid();
     std::string queue_name =
-        std::string("/orocosrb_") + boost::lexical_cast<std::string>(this_pid);
+        std::string("/runkit_corba_") + boost::lexical_cast<std::string>(this_pid);
 
     mq_attr attributes;
     attributes.mq_flags = 0;
@@ -655,7 +643,7 @@ static VALUE try_mq_open(VALUE mod)
 }
 
 /* call-seq:
- *   Orocos::MQueue.transportable_type_names => name_list
+ *   Runkit::MQueue.transportable_type_names => name_list
  *
  * Returns an array of string that are the type names which can be transported
  * over the MQ layer
@@ -678,60 +666,59 @@ static VALUE mqueue_transportable_type_names(VALUE mod)
 }
 #endif
 
-static VALUE orocos_no_blocking_calls_in_thread_set(VALUE self, VALUE thread)
+static VALUE no_blocking_calls_in_thread_set(VALUE self, VALUE thread)
 {
     threadInterdiction = thread;
     return thread;
 }
 
-static VALUE orocos_no_blocking_calls_in_thread_get(VALUE self)
+static VALUE no_blocking_calls_in_thread_get(VALUE self)
 {
     return threadInterdiction;
 }
 
-extern "C" void Init_rorocos()
+extern "C" void Init_runkit_corba_ext()
 {
-    mOrocos = rb_define_module("Orocos");
-    mCORBA = rb_define_module_under(mOrocos, "CORBA");
-    eComError = rb_define_class_under(mOrocos, "ComError", rb_eRuntimeError);
-    eCORBA = rb_define_class_under(mOrocos, "CORBAError", rb_eRuntimeError);
+    mRoot = rb_define_module("Runkit");
+    mCORBA = rb_define_module_under(mRoot, "CORBA");
+    eComError = rb_define_class_under(mRoot, "ComError", rb_eRuntimeError);
+    eCORBA = rb_define_class_under(mRoot, "CORBAError", rb_eRuntimeError);
     eCORBAComError = rb_define_class_under(mCORBA, "ComError", eComError);
     eCORBATimeoutError = rb_define_class_under(mCORBA, "TimeoutError", eCORBA);
-    eNotInitialized = rb_define_class_under(mOrocos, "NotInitialized", rb_eRuntimeError);
+    eNotInitialized = rb_define_class_under(mRoot, "NotInitialized", rb_eRuntimeError);
     eBlockingCallInForbiddenThread =
-        rb_define_class_under(mOrocos, "BlockingCallInForbiddenThread", rb_eRuntimeError);
+        rb_define_class_under(mRoot, "BlockingCallInForbiddenThread", rb_eRuntimeError);
 
-    rb_define_singleton_method(mOrocos,
+    rb_define_singleton_method(mRoot,
         "load_standard_typekits",
-        RUBY_METHOD_FUNC(orocos_load_standard_typekits),
+        RUBY_METHOD_FUNC(load_standard_typekits),
         0);
-    rb_define_singleton_method(mOrocos,
+    rb_define_singleton_method(mRoot,
         "load_rtt_plugin",
-        RUBY_METHOD_FUNC(orocos_load_rtt_plugin),
+        RUBY_METHOD_FUNC(load_rtt_plugin),
         1);
-    rb_define_singleton_method(mOrocos,
+    rb_define_singleton_method(mRoot,
         "load_rtt_typekit",
-        RUBY_METHOD_FUNC(orocos_load_rtt_typekit),
+        RUBY_METHOD_FUNC(load_rtt_typekit),
         1);
-    rb_define_singleton_method(mOrocos,
+    rb_define_singleton_method(mRoot,
         "registered_type?",
-        RUBY_METHOD_FUNC(orocos_registered_type_p),
+        RUBY_METHOD_FUNC(registered_type_p),
         1);
-    rb_define_singleton_method(mOrocos,
+    rb_define_singleton_method(mRoot,
         "do_typelib_type_for",
-        RUBY_METHOD_FUNC(orocos_typelib_type_for),
+        RUBY_METHOD_FUNC(typelib_type_for),
         1);
-    rb_define_singleton_method(mOrocos,
+    rb_define_singleton_method(mRoot,
         "no_blocking_calls_in_thread=",
-        RUBY_METHOD_FUNC(orocos_no_blocking_calls_in_thread_set),
+        RUBY_METHOD_FUNC(no_blocking_calls_in_thread_set),
         1);
-    rb_define_singleton_method(mOrocos,
+    rb_define_singleton_method(mRoot,
         "no_blocking_calls_in_thread",
-        RUBY_METHOD_FUNC(orocos_no_blocking_calls_in_thread_get),
+        RUBY_METHOD_FUNC(no_blocking_calls_in_thread_get),
         0);
 
-    VALUE cTaskContextBase =
-        rb_define_class_under(mOrocos, "TaskContextBase", rb_cObject);
+    VALUE cTaskContextBase = rb_define_class_under(mRoot, "TaskContextBase", rb_cObject);
     rb_const_set(cTaskContextBase,
         rb_intern("STATE_PRE_OPERATIONAL"),
         INT2FIX(RTT::corba::CPreOperational));
@@ -751,13 +738,13 @@ extern "C" void Init_rorocos()
         rb_intern("STATE_RUNTIME_ERROR"),
         INT2FIX(RTT::corba::CRunTimeError));
 
-    rb_const_set(mOrocos, rb_intern("TRANSPORT_CORBA"), INT2FIX(ORO_CORBA_PROTOCOL_ID));
+    rb_const_set(mRoot, rb_intern("TRANSPORT_CORBA"), INT2FIX(ORO_CORBA_PROTOCOL_ID));
 
-    cTaskContext = rb_define_class_under(mOrocos, "TaskContext", cTaskContextBase);
+    cTaskContext = rb_define_class_under(mRoot, "TaskContext", cTaskContextBase);
 
 #ifdef HAS_MQUEUE
-    VALUE mMQueue = rb_define_module_under(mOrocos, "MQueue");
-    rb_const_set(mOrocos,
+    VALUE mMQueue = rb_define_module_under(mRoot, "MQueue");
+    rb_const_set(mRoot,
         rb_intern("RTT_TRANSPORT_MQ_ID"),
         INT2FIX(ORO_MQUEUE_PROTOCOL_ID));
     rb_define_singleton_method(mMQueue, "try_mq_open", RUBY_METHOD_FUNC(try_mq_open), 0);
@@ -767,15 +754,15 @@ extern "C" void Init_rorocos()
         0);
 #endif
 
-    cPort = rb_define_class_under(mOrocos, "Port", rb_cObject);
-    cOutputPort = rb_define_class_under(mOrocos, "OutputPort", cPort);
-    cInputPort = rb_define_class_under(mOrocos, "InputPort", cPort);
-    cPortAccess = rb_define_class_under(mOrocos, "PortAccess", rb_cObject);
-    eNotFound = rb_define_class_under(mOrocos, "NotFound", rb_eRuntimeError);
+    cPort = rb_define_class_under(mRoot, "Port", rb_cObject);
+    cOutputPort = rb_define_class_under(mRoot, "OutputPort", cPort);
+    cInputPort = rb_define_class_under(mRoot, "InputPort", cPort);
+    cPortAccess = rb_define_class_under(mRoot, "PortAccess", rb_cObject);
+    eNotFound = rb_define_class_under(mRoot, "NotFound", rb_eRuntimeError);
     eStateTransitionFailed =
-        rb_define_class_under(mOrocos, "StateTransitionFailed", rb_eRuntimeError);
+        rb_define_class_under(mRoot, "StateTransitionFailed", rb_eRuntimeError);
     eConnectionFailed =
-        rb_define_class_under(mOrocos, "ConnectionFailed", rb_eRuntimeError);
+        rb_define_class_under(mRoot, "ConnectionFailed", rb_eRuntimeError);
 
     rb_define_singleton_method(cTaskContext,
         "new",
@@ -857,11 +844,8 @@ extern "C" void Init_rorocos()
         RUBY_METHOD_FUNC(do_port_connect_to),
         2);
 
-    Orocos_init_CORBA();
-#ifdef HAS_ROS
-    Orocos_init_ROS(mOrocos, eComError);
-#endif
-    Orocos_init_data_handling(cTaskContext);
-    Orocos_init_ruby_task_context(mOrocos, cTaskContext, cOutputPort, cInputPort);
-    Orocos_init_methods();
+    runkit_init_CORBA();
+    runkit_init_data_handling(cTaskContext);
+    runkit_init_ruby_task_context(mRoot, cTaskContext, cOutputPort, cInputPort);
+    runkit_init_operations(mRoot, cTaskContext);
 }

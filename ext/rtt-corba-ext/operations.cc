@@ -1,5 +1,5 @@
 #include "corba.hh"
-#include "rorocos.hh"
+#include "rtt-corba.hh"
 #include <memory>
 #include <typeinfo>
 #include <typelib_ruby.hh>
@@ -7,8 +7,6 @@
 using namespace std;
 using namespace RTT::corba;
 
-extern VALUE cTaskContext;
-static VALUE cOperation;
 static VALUE cSendHandle;
 
 static void corba_args_to_ruby(VALUE type_names, VALUE result, CAnyArguments& args)
@@ -209,11 +207,10 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
     return Qnil; // never reached
 }
 
-void Orocos_init_methods()
+void runkit_init_operations(VALUE mRoot, VALUE cTaskContext)
 {
-    VALUE mOrocos = rb_define_module("Orocos");
-    cOperation = rb_define_class_under(mOrocos, "Operation", rb_cObject);
-    cSendHandle = rb_define_class_under(mOrocos, "SendHandle", rb_cObject);
+    VALUE cOperation = rb_define_class_under(mRoot, "Operation", rb_cObject);
+    cSendHandle = rb_define_class_under(mRoot, "SendHandle", rb_cObject);
 
     rb_define_method(cTaskContext,
         "operation_return_types",
@@ -240,11 +237,9 @@ void Orocos_init_methods()
         RUBY_METHOD_FUNC(send_handle_collect_if_done),
         2);
 
-    rb_const_set(mOrocos, rb_intern("SEND_SUCCESS"), INT2FIX(RTT::corba::CSendSuccess));
-    rb_const_set(mOrocos,
-        rb_intern("SEND_NOT_READY"),
-        INT2FIX(RTT::corba::CSendNotReady));
-    rb_const_set(mOrocos, rb_intern("SEND_FAILURE"), INT2FIX(RTT::corba::CSendFailure));
+    rb_const_set(mRoot, rb_intern("SEND_SUCCESS"), INT2FIX(RTT::corba::CSendSuccess));
+    rb_const_set(mRoot, rb_intern("SEND_NOT_READY"), INT2FIX(RTT::corba::CSendNotReady));
+    rb_const_set(mRoot, rb_intern("SEND_FAILURE"), INT2FIX(RTT::corba::CSendFailure));
     rb_const_set(cSendHandle,
         rb_intern("SEND_SUCCESS"),
         INT2FIX(RTT::corba::CSendSuccess));

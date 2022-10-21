@@ -7,7 +7,7 @@
 #include <boost/function.hpp>
 #include <boost/function_types/result_type.hpp>
 #define RUBY_DONT_SUBST
-#include "rorocos.hh"
+#include "rtt-corba.hh"
 #include <ruby.h>
 #include <ruby/thread.h>
 #include <stdarg.h>
@@ -34,7 +34,7 @@ protected:
     void blockingCall()
     {
         exception_class = Qnil;
-        orocos_verify_thread_interdiction();
+        runkit_verify_thread_interdiction();
 
 #if defined HAVE_RUBY_INTERN_H
         rb_thread_call_without_gvl(&BlockingFunctionBase::callProcessing,

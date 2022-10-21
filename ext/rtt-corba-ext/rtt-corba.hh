@@ -1,5 +1,5 @@
-#ifndef OROCOS_EXT_RB_ROROCOS_HH
-#define OROCOS_EXT_RB_ROROCOS_HH
+#ifndef RTT_CORBA_HH
+#define RTT_CORBA_HH
 
 #include <boost/tuple/tuple.hpp>
 #include <rtt/transports/corba/CorbaTypeTransporter.hpp>
@@ -53,7 +53,7 @@ extern VALUE eNotFound;
 extern VALUE eNotInitialized;
 
 namespace {
-    inline VALUE orocos_verify_thread_interdiction()
+    inline VALUE runkit_verify_thread_interdiction()
     {
         if (threadInterdiction == rb_thread_current()) {
             rb_raise(eBlockingCallInForbiddenThread,
