@@ -3,7 +3,7 @@
 require "runkit/ports_searchable"
 
 module Runkit
-    # Base implementation for Runkit::TaskContext
+    # Base implementation for task contexts
     class TaskContextBase
         include PortsSearchable
 
@@ -74,7 +74,7 @@ module Runkit
         #
         # Enumerates the properties that are available on
         # this task, as instances of Runkit::Attribute
-        def each_property(&block)
+        def each_property
             return enum_for(:each_property) unless block_given?
 
             names = property_names
@@ -97,16 +97,15 @@ module Runkit
             end
         end
 
-        # call-seq:
-        #  task.each_port { |p| ... } => task
-        #
         # Enumerates the ports that are available on this task, as instances of
         # either Runkit::InputPort or Runkit::OutputPort
-        def each_port(&block)
+        #
+        # @yieldparam [InputPort,OutputPort] port
+        def each_port
             return enum_for(:each_port) unless block_given?
 
             port_names.each do |name|
-                yield(port(name))
+                yield port(name)
             end
             self
         end
@@ -157,34 +156,31 @@ module Runkit
             @fatal_states.include?(sym)
         end
 
-        # This is meant to be used internally
-        # Returns the current task's state without "hiding" any state change to
-        # the task's user.
-        #
-        # This is meant to be used internally
-
         def input_port(name)
             p = port(name)
-            if p.respond_to?(:writer)
-                p
-            else
-                raise InterfaceObjectNotFound.new(self, name), "#{name} is an output port of #{self.name}, was expecting an input port"
+            unless p.respond_to?(:writer)
+                raise InterfaceObjectNotFound.new(self, name),
+                      "#{name} is an output port of #{self.name}, "\
+                      "was expecting an input port"
             end
+
+            p
         end
 
         def output_port(name)
             p = port(name)
-            if p.respond_to?(:reader)
-                p
-            else
-                raise InterfaceObjectNotFound.new(self, name), "#{name} is an input port of #{self.name}, was expecting an output port"
+            unless p.respond_to?(:reader)
+                raise InterfaceObjectNotFound.new(self, name),
+                      "#{name} is an input port of #{self.name}, "\
+                      "was expecting an output port"
             end
+
             p
         end
 
         # Returns an array of all the ports defined on this task context
         def ports
-            enum_for(:each_port).to_a
+            each_port.to_a
         end
 
         # call-seq:
@@ -277,13 +273,12 @@ module Runkit
         def pretty_print(pp) # :nodoc:
             pp.text "Component #{name}"
             pp.breakable
-            pp.breakable
 
             [["attributes", each_attribute], ["properties", each_property]].each do |kind, enum|
+                pp.breakable
                 objects = enum.to_a
                 if objects.empty?
                     pp.text "No #{kind}"
-                    pp.breakable
                 else
                     pp.text "#{kind.capitalize}:"
                     pp.breakable
@@ -294,14 +289,13 @@ module Runkit
                             pp.breakable
                         end
                     end
-                    pp.breakable
                 end
             end
 
-            ports = enum_for(:each_port).to_a
+            ports = each_port.to_a
+            pp.breakable
             if ports.empty?
                 pp.text "No ports"
-                pp.breakable
             else
                 pp.text "Ports:"
                 pp.breakable
@@ -312,7 +306,6 @@ module Runkit
                         pp.breakable
                     end
                 end
-                pp.breakable
             end
         end
 

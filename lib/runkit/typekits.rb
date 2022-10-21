@@ -298,12 +298,10 @@ module Runkit
     rescue Runkit::TypekitTypeNotFound, Typelib::NotFound
         # Create an opaque type as a placeholder for the unknown
         # type name
-        if fallback_to_null_type
-            type_name = "/" + runkit_type_name.gsub(/[^\w]/, "_")
-            create_or_get_null_type(type_name)
-        else
-            raise
-        end
+        raise unless fallback_to_null_type
+
+        type_name = "/" + runkit_type_name.gsub(/[^\w]/, "_")
+        create_or_get_null_type(type_name)
     end
 
     def self.find_runkit_type_name_by_type(type)

@@ -80,11 +80,11 @@ module Runkit
         # Automated wrapper to handle CORBA exceptions coming from the C
         # extension
         def self.corba_wrap(m, *args) # :nodoc:
-            class_eval <<-EOD
-            def #{m}(#{args.join('. ')})
-                CORBA.refine_exceptions(self) { do_#{m}(#{args.join(', ')}) }
-            end
-            EOD
+            class_eval <<~DEF_END, __FILE__, __LINE__ + 1
+                def #{m}(#{args.join('. ')})
+                    CORBA.refine_exceptions(self) { do_#{m}(#{args.join(', ')}) }
+                end
+            DEF_END
         end
 
         def self.state_transition_call(m, expected_state, target_state)
