@@ -15,56 +15,6 @@ module Runkit
         RUNNING_STATES[STATE_FATAL_ERROR]     = false
         RUNNING_STATES[STATE_EXCEPTION] = false
 
-        # Returns a task which provides the +type+ interface.
-        #
-        # Use Orocso.name_service.get(:provides => name) instead.
-        def self.get_provides(type) # :nodoc:
-            Runkit.name_service.get_provides(type)
-        end
-
-        # :call-seq:
-        #   TaskContext.get(name) => task
-        #   TaskContext.get(:provides => interface_name) => task
-        #
-        # In the first form, returns the TaskContext instance representing the
-        # remote task context with the given name.
-        #
-        # In the second form, searches for a task context that implements the given
-        # interface. This is doable only if orogen has been used to generate the
-        # components.
-        #
-        # Raises Runkit::NotFound if the task name does not exist, if no task
-        # implements the given interface, or if more than one task does
-        # implement the required interface
-        def self.get(options, process = nil)
-            if options.kind_of?(Hash)
-                # Right now, the only allowed option is :provides
-                options = Kernel.validate_options options, provides: nil
-                return Runkit.name_service.get_provides(options[:provides].to_str)
-            else
-                raise ArgumentError, "no task name" if options.nil?
-
-                name = options.to_str
-            end
-            result = Runkit.name_service.get(name, process: process)
-        end
-
-        # Find one running tasks from the provided names. Raises if there is not
-        # exactly one
-        def self.find_one_running(*names)
-            Runkit.name_service.find_one_running(*names)
-        end
-
-        # TODO this is bad performance wise
-        # it will load the model and all extensions
-        # use the nameservice for the check
-        #
-        # Returns true if +task_name+ is a TaskContext object that can be
-        # reached
-        def self.reachable?(task_name)
-            Runkit.name_service.task_reachable? task_name
-        end
-
         # Connects all output ports with the input ports of given task.
         # If one connection is ambiguous or none of the port is connected
         # an exception is raised. All output ports which does not match
