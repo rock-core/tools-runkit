@@ -619,13 +619,13 @@ describe Orocos::TaskConfigurations do
             vector = Typelib.from_ruby([1, 2], vector_t)
             Orocos::TaskConfigurations.apply_conf_on_typelib_value(vector, [-1])
             assert_equal 2, vector.size
-            assert_equal -1, vector[0]
+            assert_equal(-1, vector[0])
             assert_equal 2, vector[1]
         end
         it "should only set the relevant values on a bigger array" do
             array = Typelib.from_ruby([1, 2], array_t)
             Orocos::TaskConfigurations.apply_conf_on_typelib_value(array, [-1])
-            assert_equal -1, array[0]
+            assert_equal(-1, array[0])
             assert_equal 2, array[1]
         end
         it "should raise ArgumentError if the array is too small" do
