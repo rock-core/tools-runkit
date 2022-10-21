@@ -26,6 +26,10 @@ module Runkit
     TypekitTypeNotFound    = OroGen::NotTypekitType
     TypekitTypeNotExported = OroGen::NotExportedType
 
+    # Exception raised when an operation requires the CORBA layer to be
+    # initialized by Runkit.initialize has not yet been called
+    class NotInitialized < RuntimeError; end
+
     # Emitted when an interface object is requested, that does not exist
     class InterfaceObjectNotFound < Runkit::NotFound
         attr_reader :task

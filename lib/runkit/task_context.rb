@@ -1,69 +1,6 @@
 # frozen_string_literal: true
 
-require "utilrb/object/attribute"
-
 module Runkit
-    # Exception raised when an operation requires the CORBA layer to be
-    # initialized by Runkit.initialize has not yet been called
-    class NotInitialized < RuntimeError; end
-
-    class TaskContextAttribute < AttributeBase
-        # Returns the operation that has to be called if this is an
-        # dynamic propery. Nil otherwise
-        attr_reader :dynamic_operation
-
-        def dynamic?
-            !!@dynamic_operation
-        end
-
-        def initialize(task, name, runkit_type_name)
-            super
-            if task.operation?(opname = "__orogen_set#{name.capitalize}")
-                @dynamic_operation = task.operation(opname)
-            end
-        end
-
-        def do_write_dynamic(value)
-            raise PropertyChangeRejected, "the change of property #{name} was rejected by the remote task" unless @dynamic_operation.callop(value)
-        end
-    end
-
-    class Property < TaskContextAttribute
-        def log_metadata
-            super.merge("rock_stream_type" => "property")
-        end
-
-        def do_write(type_name, value, direct: false)
-            if !direct && dynamic?
-                do_write_dynamic(value)
-            else
-                task.do_property_write(name, type_name, value)
-            end
-        end
-
-        def do_read(type_name, value)
-            task.do_property_read(name, type_name, value)
-        end
-    end
-
-    class Attribute < TaskContextAttribute
-        def log_metadata
-            super.merge("rock_stream_type" => "attribute")
-        end
-
-        def do_write(type_name, value, direct: false)
-            if !direct && dynamic?
-                do_write_dynamic(value)
-            else
-                task.do_attribute_write(name, type_name, value)
-            end
-        end
-
-        def do_read(type_name, value)
-            task.do_attribute_read(name, type_name, value)
-        end
-    end
-
     # A proxy for a remote task context. The communication between Ruby and the
     # RTT component is done through the CORBA transport.
     #
