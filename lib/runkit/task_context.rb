@@ -611,33 +611,5 @@ module Runkit
                     end
                 end
         end
-
-        def connect_to(sink, policy = {})
-            port = find_output_port(sink.type, nil)
-            raise ArgumentError, "port #{sink.name} does not match any output port of #{name}" unless port
-
-            port.connect_to(sink, policy)
-        end
-
-        def disconnect_from(sink, policy = {})
-            each_output_port do |out_port|
-                out_port.disconnect_from(sink) if out_port.type == sink.type
-            end
-            nil
-        end
-
-        def resolve_connection_from(source, policy = {})
-            port = find_input_port(source.type, nil)
-            raise ArgumentError, "port #{source.name} does not match any input port of #{name}." unless port
-
-            source.connect_to(port, policy)
-        end
-
-        def resolve_disconnection_from(source)
-            each_input_port do |in_port|
-                source.disconnect_from(in_port) if in_port.type == source.type
-            end
-            nil
-        end
     end
 end

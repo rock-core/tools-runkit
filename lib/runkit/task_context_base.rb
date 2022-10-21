@@ -15,33 +15,6 @@ module Runkit
         RUNNING_STATES[STATE_FATAL_ERROR]     = false
         RUNNING_STATES[STATE_EXCEPTION] = false
 
-        # Connects all output ports with the input ports of given task.
-        # If one connection is ambiguous or none of the port is connected
-        # an exception is raised. All output ports which does not match
-        # any input port are ignored
-        #
-        # Instead of a task the method can also be called with a port
-        # as argument
-        def self.connect_to(task, task2, policy = {}, &block)
-            if task2.respond_to?(:each_port)
-                count = 0
-                task.each_port do |port|
-                    next unless port.respond_to? :reader
-
-                    if other = task2.find_input_port(port.type, nil)
-                        port.connect_to other, policy, &block
-                        count += 1
-                    end
-                end
-                raise NotFound, "#{task.name} has no port matching the ones of #{task2.name}." if count == 0
-            elsif (port = task.find_output_port(task2.type, nil))
-                port.connect_to task2, policy, &block
-            else
-                raise NotFound, "no port of #{task.name} matches the given port #{task2.name}"
-            end
-            self
-        end
-
         # The IOR of this task context
         attr_reader :ior
 
@@ -350,17 +323,6 @@ module Runkit
             true
         rescue Runkit::ComError
             false
-        end
-
-        # Connects all output ports with the input ports of given task.
-        # If one connection is ambiguous or none of the port is connected
-        # an exception is raised. All output ports which does not match
-        # any input port are ignored
-        #
-        # Instead of a task the method can also be called with a port
-        # as argument
-        def connect_to(task, policy = {})
-            TaskContextBase.connect_to(self, task, policy)
         end
 
         def to_s
