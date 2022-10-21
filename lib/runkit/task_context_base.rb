@@ -846,25 +846,4 @@ module Runkit
             ]
         end
     end
-
-    class << self
-        attr_reader :extension_modules
-    end
-    @extension_modules = Hash.new { |h, k| h[k] = [] }
-
-    # Requires runkit.rb to extend tasks of the given model with the given
-    # block.
-    #
-    # For instance, the #log method that is defined on every logger task is
-    # implemented with
-    #
-    #  Runkit.extend_task 'logger::Logger' do
-    #    def log(port, buffer_size = 25)
-    #      # setup the logging component to log the given port
-    #    end
-    #  end
-    #
-    def self.extend_task(model_name, &block)
-        extension_modules[model_name] << Module.new(&block)
-    end
 end

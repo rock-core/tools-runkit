@@ -150,33 +150,12 @@ module Runkit
         ENV["OROCOS_TARGET"] || "gnulinux"
     end
 
-    class << self
-        # The set of extension names seen so far
-        #
-        # Whenever a new extension is encountered, Runkit.task_model_from_name
-        # tries to require 'extension_name/runtime', which might no exist. Once
-        # it has done that, it registers the extension name in this set to avoid
-        # trying loading it again
-        attr_reader :known_orogen_extensions
-    end
-    @known_orogen_extensions = Set.new
-
     # Loads a directory containing configuration files
     #
     # See the documentation of ConfigurationManager#load_dir for more
     # information
     def self.load_config_dir(dir)
         conf.load_dir(dir)
-    end
-
-    def self.load_extension_runtime_library(extension_name)
-        unless known_orogen_extensions.include?(extension_name)
-            begin
-                require "runtime/#{extension_name}"
-            rescue LoadError
-            end
-            known_orogen_extensions << extension_name
-        end
     end
 
     # Returns true if Runkit.load has been called
@@ -216,7 +195,6 @@ module Runkit
 
         @ruby_task&.dispose
         default_loader.clear
-        known_orogen_extensions.clear
 
         @max_sizes.clear
 
