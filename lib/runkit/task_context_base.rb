@@ -3,69 +3,8 @@
 require "runkit/ports_searchable"
 
 module Runkit
-    # This methods must be implemented by
-    # the child class of TaskContextBase
-    module TaskContextBaseAbstract
-        # Returns an object that represents the given port on the task
-        # context. The returned object is either an InputPort or an OutputPort
-        def port(_name)
-            raise Runkit::NotFound, "#port is not implemented in #{self.class}"
-        end
-
-        # Returns an Attribute object representing the given attribute
-        def attribute(_name)
-            raise Runkit::NotFound, "#attribute is not implemented in #{self.class}"
-        end
-
-        # Returns a Property object representing the given property
-        def property(_name)
-            raise Runkit::NotFound, "#property is not implemented in #{self.class}"
-        end
-
-        # Returns an Operation object that represents the given method on the
-        # remote component.
-        def operation(_name)
-            raise Runkit::NotFound, "#operation is not implemented in #{self.class}"
-        end
-
-        # Returns the array of the names of available properties on this task
-        # context
-        def property_names
-            raise NotImplementedError
-        end
-
-        # Returns the array of the names of available attributes on this task
-        # context
-        def attribute_names
-            raise NotImplementedError
-        end
-
-        # Returns the array of the names of available operations on this task
-        # context
-        def operation_names
-            raise NotImplementedError
-        end
-
-        # Returns the names of all the ports defined on this task context
-        def port_names
-            raise NotImplementedError
-        end
-
-        # Reads the state
-        def rtt_state
-            raise NotImplementedError
-        end
-
-        # raises an runtime error if the task is not
-        # reachable
-        def ping
-            raise NotImplementedError
-        end
-    end
-
     # Base implementation for Runkit::TaskContext
     class TaskContextBase
-        include TaskContextBaseAbstract
         include PortsSearchable
 
         RUNNING_STATES = [].freeze
@@ -670,5 +609,66 @@ module Runkit
                 state: state
             ]
         end
+
+        # This methods must be implemented by
+        # the child class of TaskContextBase
+        module PureVirtual
+            # Returns an object that represents the given port on the task
+            # context. The returned object is either an InputPort or an OutputPort
+            def port(_name)
+                raise Runkit::NotFound, "#port is not implemented in #{self.class}"
+            end
+
+            # Returns an Attribute object representing the given attribute
+            def attribute(_name)
+                raise Runkit::NotFound, "#attribute is not implemented in #{self.class}"
+            end
+
+            # Returns a Property object representing the given property
+            def property(_name)
+                raise Runkit::NotFound, "#property is not implemented in #{self.class}"
+            end
+
+            # Returns an Operation object that represents the given method on the
+            # remote component.
+            def operation(_name)
+                raise Runkit::NotFound, "#operation is not implemented in #{self.class}"
+            end
+
+            # Returns the array of the names of available properties on this task
+            # context
+            def property_names
+                raise NotImplementedError
+            end
+
+            # Returns the array of the names of available attributes on this task
+            # context
+            def attribute_names
+                raise NotImplementedError
+            end
+
+            # Returns the array of the names of available operations on this task
+            # context
+            def operation_names
+                raise NotImplementedError
+            end
+
+            # Returns the names of all the ports defined on this task context
+            def port_names
+                raise NotImplementedError
+            end
+
+            # Reads the state
+            def rtt_state
+                raise NotImplementedError
+            end
+
+            # raises an runtime error if the task is not
+            # reachable
+            def ping
+                raise NotImplementedError
+            end
+        end
+        include PureVirtual
     end
 end
