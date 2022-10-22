@@ -120,27 +120,6 @@ module Runkit
             reader
         end
 
-        # Reads all state transitions that have been announced by the task and
-        # pushes them to @state_queue
-        #
-        # The following call to #state will first look at @state_queue before
-        # accessing the task context
-        def peek_state
-            if model&.extended_state_support?
-                if !@state_reader || !@state_reader.connected?
-                    @state_reader = state_reader
-                    @state_queue << rtt_state
-                end
-
-                while new_state = @state_reader.read_new
-                    @state_queue << new_state
-                end
-            else
-                super
-            end
-            @state_queue
-        end
-
         # Returns the PID of the thread this task runs on
         #
         # This is available only on oroGen task, for which oroGen adds an
