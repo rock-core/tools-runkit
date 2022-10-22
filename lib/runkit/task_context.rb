@@ -24,38 +24,6 @@ module Runkit
             DEF_END
         end
 
-        def self.state_transition_call(m, expected_state, target_state)
-            class_eval <<-EOD, __FILE__, (__LINE__ + 1)
-            def #{m}(wait_for_completion = true, polling = 0.05)
-                if wait_for_completion
-                    current_state = peek_current_state
-                end
-                CORBA.refine_exceptions(self) do
-                    begin
-                        do_#{m}
-                    rescue Runkit::StateTransitionFailed => e
-                        current_state = rtt_state
-                        reason =
-                            if current_state == :EXCEPTION
-                                ". The task is in an exception state. You must call #reset_exception before trying again"
-                            elsif current_state == :PRE_OPERATIONAL && '#{m}' == 'start'
-                                ". The Task must be configured before it could started. Did you forgot to call configure on the task?"
-                            elsif current_state != :#{expected_state}
-                                ". Tasks must be in #{expected_state} state before calling #{m}, but was in \#{current_state}"
-                            end
-
-                        raise e, "\#{e.message} the '\#{self.name}' task\#{ " of type \#{self.model.name}" if self.model}\#{reason}", e.backtrace
-                    end
-                end
-                if wait_for_completion
-                    while current_state == peek_current_state#{" && current_state != :#{target_state}" if target_state}
-                        sleep polling
-                    end
-                end
-            end
-            EOD
-        end
-
         # A new TaskContext instance representing the
         # remote task context with the given IOR
         #
@@ -134,23 +102,6 @@ module Runkit
             @state_symbols[value]
         end
 
-        # Waits for the task to be in state +state_name+ for the specified
-        # amount of time
-        #
-        # Raises RuntimeError on timeout
-        def wait_for_state(state_name, timeout = nil, polling = 0.1)
-            state_name = state_name.to_sym
-
-            start = Time.now
-            peek_state
-            until @state_queue.include?(state_name)
-                raise "timing out while waiting for #{self} to be in state #{state_name}. It currently is in state #{current_state}" if timeout && (Time.now - start) > timeout
-
-                sleep polling
-                peek_state
-            end
-        end
-
         # Loads the configuration for the TaskContext from a file,
         # into the main configuration manager and applies it to the TaskContext
         #
@@ -177,60 +128,50 @@ module Runkit
             Runkit.conf.save(self, file, section_names)
         end
 
-        ##
-        # :method: configure
+        # @!method configure
+        #   Configures the component, i.e. do the transition from
+        #   STATE_PRE_OPERATIONAL into STATE_STOPPED.
         #
-        # Configures the component, i.e. do the transition from STATE_PRE_OPERATIONAL into
-        # STATE_STOPPED.
-        #
-        # Raises StateTransitionFailed if the component was not in
-        # STATE_PRE_OPERATIONAL state before the call, or if the component
-        # refused to do the transition (startHook() returned false)
-        state_transition_call :configure, "PRE_OPERATIONAL", "STOPPED"
+        #   Raises StateTransitionFailed if the component was not in
+        #   STATE_PRE_OPERATIONAL state before the call, or if the component
+        #   refused to do the transition (configureHook() returned false)
+        corba_wrap :configure
 
-        ##
-        # :method: start
+        # @!method start
+        #   Starts the component, i.e. do the transition from STATE_STOPPED into
+        #   STATE_RUNNING.
         #
-        # Starts the component, i.e. do the transition from STATE_STOPPED into
-        # STATE_RUNNING.
-        #
-        # Raises StateTransitionFailed if the component was not in STATE_STOPPED
-        # state before the call, or if the component refused to do the
-        # transition (startHook() returned false)
-        state_transition_call :start, "STOPPED", "RUNNING"
+        #   Raises StateTransitionFailed if the component was not in STATE_STOPPED
+        #   state before the call, or if the component refused to do the
+        #   transition (startHook() returned false)
+        corba_wrap :start
 
-        ##
-        # :method: reset_exception
+        # @!method reset_exception
+        #   Recover from the exception state. It does the transition from
+        #   STATE_EXCEPTION to either STATE_STOPPED if the component does not
+        #   need any configuration or STATE_PRE_OPERATIONAL otherwise
         #
-        # Recover from the exception state. It does the transition from
-        # STATE_EXCEPTION to either STATE_STOPPED if the component does not
-        # need any configuration or STATE_PRE_OPERATIONAL otherwise
-        #
-        # Raises StateTransitionFailed if the component was not in a proper
-        # state before the call.
-        state_transition_call :reset_exception, "EXCEPTION", nil
+        #   Raises StateTransitionFailed if the component was not in a proper
+        #   state before the call.
+        corba_wrap :reset_exception
 
-        ##
-        # :method: stop
+        # @!method stop
+        #   Stops the component, i.e. do the transition from STATE_RUNNING into
+        #   STATE_STOPPED.
         #
-        # Stops the component, i.e. do the transition from STATE_RUNNING into
-        # STATE_STOPPED.
-        #
-        # Raises StateTransitionFailed if the component was not in STATE_RUNNING
-        # state before the call. The component cannot refuse to perform the
-        # transition (but can take an arbitrarily long time to do it).
-        state_transition_call :stop, "RUNNING", "STOPPED"
+        #   Raises StateTransitionFailed if the component was not in STATE_RUNNING
+        #   state before the call. The component cannot refuse to perform the
+        #   transition (but can take an arbitrarily long time to do it).
+        corba_wrap :stop
 
-        ##
-        # :method: cleanup
+        # @!method cleanup
+        #   Cleans the component, i.e. do the transition from STATE_STOPPED into
+        #   STATE_PRE_OPERATIONAL.
         #
-        # Cleans the component, i.e. do the transition from STATE_STOPPED into
-        # STATE_PRE_OPERATIONAL.
-        #
-        # Raises StateTransitionFailed if the component was not in STATE_STOPPED
-        # state before the call. The component cannot refuse to perform the
-        # transition (but can take an arbitrarily long time to do it).
-        state_transition_call :cleanup, "STOPPED", "PRE_OPERATIONAL"
+        #   Raises StateTransitionFailed if the component was not in STATE_STOPPED
+        #   state before the call. The component cannot refuse to perform the
+        #   transition (but can take an arbitrarily long time to do it).
+        corba_wrap :cleanup
 
         # Returns true if this task context has a command with the given name
         def operation?(name)
