@@ -14,6 +14,8 @@ module Runkit
     #   pp task_object
     #
     class TaskContext
+        # @api private
+        #
         # Automated wrapper to handle CORBA exceptions coming from the C
         # extension
         def self.corba_wrap(m, *args) # :nodoc:
@@ -24,17 +26,15 @@ module Runkit
             DEF_END
         end
 
-        # A new TaskContext instance representing the
-        # remote task context with the given IOR
-        #
-        # If a remote task is only known by its name use {Runkit.name_service}
-        # to create an handle to the remote task.
+        # Create a TaskContext instance representing the remote task context
+        # with the given IOR
         #
         # @param [String] ior The IOR of the remote task.
-        # @param [Hash] options The options.
+        # @param [String] name the task name, if not known
         # @option options [String] :name Overwrites the real name of remote task
-        def initialize(ior, name: do_real_name, model: nil, **other_options)
-            super(name, model: model, **other_options)
+        def initialize(ior, name:, model:)
+            # Note: TaskContext.new is implemented in C++
+            super(name, model: model)
             @ior = ior
             @ports = {}
         end

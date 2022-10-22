@@ -31,19 +31,11 @@ module Runkit
             #
             # @param [String] name the task name
             # @return [TaskContext]
-            def self.new(
-                name, project: OroGen::Spec::Project.new(Runkit.default_loader),
-                model: nil, **options, &block
-            )
-                if block && !model
-                    model = OroGen::Spec::TaskContext.new(project, name)
-                    model.instance_eval(&block)
-                end
-
+            def self.new(name, model:)
                 local_task = LocalTaskContext.new(name)
                 local_task.model_name = model.name if model&.name
 
-                remote_task = super(local_task.ior, name: name, model: model, **options)
+                remote_task = super(local_task.ior, name: name, model: model)
                 local_task.instance_variable_set :@remote_task, remote_task
                 remote_task.instance_variable_set :@local_task, local_task
 
