@@ -33,11 +33,10 @@ module Runkit
         # @param [String] ior The IOR of the remote task.
         # @param [Hash] options The options.
         # @option options [String] :name Overwrites the real name of remote task
-        # @option options [Runkit::Process] :process The process supporting the task
-        # @option options [String] :namespace The namespace of the task
         def initialize(ior, name: do_real_name, model: nil, **other_options)
             super(name, model: model, **other_options)
             @ior = ior
+            @ports = {}
         end
 
         def ping
@@ -221,9 +220,7 @@ module Runkit
             end
         end
 
-        # Returns an Attribute object representing the given attribute
-        #
-        # Raises NotFound if no such attribute exists.
+        # Get an accessor for the given attribute
         #
         # Attributes can also be read and written by calling directly the
         # relevant method on the task context:
@@ -236,63 +233,43 @@ module Runkit
         #   task.myProperty
         #   task.myProperty = value
         #
+        # @return [Attribute]
+        # @raises [InterfaceObjectNotFound]
         def attribute(name)
-            name = name.to_s
-            if a = attributes[name]
-                if attribute?(name)
-                    return a
-                else
-                    attributes.delete(name)
-                    raise Runkit::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an attribute named #{name}", e.backtrace
-                end
-            end
-
             type_name = CORBA.refine_exceptions(self) do
                 do_attribute_type_name(name)
             rescue ArgumentError => e
-                raise Runkit::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an attribute named #{name}", e.backtrace
+                raise InterfaceObjectNotFound.new(self, name),
+                      "task #{self.name} does not have an attribute named #{name}"
             end
 
-            attributes[name] = Attribute.new(self, name, type_name)
+            Attribute.new(self, name, type_name)
         end
 
-        # Return the property object without caching nor validation
-        def raw_property(name)
-            type_name = CORBA.refine_exceptions(self) do
-                do_property_type_name(name)
-            rescue ArgumentError => e
-                raise Runkit::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
-            end
-            Property.new(self, name, type_name)
-        end
-
-        # Returns a Property object representing the given property
+        # Get an accessor for the given property
         #
-        # Raises NotFound if no such property exists.
-        #
-        # Ports can also be accessed by calling directly the relevant
+        # Properties can also be accessed by calling directly the relevant
         # method on the task context:
         #
-        #   task.property("myProperty").read
-        #   task.property("myProperty").write(value)
+        #   task.property("my_property").read
+        #   task.property("my_property").write(value)
         #
         # is equivalent to
         #
-        #   task.myProperty
-        #   task.myProperty = value
+        #   task.my_property
+        #   task.my_property = value
         #
+        # @return [Property]
+        # @raises [InterfaceObjectNotFound]
         def property(name)
-            name = name.to_s
-            if p = properties[name]
-                if property?(name)
-                    return p
-                else
-                    properties.delete(name)
-                    raise Runkit::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a property named #{name}", e.backtrace
-                end
+            type_name = CORBA.refine_exceptions(self) do
+                do_property_type_name(name)
+            rescue ArgumentError => e
+                raise Runkit::InterfaceObjectNotFound.new(self, name),
+                      "task #{self.name} does not have a property named #{name}"
             end
 
-            properties[name] = raw_property(name)
+            Property.new(self, name, type_name)
         end
 
         # @api private
@@ -302,7 +279,8 @@ module Runkit
             port_model = model.find_port(name)
             do_port(name, port_model)
         rescue Runkit::NotFound => e
-            raise Runkit::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have a port named #{name}", e.backtrace
+            raise Runkit::InterfaceObjectNotFound.new(self, name),
+                  "task #{self.name} does not have a port named #{name}"
         end
 
         # Returns an object that represents the given port on the remote task

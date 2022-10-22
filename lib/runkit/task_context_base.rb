@@ -18,23 +18,12 @@ module Runkit
         # The IOR of this task context
         attr_reader :ior
 
-        # A name => Attribute instance mapping of cached attribute objects
-        attr_reader :attributes
-
-        # A name => Property instance mapping of cached properties
-        attr_reader :properties
-
         # @param [String] name The name of the task.
         # @param [Hash] options The options.
         # @option options [Runkit::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
         def initialize(name, model:)
-            @ports = {}
-            @properties = {}
-            @attributes = {}
-
             @name = name
-
             @model = model
             initialize_model_info(model)
         end
