@@ -26,9 +26,9 @@ module Runkit
             #   struct.an_array.each do |element|
             #   end
             def read(sample = nil)
-                if value = raw_read(sample)
-                    Typelib.to_ruby(value)
-                end
+                return unless (value = raw_read(sample))
+
+                Typelib.to_ruby(value)
             end
 
             # Reads a sample on this input port
@@ -39,16 +39,6 @@ module Runkit
             def raw_read(sample = nil)
                 _result, value = raw_read_with_result(sample, true)
                 value
-            end
-
-            # @deprecated use {raw_read} instead
-            def read_raw(sample)
-                raw_read(sample)
-            end
-
-            # @deprecated use {raw_read_new} instead
-            def read_new_raw(sample)
-                raw_read_new(sample)
             end
 
             # Whether the port seem to be connected to something
@@ -77,9 +67,9 @@ module Runkit
             #
             # Raises CORBA::ComError if the communication is broken.
             def read_new(sample = nil)
-                if value = raw_read_new(sample)
-                    Typelib.to_ruby(value)
-                end
+                return unless (value = raw_read_new(sample))
+
+                Typelib.to_ruby(value)
             end
 
             # Reads a new sample on the associated output port.
