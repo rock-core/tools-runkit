@@ -225,7 +225,7 @@ static VALUE attribute_do_write(VALUE rbtask,
     return Qnil;
 }
 
-void runkit_init_data_handling(VALUE cTaskContext)
+void rtt_corba_init_data_handling(VALUE cTaskContext)
 {
     rb_define_method(cTaskContext,
         "do_property_read_string",

@@ -69,18 +69,16 @@ end
 
 # Leave in top level namespace to allow rake-compiler to build native gem: 'rake native gem'
 require "rake/extensiontask"
-desc "builds Orocos.rb C extension"
-Rake::ExtensionTask.new('rtt-corba-ext') do |ext|
+desc "builds Runkit's extension"
+Rake::ExtensionTask.new("rtt_corba_ext") do |ext|
     # Same info as in ext/rtt-corba-ext/extconf.rb where cmake
     # is used to generate the Makefile
-    ext.name = "rtt-corba-ext"
-    ext.ext_dir = "ext/rtt-corba-ext"
-    ext.lib_dir = "lib/runkit/rtt"
+    ext.name = "rtt_corba_ext"
+    ext.ext_dir = "ext/rtt_corba_ext"
+    ext.lib_dir = "lib/runkit"
     ext.source_pattern = "*.{c,cpp,cc}"
 
-    if not Dir.exist?(ext.tmp_dir)
-        FileUtils.mkdir_p ext.tmp_dir
-    end
+    FileUtils.mkdir_p ext.tmp_dir unless Dir.exist?(ext.tmp_dir)
 end
 
 require "yard/rake/yardoc_task"

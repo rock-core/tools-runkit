@@ -271,7 +271,7 @@ static VALUE name_service_ior(VALUE self, VALUE task_name)
     return rb_str_new2(ior.c_str());
 }
 
-void runkit_init_CORBA(VALUE mRoot, VALUE mCORBA)
+void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA)
 {
     ::mCORBA = mCORBA;
     rb_define_singleton_method(mCORBA,

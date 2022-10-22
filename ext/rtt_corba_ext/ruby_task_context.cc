@@ -516,7 +516,7 @@ static VALUE local_output_port_write(VALUE _local_port,
     return local_port.connected() ? Qtrue : Qfalse;
 }
 
-void runkit_init_ruby_task_context(VALUE mRoot,
+void rtt_corba_init_ruby_task_context(VALUE mRoot,
     VALUE cTaskContext,
     VALUE cOutputPort,
     VALUE cInputPort)

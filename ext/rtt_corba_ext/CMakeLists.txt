@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
-PROJECT(runkit-rtt-corba-ext)
+PROJECT(runkit-rtt_corba_ext)
 
 SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 INCLUDE(RubyExtensions)
@@ -118,7 +118,7 @@ MACRO(OMNIORB)
 ENDMACRO(OMNIORB)
 
 OMNIORB()
-SET(EXTENSION_NAME rtt-corba-ext)
+SET(EXTENSION_NAME rtt_corba_ext)
 add_ruby_extension(${EXTENSION_NAME}
     ruby_task_context.cc rtt-corba.cc corba.cc datahandling.cc operations.cc
     lib/corba_name_service_client.cc ${ORB_IDL_FILES} ${ROS_FILES})
