@@ -125,14 +125,7 @@ module Runkit
         # This is available only on oroGen task, for which oroGen adds an
         # orogen_getPID operation that returns this information
         def tid
-            unless @tid
-                if operation?("__orogen_getTID")
-                    @tid = operation("__orogen_getTID").callop
-                else
-                    raise ArgumentError, "#tid is available only on oroGen tasks, not #{self}"
-                end
-            end
-            @tid
+            @tid ||= operation("__orogen_getTID").callop
         end
 
         # Reads the state announced by the task's getState() operation
