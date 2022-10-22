@@ -9,12 +9,6 @@ module Runkit
         attr_reader :name
         # The attribute type, as a subclass of Typelib::Type
         attr_reader :type
-        # If set, this is a Pocolog::DataStream object in which new values set
-        # from within Ruby are set
-        attr_accessor :log_stream
-        # If set, this is an input port object in which new values set from
-        # within Ruby are sent
-        attr_accessor :log_port
         # The type name as registered in the runkit type system
         attr_reader :runkit_type_name
 
@@ -61,25 +55,12 @@ module Runkit
 
         # Sets a new value for the property/attribute
         def write(value, timestamp = Time.now, direct: false)
-            ensure_type_available
             value = Typelib.from_ruby(value, type)
             do_write(@runkit_type_name, value, direct: direct)
-            log_value(value, timestamp)
             value
         end
 
-        # Write the current value of the property or attribute to #log_stream
-        def log_current_value(timestamp = Time.now)
-            log_value(read)
-        end
-
-        def log_value(value, timestamp = Time.now)
-            log_stream&.write(timestamp, timestamp, value)
-            log_port&.write(value)
-        end
-
         def new_sample
-            ensure_type_available
             type.zero
         end
 

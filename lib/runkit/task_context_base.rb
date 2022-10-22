@@ -18,13 +18,6 @@ module Runkit
         # The IOR of this task context
         attr_reader :ior
 
-        # If set, this is a Pocolog::Logfiles object in which the values of
-        # properties and attributes should be logged.
-        #
-        # Runkit.rb only logs the values that are set from within Ruby. There
-        # are no ways to log the values changed from within the task context.
-        attr_reader :configuration_log
-
         # A name => Attribute instance mapping of cached attribute objects
         attr_reader :attributes
 

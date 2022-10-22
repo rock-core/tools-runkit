@@ -56,12 +56,6 @@ module Runkit
             EOD
         end
 
-        # The logger task that should be used to log data that concerns this
-        # task
-        #
-        # @return [#log]
-        attr_accessor :logger
-
         # A new TaskContext instance representing the
         # remote task context with the given IOR
         #
@@ -76,8 +70,6 @@ module Runkit
         def initialize(ior, name: do_real_name, model: nil, **other_options)
             super(name, model: model, **other_options)
             @ior = ior
-
-            self.logger = process.default_logger if process && (process.default_logger_name != name)
         end
 
         def ping
@@ -168,46 +160,6 @@ module Runkit
         def rtt_state
             value = CORBA.refine_exceptions(self) { do_state }
             @state_symbols[value]
-        end
-
-        # Connects all ports of the task with the logger of the deployment
-        # @param [Hash] options option hash to exclude specific ports
-        # @option options [String,Array<String>] :exclude_ports The name of the excluded ports
-        # @return [Set<String,String>] Sets of task and port names
-        #
-        # @example logging all ports beside a port called frame
-        # task.log_all_ports(:exclude_ports => "frame")
-        def log_all_ports(options = {})
-            # Right now, the only allowed option is :exclude_ports
-            options, logger_options = Kernel.filter_options options, exclude_ports: nil
-            exclude_ports = Array(options[:exclude_ports])
-
-            logger_options[:tasks] = Regexp.new(basename)
-            ports = Runkit.log_all_process_ports(process, logger_options) do |port|
-                !exclude_ports.include? port.name
-            end
-            raise "#{name}: no ports were selected for logging" if ports.empty?
-
-            ports
-        end
-
-        def create_property_log_stream(p)
-            stream_name = "#{name}.#{p.name}"
-            p.log_stream = if !configuration_log.stream?(stream_name)
-                               configuration_log.create_stream(stream_name, p.type, p.log_metadata)
-                           else
-                               configuration_log.stream(stream_name)
-                           end
-        end
-
-        # Tell the task to use the given Pocolog::Logfile object to log all
-        # changes to its properties
-        def log_all_configuration(logfile)
-            @configuration_log = logfile
-            each_property do |p|
-                create_property_log_stream(p)
-                p.log_current_value
-            end
         end
 
         # Waits for the task to be in state +state_name+ for the specified
@@ -388,12 +340,7 @@ module Runkit
                 raise Runkit::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an attribute named #{name}", e.backtrace
             end
 
-            a = Attribute.new(self, name, type_name)
-            if configuration_log
-                create_property_log_stream(a)
-                a.log_current_value
-            end
-            attributes[name] = a
+            attributes[name] = Attribute.new(self, name, type_name)
         end
 
         # Return the property object without caching nor validation
@@ -432,12 +379,7 @@ module Runkit
                 end
             end
 
-            p = raw_property(name)
-            if configuration_log
-                create_property_log_stream(p)
-                p.log_current_value
-            end
-            properties[name] = p
+            properties[name] = raw_property(name)
         end
 
         # @api private
