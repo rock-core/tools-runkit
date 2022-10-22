@@ -15,7 +15,7 @@ module Runkit
                 orogen_model.each_operation do |op|
                     next if has_operation?(op.name, with_stubs: false)
 
-                    if property = setter_operations[op.name]
+                    if (property = setter_operations[op.name])
                         stubbed_operations.class_eval do
                             define_method(op.name) do |value|
                                 self.property(property.name).write(value, Time.now, direct: true)
@@ -33,8 +33,8 @@ module Runkit
                 super
             end
 
-            def has_operation?(name, with_stubs: true)
-                super(name) || (with_stubs && !!model.find_operation(name))
+            def operation?(name, with_stubs: true)
+                super(name) || (with_stubs && model.find_operation(name))
             end
 
             class SendHandle
@@ -78,7 +78,8 @@ module Runkit
 
                 def sendop(*args)
                     begin result = callop(*args)
-                    rescue Exception => e
+                    rescue StandardError => e
+                        return
                     end
                     SendHandle.new(result, e)
                 end
@@ -87,11 +88,9 @@ module Runkit
             def operation(name)
                 super
             rescue NotFound
-                if model.find_operation(name)
-                    Operation.new(name, self)
-                else
-                    raise
-                end
+                raise unless model.find_operation(name)
+
+                Operation.new(name, self)
             end
         end
     end

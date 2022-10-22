@@ -78,9 +78,9 @@ module Runkit
             # @option options [Class] :class the class that should be used to
             #   represent the port on the Ruby side. Do not change unless you know
             #   what you are doing
-            def create_input_port(name, runkit_type_name, options = {})
-                options, other_options = Kernel.filter_options options, class: LocalInputPort
-                create_port(false, options[:class], name, runkit_type_name, other_options)
+            def create_input_port(name, runkit_type_name, **options)
+                klass = options.delete(:class) || LocalInputPort
+                create_port(false, klass, name, runkit_type_name, options)
             end
 
             # Create a new output port on this task context
@@ -96,9 +96,9 @@ module Runkit
             # @option options [Class] :class the class that should be used to
             #   represent the port on the Ruby side. Do not change unless you know
             #   what you are doing
-            def create_output_port(name, runkit_type_name, options = {})
-                options, other_options = Kernel.filter_options options, class: LocalOutputPort
-                create_port(true, options[:class], name, runkit_type_name, other_options)
+            def create_output_port(name, runkit_type_name, **options)
+                klass = options.delete(:class) || LocalOutputPort
+                create_port(true, klass, name, runkit_type_name, options)
             end
 
             # Remove the given port from this task's interface
@@ -134,9 +134,7 @@ module Runkit
             #   is mostly to avoid crashes / misbehaviours in case smart pointers are
             #   used
             # @return [Property] the attribute object
-            def create_attribute(name, type, options = {})
-                options = Kernel.validate_options options, init: true
-
+            def create_attribute(name, type, init: true)
                 Runkit.load_typekit_for(type, false)
                 runkit_type_name = Runkit.find_runkit_type_name_by_type(type)
                 Runkit.load_typekit_for(runkit_type_name, true)
@@ -144,7 +142,7 @@ module Runkit
                 local_attribute = @local_task.do_create_attribute(Attribute, name, runkit_type_name)
                 @local_attributes[local_attribute.name] = local_attribute
                 @attributes[local_attribute.name] = local_attribute
-                local_attribute.write(local_attribute.new_sample) if options[:init]
+                local_attribute.write(local_attribute.new_sample) if init
                 local_attribute
             end
 
@@ -175,18 +173,19 @@ module Runkit
             # @param [OroGen::Spec::TaskContext] orogen_model the oroGen model
             # @return [void]
             def setup_from_orogen_model(orogen_model)
-                new_properties = []
-                new_outputs = []
-                new_inputs = []
-                remove_outputs = []
-                remove_inputs = []
-
-                orogen_model.each_property do |p|
-                    if property?(p.name)
-                        raise IncompatibleInterface, "cannot adapt the interface of #{self} to match the model in #{orogen_model}: #{self} already has a property called #{p.name}, but with a different type" if property(p.name).runkit_type_name != p.runkit_type_name
-                    else new_properties << p
+                existing_properties, new_properties =
+                    orogen_model.each_property.partition { |p| property?(p.name) }
+                existing_properties.each do |p|
+                    if property(p.name).runkit_type_name != p.runkit_type_name
+                        raise IncompatibleInterface,
+                              "cannot adapt the interface of #{self} to match the model "\
+                              "in #{orogen_model}: #{self} already has a property "\
+                              "called #{p.name}, but with a different type"
                     end
                 end
+
+                new_inputs = []
+                remove_inputs = []
                 orogen_model.each_input_port do |p|
                     if port?(p.name)
                         existing_port = port(p.name)
@@ -197,6 +196,9 @@ module Runkit
                     else new_inputs << p
                     end
                 end
+
+                new_outputs = []
+                remove_outputs = []
                 orogen_model.each_output_port do |p|
                     if port?(p.name)
                         existing_port = port(p.name)
@@ -210,15 +212,9 @@ module Runkit
 
                 remove_inputs.each { |p| remove_port p }
                 remove_outputs.each { |p| remove_port p }
-                new_properties.each do |p|
-                    create_property(p.name, p.type)
-                end
-                new_inputs.each do |p|
-                    create_input_port(p.name, p.type)
-                end
-                new_outputs.each do |p|
-                    create_output_port(p.name, p.type)
-                end
+                new_properties.each { |p| create_property(p.name, p.type) }
+                new_inputs.each { |p| create_input_port(p.name, p.type) }
+                new_outputs.each { |p| create_output_port(p.name, p.type) }
                 @model = orogen_model
                 nil
             end
@@ -234,16 +230,17 @@ module Runkit
             private
 
             # Helper method for create_input_port and create_output_port
-            def create_port(is_output, klass, name, type, options)
+            def create_port(is_output, klass, name, type, permanent: true)
                 # Load the typekit, but no need to check on it being exported since
                 # #find_runkit_type_name_by_type will do it for us
                 Runkit.load_typekit_for(type, false)
                 runkit_type_name = Runkit.find_runkit_type_name_by_type(type)
                 Runkit.load_typekit_for(runkit_type_name, true)
 
-                options = Kernel.validate_options options, permanent: true
-                local_port = @local_task.do_create_port(is_output, klass, name, runkit_type_name)
-                if options[:permanent]
+                local_port = @local_task.do_create_port(
+                    is_output, klass, name, runkit_type_name
+                )
+                if permanent
                     @local_ports[local_port.name] = local_port
                     @ports[local_port.name] = local_port
                 end
