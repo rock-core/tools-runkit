@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 
-describe Orocos::Process do
+describe Runkit::Process do
     attr_reader :deployment_m, :task_m
     before do
         @loader = flexmock(OroGen::Loaders::Aggregate.new)
@@ -20,7 +20,7 @@ describe Orocos::Process do
         @loader.register_deployment_model(@deployment_m)
         @loader.register_deployment_model(@default_deployment_m)
 
-        flexmock(Orocos::Process).should_receive(:has_command?)
+        flexmock(Runkit::Process).should_receive(:has_command?)
                                  .and_return(true).by_default
     end
 
@@ -30,7 +30,7 @@ describe Orocos::Process do
                    .explicitly
                    .with("test_deployment")
                    .and_return("/path/to/file")
-            process = Orocos::Process.new(
+            process = Runkit::Process.new(
                 "test", @deployment_m,
                 loader: @loader,
                 name_mappings: Hash["task" => "renamed_task"]
@@ -39,7 +39,7 @@ describe Orocos::Process do
         end
         it "applies the name mappings" do
             @deployment_m.task "task", @task_m
-            process = Orocos::Process.new(
+            process = Runkit::Process.new(
                 "test", @deployment_m,
                 loader: @loader,
                 name_mappings: Hash["task" => "renamed_task"]
@@ -49,37 +49,37 @@ describe Orocos::Process do
     end
 
     describe ".partition_run_options" do
-        it "partitions deployment names from task model names using Orocos.available_task_models" do
+        it "partitions deployment names from task model names using Runkit.available_task_models" do
             deployments, models, options =
-                Orocos::Process.partition_run_options "test_deployment" => "name2", "test::Task" => "name", loader: @loader
+                Runkit::Process.partition_run_options "test_deployment" => "name2", "test::Task" => "name", loader: @loader
             assert_equal Hash[deployment_m => "name2"], deployments
             assert_equal Hash[task_m => ["name"]], models
         end
         it "sets to nil the prefix for deployments that should not have one" do
             deployments, models, options =
-                Orocos::Process.partition_run_options "test_deployment", "test::Task" => "name", loader: @loader
+                Runkit::Process.partition_run_options "test_deployment", "test::Task" => "name", loader: @loader
             assert_equal Hash[deployment_m => nil], deployments
         end
         it "raises if an unexisting name is given" do
             assert_raises(OroGen::NotFound) do
-                Orocos::Process.partition_run_options "does_not_exist", loader: @loader
+                Runkit::Process.partition_run_options "does_not_exist", loader: @loader
             end
         end
         it "raises if a task model is given without a name" do
             assert_raises(ArgumentError) do
-                Orocos::Process.partition_run_options "test::Task", loader: @loader
+                Runkit::Process.partition_run_options "test::Task", loader: @loader
             end
         end
     end
 
     it "raises NotFound when the deployment name does not exist" do
-        assert_raises(OroGen::DeploymentModelNotFound) { Orocos::Process.new("does_not_exist") }
+        assert_raises(OroGen::DeploymentModelNotFound) { Runkit::Process.new("does_not_exist") }
     end
 
     describe "parse_run_options" do
         describe "per-deployment wrappers" do
             before do
-                flexmock(Orocos::Process).should_receive(:partition_run_options).with("foo", "bar", any)
+                flexmock(Runkit::Process).should_receive(:partition_run_options).with("foo", "bar", any)
                                          .and_return([Hash[flexmock(name: "foo_prefixed"), nil,
                                                            flexmock(name: "bar_prefixed"), nil],
                                                       {}])
@@ -90,7 +90,7 @@ describe Orocos::Process do
                 opts = Hash[wrapper_name.to_sym => arg]
                 opts["#{wrapper_name}_options".to_sym] = options if options
 
-                processes, _ = Orocos::Process.parse_run_options("foo", "bar", loader: @loader, **opts)
+                processes, _ = Runkit::Process.parse_run_options("foo", "bar", loader: @loader, **opts)
                 processes.inject({}) do |h, (_, _, name, spawn)|
                     h.merge(name => spawn[wrapper_name.to_sym])
                 end
@@ -129,11 +129,11 @@ describe Orocos::Process do
 
         describe "per-model wrappers" do
             before do
-                flexmock(Orocos::Process).should_receive(:partition_run_options).with("foo", "bar", any)
+                flexmock(Runkit::Process).should_receive(:partition_run_options).with("foo", "bar", any)
                                          .and_return([{},
                                                       Hash[flexmock, ["foo_prefixed"],
                                                            flexmock, ["bar_prefixed"]]])
-                flexmock(Orocos::Process).should_receive(:resolve_name_mappings)
+                flexmock(Runkit::Process).should_receive(:resolve_name_mappings)
                                          .and_return do |_, models|
                     models.flat_map do |obj, new_names|
                         Array(new_names).map { |n| [flexmock, {}, n] }
@@ -146,7 +146,7 @@ describe Orocos::Process do
                 opts = Hash[wrapper_name.to_sym => arg]
                 opts["#{wrapper_name}_options".to_sym] = options if options
 
-                processes, _ = Orocos::Process.parse_run_options("foo", "bar", **opts)
+                processes, _ = Runkit::Process.parse_run_options("foo", "bar", **opts)
                 processes.inject({}) do |h, (_, _, name, spawn)|
                     h.merge(name => spawn[wrapper_name.to_sym])
                 end
@@ -186,7 +186,7 @@ describe Orocos::Process do
 
     describe "#spawn" do
         it "starts a new process and waits for it with a timeout" do
-            process = Orocos::Process.new("process")
+            process = Runkit::Process.new("process")
             # To ensure that the test teardown will kill it
             processes << process
             process.spawn wait: 10
@@ -196,7 +196,7 @@ describe Orocos::Process do
         end
 
         it "starts a new process and waits for it without a timeout" do
-            process = Orocos::Process.new("process")
+            process = Runkit::Process.new("process")
             # To ensure that the test teardown will kill it
             processes << process
             process.spawn wait: true
@@ -206,7 +206,7 @@ describe Orocos::Process do
         end
 
         it "can automatically add prefixes to tasks" do
-            process = Orocos::Process.new "process"
+            process = Runkit::Process.new "process"
             begin
                 process.spawn prefix: "prefix"
                 assert_equal Hash["process_Test" => "prefixprocess_Test"],
@@ -218,7 +218,7 @@ describe Orocos::Process do
         end
 
         it "can rename single tasks" do
-            process = Orocos::Process.new "process"
+            process = Runkit::Process.new "process"
             begin
                 process.map_name "process_Test", "prefixprocess_Test"
                 process.spawn
@@ -231,14 +231,14 @@ describe Orocos::Process do
 
     describe "#load_and_validate_ior_message" do
         it "loads and validates the ior message when it is valid" do
-            process = Orocos::Process.new("process")
+            process = Runkit::Process.new("process")
             message = "{\"process_Test\": \"IOR:123456\"}"
             result = process.load_and_validate_ior_message(message)
             assert_equal(result, JSON.parse(message))
         end
 
         it "returns nil when the ior message is not parseable" do
-            process = Orocos::Process.new("process")
+            process = Runkit::Process.new("process")
             # Missing the `}`
             message = "{\"process_Test\": \"IOR:123456\""
             result = process.load_and_validate_ior_message(message)
@@ -246,12 +246,12 @@ describe Orocos::Process do
         end
 
         it "raises invalid ior message when a task is not included in the ior message" do
-            process = Orocos::Process.new("process")
+            process = Runkit::Process.new("process")
             message = "{\"another_process\": \"IOR:123456\"}"
-            error = assert_raises(Orocos::InvalidIORMessage) do
+            error = assert_raises(Runkit::InvalidIORMessage) do
                 process.load_and_validate_ior_message(message)
             end
-            expected_error = Orocos::InvalidIORMessage.new(
+            expected_error = Runkit::InvalidIORMessage.new(
                 "the following tasks were present on the ior message but werent in the " \
                 "process task names: [\"another_process\"]"
             )
@@ -263,7 +263,7 @@ describe Orocos::Process do
         attr_reader :process
         before do
             @message = "{\"process_Test\": \"IOR:123456\"}"
-            @process = Orocos::Process.new("process")
+            @process = Runkit::Process.new("process")
             flexmock(process).should_receive(:task)
         end
 
@@ -322,7 +322,7 @@ describe Orocos::Process do
             alive_mock = flexmock(process).should_receive(:alive?)
             alive_mock.and_return(true).ordered
             alive_mock.and_return(false).ordered
-            e = assert_raises(Orocos::NotFound) do
+            e = assert_raises(Runkit::NotFound) do
                 process.wait_running(2)
             end
             assert_equal("process was started but crashed", e.message)
@@ -339,7 +339,7 @@ describe Orocos::Process do
 
             alive_mock = flexmock(process).should_receive(:alive?)
             alive_mock.and_return(false).ordered
-            e = assert_raises(Orocos::NotFound) do
+            e = assert_raises(Runkit::NotFound) do
                 process.wait_running(2)
             end
             assert_equal("cannot get a running process module", e.message)
@@ -349,7 +349,7 @@ describe Orocos::Process do
     describe "#resolve_all_tasks" do
         attr_reader :process
         before do
-            @process = Orocos::Process.new("process")
+            @process = Runkit::Process.new("process")
         end
 
         it "returns all the process tasks when their ior is registered" do
@@ -364,7 +364,7 @@ describe Orocos::Process do
             process.spawn(wait: false)
             process.wait_running(0.1)
             process.resolve_all_tasks
-            spy = flexmock(:on, Orocos::Process)
+            spy = flexmock(:on, Runkit::Process)
             process.resolve_all_tasks
             assert_spy_not_called(spy, :ior_for)
         end
@@ -373,7 +373,7 @@ describe Orocos::Process do
             process.spawn(wait: false)
             process.wait_running(0.1)
             flexmock(process).should_receive(:ior_for)
-            e = assert_raises(Orocos::IORNotRegisteredError) do
+            e = assert_raises(Runkit::IORNotRegisteredError) do
                 process.resolve_all_tasks
             end
             assert("no IOR was registered for process", e.message)
@@ -382,16 +382,16 @@ describe Orocos::Process do
 
     describe "#kill" do
         it "stops a running process and clean up the name server" do
-            Orocos.run("process") do |process|
-                assert(Orocos.task_names.find { |name| name == "/process_Test" })
+            Runkit.run("process") do |process|
+                assert(Runkit.task_names.find { |name| name == "/process_Test" })
                 process.kill
                 assert(!process.alive?, "process has been killed but alive? returns true")
-                assert(!Orocos.task_names.find { |name| name == "process_Test" })
+                assert(!Runkit.task_names.find { |name| name == "process_Test" })
             end
         end
 
         it "stops the task if it is running" do
-            Orocos.run("process") do |process|
+            Runkit.run("process") do |process|
                 task = process.task("process_Test")
                 state = nil
                 flexmock(::Process)
@@ -405,7 +405,7 @@ describe Orocos::Process do
         end
 
         it "does not attempt to stop the task if cleanup is false" do
-            Orocos.run("process") do |process|
+            Runkit.run("process") do |process|
                 task = process.task("process_Test")
                 state = nil
                 flexmock(::Process)
@@ -419,7 +419,7 @@ describe Orocos::Process do
         end
 
         it "uses SIGINT by default" do
-            Orocos.run("process") do |process|
+            Runkit.run("process") do |process|
                 flexmock(::Process)
                     .should_receive(:kill)
                     .with("SIGINT", process.pid)
@@ -430,7 +430,7 @@ describe Orocos::Process do
         end
 
         it "uses SIGKILL if hard is true" do
-            Orocos.run("process") do |process|
+            Runkit.run("process") do |process|
                 flexmock(::Process)
                     .should_receive(:kill)
                     .with("SIGKILL", process.pid)
@@ -443,7 +443,7 @@ describe Orocos::Process do
 
     describe "#task" do
         it "can get a reference on a deployed task context by name" do
-            Orocos.run("process") do |process|
+            Runkit.run("process") do |process|
                 assert(direct   = process.task("process_Test"))
                 assert(indirect = process.task("Test"))
                 assert_equal(direct, indirect)
@@ -451,15 +451,15 @@ describe Orocos::Process do
         end
 
         it "throws NotFound on an unknown task context name" do
-            Orocos.run("process") do |process|
-                assert_raises(Orocos::NotFound) { process.task("Bla") }
+            Runkit.run("process") do |process|
+                assert_raises(Runkit::NotFound) { process.task("Bla") }
             end
         end
     end
 
     describe "#task_names" do
         it "enumerates the process own deployed task contexts" do
-            Orocos.run("process") do |process|
+            Runkit.run("process") do |process|
                 process.task_names.must_equal %w{process_Test}
             end
         end
@@ -467,13 +467,13 @@ describe Orocos::Process do
 
     describe "run" do
         it "can start a process with a prefix" do
-            Orocos.run("process" => "prefix") do |process|
+            Runkit.run("process" => "prefix") do |process|
                 assert(process.task("prefixprocess_Test"))
             end
         end
 
         it "can wait for the process to be running without a timeout" do
-            Orocos.run "process", wait: true do |process|
+            Runkit.run "process", wait: true do |process|
                 process.task("process_Test")
             end
         end
@@ -482,11 +482,11 @@ describe Orocos::Process do
     describe "#setup_default_logger" do
         attr_reader :logger, :process
         before do
-            orogen_project = OroGen::Spec::Project.new(Orocos.default_loader)
+            orogen_project = OroGen::Spec::Project.new(Runkit.default_loader)
             orogen_deployment = orogen_project.deployment("test")
-            @process = Orocos::Process.new("test", orogen_deployment)
-            @logger = Orocos::RubyTasks::TaskContext.from_orogen_model(
-                "test_logger", Orocos.default_loader.task_model_from_name("logger::Logger")
+            @process = Runkit::Process.new("test", orogen_deployment)
+            @logger = Runkit::RubyTasks::TaskContext.from_orogen_model(
+                "test_logger", Runkit.default_loader.task_model_from_name("logger::Logger")
             )
         end
 

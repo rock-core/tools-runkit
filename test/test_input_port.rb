@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 
-module Orocos
+module Runkit
     describe InputPort do
         it "should not be possible to create an instance directly" do
             assert_raises(NoMethodError) { InputPort.new }
         end
 
         it "should have the right model" do
-            Orocos.run("simple_sink") do
-                task = Orocos.get("simple_sink_sink")
+            Runkit.run("simple_sink") do
+                task = Runkit.get("simple_sink_sink")
                 port = task.port("cycle")
                 assert_same port.model, task.model.find_input_port("cycle")
             end

@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-require "orocos/test"
-require "orocos/ruby_tasks/process"
+require "runkit/test"
+require "runkit/ruby_tasks/process"
 
-module Orocos
+module Runkit
     module RubyTasks
         describe Process do
             attr_reader :process
 
             before do
-                Orocos.load_typekit "echo"
-                project = OroGen::Spec::Project.new(Orocos.default_loader)
+                Runkit.load_typekit "echo"
+                project = OroGen::Spec::Project.new(Runkit.default_loader)
                 project.task_context "Task"
                 deployment_m = project.deployment "test" do
                     task "task", "Task"
@@ -22,13 +22,13 @@ module Orocos
                 it "spawns a RubyTask per task described in the oroGen model" do
                     process.spawn
                     task = process.task "task"
-                    assert_equal Orocos.get("task"), task
+                    assert_equal Runkit.get("task"), task
                 end
                 it "applies name mappings" do
                     process.map_name "task", "mytask"
                     process.spawn
                     task = process.task "mytask"
-                    assert_equal Orocos.get("mytask"), task
+                    assert_equal Runkit.get("mytask"), task
                 end
             end
         end

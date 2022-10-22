@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 
-describe Orocos::Namespace do
+describe Runkit::Namespace do
     attr_reader :object
 
     before do
         @object = Object.new
-        object.extend Orocos::Namespace
+        object.extend Runkit::Namespace
     end
     describe "#split_name" do
         it "returns an empty string for the root namespace" do

@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require "orocos/test"
-module Orocos
+require "runkit/test"
+module Runkit
     describe OutputPort do
         it "should not be possible to create an instance directly" do
             assert_raises(NoMethodError) { OutputPort.new }
         end
 
         it "should have the right model" do
-            Orocos.run("simple_source") do
-                task = Orocos.get("simple_source_source")
+            Runkit.run("simple_source") do
+                task = Runkit.get("simple_source_source")
                 source = task.port("cycle")
                 assert_same source.model, task.model.find_output_port("cycle")
             end
@@ -141,10 +141,10 @@ module Orocos
 
             it "behaves if connections are modified while running" do
                 last = nil
-                Orocos.run("simple_sink", "simple_source", output: "%m.log") do
-                    source_task = Orocos.get("fast_source")
+                Runkit.run("simple_sink", "simple_source", output: "%m.log") do
+                    source_task = Runkit.get("fast_source")
                     sources = (0...4).map { |i| source_task.port("out#{i}") }
-                    sink_task = Orocos.get("fast_sink")
+                    sink_task = Runkit.get("fast_sink")
                     sinks = (0...4).map { |i| sink_task.port("in#{i}") }
 
                     count, display = nil
@@ -182,7 +182,7 @@ module Orocos
             it "should fallback to CORBA if connection fails with MQ" do
                 MQueue.validate_sizes = false
                 MQueue.auto_sizes = false
-                flexmock(Orocos).should_receive(:warn)
+                flexmock(Runkit).should_receive(:warn)
                                 .with("failed to create a connection from source.out to sink.in using the MQ transport, falling back to CORBA")
                                 .once
                 task = new_ruby_task_context "source"

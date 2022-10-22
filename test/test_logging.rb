@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "orocos/test"
-module Orocos
+require "runkit/test"
+module Runkit
     describe "logging" do
         attr_reader :orogen_project, :orogen_deployment, :process
         before do
-            @orogen_project = OroGen::Spec::Project.new(Orocos.default_loader)
+            @orogen_project = OroGen::Spec::Project.new(Runkit.default_loader)
             @orogen_deployment = orogen_project.deployment("test")
             @process = Process.new("test", orogen_deployment)
             flexmock(process)
@@ -17,7 +17,7 @@ module Orocos
             orogen_deployment.task "test", task_model
 
             default_logger = RubyTasks::TaskContext.from_orogen_model(
-                "test_logger", Orocos.default_loader.task_model_from_name("logger::Logger")
+                "test_logger", Runkit.default_loader.task_model_from_name("logger::Logger")
             )
             flexmock(default_logger).should_receive(:log).by_default
             ruby_task = RubyTasks::TaskContext.from_orogen_model(
@@ -33,7 +33,7 @@ module Orocos
 
         it "returns an empty set if the process has no default logger" do
             process.default_logger = false
-            assert_equal Set.new, Orocos.log_all_process_ports(process)
+            assert_equal Set.new, Runkit.log_all_process_ports(process)
         end
 
         it "calls the process' #setup_default_logger method with the value returned by process.default_logger" do
@@ -42,19 +42,19 @@ module Orocos
                    .with(default_logger, log_file_name: "testfile")
                    .once
                    .pass_thru
-            Orocos.log_all_process_ports(process, log_file_name: "testfile")
+            Runkit.log_all_process_ports(process, log_file_name: "testfile")
         end
 
         it "configures and starts a pre-operational logger" do
             default_logger, _ = create_mock_deployment
-            Orocos.log_all_process_ports(process)
+            Runkit.log_all_process_ports(process)
             assert default_logger.running?
         end
 
         it "starts a stopped logger" do
             default_logger, _ = create_mock_deployment
             default_logger.configure
-            Orocos.log_all_process_ports(process)
+            Runkit.log_all_process_ports(process)
             assert default_logger.running?
         end
 
@@ -62,7 +62,7 @@ module Orocos
             default_logger, _ = create_mock_deployment
             default_logger.configure
             default_logger.start
-            Orocos.log_all_process_ports(process)
+            Runkit.log_all_process_ports(process)
             assert default_logger.running?
         end
 
@@ -76,7 +76,7 @@ module Orocos
             default_logger.should_receive(:log)
                           .with(ruby_task.test).once
             assert_equal Set[%w[test state], %w[test test]],
-                         Orocos.log_all_process_ports(process)
+                         Runkit.log_all_process_ports(process)
         end
 
         it "excludes a task whose name is not matched by the tasks object" do
@@ -87,7 +87,7 @@ module Orocos
                 task_m.output_port "test", "/int32_t"
             end
             default_logger.should_receive(:log).never
-            assert_equal Set.new, Orocos.log_all_process_ports(process, tasks: matcher)
+            assert_equal Set.new, Runkit.log_all_process_ports(process, tasks: matcher)
         end
 
         it "includes a task whose name is matched by the tasks object" do
@@ -102,7 +102,7 @@ module Orocos
             default_logger.should_receive(:log)
                           .with(ruby_task.test).once
             assert_equal Set[%w[test test], %w[test state]],
-                         Orocos.log_all_process_ports(process, tasks: matcher)
+                         Runkit.log_all_process_ports(process, tasks: matcher)
         end
 
         it "excludes a port whose name is matched by the exclude_ports object" do
@@ -117,7 +117,7 @@ module Orocos
             default_logger.should_receive(:log)
                           .with(ruby_task.test).once
             assert_equal Set[%w[test test]],
-                         Orocos.log_all_process_ports(process, exclude_ports: matcher)
+                         Runkit.log_all_process_ports(process, exclude_ports: matcher)
         end
 
         it "excludes a port whose type name is matched by the exclude_types object" do
@@ -132,7 +132,7 @@ module Orocos
             default_logger.should_receive(:log)
                           .with(ruby_task.test).never
             assert_equal Set[%w[test state]],
-                         Orocos.log_all_process_ports(process, exclude_types: matcher)
+                         Runkit.log_all_process_ports(process, exclude_types: matcher)
         end
 
         it "excludes a port for which the block returns false" do
@@ -144,7 +144,7 @@ module Orocos
             default_logger.should_receive(:log)
                           .with(ruby_task.test).once
             assert_equal Set[%w[test test]],
-                         Orocos.log_all_process_ports(process) { |port| port.name != "state" }
+                         Runkit.log_all_process_ports(process) { |port| port.name != "state" }
         end
     end
 end

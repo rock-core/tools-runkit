@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 
-describe Orocos::Operation do
+describe Runkit::Operation do
     attr_reader :task
     attr_reader :process
 
     def setup
         super
-        @process, _ = Orocos.run "operations_test"
-        @task = Orocos::TaskContext.get "operations"
+        @process, _ = Runkit.run "operations_test"
+        @task = Runkit::TaskContext.get "operations"
         @task.start
     end
 
@@ -21,8 +21,8 @@ describe Orocos::Operation do
     def assert_operation_signature(returns, arguments, opname)
         op = task.operation(opname)
 
-        assert_equal returns, op.orocos_return_typenames, "wrong return types for #{opname}"
-        assert_equal arguments, op.orocos_arguments_typenames, "wrong argument types for #{opname}"
+        assert_equal returns, op.runkit_return_typenames, "wrong return types for #{opname}"
+        assert_equal arguments, op.runkit_arguments_typenames, "wrong argument types for #{opname}"
     end
 
     def assert_call_returns(value, opname, *args)
@@ -36,28 +36,28 @@ describe Orocos::Operation do
 
         # First will collect()
         handle = op.sendop(*args)
-        assert_kind_of Orocos::SendHandle, handle
+        assert_kind_of Runkit::SendHandle, handle
         status, *result = handle.collect
-        assert_equal(Orocos::SendHandle::SEND_SUCCESS, status)
+        assert_equal(Runkit::SendHandle::SEND_SUCCESS, status)
         assert_equal([*value].compact, result)
 
         # Then with collect_if_done
         handle = op.sendop(*args)
-        assert_kind_of Orocos::SendHandle, handle
+        assert_kind_of Runkit::SendHandle, handle
         status, result = nil
         50.times do
             status, *result = handle.collect_if_done
-            break if status == Orocos::SendHandle::SEND_SUCCESS
+            break if status == Runkit::SendHandle::SEND_SUCCESS
 
             sleep 0.01
         end
-        assert_equal Orocos::SendHandle::SEND_SUCCESS, status
+        assert_equal Runkit::SendHandle::SEND_SUCCESS, status
         assert_equal([*value].compact, result)
     end
 
     def find_type(type_name)
-        Orocos::CORBA.load_typekit "operations"
-        Orocos.registry.get(type_name)
+        Runkit::CORBA.load_typekit "operations"
+        Runkit.registry.get(type_name)
     end
 
     it "should be able to get the operation signatures" do
@@ -152,7 +152,7 @@ describe Orocos::Operation do
     end
 
     # it "should be possible to asynchronously call an operation with arguments" do
-    #    Orocos.run 'echo' do |echo|
+    #    Runkit.run 'echo' do |echo|
     #        echo = echo.task 'Echo'
     #        echo.start
 
@@ -160,15 +160,15 @@ describe Orocos::Operation do
 
     #        m = echo.operation 'write'
     #        handle = m.sendop(10)
-    #        assert_kind_of Orocos::SendHandle, handle
+    #        assert_kind_of Runkit::SendHandle, handle
     #        sleep 0.2
-    #        assert_equal Orocos::SendHandle::SEND_SUCCESS, handle.check_status
+    #        assert_equal Runkit::SendHandle::SEND_SUCCESS, handle.check_status
     #        assert_equal(10, handle.returned_value)
     #    end
     # end
 
     # it "should be possible to use a shortcut" do
-    #    Orocos.run 'echo' do |echo|
+    #    Runkit.run 'echo' do |echo|
     #        echo = echo.task 'Echo'
     #        echo.start
     #        assert_equal(10, echo.write(10))
@@ -176,7 +176,7 @@ describe Orocos::Operation do
     # end
 
     # it "should be possible to have multiple Operation instances referring to the same remote method" do
-    #    Orocos.run 'echo' do |echo|
+    #    Runkit.run 'echo' do |echo|
     #        echo = echo.task 'Echo'
     #        echo.start
 

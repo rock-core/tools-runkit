@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 
-module Orocos
+module Runkit
     describe PortBase do
         describe "#distance_to" do
             attr_reader :source, :sink
@@ -51,7 +51,7 @@ module Orocos
                 end.out
             end
             def assert_creates_writer_port(*expected_args)
-                flexmock(Orocos.ruby_task).should_receive(:create_output_port)
+                flexmock(Runkit.ruby_task).should_receive(:create_output_port)
                                           .once.pass_thru do |port|
                     yield(port)
                     port
@@ -109,7 +109,7 @@ module Orocos
                 end.out
             end
             def assert_creates_reader_port(*expected_args)
-                flexmock(Orocos.ruby_task).should_receive(:create_input_port)
+                flexmock(Runkit.ruby_task).should_receive(:create_input_port)
                                           .once.pass_thru do |port|
                     yield(port)
                     port

@@ -1,33 +1,33 @@
 # frozen_string_literal: true
 
-require "orocos/test"
-describe Orocos::InputWriter do
+require "runkit/test"
+describe Runkit::InputWriter do
     unless defined? TEST_DIR
         TEST_DIR = __dir__
         DATA_DIR = File.join(TEST_DIR, "data")
         WORK_DIR = File.join(TEST_DIR, "working_copy")
     end
 
-    CORBA = Orocos::CORBA
-    include Orocos::Spec
+    CORBA = Runkit::CORBA
+    include Runkit::Spec
 
     it "should not be possible to create an instance directly" do
-        assert_raises(NoMethodError) { Orocos::InputWriter.new }
+        assert_raises(NoMethodError) { Runkit::InputWriter.new }
     end
 
     it "should offer write access on an input port" do
-        Orocos.run("echo") do |echo|
+        Runkit.run("echo") do |echo|
             echo  = echo.task("Echo")
             input = echo.port("input")
 
             writer = input.writer
-            assert_kind_of Orocos::InputWriter, writer
+            assert_kind_of Runkit::InputWriter, writer
             writer.write(0)
         end
     end
 
     it "should raise Corba::ComError when writing on a dead port and be disconnected" do
-        Orocos.run("echo") do |echo_p|
+        Runkit.run("echo") do |echo_p|
             echo  = echo_p.task("Echo")
             input = echo.port("input")
 
@@ -39,7 +39,7 @@ describe Orocos::InputWriter do
     end
 
     it "should be able to write data to an input port using a data connection" do
-        Orocos.run("echo") do |echo|
+        Runkit.run("echo") do |echo|
             echo = echo.task("Echo")
             writer = echo.port("input").writer
             reader = echo.port("output").reader
@@ -53,7 +53,7 @@ describe Orocos::InputWriter do
     end
 
     it "should be able to write structs using a Hash" do
-        Orocos.run("echo") do |echo|
+        Runkit.run("echo") do |echo|
             echo = echo.task("Echo")
             writer = echo.port("input_struct").writer
             reader = echo.port("output").reader
@@ -67,7 +67,7 @@ describe Orocos::InputWriter do
     end
 
     it "should allow to write opaque types" do
-        Orocos.run("echo") do |echo|
+        Runkit.run("echo") do |echo|
             echo = echo.task("Echo")
             writer = echo.port("input_opaque").writer
             reader = echo.port("output_opaque").reader
@@ -91,26 +91,26 @@ describe Orocos::InputWriter do
         end
     end
 
-    if Orocos::SelfTest::USE_MQUEUE
+    if Runkit::SelfTest::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
-            Orocos::MQueue.validate_sizes = false
-            Orocos::MQueue.auto_sizes = false
-            Orocos.run("echo") do |echo|
+            Runkit::MQueue.validate_sizes = false
+            Runkit::MQueue.auto_sizes = false
+            Runkit.run("echo") do |echo|
                 echo = echo.task("Echo")
-                writer = echo.port("input_opaque").writer(transport: Orocos::TRANSPORT_MQ, data_size: Orocos::MQueue.msgsize_max + 1, type: :buffer, size: 1)
+                writer = echo.port("input_opaque").writer(transport: Runkit::TRANSPORT_MQ, data_size: Runkit::MQueue.msgsize_max + 1, type: :buffer, size: 1)
                 assert writer.connected?
             end
         ensure
-            Orocos::MQueue.validate_sizes = true
-            Orocos::MQueue.auto_sizes = true
+            Runkit::MQueue.validate_sizes = true
+            Runkit::MQueue.auto_sizes = true
         end
     end
 
     describe "#connect_to" do
         it "should raise if the provided policy is invalid" do
-            producer = Orocos::RubyTasks::TaskContext.new "producer"
+            producer = Runkit::RubyTasks::TaskContext.new "producer"
             out_p = producer.create_output_port "out", "double"
-            consumer = Orocos::RubyTasks::TaskContext.new "consumer"
+            consumer = Runkit::RubyTasks::TaskContext.new "consumer"
             in_p = consumer.create_input_port "in", "double"
             assert_raises(ArgumentError) do
                 out_p.connect_to in_p, type: :pull,

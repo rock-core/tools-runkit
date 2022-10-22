@@ -1,34 +1,34 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 
-describe Orocos::OutputReader do
+describe Runkit::OutputReader do
     unless defined? TEST_DIR
         TEST_DIR = __dir__
         DATA_DIR = File.join(TEST_DIR, "data")
         WORK_DIR = File.join(TEST_DIR, "working_copy")
     end
 
-    include Orocos::Spec
+    include Runkit::Spec
 
     it "should not be possible to create an instance directly" do
-        assert_raises(NoMethodError) { Orocos::OutputReader.new }
+        assert_raises(NoMethodError) { Runkit::OutputReader.new }
     end
 
     it "should offer read access on an output port" do
-        Orocos.run("simple_source") do |source|
+        Runkit.run("simple_source") do |source|
             source = source.task("source")
             output = source.port("cycle")
 
             # Create a new reader. The default policy is data
             reader = output.reader
-            assert(reader.kind_of?(Orocos::OutputReader))
+            assert(reader.kind_of?(Runkit::OutputReader))
             assert_equal(nil, reader.read) # nothing written yet
         end
     end
 
     it "should allow to read opaque types" do
-        Orocos.run("echo") do |source|
+        Runkit.run("echo") do |source|
             source = source.task("Echo")
             output = source.port("output_opaque")
             reader = output.reader
@@ -46,7 +46,7 @@ describe Orocos::OutputReader do
     end
 
     it "should allow reusing a sample" do
-        Orocos.run("echo") do |source|
+        Runkit.run("echo") do |source|
             source = source.task("Echo")
             output = source.port("output_opaque")
             reader = output.reader
@@ -66,7 +66,7 @@ describe Orocos::OutputReader do
     end
 
     it "should be able to read data from an output port using a data connection" do
-        Orocos.run("simple_source") do |source|
+        Runkit.run("simple_source") do |source|
             source = source.task("source")
             output = source.port("cycle")
             source.configure
@@ -80,7 +80,7 @@ describe Orocos::OutputReader do
     end
 
     it "should be able to read data from an output port using a buffer connection" do
-        Orocos.run("simple_source") do |source|
+        Runkit.run("simple_source") do |source|
             source = source.task("source")
             output = source.port("cycle")
             reader = output.reader type: :buffer, size: 10
@@ -101,7 +101,7 @@ describe Orocos::OutputReader do
     end
 
     it "should be able to read data from an output port using a struct" do
-        Orocos.run("simple_source") do |source|
+        Runkit.run("simple_source") do |source|
             source = source.task("source")
             output = source.port("cycle_struct")
             reader = output.reader type: :buffer, size: 10
@@ -122,7 +122,7 @@ describe Orocos::OutputReader do
     end
 
     it "should be able to clear its connection" do
-        Orocos.run("simple_source") do |source|
+        Runkit.run("simple_source") do |source|
             source = source.task("source")
             output = source.port("cycle")
             reader = output.reader
@@ -138,7 +138,7 @@ describe Orocos::OutputReader do
     end
 
     it "does not raise if the remote end is dead, but is disconnected" do
-        Orocos.run "simple_source" do |source_p|
+        Runkit.run "simple_source" do |source_p|
             source = source_p.task("source")
             output = source.port("cycle")
             reader = output.reader
@@ -154,7 +154,7 @@ describe Orocos::OutputReader do
     end
 
     it "should get an initial value when :init is specified" do
-        Orocos.run("echo") do |echo|
+        Runkit.run("echo") do |echo|
             echo = echo.task("Echo")
             echo.start
 
@@ -193,18 +193,18 @@ describe Orocos::OutputReader do
         end
     end
 
-    if Orocos::SelfTest::USE_MQUEUE
+    if Runkit::SelfTest::USE_MQUEUE
         it "should fallback to CORBA if connection fails with MQ" do
-            Orocos::MQueue.validate_sizes = false
-            Orocos::MQueue.auto_sizes = false
-            Orocos.run("echo") do |echo|
+            Runkit::MQueue.validate_sizes = false
+            Runkit::MQueue.auto_sizes = false
+            Runkit.run("echo") do |echo|
                 echo = echo.task("Echo")
-                reader = echo.ondemand.reader(transport: Orocos::TRANSPORT_MQ, data_size: Orocos::MQueue.msgsize_max + 1, type: :buffer, size: 1)
+                reader = echo.ondemand.reader(transport: Runkit::TRANSPORT_MQ, data_size: Runkit::MQueue.msgsize_max + 1, type: :buffer, size: 1)
                 assert reader.connected?
             end
         ensure
-            Orocos::MQueue.validate_sizes = true
-            Orocos::MQueue.auto_sizes = true
+            Runkit::MQueue.validate_sizes = true
+            Runkit::MQueue.auto_sizes = true
         end
     end
 end

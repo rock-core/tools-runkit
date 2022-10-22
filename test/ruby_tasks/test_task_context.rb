@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require "orocos/test"
+require "runkit/test"
 
-describe Orocos::RubyTasks::TaskContext do
+describe Runkit::RubyTasks::TaskContext do
     before do
-        Orocos.load_typekit "base"
+        Runkit.load_typekit "base"
     end
 
     it "should be registered on the name server" do
         task = new_ruby_task_context("task")
-        assert Orocos.name_service.get("task")
+        assert Runkit.name_service.get("task")
     end
 
     it "should refer to a LocalTaskContext object that refers to it back" do
@@ -20,23 +20,23 @@ describe Orocos::RubyTasks::TaskContext do
     it "can create output ports" do
         task = new_ruby_task_context("producer")
         port = task.create_output_port("p", "/int32_t")
-        assert_kind_of Orocos::OutputPort, port
+        assert_kind_of Runkit::OutputPort, port
         assert_equal task, port.task
         assert_equal "p", port.name
 
         assert task.has_port?("p")
-        assert_kind_of Orocos::OutputPort, task.port("p")
-        assert_equal "/int32_t", task.port("p").orocos_type_name
+        assert_kind_of Runkit::OutputPort, task.port("p")
+        assert_equal "/int32_t", task.port("p").runkit_type_name
     end
 
     it "can create input ports" do
         task = new_ruby_task_context("producer")
         port = task.create_input_port("p", "/int32_t")
 
-        assert_kind_of Orocos::InputPort, port
+        assert_kind_of Runkit::InputPort, port
         assert task.has_port?("p")
-        assert_kind_of Orocos::InputPort, task.port("p")
-        assert_equal "/int32_t", task.port("p").orocos_type_name
+        assert_kind_of Runkit::InputPort, task.port("p")
+        assert_equal "/int32_t", task.port("p").runkit_type_name
     end
 
     it "can write and read on ports" do
@@ -54,14 +54,14 @@ describe Orocos::RubyTasks::TaskContext do
         it "creates them" do
             task = new_ruby_task_context("task")
             property = task.create_property("prop", "int")
-            assert_kind_of Orocos::Property, property
+            assert_kind_of Runkit::Property, property
             assert_same property, task.property("prop")
             assert task.has_property?("prop")
         end
         it "initializes them with a sample by default" do
-            Orocos.load_typekit "echo"
-            opaque_t       = Orocos.registry.get "/OpaquePoint"
-            intermediate_t = Orocos.registry.get "/echo/Point"
+            Runkit.load_typekit "echo"
+            opaque_t       = Runkit.registry.get "/OpaquePoint"
+            intermediate_t = Runkit.registry.get "/echo/Point"
             initial_sample = intermediate_t.new
             initial_sample.x = 1
             initial_sample.y = 0
@@ -83,7 +83,7 @@ describe Orocos::RubyTasks::TaskContext do
         it "raises a Ruby exception on initialization if the opaque conversion fails" do
             task = new_ruby_task_context("task")
             # create_property initializes the property, which fails in this case
-            e = assert_raises(Orocos::CORBAError) do
+            e = assert_raises(Runkit::CORBAError) do
                 task.create_property "out", "/base/geometry/Spline3"
             end
             assert_match(
@@ -95,8 +95,8 @@ describe Orocos::RubyTasks::TaskContext do
         it "raises a Ruby exception on write the opaque conversion fails" do
             task = new_ruby_task_context("task")
             prop = task.create_property "out", "/base/geometry/Spline3", init: false
-            e = assert_raises(Orocos::CORBAError) do
-                sample = Orocos.registry.get("/wrappers/geometry/Spline").new
+            e = assert_raises(Runkit::CORBAError) do
+                sample = Runkit.registry.get("/wrappers/geometry/Spline").new
                 sample.dimension = 0
                 prop.write(sample)
             end
@@ -111,14 +111,14 @@ describe Orocos::RubyTasks::TaskContext do
         it "can create a attribute" do
             task = new_ruby_task_context("task")
             attribute = task.create_attribute("prop", "int")
-            assert_kind_of Orocos::Attribute, attribute
+            assert_kind_of Runkit::Attribute, attribute
             assert_same attribute, task.attribute("prop")
             assert task.has_attribute?("prop")
         end
         it "initializes the attribute with a sample" do
-            Orocos.load_typekit "echo"
-            opaque_t       = Orocos.registry.get "/OpaquePoint"
-            intermediate_t = Orocos.registry.get "/echo/Point"
+            Runkit.load_typekit "echo"
+            opaque_t       = Runkit.registry.get "/OpaquePoint"
+            intermediate_t = Runkit.registry.get "/echo/Point"
             initial_sample = intermediate_t.new
             initial_sample.x = 1
             initial_sample.y = 0
@@ -140,7 +140,7 @@ describe Orocos::RubyTasks::TaskContext do
         it "raises a Ruby exception on initialization if the opaque conversion fails" do
             task = new_ruby_task_context("task")
             # create_attribute initializes the attribute, which fails in this case
-            e = assert_raises(Orocos::CORBAError) do
+            e = assert_raises(Runkit::CORBAError) do
                 task.create_attribute "out", "/base/geometry/Spline3"
             end
             assert_match(
@@ -152,8 +152,8 @@ describe Orocos::RubyTasks::TaskContext do
         it "raises a Ruby exception on write the opaque conversion fails" do
             task = new_ruby_task_context("task")
             prop = task.create_attribute "out", "/base/geometry/Spline3", init: false
-            e = assert_raises(Orocos::CORBAError) do
-                sample = Orocos.registry.get("/wrappers/geometry/Spline").new
+            e = assert_raises(Runkit::CORBAError) do
+                sample = Runkit.registry.get("/wrappers/geometry/Spline").new
                 sample.dimension = 0
                 prop.write(sample)
             end
@@ -165,15 +165,15 @@ describe Orocos::RubyTasks::TaskContext do
     end
 
     it "allows to get access to the model name if one is given" do
-        project = OroGen::Spec::Project.new(Orocos.default_loader)
+        project = OroGen::Spec::Project.new(Runkit.default_loader)
         model = OroGen::Spec::TaskContext.new(project, "myModel")
         task = new_ruby_task_context("task", model: model)
         assert_equal "myModel", task.getModelName
     end
 
     it "makes #model returns the oroGen model if given" do
-        project = OroGen::Spec::Project.new(Orocos.default_loader)
-        model = Orocos::Spec::TaskContext.new(project)
+        project = OroGen::Spec::Project.new(Runkit.default_loader)
+        model = Runkit::Spec::TaskContext.new(project)
         task = new_ruby_task_context("task", model: model)
         assert_same model, task.model
     end
@@ -193,9 +193,9 @@ describe Orocos::RubyTasks::TaskContext do
         it "gets an exception if the typelib value cannot be converted to the intermediate opaque type" do
             task = new_ruby_task_context "task"
             task.create_output_port "out", "/base/geometry/Spline3"
-            sample = Orocos.registry.get("/wrappers/geometry/Spline").new
+            sample = Runkit.registry.get("/wrappers/geometry/Spline").new
             sample.dimension = 0
-            e = assert_raises(Orocos::CORBAError) do
+            e = assert_raises(Runkit::CORBAError) do
                 task.out.write sample
             end
             assert_match(

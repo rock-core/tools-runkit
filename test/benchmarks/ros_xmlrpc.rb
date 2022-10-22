@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require "orocos"
+require "runkit"
 require "benchmark"
 
-Orocos::ROS.initialize
-name_service = Orocos::ROS::NameService.new
+Runkit::ROS.initialize
+name_service = Runkit::ROS::NameService.new
 node_name = ARGV.first
 node = name_service.get(node_name)
 
