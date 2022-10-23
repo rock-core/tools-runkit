@@ -7,14 +7,6 @@ module Runkit
     class TaskContextBase
         include PortsSearchable
 
-        RUNNING_STATES = [].freeze
-        RUNNING_STATES[STATE_PRE_OPERATIONAL] = false
-        RUNNING_STATES[STATE_STOPPED]         = false
-        RUNNING_STATES[STATE_RUNNING]         = true
-        RUNNING_STATES[STATE_RUNTIME_ERROR]   = true
-        RUNNING_STATES[STATE_FATAL_ERROR]     = false
-        RUNNING_STATES[STATE_EXCEPTION] = false
-
         # The IOR of this task context
         attr_reader :ior
 

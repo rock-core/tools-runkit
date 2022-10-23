@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require "runkit/rrunkit"
-require "typelib"
-
 module Runkit
     Port.transport_names[TRANSPORT_CORBA] = "CORBA"
 

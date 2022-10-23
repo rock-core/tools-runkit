@@ -11,64 +11,66 @@ rescue LoadError
 end
 
 begin
-    require "orocos/rorocos"
+    require "runkit/rtt_corba_ext"
 rescue LoadError => e
-    STDERR.puts "Cannot require orocos.rb's Ruby/C extension #{e}"
+    STDERR.puts "Cannot require Runkit's Ruby/C extension #{e}"
     STDERR.puts "If you are using Rock, this should have been done automatically."
     STDERR.puts "Run"
-    STDERR.puts "  amake orocos.rb"
+    STDERR.puts "  amake runkit"
     STDERR.puts "and try again"
     exit 1
 end
 
 require "typelib"
-require "orocos/base"
-require "orocos/default_loader"
-require "orocos/typekits"
+require "runkit/base"
+require "runkit/default_loader"
+require "runkit/typekits"
 
-begin
-    require "pocolog"
-    Orocos::HAS_POCOLOG = true
-rescue LoadError
-    Orocos::HAS_POCOLOG = false
-end
+# Low-level interface to Rock components
+module Runkit
+    RUNKIT_LIB_DIR = File.expand_path("runki", __dir__)
 
-module Orocos
-    OROCOSRB_LIB_DIR = File.expand_path("orocos", File.dirname(__FILE__))
-
-    extend Logger::Root("orocos.rb", Logger::WARN)
+    extend Logger::Root("Runkit", Logger::WARN)
 end
 
 require "orogen"
 require "utilrb/module/attr_predicate"
 require "utilrb/hash/map_value"
 
-require "orocos/namespace"
-require "orocos/logging"
-require "orocos/version"
-require "orocos/name_service"
-require "orocos/task_context_base"
-require "orocos/task_context"
-require "orocos/ports_base"
-require "orocos/port"
-require "orocos/input_port"
-require "orocos/output_port"
-require "orocos/operations"
-require "orocos/process"
-require "orocos/corba"
-require "orocos/mqueue"
+require "runkit/version"
 
-# Updated file layout for ruby tasks
-require "orocos/ruby_tasks"
-require "orocos/input_writer"
-require "orocos/output_reader"
-# This backward-compatibility code !
-require "orocos/ruby_task_context"
+require "runkit/name_services/base"
+require "runkit/name_services/corba"
+require "runkit/name_services/local"
+require "runkit/name_service"
 
-require "orocos/scripts"
+require "runkit/port_base"
+require "runkit/input_port_base"
+require "runkit/output_port_base"
+require "runkit/attribute_base"
+require "runkit/task_context_base"
+
+require "runkit/task_context_attribute_base"
+require "runkit/port"
+require "runkit/input_port"
+require "runkit/output_port"
+require "runkit/attribute"
+require "runkit/property"
+require "runkit/operations"
+require "runkit/task_context"
+
+require "runkit/process"
+require "runkit/corba"
+require "runkit/mqueue"
+
+require "runkit/ruby_tasks/local_input_port"
+require "runkit/ruby_tasks/local_output_port"
+require "runkit/ruby_tasks/process_manager"
+require "runkit/ruby_tasks/process"
+require "runkit/ruby_tasks/remote_task_context"
+require "runkit/ruby_tasks/stub_task_context"
+require "runkit/input_writer"
+require "runkit/output_reader"
 
 require "utilrb/hash/recursive_merge"
-require "orocos/configurations"
-
-require "orocos/extensions"
-require "orocos/ros"
+require "runkit/configurations"

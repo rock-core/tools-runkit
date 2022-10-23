@@ -18,4 +18,4 @@ module Runkit
             task.do_property_read(name, type_name, value)
         end
     end
-ond
+end
