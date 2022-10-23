@@ -4,16 +4,6 @@ require "utilrb/kernel/options"
 require "utilrb/module/attr_predicate"
 
 module Runkit
-    class << self
-        # Setup of the logger will try to determine the timestamp field in a
-        # datatype. For this it uses the first field in the type, which is of type
-        # base/Time. If set to false (default), Time::now is used for the log time
-        # of each log sample.
-        attr_predicate :logger_guess_timestamp_field?, true
-    end
-
-    self.logger_guess_timestamp_field = false
-
     # Base class for port classes.
     #
     # See OutputPort and InputPort
