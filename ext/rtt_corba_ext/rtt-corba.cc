@@ -130,14 +130,9 @@ boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
     return boost::make_tuple(&task_context, task_name, port_name);
 }
 
-// call-seq:
-//  TaskContext.new(ior,process=Hash.new) => task
-//
-// Returns the TaskContext instance representing the remote task context
-// with the given ior. Raises Runkit::NotFound if the task does
-// not exist. Use the CORBA name service to retrieve a task
-// by its name.
-///
+/**
+ * @!method TaskContext.new(ior, name:, model:)
+ */
 VALUE task_context_create(int argc, VALUE* argv, VALUE klass)
 {
     corba_must_be_initialized();
@@ -145,12 +140,18 @@ VALUE task_context_create(int argc, VALUE* argv, VALUE klass)
     // all parametes are forwarded to ruby initialize
     if (argc < 1)
         rb_raise(rb_eArgError, "no ior given");
-    std::string ior(StringValueCStr(argv[0]));
+
+    VALUE kw;
+    VALUE ior_rb;
+    rb_scan_args(argc, argv, "1:", &ior_rb, &kw);
+    std::string ior(StringValueCStr(ior_rb));
 
     RTaskContext* context = corba_blocking_fct_call_with_result(
         boost::bind(&CorbaAccess::createRTaskContext, CorbaAccess::instance(), ior));
     VALUE obj = simple_wrap(klass, context);
-    rb_obj_call_init(obj, argc, argv);
+
+    VALUE args[2] = {ior_rb, kw};
+    rb_obj_call_init_kw(obj, 2, args, RB_PASS_CALLED_KEYWORDS);
     return obj;
 }
 
