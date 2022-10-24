@@ -36,23 +36,6 @@ module Runkit
             super() if defined? super
         end
 
-        D_UNKNOWN      = 0
-        D_SAME_PROCESS = 1
-        D_SAME_HOST    = 2
-        D_DIFFERENT_HOSTS = 3
-
-        # How "far" from the given input port this port is
-        #
-        # @return one of the D_ constants
-        def distance_to(input_port)
-            if !task.process || !input_port.task.process
-                D_UNKNOWN
-            elsif task.process == input_port.task.process
-                D_SAME_PROCESS
-            elsif task.process.host_id == input_port.task.process.host_id
-                D_SAME_HOST
-            else D_DIFFERENT_HOSTS
-            end
         end
 
         def to_s
