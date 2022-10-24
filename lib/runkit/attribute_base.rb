@@ -12,20 +12,15 @@ module Runkit
         # The type name as registered in the runkit type system
         attr_reader :runkit_type_name
 
-        def initialize(task, name, runkit_type_name)
+        def initialize(task, name, model)
             @task = task
             @name = name
-            @runkit_type_name = runkit_type_name
+            @runkit_type_name = model.type.name
+            @type = Runkit.typelib_type_for(model.type, loader: model.task.loader)
         end
 
         def full_name
             "#{task.name}.#{name}"
-        end
-
-        # @deprecated
-        # Returns the name of the typelib type. Use #type.name instead.
-        def type_name
-            type.name
         end
 
         def ==(other)

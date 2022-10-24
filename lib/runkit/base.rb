@@ -202,6 +202,17 @@ module Runkit
     def self.create_default_loader
         OroGen::Loaders::RTT.new(orocos_target)
     end
+
+    def self.typelib_type_for(type, loader: Runkit.default_loader)
+        if type.respond_to?(:name)
+            type_name = typelib_type_name_for(type.name)
+            return type if type_name == type.name
+        else
+            type_name = typelib_type_name_for(type)
+        end
+
+        loader.typelib_type_for(type_name)
+    end
 end
 
 at_exit do

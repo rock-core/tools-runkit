@@ -30,8 +30,8 @@ module Runkit
                 @allocated_task_contexts.concat(tasks)
             end
 
-            def new_ruby_task_context(name, options = {}, &block)
-                task = Runkit::RubyTasks::TaskContext.new(name, options, &block)
+            def new_ruby_task_context(name, **options, &block)
+                task = Runkit::RubyTasks::TaskContext.new(name, **options, &block)
                 @allocated_task_contexts << task
                 task
             end

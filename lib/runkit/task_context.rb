@@ -220,6 +220,18 @@ module Runkit
             end
         end
 
+        # @api private
+        #
+        # Access the remote component API to read information about the given attribute
+        def read_attribute_info(name)
+            CORBA.refine_exceptions(self) do
+                do_attribute_type_name(name)
+            rescue ArgumentError
+                raise InterfaceObjectNotFound.new(self, name),
+                      "task #{self.name} does not have an attribute named #{name}"
+            end
+        end
+
         # Get an accessor for the given attribute
         #
         # Attributes can also be read and written by calling directly the
@@ -236,14 +248,26 @@ module Runkit
         # @return [Attribute]
         # @raises [InterfaceObjectNotFound]
         def attribute(name)
-            type_name = CORBA.refine_exceptions(self) do
-                do_attribute_type_name(name)
-            rescue ArgumentError => e
-                raise InterfaceObjectNotFound.new(self, name),
-                      "task #{self.name} does not have an attribute named #{name}"
+            unless (attribute_model = model.find_attribute(name))
+                type_name = read_attribute_info(name)
+                attribute_model = self.class.create_attribute_model(
+                    self, name, type_name, loader: model.loader
+                )
             end
 
-            Attribute.new(self, name, type_name)
+            Attribute.new(self, name, attribute_model)
+        end
+
+        # @api private
+        #
+        # Access the remote interface to determine information about the given property
+        def read_property_info(name)
+            CORBA.refine_exceptions(self) do
+                do_property_type_name(name)
+            rescue ArgumentError
+                raise Runkit::InterfaceObjectNotFound.new(self, name),
+                      "task #{self.name} does not have a property named #{name}"
+            end
         end
 
         # Get an accessor for the given property
@@ -262,28 +286,14 @@ module Runkit
         # @return [Property]
         # @raises [InterfaceObjectNotFound]
         def property(name)
-            type_name = CORBA.refine_exceptions(self) do
-                do_property_type_name(name)
-            rescue ArgumentError => e
-                raise Runkit::InterfaceObjectNotFound.new(self, name),
-                      "task #{self.name} does not have a property named #{name}"
+            unless (property_model = model.find_property(name))
+                type_name = read_property_info(name)
+                property_model = self.class.create_property_model(
+                    self, name, type_name, loader: model.loader
+                )
             end
 
-            Property.new(self, name, type_name)
-        end
-
-        # @return [OroGen::Spec::Port] a port model that is usable by the port classes
-        def self.create_port_model(task, name, input_port, type_name)
-            port_class =
-                if input_port
-                    OroGen::Spec::InputPort
-                else
-                    OroGen::Spec::OutputPort
-                end
-
-            registry = Typelib::Registry.new
-            type = registry.create_null_type(type_name)
-            port_class.new(task, name, type, validate_type: false)
+            Property.new(self, name, property_model)
         end
 
         # @api private
@@ -291,9 +301,9 @@ module Runkit
         # Resolve a Port object for the given port name
         def raw_port(name)
             unless (port_model = model.find_port(name))
-                input_port, type_name = read_port_info(name)
+                is_output, type_name = read_port_info(name)
                 port_model = self.class.create_port_model(
-                    self, name, input_port, type_name
+                    self, is_output, name, type_name, loader: model.loader
                 )
             end
 
@@ -362,7 +372,9 @@ module Runkit
                 Operation.new(self, name, return_types, arguments)
             end
         rescue Runkit::NotFound => e
-            raise Runkit::InterfaceObjectNotFound.new(self, name), "task #{self.name} does not have an operation named #{name}", e.backtrace
+            raise Runkit::InterfaceObjectNotFound.new(self, name),
+                  "task #{self.name} does not have an operation named #{name}",
+                  e.backtrace
         end
 
         # Calls the required operation with the given argument
@@ -377,6 +389,37 @@ module Runkit
         # This is a shortcut for operation(name).sendop(*arguments)
         def sendop(name, *args)
             operation(name).sendop(*args)
+        end
+
+        # Create a null model for a dynamically discovered port
+        def self.create_port_model(task, is_output, name, type, loader:)
+            port_class =
+                if is_output
+                    OroGen::Spec::OutputPort
+                else
+                    OroGen::Spec::InputPort
+                end
+
+            if type.respond_to?(:to_str)
+                type = loader.resolve_type(type, define_dummy_type: true)
+            end
+            port_class.new(task.model, name, type, validate_type: false)
+        end
+
+        # Create a null model for a dynamically discovered property
+        def self.create_property_model(task, name, type, loader:)
+            if type.respond_to?(:to_str)
+                type = loader.resolve_type(type, define_dummy_type: true)
+            end
+            OroGen::Spec::Property.new(task.model, name, type, nil, validate_type: false)
+        end
+
+        # Create a null model for a dynamically discovered attribute
+        def self.create_attribute_model(task, name, type, loader:)
+            if type.respond_to?(:to_str)
+                type = loader.resolve_type(type, define_dummy_type: true)
+            end
+            OroGen::Spec::Attribute.new(task.model, name, type, nil, validate_type: false)
         end
     end
 end

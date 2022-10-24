@@ -27,8 +27,8 @@ module Runkit
                 new(name, model: orogen_model)
             end
 
-            def self.empty_orogen_model(name)
-                project = OroGen::Spec::Project.new(Runkit.default_loader)
+            def self.empty_orogen_model(name, loader: nil)
+                project = OroGen::Spec::Project.new(loader || Runkit.default_loader)
                 project.task_context name do
                     extended_state_support
                 end
@@ -38,7 +38,9 @@ module Runkit
             #
             # @param [String] name the task name
             # @return [TaskContext]
-            def self.new(name, model: empty_orogen_model(name))
+            def self.new(
+                name, loader: nil, model: empty_orogen_model(name, loader: loader)
+            )
                 local_task = LocalTaskContext.new(name)
                 local_task.model_name = model.name if model&.name
 
@@ -74,7 +76,7 @@ module Runkit
             #   what you are doing
             def create_input_port(name, runkit_type_name, **options)
                 klass = options.delete(:class) || LocalInputPort
-                create_port(false, klass, name, runkit_type_name, options)
+                create_port(false, klass, name, runkit_type_name, **options)
             end
 
             # Create a new output port on this task context
@@ -90,9 +92,9 @@ module Runkit
             # @option options [Class] :class the class that should be used to
             #   represent the port on the Ruby side. Do not change unless you know
             #   what you are doing
-            def create_output_port(name, runkit_type_name, **options)
+            def create_output_port(name, type, **options)
                 klass = options.delete(:class) || LocalOutputPort
-                create_port(true, klass, name, runkit_type_name, options)
+                create_port(true, klass, name, type, **options)
             end
 
             # Remove the given port from this task's interface
@@ -129,13 +131,13 @@ module Runkit
             #   used
             # @return [Property] the attribute object
             def create_attribute(name, type, init: true)
-                Runkit.load_typekit_for(type, false)
-                runkit_type_name = Runkit.find_runkit_type_name_by_type(type)
-                Runkit.load_typekit_for(runkit_type_name, true)
-
-                local_attribute = @local_task.do_create_attribute(Attribute, name, runkit_type_name)
+                model ||= TaskContext.create_attribute_model(
+                    self, name, type, loader: self.model.loader
+                )
+                local_attribute = @local_task.do_create_attribute(
+                    Attribute, name, model.type.name, model
+                )
                 @local_attributes[local_attribute.name] = local_attribute
-                @attributes[local_attribute.name] = local_attribute
                 local_attribute.write(local_attribute.new_sample) if init
                 local_attribute
             end
@@ -149,14 +151,14 @@ module Runkit
             #   is mostly to avoid crashes / misbehaviours in case smart pointers are
             #   used
             # @return [Property] the property object
-            def create_property(name, type, init: true)
-                Runkit.load_typekit_for(type, false)
-                runkit_type_name = Runkit.find_runkit_type_name_by_type(type)
-                Runkit.load_typekit_for(runkit_type_name, true)
-
-                local_property = @local_task.do_create_property(Property, name, runkit_type_name)
+            def create_property(name, type, model: nil, init: true)
+                model ||= TaskContext.create_property_model(
+                    self, name, type, loader: self.model.loader
+                )
+                local_property = @local_task.do_create_property(
+                    Property, name, model.type.name, model
+                )
                 @local_properties[local_property.name] = local_property
-                @properties[local_property.name] = local_property
                 local_property.write(local_property.new_sample) if init
                 local_property
             end
@@ -224,21 +226,26 @@ module Runkit
             private
 
             # Helper method for create_input_port and create_output_port
-            def create_port(is_output, klass, name, type, permanent: true)
-                # Load the typekit, but no need to check on it being exported since
-                # #find_runkit_type_name_by_type will do it for us
-                Runkit.load_typekit_for(type, false)
-                runkit_type_name = Runkit.find_runkit_type_name_by_type(type)
-                Runkit.load_typekit_for(runkit_type_name, true)
-
+            def create_port(is_output, klass, name, type, model: nil, permanent: true)
+                model ||= TaskContext.create_port_model(
+                    self, is_output, name, type, loader: self.model.loader
+                )
                 local_port = @local_task.do_create_port(
-                    is_output, klass, name, runkit_type_name
+                    is_output, klass, name, model.type.name, model
                 )
                 if permanent
                     @local_ports[local_port.name] = local_port
                     @ports[local_port.name] = local_port
                 end
                 local_port
+            end
+
+            def type_name_from_type_arg(type)
+                if type.respond_to?(:name)
+                    type.name
+                else
+                    type
+                end
             end
         end
     end

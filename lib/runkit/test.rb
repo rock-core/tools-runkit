@@ -123,6 +123,11 @@ module Runkit
             started
         end
 
+        def start_and_get(component, name)
+            process = start(component => name).first
+            process.task(name)
+        end
+
         def read_one_sample(reader, timeout = 1)
             Integer(timeout / 0.01).times do
                 if value = reader.read_new

@@ -419,11 +419,11 @@ module Runkit
         def normalize_conf(conf)
             property_types = {}
             conf.each do |k, v|
-                if p = model.find_property(k)
-                    property_types[k] = model.loader.typelib_type_for(p.type)
-                else
+                unless (p = model.find_property(k))
                     raise ConversionFailed.new, "#{k} is not a property of #{model.name}"
                 end
+
+                property_types[k] = Runkit.typelib_type_for(p.type, loader: loader)
             end
 
             normalize_conf_hash(conf, property_types)
@@ -737,7 +737,7 @@ module Runkit
 
             c.each_with_object({}) do |(property_name, ruby_value), result|
                 runkit_type = model.find_property(property_name).type
-                typelib_type = loader.typelib_type_for(runkit_type)
+                typelib_type = Runkit.typelib_type_for(runkit_type, loader: loader)
 
                 typelib_value = typelib_type.zero
                 result[property_name] = TaskConfigurations.apply_conf_on_typelib_value(

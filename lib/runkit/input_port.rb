@@ -13,7 +13,7 @@ module Runkit
         # set with the 'pull' option
         attr_predicate :blocking_read?, true
 
-        def initialize(task, name, runkit_type_name, model)
+        def initialize(task, name, model)
             super
             @blocking_read = false
         end

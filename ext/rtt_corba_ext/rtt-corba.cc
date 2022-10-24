@@ -293,8 +293,8 @@ static VALUE task_context_operation_names(VALUE self)
 
 /**
  * @!method read_port_info(name)
- *   @return [(Boolean,String)] a boolean indicating whether the port is input (true)
- *      or output, and its type name as registered on the RTT type system
+ *   @return [(Boolean,String)] a boolean indicating whether the port is output (true)
+ *      or input, and its type name as registered on the RTT type system
  */
 static VALUE task_context_read_port_info(VALUE self, VALUE name)
 {
@@ -311,7 +311,7 @@ static VALUE task_context_read_port_info(VALUE self, VALUE name)
             StringValuePtr(name)));
 
     return rb_ary_new_from_args(2,
-        port_type == RTT::corba::CInput,
+        port_type == RTT::corba::COutput,
         rb_str_new2(type_name));
 }
 
@@ -322,7 +322,7 @@ static VALUE registered_type_p(VALUE mod, VALUE type_name)
     return ti ? Qtrue : Qfalse;
 }
 
-static VALUE typelib_type_for(VALUE mod, VALUE type_name)
+static VALUE typelib_type_name_for(VALUE mod, VALUE type_name)
 {
     RTT::types::TypeInfo* ti =
         get_type_info(static_cast<char const*>(StringValuePtr(type_name)), false);
@@ -700,8 +700,8 @@ extern "C" void Init_rtt_corba_ext()
         RUBY_METHOD_FUNC(registered_type_p),
         1);
     rb_define_singleton_method(mRoot,
-        "typelib_type_for",
-        RUBY_METHOD_FUNC(typelib_type_for),
+        "typelib_type_name_for",
+        RUBY_METHOD_FUNC(typelib_type_name_for),
         1);
     rb_define_singleton_method(mRoot,
         "no_blocking_calls_in_thread=",

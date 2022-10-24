@@ -87,19 +87,17 @@ module Runkit
             @arguments_spec = arguments_spec
 
             @runkit_return_typenames = return_spec.map do |type_name|
-                type_name = OroGen.unqualified_cxx_type(type_name)
-                Runkit.normalize_typename(type_name)
+                OroGen.unqualified_cxx_type(type_name)
             end
             @runkit_arguments_typenames = arguments_spec.map do |_, _, type_name|
-                type_name = OroGen.unqualified_cxx_type(type_name)
-                Runkit.normalize_typename(type_name)
+                OroGen.unqualified_cxx_type(type_name)
             end
             @inout_arguments = arguments_spec.each_with_index.map do |(_, _, type_name), i|
                 i if type_name =~ /&/ && type_name !~ /(^|[^\w])const($|[^\w])/
             end.compact
 
             # Remove a void return type
-            if Runkit.registry.get(runkit_return_typenames.first).null?
+            if runkit_return_typenames.first == "/void"
                 @void_return = true
                 runkit_return_typenames.shift
             else

@@ -26,7 +26,7 @@ module Runkit
             @task = task
             @name = name
             @model = model
-            @type = Runkit.typelib_type_for(model.type.name)
+            @type = Runkit.typelib_type_for(model.type, loader: model.task.loader)
             puts caller.join("\n  ")
 
             @max_sizes =
