@@ -72,7 +72,10 @@ module Runkit
         end
 
         def self.clear
-            do_clear
+            # Do nothing
+            #
+            # We can't really de-initialize the ORB, as it would require disposing
+            # of all ruby task contexts first.
         end
 
         # Improves exception messages for exceptions that are raised from the
