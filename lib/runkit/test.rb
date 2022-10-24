@@ -69,35 +69,18 @@ module Runkit
         end
 
         def setup
-            @old_pkg_config_path = ENV["PKG_CONFIG_PATH"].dup
-            @__warn_for_missing_default_loggers = Runkit.warn_for_missing_default_loggers?
-            Runkit.warn_for_missing_default_loggers = false
             Runkit::MQueue.auto = USE_MQUEUE
 
-            @test_dir = File.expand_path(File.join("..", "..", "test"), File.dirname(__FILE__))
+            @test_dir = File.expand_path(File.join("..", "..", "test"), __dir__)
             @__tmpdirs = []
 
-            # Since we are loading typekits over and over again, we need to
-            # disable type export
-            Runkit.export_types = false
-            if File.directory?(work_dir)
-                Runkit.default_working_directory = work_dir
-                ENV["PKG_CONFIG_PATH"] += ":#{File.join(work_dir, 'prefix', 'lib', 'pkgconfig')}"
-                Runkit.default_pkgconfig_loader.clear
-            end
-
-            if defined?(Runkit::Async)
-                Runkit::Async::NameServiceBase.default_period = 0
-                Runkit::Async::TaskContextBase.default_period = 0
-                Runkit::Async::CORBA::Attribute.default_period = 0
-                Runkit::Async::CORBA::Property.default_period = 0
-                Runkit::Async::CORBA::OutputReader.default_period = 0
-            end
+            Runkit.default_working_directory = work_dir if File.directory?(work_dir)
 
             @processes = []
 
             Runkit.initialize
-            @__runkit_corba_timeouts = [Runkit::CORBA.call_timeout, Runkit::CORBA.connect_timeout]
+            @__runkit_corba_timeouts =
+                [Runkit::CORBA.call_timeout, Runkit::CORBA.connect_timeout]
             Runkit::CORBA.call_timeout = 10_000
             Runkit::CORBA.connect_timeout = 10_000
 
@@ -112,20 +95,28 @@ module Runkit
 
         def teardown
             flexmock_teardown if defined? FlexMock
+
             @__tmpdirs.each do |dir|
                 FileUtils.rm_rf dir
             end
+
             processes.each do |p|
                 p.kill
-            rescue Exception => e
+            rescue StandardError => e
                 Runkit.warn "failed, in teardown, to stop process #{p}: #{e}"
             end
+
             processes.clear
+
             super
-            Runkit::CORBA.call_timeout, Runkit::CORBA.connect_timeout = *@__runkit_corba_timeouts if @__runkit_corba_timeouts # can be nil if setup failed
-            ENV["PKG_CONFIG_PATH"] = @old_pkg_config_path if @old_pkg_config_path # can be nil if setup failed
+
+            if @__runkit_corba_timeouts # can be nil if setup failed
+                Runkit::CORBA.call_timeout, Runkit::CORBA.connect_timeout =
+                    *@__runkit_corba_timeouts
+            end
+
+            ENV["PKG_CONFIG_PATH"] = @old_pkg_config_path if @old_pkg_config_path
             Runkit::CORBA.instance_variable_set :@loaded_typekits, []
-            Runkit.warn_for_missing_default_loggers = @__warn_for_missing_default_loggers
         ensure
             Runkit.clear
         end
@@ -140,10 +131,6 @@ module Runkit
 
         def start(*spec)
             processes.concat Runkit.run(*spec)
-        end
-
-        def get(name)
-            Runkit.get name
         end
 
         def spawn_and_get(component, task = component)

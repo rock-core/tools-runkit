@@ -278,8 +278,8 @@ void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA)
         "initialized?",
         RUBY_METHOD_FUNC(corba_is_initialized),
         0);
-    rb_define_singleton_method(mCORBA, "do_init", RUBY_METHOD_FUNC(corba_init), 0);
-    rb_define_singleton_method(mCORBA, "do_deinit", RUBY_METHOD_FUNC(corba_deinit), 0);
+    rb_define_singleton_method(mCORBA, "do_initialize", RUBY_METHOD_FUNC(corba_init), 0);
+    rb_define_singleton_method(mCORBA, "do_clear", RUBY_METHOD_FUNC(corba_deinit), 0);
     rb_define_singleton_method(mCORBA,
         "do_call_timeout",
         RUBY_METHOD_FUNC(corba_set_call_timeout),

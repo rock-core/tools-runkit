@@ -40,26 +40,6 @@ module Runkit
               "(#{@typekit_main_thread}): #{message}"
     end
 
-    # @deprecated use {default_loader}.type_export_namespace instead
-    def self.type_export_namespace
-        default_loader.type_export_namespace
-    end
-
-    # @deprecated use {default_loader}.type_export_namespace= instead
-    def self.type_export_namespace=(namespace)
-        default_loader.type_export_namespace = namespace
-    end
-
-    # @deprecated use {default_loader}.export_types? instead
-    def self.export_types?
-        default_loader.export_types?
-    end
-
-    # @deprecated use {default_loader}.export_types= instead
-    def self.export_types=(value)
-        default_loader.export_types = value
-    end
-
     # Given a pkg-config file and a base name for a shared library, finds the
     # full path to the library
     def self.find_plugin_library(pkg, libname)
@@ -113,13 +93,12 @@ module Runkit
     # processes.
     def self.load_typekit(name)
         @lock.synchronize do
-            typekit = default_pkgconfig_loader.typekit_model_from_name(name)
             load_typekit_plugins(name)
         end
     end
 
     def self.find_typekit_pkg(name)
-        Utilrb::PkgConfig.get("#{name}-typekit-#{Runkit.runkit_target}", minimal: true)
+        Utilrb::PkgConfig.get("#{name}-typekit-#{Runkit.orocos_target}", minimal: true)
     rescue Utilrb::PkgConfig::NotFound
         raise TypekitNotFound, "the '#{name}' typekit is not available to pkgconfig"
     end
@@ -131,7 +110,7 @@ module Runkit
 
         find_typekit_plugin_paths(name, typekit_pkg).each do |path, required|
             load_plugin_library(path)
-        rescue Exception => e
+        rescue StandardError => e
             raise if required
 
             Runkit.warn "plugin #{p}, which is registered as an optional transport "\
@@ -175,11 +154,11 @@ module Runkit
         plugins = {}
         libs = []
 
-        plugin_name = typekit_library_name(name, Runkit.runkit_target)
+        plugin_name = typekit_library_name(name, Runkit.orocos_target)
         plugins[plugin_name] = [typekit_pkg || find_typekit_pkg(name), true]
         if OroGen::VERSION >= "0.8"
             AUTOLOADED_TRANSPORTS.each do |transport_name, required|
-                plugin_name = transport_library_name(name, transport_name, Runkit.runkit_target)
+                plugin_name = transport_library_name(name, transport_name, Runkit.orocos_target)
                 begin
                     pkg = Utilrb::PkgConfig.get(plugin_name, minimal: true)
                     if pkg.disabled != "true"
@@ -206,111 +185,6 @@ module Runkit
             end
         end
         libs
-    end
-
-    # Looks for and loads the typekit that handles the specified type
-    #
-    # If +exported+ is true (the default), the type needs to be both defined and
-    # exported by the typekit.
-    #
-    # Raises ArgumentError if this type is registered nowhere, or if +exported+
-    # is true and the type is not exported.
-    def self.load_typekit_for(typename, exported = true)
-        typekit = default_loader.typekit_for(typename, exported)
-        load_typekit(typekit.name) unless typekit.virtual?
-        typekit
-    end
-
-    # Returns the type that is used to manipulate +t+ in Typelib
-    #
-    # For simple types, it is +t+ itself. For opaque types, it will be the
-    # corresponding marshalling type. The returned value is a subclass of
-    # Typelib::Type
-    #
-    # Raises Typelib::NotFound if this type is not registered anywhere.
-    def self.typelib_type_for(t)
-        if t.respond_to?(:name)
-            return t unless t.contains_opaques?
-
-            t = t.name
-        end
-
-        begin
-            if typelib_type = do_typelib_type_for(t)
-                return registry.get(typelib_type)
-            end
-        rescue ArgumentError
-        end
-
-        if registry.include?(t)
-            type = registry.get(t)
-            if type.contains_opaques?
-                default_loader.intermediate_type_for(type)
-            elsif type.null?
-                # 't' is an opaque type and there are no typelib marshallers
-                # to convert it to something we can manipulate, raise
-                raise Typelib::NotFound, "#{t} is a null type and there are no typelib marshallers registered in RTT to convert it to a typelib-compatible type"
-            else type
-            end
-        else
-            raise Typelib::NotFound, "#{t} cannot be found in the currently loaded registries"
-        end
-    end
-
-    def self.create_or_get_null_type(type_name)
-        if registry.include?(type_name)
-            type = registry.get type_name
-            return create_or_get_null_type("/runkit#{type_name}") unless type.null?
-
-            type
-        else
-            registry.create_null(type_name)
-        end
-    end
-
-    # Finds the C++ type that maps to the given typelib type name
-    #
-    # @param [Typelib::Type,String] typelib_type
-    def self.runkit_type_for(typelib_type)
-        default_loader.opaque_type_for(typelib_type)
-    end
-
-    # Finds the typelib type that maps to the given runkit type name
-    #
-    # @param [String] runkit_type_name
-    # @option options [Boolean] :fallback_to_null_type (false) if true, a new
-    #   null type with the given runkit type name will be added to the registry and
-    #   returned if the type cannot be found
-    #
-    # @raise [Runkit::TypekitTypeNotFound] if the type cannot be found and no
-    #   typekit registers it
-    # @return [Model<Typelib::Type>] a subclass of Typelib::Type that
-    #   represents the requested type
-    def self.find_type_by_runkit_type_name(runkit_type_name, fallback_to_null_type: false)
-        unless registered_type?(runkit_type_name)
-            begin
-                load_typekit_for(runkit_type_name)
-            rescue OroGen::AlreadyRegistered
-            end
-        end
-
-        typelib_type_for(runkit_type_name)
-    rescue Runkit::TypekitTypeNotFound, Typelib::NotFound
-        # Create an opaque type as a placeholder for the unknown
-        # type name
-        raise unless fallback_to_null_type
-
-        type_name = "/" + runkit_type_name.gsub(/[^\w]/, "_")
-        create_or_get_null_type(type_name)
-    end
-
-    def self.find_runkit_type_name_by_type(type)
-        type = type.name if type.respond_to?(:name)
-        type = default_loader.resolve_type(type)
-        type = default_loader.opaque_type_for(type)
-        type = default_loader.resolve_interface_type(type)
-        load_typekit_for(type.name) unless registered_type?(type.name)
-        type.name
     end
 
     # Gets or update known maximum size for variable-sized containers in types
@@ -381,9 +255,4 @@ module Runkit
         @max_sizes.fetch(type, {})
     end
     @max_sizes = {}
-
-    def self.normalize_typename(typename)
-        load_typekit_for(typename)
-        registry.get(typename).name
-    end
 end

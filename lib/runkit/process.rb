@@ -66,7 +66,7 @@ module Runkit
     end
 
     def self.tracing_library_path
-        File.join(Utilrb::PkgConfig.new("runkit-rtt-#{Runkit.runkit_target}").libdir, "librunkit-rtt-traces-#{Runkit.runkit_target}.so")
+        File.join(Utilrb::PkgConfig.new("runkit-rtt-#{Runkit.orocos_target}").libdir, "librunkit-rtt-traces-#{Runkit.orocos_target}.so")
     end
 
     # call-seq:

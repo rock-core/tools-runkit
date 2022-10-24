@@ -290,14 +290,12 @@ static VALUE task_context_operation_names(VALUE self)
     return result;
 }
 
-// call-seq:
-//   task.do_port(name) => port
-//
-// Returns the DataPort or BufferPort object representing the
-// remote port +name+. Raises NotFound if the port does not exist. This is an
-// internal method. Use TaskContext#port to get a port object.
-///
-static VALUE task_context_do_port(VALUE self, VALUE name, VALUE model)
+/**
+ * @!method read_port_info(name)
+ *   @return [(Boolean,String)] a boolean indicating whether the port is input (true)
+ *      or output, and its type name as registered on the RTT type system
+ */
+static VALUE task_context_read_port_info(VALUE self, VALUE name)
 {
     RTaskContext& context = get_wrapped<RTaskContext>(self);
     RTT::corba::CPortType port_type;
@@ -311,14 +309,9 @@ static VALUE task_context_do_port(VALUE self, VALUE name, VALUE model)
             (_objref_CDataFlowInterface*)context.ports,
             StringValuePtr(name)));
 
-    VALUE obj = Qnil;
-    VALUE args[4] = {self, rb_str_dup(name), rb_str_new2(type_name), model};
-    if (port_type == RTT::corba::CInput)
-        obj = rb_class_new_instance(4, args, cInputPort);
-    else if (port_type == RTT::corba::COutput)
-        obj = rb_class_new_instance(4, args, cOutputPort);
-
-    return obj;
+    return rb_ary_new_from_args(2,
+        port_type == RTT::corba::CInput,
+        rb_str_new2(type_name));
 }
 
 static VALUE registered_type_p(VALUE mod, VALUE type_name)
@@ -706,7 +699,7 @@ extern "C" void Init_rtt_corba_ext()
         RUBY_METHOD_FUNC(registered_type_p),
         1);
     rb_define_singleton_method(mRoot,
-        "do_typelib_type_for",
+        "typelib_type_for",
         RUBY_METHOD_FUNC(typelib_type_for),
         1);
     rb_define_singleton_method(mRoot,
@@ -816,7 +809,10 @@ extern "C" void Init_rtt_corba_ext()
         "do_operation_names",
         RUBY_METHOD_FUNC(task_context_operation_names),
         0);
-    rb_define_method(cTaskContext, "do_port", RUBY_METHOD_FUNC(task_context_do_port), 2);
+    rb_define_method(cTaskContext,
+        "read_port_info",
+        RUBY_METHOD_FUNC(task_context_read_port_info),
+        1);
     rb_define_method(cTaskContext,
         "do_port_names",
         RUBY_METHOD_FUNC(task_context_port_names),
