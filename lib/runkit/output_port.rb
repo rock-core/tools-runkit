@@ -18,6 +18,11 @@ module Runkit
             OutputReader
         end
 
+        # (see PortBase#input?)
+        def input?
+            false
+        end
+
         # Connect this output port to an input port. +options+ defines the
         # connection policy for the connection. If a task is given instead of
         # an input port the method will try to find the right input port

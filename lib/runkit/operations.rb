@@ -115,9 +115,6 @@ module Runkit
         def typelib_types_for(types)
             types.map do |t|
                 Runkit.typelib_type_for(t)
-            rescue Typelib::NotFound
-                Runkit.load_typekit_for(t)
-                Runkit.typelib_type_for(t)
             end
         end
 

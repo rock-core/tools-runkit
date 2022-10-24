@@ -272,13 +272,41 @@ module Runkit
             Property.new(self, name, type_name)
         end
 
+        # @return [OroGen::Spec::Port] a port model that is usable by the port classes
+        def self.create_port_model(task, name, input_port, type_name)
+            port_class =
+                if input_port
+                    OroGen::Spec::InputPort
+                else
+                    OroGen::Spec::OutputPort
+                end
+
+            registry = Typelib::Registry.new
+            type = registry.create_null_type(type_name)
+            port_class.new(task, name, type, validate_type: false)
+        end
+
         # @api private
         #
         # Resolve a Port object for the given port name
         def raw_port(name)
-            port_model = model.find_port(name)
-            do_port(name, port_model)
-        rescue Runkit::NotFound => e
+            unless (port_model = model.find_port(name))
+                input_port, type_name = read_port_info(name)
+                port_model = self.class.create_port_model(
+                    self, name, input_port, type_name
+                )
+            end
+
+            port_class =
+                if port_model.input?
+                    InputPort
+                else
+                    OutputPort
+                end
+
+            port_class.new(self, name, port_model)
+
+        rescue Runkit::NotFound
             raise Runkit::InterfaceObjectNotFound.new(self, name),
                   "task #{self.name} does not have a port named #{name}"
         end

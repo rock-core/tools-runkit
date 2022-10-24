@@ -10,12 +10,6 @@ module Runkit
     class Port
         include PortBase
 
-        class << self
-            # The only way to create a Port object (and its derivatives) is
-            # TaskContext#port
-            private :new
-        end
-
         @transient_port_id_counter = 0
         def self.transient_local_port_name(base_name)
             "#{base_name}.#{@transient_port_id_counter += 1}"
@@ -33,17 +27,14 @@ module Runkit
             transport_names[id] || "unknown transport with ID #{id}"
         end
 
-        # @deprecated
-        # Returns the name of the typelib type. Use #type.name instead.
-        def type_name
-            type.name
-        end
+        # @return [String] the name of this port's typelib type
+        attr_reader :typelib_type_name
 
         def pretty_print(pp) # :nodoc:
-            if type.name != runkit_type_name
-                pp.text " #{name} (#{type.name}/#{runkit_type_name})"
+            if typelib_type_name != runkit_type_name
+                pp.text " #{name} (#{typelib_type_name}/#{runkit_type_name})"
             else
-                pp.text " #{name} (#{type.name})"
+                pp.text " #{name} (#{typelib_type_name})"
             end
         end
 

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module Runkit
+    # Mixin that implements common functionality between all kind of ports
     module PortBase
         # The task this port is part of
         attr_reader :task
@@ -10,19 +11,23 @@ module Runkit
         def full_name
             "#{task.name}.#{name}"
         end
+
         # The port's type name as used by the RTT
-        attr_reader :runkit_type_name
+        def runkit_type_name
+            @model.type.name
+        end
         # The port's type as a Typelib::Type object
         attr_reader :type
         # The port's model
         # @return [OroGen::Spec::Port,nil] the port model
         attr_reader :model
 
-        def initialize(task, name, runkit_type_name, model)
+        def initialize(task, name, model)
             @task = task
             @name = name
-            @runkit_type_name = runkit_type_name
             @model = model
+            @type = Runkit.typelib_type_for(model.type.name)
+            puts caller.join("\n  ")
 
             @max_sizes =
                 if model
@@ -32,10 +37,11 @@ module Runkit
                 end
 
             @max_sizes.merge!(Runkit.max_sizes_for(type))
-
-            super() if defined? super
         end
 
+        # Whether this is an input or output port
+        def input?
+            raise NotImplementedError, "subclasses must implement this"
         end
 
         def to_s

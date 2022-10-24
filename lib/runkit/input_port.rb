@@ -18,6 +18,11 @@ module Runkit
             @blocking_read = false
         end
 
+        # (see PortBase#input?)
+        def input?
+            true
+        end
+
         # Used by InputPortWriteAccess to determine which class should be used
         # to create the writer
         def self.writer_class

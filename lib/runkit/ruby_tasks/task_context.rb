@@ -27,23 +27,26 @@ module Runkit
                 new(name, model: orogen_model)
             end
 
+            def self.empty_orogen_model(name)
+                project = OroGen::Spec::Project.new(Runkit.default_loader)
+                project.task_context name do
+                    extended_state_support
+                end
+            end
+
+
             # Creates a new ruby task context with the given name
             #
             # @param [String] name the task name
             # @return [TaskContext]
-            def self.new(name, model:)
+            def self.new(name, model: empty_orogen_model(name))
                 local_task = LocalTaskContext.new(name)
                 local_task.model_name = model.name if model&.name
 
                 remote_task = super(local_task.ior, name: name, model: model)
                 local_task.instance_variable_set :@remote_task, remote_task
                 remote_task.instance_variable_set :@local_task, local_task
-
-                if model
-                    remote_task.setup_from_orogen_model(model)
-                else
-                    remote_task.model.extended_state_support
-                end
+                remote_task.setup_from_orogen_model(model)
                 remote_task
             rescue StandardError
                 local_task&.dispose
@@ -194,7 +197,7 @@ module Runkit
                 orogen_model.each_output_port do |p|
                     if port?(p.name)
                         existing_port = port(p.name)
-                        if existing_port.runkit_type_name != p.runkit_type_name
+                        if existing_port.runkit_type_name != p.type.name
                             remove_outputs << existing_port
                             new_outputs << p
                         end
