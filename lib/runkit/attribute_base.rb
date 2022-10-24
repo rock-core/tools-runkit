@@ -11,12 +11,15 @@ module Runkit
         attr_reader :type
         # The type name as registered in the runkit type system
         attr_reader :runkit_type_name
+        # The orogen model for this attribute or property
+        attr_reader :model
 
         def initialize(task, name, model)
             @task = task
             @name = name
             @runkit_type_name = model.type.name
             @type = Runkit.typelib_type_for(model.type, loader: model.task.loader)
+            @model = model
         end
 
         def full_name
@@ -49,7 +52,7 @@ module Runkit
         end
 
         # Sets a new value for the property/attribute
-        def write(value, timestamp = Time.now, direct: false)
+        def write(value, direct: false)
             value = Typelib.from_ruby(value, type)
             do_write(@runkit_type_name, value, direct: direct)
             value

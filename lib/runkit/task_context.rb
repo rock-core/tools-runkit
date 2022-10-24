@@ -36,7 +36,6 @@ module Runkit
             # Note: TaskContext.new is implemented in C++
             super(name, model: model)
             @ior = ior
-            @ports = {}
         end
 
         def ping
@@ -315,7 +314,6 @@ module Runkit
                 end
 
             port_class.new(self, name, port_model)
-
         rescue Runkit::NotFound
             raise Runkit::InterfaceObjectNotFound.new(self, name),
                   "task #{self.name} does not have a port named #{name}"
@@ -335,19 +333,9 @@ module Runkit
         #
         #   task.myPort
         #
-        def port(name, verify = true)
-            name = name.to_str
+        def port(name)
             CORBA.refine_exceptions(self) do
-                if @ports[name]
-                    if !verify || port?(name) # Check that this port is still valid
-                        @ports[name]
-                    else
-                        @ports.delete(name)
-                        raise NotFound, "no port named '#{name}' on task '#{self.name}'"
-                    end
-                else
-                    @ports[name] = raw_port(name)
-                end
+                raw_port(name.to_str)
             end
         end
 

@@ -130,7 +130,7 @@ module Runkit
             #   is mostly to avoid crashes / misbehaviours in case smart pointers are
             #   used
             # @return [Property] the attribute object
-            def create_attribute(name, type, init: true)
+            def create_attribute(name, type, model: nil, init: true)
                 model ||= TaskContext.create_attribute_model(
                     self, name, type, loader: self.model.loader
                 )
@@ -208,9 +208,9 @@ module Runkit
 
                 remove_inputs.each { |p| remove_port p }
                 remove_outputs.each { |p| remove_port p }
-                new_properties.each { |p| create_property(p.name, p.type) }
-                new_inputs.each { |p| create_input_port(p.name, p.type) }
-                new_outputs.each { |p| create_output_port(p.name, p.type) }
+                new_properties.each { |p| create_property(p.name, p.type, model: p) }
+                new_inputs.each { |p| create_input_port(p.name, p.type, model: p) }
+                new_outputs.each { |p| create_output_port(p.name, p.type, model: p) }
                 @model = orogen_model
                 nil
             end
@@ -233,10 +233,7 @@ module Runkit
                 local_port = @local_task.do_create_port(
                     is_output, klass, name, model.type.name, model
                 )
-                if permanent
-                    @local_ports[local_port.name] = local_port
-                    @ports[local_port.name] = local_port
-                end
+                @local_ports[local_port.name] = local_port if permanent
                 local_port
             end
 

@@ -22,12 +22,16 @@ module Runkit
         # @return [OroGen::Spec::Port,nil] the port model
         attr_reader :model
 
+        D_UNKNOWN      = 0
+        D_SAME_PROCESS = 1
+        D_SAME_HOST    = 2
+        D_DIFFERENT_HOSTS   = 3
+
         def initialize(task, name, model)
             @task = task
             @name = name
             @model = model
             @type = Runkit.typelib_type_for(model.type, loader: model.task.loader)
-            puts caller.join("\n  ")
 
             @max_sizes =
                 if model

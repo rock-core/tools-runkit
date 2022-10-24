@@ -57,7 +57,6 @@ module Runkit
             end
 
             policy = Port.prepare_policy(**options)
-            distance = distance_to(input_port) if distance == D_UNKNOWN
             policy = handle_mq_transport(input_port.full_name, policy) if distance == D_SAME_HOST
             input_port.blocking_read = true if policy[:pull]
 
