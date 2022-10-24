@@ -13,22 +13,6 @@ if ENV["TEST_ENABLE_COVERAGE"] == "1"
         require "runkit"
         Runkit.warn "coverage is disabled: #{e.message}"
     end
-elsif ENV["TEST_ENABLE_PRY"] != "0"
-    begin
-        require "pry"
-        require "pry-rescue/minitest" if ENV["TEST_DEBUG"] == "1"
-    rescue Exception
-        require "runkit"
-        Runkit.warn "debugging is disabled because the 'pry' gem cannot be loaded"
-    end
-end
-
-if ENV["TEST_ENABLE_PRY"] != "0"
-    begin
-        require "pry"
-    rescue Exception
-        Runkit.warn "debugging is disabled because the 'pry' gem cannot be loaded"
-    end
 end
 
 require "minitest/autorun"
