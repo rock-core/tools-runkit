@@ -7,8 +7,18 @@ module Runkit
     class TaskContextBase
         include PortsSearchable
 
-        # The IOR of this task context
+        # The underlying orogen model
+        #
+        # It may be partial
+        #
+        # @return [OroGen::Spec::TaskContext]
+        attr_reader :model
+
+        # @return [String] The IOR of this task context
         attr_reader :ior
+
+        # @return [String] The full name of the task context
+        attr_reader :name
 
         # @param [String] name The name of the task.
         # @param [Hash] options The options.
@@ -18,15 +28,6 @@ module Runkit
             @name = name
             @model = model
             initialize_model_info(model)
-        end
-
-        # The full name of the task context
-        def name
-            map_to_namespace(@name)
-        end
-
-        def basename
-            @name
         end
 
         # call-seq:
