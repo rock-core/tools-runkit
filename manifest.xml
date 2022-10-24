@@ -17,15 +17,12 @@
     <depend package="yard" />
     <depend package="rake-compiler" />
     <depend package="orogen" />
-    <depend package="tools/pocolog" optional="1"/>
     <depend package="omniorb" />
-    <depend package="tools/rtt_transports/ros" optional="1"/>
-    <depend package="hoe" />
     <depend package="rake-compiler" />
-    <depend package="ruby-xmlrpc" />
 
     <test_depend package='flexmock' />
     <test_depend package='fakefs' />
     <test_depend package='base/orogen/types' />
+    <test_depend package='tools/orogen_runkit_tests' />
 </package>
 

@@ -34,7 +34,6 @@ module Runkit
                 end
             end
 
-
             # Creates a new ruby task context with the given name
             #
             # @param [String] name the task name

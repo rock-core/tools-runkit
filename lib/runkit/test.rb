@@ -60,7 +60,7 @@ module Runkit
 
             Runkit.default_working_directory = work_dir if File.directory?(work_dir)
 
-            @processes = []
+            @__runkit_processes = []
 
             Runkit.initialize
             @__runkit_corba_timeouts =
@@ -84,13 +84,12 @@ module Runkit
                 FileUtils.rm_rf dir
             end
 
-            processes.each do |p|
+            @__runkit_processes.each do |p|
                 p.kill
             rescue StandardError => e
                 Runkit.warn "failed, in teardown, to stop process #{p}: #{e}"
             end
-
-            processes.clear
+            @__runkit_processes.clear
 
             super
 
@@ -105,30 +104,23 @@ module Runkit
             Runkit.clear
         end
 
-        attr_reader :processes
-
         def make_tmpdir
             dir = Dir.mktmpdir
             @__tmpdirs << dir
             dir
         end
 
-        def start(*spec)
-            processes.concat Runkit.run(*spec)
-        end
-
-        def spawn_and_get(component, task = component)
-            begin
-                process = Runkit::Process.new component
-                process.spawn
-                process.wait_running(0.5)
-            rescue Exception
-                process&.kill
-                raise
+        ruby2_keywords def start(*args)
+            info = Process.parse_run_options(*args)
+            processes = info.map do |name, deployment, name_mappings, spawn_options|
+                p = Process.new(name, deployment, name_mappings: name_mappings)
+                p.spawn(**spawn_options)
+                p
             end
-
-            processes << process
-            Runkit::TaskContext.get "#{component}.#{task}"
+            started = processes.dup
+            @__runkit_processes.concat processes
+            processes.delete_if { |p| p.wait_running(0.1) } until processes.empty?
+            started
         end
 
         def read_one_sample(reader, timeout = 1)
@@ -153,43 +145,6 @@ module Runkit
                 sleep 0.01
             end
             flunk("#{task} was expected to be in state #{state} but is in #{task.state}")
-        end
-
-        def wait_for(timeout = 5, &block)
-            Runkit::Async.wait_for(0.005, timeout, &block)
-        end
-
-        def name_service
-            Runkit.name_service
-        end
-
-        # helper for generating an ior from a name
-        def ior(name)
-            name_service.ior(name)
-        rescue Runkit::NotFound
-            "IOR:010000001f00000049444c3a5254542f636f7262612f435461736b436f6e746578743a312e300000010000000000000064000000010102000d00000031302e3235302e332e31363000002bc80e000000fe8a95a65000004d25000000000000000200000000000000080000000100000000545441010000001c00000001000000010001000100000001000105090101000100000009010100"
-        end
-
-        # Polls the async event loop until a condition is met
-        #
-        # @yieldreturn a falsy value if the condition is not met yet (i.e. false
-        #   or nil), and a truthy value if the condition has been met. This
-        #   value is returned by {#async_poll_until}
-        #
-        # @param [Float] period the period in seconds
-        # @param [Float] timeout the timeout in seconds. The test will flunk if
-        #   the condition is not met within that many seconds
-        def assert_async_polls_until(period: 0.01, timeout: 5)
-            start = Time.now
-            loop do
-                Runkit::Async.step
-                if result = yield
-                    return result
-                end
-
-                flunk("timed out while waiting for condition") if Time.now - start > timeout
-                sleep period
-            end
         end
     end
 end

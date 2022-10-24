@@ -5,7 +5,7 @@ require "orogen"
 require "fcntl"
 require "json"
 
-module Runkit
+module Runkit # :nodoc:
     # Exception raised when there is no IOR registered for a given task name.
     class IORNotRegisteredError < Runkit::NotFound; end
 
@@ -52,13 +52,16 @@ module Runkit
     #
     # Use #reset_default_arguments to use the default of the underlying oroGen components
     def self.default_cmdline_arguments=(value)
-        raise ArgumentError, "Runkit::default_cmdline_arguments expects to be set as hash" unless default_cmdline_arguments.kind_of?(Hash)
+        unless default_cmdline_arguments.kind_of?(Hash)
+            raise ArgumentError,
+                  "Runkit.default_cmdline_arguments expects to be set as hash"
+        end
 
         @default_cmdline_arguments = value
     end
 
     def self.tracing?
-        !!@tracing_enabled
+        @tracing_enabled
     end
 
     def self.tracing=(flag)
@@ -66,87 +69,10 @@ module Runkit
     end
 
     def self.tracing_library_path
-        File.join(Utilrb::PkgConfig.new("runkit-rtt-#{Runkit.orocos_target}").libdir, "librunkit-rtt-traces-#{Runkit.orocos_target}.so")
-    end
-
-    # call-seq:
-    #   Runkit.run('mod1', 'mod2')
-    #   Runkit.run('mod1', 'mod2', wait: false, output: '%m-%p.log')
-    #   Runkit.run('mod1', 'mod2', wait: false, output: '%m-%p.log') do |mod1, mod2|
-    #   end
-    #
-    # @overload Runkit.run 'mod1', 'mod2'
-    #   Starts a list of deployments. The deployment names are as given to the
-    #   'deployment' statement in oroGen
-    #
-    #   @param (see .parse_run_options)
-    #   @yield a block that is evaluated, ensuring that all tasks and processes
-    #     are killed when the execution flow leaves the block. The block is given
-    #     to {Runkit.guard}
-    #
-    # @overload Runkit.run 'mod1', 'mod2' => 'prefix'
-    #   Starts a list of deployments. The prefix is prepended to all tasks in
-    #   the 'mod2' deployment. The deployment names are as given to the
-    #   'deployment' statement in oroGen
-    #
-    #   @param (see .parse_run_options)
-    #   @yield a block that is evaluated, ensuring that all tasks and processes
-    #     are killed when the execution flow leaves the block. The block is given
-    #     to {Runkit.guard}
-    #
-    # @overload Runkit.run 'mod1', 'mod2' => 'prefix', 'project::Task' => 'task_name'
-    #   Starts a list of deployments. The prefix is prepended to all tasks in
-    #   the 'mod2' deployment, and a process is spawned to deploy a single task
-    #   of model 'project::Task' (as defined in oroGen). task_name in this case
-    #   becomes the task's name, as can be resolved by Runkit.get.
-    #
-    #   @param (see Process.parse_run_options)
-    #   @yield a block that is evaluated, ensuring that all tasks and processes
-    #     are killed when the execution flow leaves the block. The block is given
-    #     to {Runkit.guard}
-    #
-    # Valid options are:
-    # wait::
-    #   wait that number of seconds (can be floating-point) for the
-    #   processes to be ready. If it did not start into the provided
-    #   timeout, an Runkit::NotFound exception raised.
-    # output::
-    #   redirect the process output to the given file. The %m and %p
-    #   patterns will be replaced by respectively the name and the PID of
-    #   each process.
-    # valgrind::
-    #   start some or all the processes under valgrind. It can either be an
-    #   array of process names (e.g. valgrind: ['p1', 'p2']) or 'true'.
-    #   In the first case, the listed processes will be added to the list of
-    #   processes to start (if they are not already in it) and will be
-    #   started under valgrind. In the second case, all processes are
-    #   started under valgrind.
-    # valgrind_options::
-    #   an array of options that should be passed to valgrind, e.g.
-    #
-    #     valgrind_options: ["--track-origins=yes"]
-    # cmdline_args::
-    #   When command line arguments are available to deployments, they can be
-    #   set using the following option:
-    #      cmdline_args: { "sd-domain" => '_robot._tcp', "prefix" => "test" }
-    #   This will be mapped to '--sd-domain=_robot._tcp --prefix=test'
-    #
-    #   Existing commandline arguments:
-    #   --sd-domain
-    #   the service discovery domain in which this process should be published
-    #   This is only supported by deployments and orogen if the service_discovery
-    #   package has been installed along with orogen
-    #   The sd domain is of the format: <name>.<suffix> where the suffix has to
-    #   be one of _tcp or _udp
-    #
-    def self.run(*args, **options, &block)
-        Process.run(*args, **options, &block)
-    end
-
-    # Deprecated. Use Runkit.run instead.
-    def self.spawn(*args, &block)
-        STDERR.puts "#{caller(1)}: Runkit.spawn is deprecated, use Runkit.run instead"
-        run(*args, &block)
+        File.join(
+            Utilrb::PkgConfig.new("runkit-rtt-#{Runkit.orocos_target}").libdir,
+            "librunkit-rtt-traces-#{Runkit.orocos_target}.so"
+        )
     end
 
     # Base class for process representation objects
@@ -159,25 +85,19 @@ module Runkit
         attr_reader :model
         # @deprecated
         # For backward compatibility only
-        def orogen;
+        def orogen
             model
         end
         # A set of mappings from task names in the deployment model to the
         # actual name in the running process
-        attr_reader :name_mappings
-        # The set of [task_name, port_name] that represent the ports being
-        # currently logged by this process' default logger
-        attr_reader :logged_ports
-        # The set of task contexts for this process. This is valid only after
-        # the process is actually started
         attr_reader :tasks
         attr_reader :ior_mappings
 
         def initialize(name, model, name_mappings: {})
             @name = name
             @model = model
-            @name_mappings = {}
-            self.name_mappings = name_mappings
+            @name_mappings = name_mappings.dup
+
             @logged_ports = Set.new
             @tasks = []
             @ior_mappings = nil
@@ -185,27 +105,19 @@ module Runkit
             @ior_read_fd = nil
         end
 
-        # Sets a batch of name mappings
-        # @see map_name
-        def name_mappings=(mappings)
-            mappings.each do |old, new|
-                map_name old, new
-            end
-        end
-
         # Require that to rename the task called +old+ in this deployment to
         # +new+ during execution
         #
         # @see name_mappings name_mappings=
         def map_name(old, new)
-            name_mappings[old] = new
+            @name_mappings[old] = new
         end
 
         # @api private
         #
         # use a mapping if exists
-        def get_mapped_name(name)
-            name_mappings[name] || name
+        def mapped_name_for(name)
+            @name_mappings.fetch(name, name)
         end
 
         # Returns the name of the tasks that are running in this process
@@ -216,9 +128,10 @@ module Runkit
                 raise Runkit::NotOrogenComponent,
                       "#{name} does not seem to have been generated by orogen"
             end
+
             model.task_activities.map do |deployed_task|
                 name = deployed_task.name
-                get_mapped_name(name)
+                mapped_name_for(name)
             end
         end
 
@@ -234,101 +147,28 @@ module Runkit
             end
         end
 
-        # Returns the TaskContext instance for a task that runs in this process,
+        # Get the task context object for one of this deployment's tasks
         # or raises Runkit::NotFound.
-        def task(task_name)
-            full_name = "#{name}_#{task_name}"
-            if (result = tasks.find { |t| [task_name, full_name].include?(t.basename) })
-                return result
-            end
-
-            ior = ior_for(task_name) || ior_for(full_name)
-            unless ior
+        def task(mapped_task_name)
+            unless (ior = ior_for(mapped_task_name))
                 raise Runkit::IORNotRegisteredError,
                       "no IOR is registered for #{task_name}"
             end
 
-            Runkit::TaskContext.new(ior, process: self)
+            deployed_task = model.task_activities.find do |t|
+                mapped_name_for(t.name) == mapped_task_name
+            end
+            TaskContext.new(
+                ior, name: mapped_task_name, model: deployed_task.task_model
+            )
         end
 
-        def register_task(task)
-            @tasks.delete_if { |t| t.name == task.name }
-            @tasks << task
-        end
-
-        def ior_for(task_name)
-            @ior_mappings&.fetch(task_name, nil)
-        end
-
-        # Requires all known ports of +self+ to be logged by the default logger
-        def log_all_ports(options = {})
-            @logged_ports |= Runkit.log_all_process_ports(self, options)
-        end
-
-        @@logfile_indexes = {}
-
-        # Computes the default log file name for a given runkit name
-        def default_log_file_name(runkit_name)
-            runkit_name[/.*(?=_[L|l]ogger)/] || runkit_name
-        end
-
-        # @api private
+        # Get the IOR of one of this deployment's tasks
         #
-        # Sets up the default logger of this process
-        def setup_default_logger(logger = default_logger, log_file_name: default_log_file_name(logger.basename), remote: false, log_dir: Runkit.default_working_directory)
-            if remote
-                index = (@@logfile_indexes[log_file_name] ||= -1) + 1
-                @@logfile_indexes[log_file_name] = index
-                log_file_path = "#{log_file_name}.#{index}.log"
-            else
-                index = 0
-                while File.file?(log_file_path = File.join(log_dir, "#{log_file_name}.#{index}.log"))
-                    index += 1
-                end
-            end
-            logger.property("file").write(log_file_path)
-            logger
-        end
-
-        # @api private
-        #
-        # @return [String] the name of the default logger for this process
-        def default_logger_name
-            candidates = model.task_activities
-                              .find_all { |d| d.task_model.name == "logger::Logger" }
-                              .map { |c| name_mappings[c.name] || c.name }
-
-            if candidates.size > 1
-                if t = candidates.find { |c| c.name == "#{process.name}_Logger" }
-                    t.name
-                end
-            elsif candidates.size == 1
-                candidates.first
-            end
-        end
-
-        # Overrides the default logger usually autodetected by #default_logger
-        attr_writer :default_logger
-
-        # @return [#log,false] the logger object that should be used, by
-        #    default, to log data coming out of this process, or false if none
-        #    can be found
-        def default_logger
-            return @default_logger unless @default_logger.nil?
-
-            if logger_name = default_logger_name
-                begin
-                    @default_logger = TaskContext.get logger_name
-                rescue Runkit::NotFound
-                    Runkit.warn "no default logger defined on #{name}, tried #{logger_name}"
-                    @default_logger = false # use false to mark "can not find"
-                end
-            else
-                Runkit.warn "cannot determine the default logger name for process #{name}" if Runkit.warn_for_missing_default_loggers?
-                @default_logger = false
-            end
-
-            @default_logger
+        # @param [String] mapped_task_name the real name of the task
+        # @return [String,nil] the task's IOR, or nil if it is not known
+        def ior_for(mapped_task_name)
+            @ior_mappings&.fetch(mapped_task_name, nil)
         end
 
         # @api private
@@ -355,9 +195,9 @@ module Runkit
         # descriptor when end of file is reached.
         #
         # @return [nil, Hash<String, String>] when eof is reached and the message is valid
-        #   return a { task name => ior } hash. If the process dies or a IO::WaitReadable
-        #   is raised, returns nil.
-        def resolve_running_tasks
+        #   return a { task name => ior } hash. Returns nil if the process dies, or if we
+        #   have not yet received all the IOR information from it.
+        def try_resolve_running_tasks
             return unless alive?
 
             begin
@@ -390,7 +230,7 @@ module Runkit
             deadline = start_time + timeout unless timeout == Float::INFINITY
             got_alive = alive?
             loop do
-                @ior_mappings = resolve_running_tasks
+                @ior_mappings = try_resolve_running_tasks
                 return @ior_mappings if @ior_mappings
                 break if timeout < Time.now - start_time
 
@@ -443,68 +283,6 @@ module Runkit
         # The component process ID
         attr_reader :pid
 
-        # Returns the process that has the given PID
-        #
-        # @param [Integer] pid the PID whose process we are looking for
-        # @return [nil,Process] the process object whose PID matches, or nil
-        def self.from_pid(pid)
-            if result = registered_processes[pid]
-                result
-            end
-        end
-
-        class << self
-            # A map of existing running processes
-            #
-            # @return [{Integer=>Process}] a map from process IDs to the
-            #   corresponding Process object
-            attr_accessor :registered_processes
-        end
-        @registered_processes = {}
-
-        # Registers a PID-to-process mapping.
-        #
-        # This can be called only for running processes
-        #
-        # @param [Process] process the process that should be registered
-        # @return [void]
-        # @see deregister each
-        def self.register(process)
-            raise ArgumentError, "cannot register a non-running process" unless process.alive?
-
-            registered_processes[process.pid] = process
-            nil
-        end
-
-        # Deregisters a process object that was registered with {register}
-        #
-        # @param [Integer] pid the process PID
-        def self.deregister(pid)
-            if process = registered_processes.delete(pid)
-                process
-            else raise ArgumentError, "no process registered for PID #{pid}"
-            end
-        end
-
-        # Enumerates all registered processes
-        #
-        # @yieldparam [Process] process the process object
-        def self.each(&block)
-            registered_processes.each_value(&block)
-        end
-
-        # A string describing the host. It can be used to check if two processes
-        # are running on the same host
-        def host_id
-            "localhost"
-        end
-
-        # Returns true if the process is located on the same host than the Ruby
-        # interpreter
-        def on_localhost?
-            host_id == "localhost"
-        end
-
         # Creates a new Process instance which will be able to
         # start and supervise the execution of the given Runkit
         # component
@@ -517,19 +295,8 @@ module Runkit
         #   @param [String] name the process name
         #   @param [String] model_name the name of the deployment model
         #
-        def initialize(name, model = name,
-            loader: Runkit.default_pkgconfig_loader,
-            name_mappings: {})
-            model = if model.respond_to?(:to_str)
-                        loader.deployment_model_from_name(model)
-                    else model
-                    end
-
-            @binfile =
-                if loader.respond_to?(:find_deployment_binfile)
-                    loader.find_deployment_binfile(model.name)
-                else loader.available_deployments[model.name].binfile
-                end
+        def initialize(name, model, name_mappings: {})
+            @binfile = Runkit.default_loader.find_deployment_binfile(model.name)
             super(name, model, name_mappings: name_mappings)
         end
 
@@ -543,17 +310,17 @@ module Runkit
             begin
                 _, exit_status = ::Process.waitpid2(pid)
                 dead!(exit_status)
-            rescue Errno::ECHILD
+            rescue Errno::ECHILD # Rubocop:disable Lint/SuppressedException
             end
         end
 
         # True if the process is running
-        def alive?;
-            !!@pid
+        def alive?
+            @pid
         end
 
         # True if the process is running
-        def running?;
+        def running?
             alive?
         end
 
@@ -580,20 +347,7 @@ module Runkit
             else
                 Runkit.warn "deployment #{name} terminated with code #{exit_status.to_i}"
             end
-
-            pid = @pid
-            @pid = nil
-            Process.deregister(pid)
-
-            # Force unregistering the task contexts from CORBA naming
-            # service
-            # task_names.each do |name|
-            #     puts "deregistering #{name}"
-            #     Runkit::CORBA.unregister(name)
-            # end
         end
-
-        @@logfile_indexes = {}
 
         class TaskNameRequired < ArgumentError; end
 
@@ -642,43 +396,35 @@ module Runkit
                     object = object.to_s
                     begin
                         object = loader.task_model_from_name(object)
-                    rescue OroGen::NotFound
+                    rescue OroGen::NotFound => task_e
                         begin
                             object = loader.deployment_model_from_name(object)
-                        rescue OroGen::NotFound
-                            raise OroGen::NotFound, "#{object} is neither a task model nor a deployment name"
+                        rescue OroGen::NotFound => deployment_e
+                            raise OroGen::NotFound,
+                                  "#{object} is neither a task model "\
+                                  "nor a deployment name: #{task_e} and #{deployment_e}"
                         end
                     end
                 end
 
                 case object
                 when OroGen::Spec::TaskContext
-                    raise TaskNameRequired, "you must provide a task name when starting a component by type, as e.g. Runkit.run 'xsens_imu::Task' => 'xsens'" unless new_name
+                    unless name
+                        raise TaskNameRequired,
+                              "you must provide a task name when starting a component "\
+                              "by type, as e.g. Runkit.run 'xsens_imu::Task' => 'xsens'"
+                    end
 
                     models[object] = Array(new_name)
                 when OroGen::Spec::Deployment
                     deployments[object] = new_name
-                else raise ArgumentError, "expected a task context model or a deployment model, got #{object}"
+                else
+                    raise ArgumentError,
+                          "expected a task context model or a deployment model, "\
+                          "got #{object}"
                 end
             end
             [deployments, models]
-        end
-
-        # @api private
-        #
-        # Apply default parameters for the wait option in {Runkit.run} and
-        # {#spawn}
-        def self.normalize_wait_option(wait, valgrind, gdb)
-            if wait.nil?
-                wait =
-                    if valgrind then 600
-                    elsif gdb then 600
-                    else 20
-                    end
-            elsif !wait
-                false
-            else wait
-            end
         end
 
         # @api private
@@ -687,13 +433,6 @@ module Runkit
         # passed to {Runkit.run}
         #
         # Valid options are:
-        # @param [Boolean,Numeric] wait
-        #   wait that number of seconds (can be floating-point) for the
-        #   processes to be ready. If it did not start into the provided
-        #   timeout, an Runkit::NotFound exception raised. nil enables waiting
-        #   for a predefined number of seconds that depend on the usage or not
-        #   of valgrind and gdb. false disables waiting completely, and true
-        #   waits forever.
         # @param [String] output
         #   redirect the process output to the given file. The %m and %p
         #   patterns will be replaced by respectively the name and the PID of
@@ -730,12 +469,7 @@ module Runkit
         #   package has been installed along with orogen
         #   The sd domain is of the format: <name>.<suffix> where the suffix has to
         #   be one of _tcp or _udp
-        #
-        # @return [(Array<String,Hash,String,Hash>,Object)] the first returned
-        #   element is a list of (deployment_name, name_mappings, process_name,
-        #   spawn_options) tuples. The second element is the wait option (either
-        #   a Numeric or false)
-        def self.parse_run_options(*names, wait: nil, loader: Runkit.default_loader,
+        def self.parse_run_options(*names, loader: Runkit.default_loader,
             valgrind: false, valgrind_options: {},
             gdb: false, gdb_options: {},
             log_level: nil,
@@ -743,7 +477,6 @@ module Runkit
             working_directory: Runkit.default_working_directory,
             cmdline_args: {})
             deployments, models = partition_run_options(*names, loader: loader)
-            wait = normalize_wait_option(wait, valgrind, gdb)
 
             all_deployments = deployments.keys.map(&:name) + models.values.flatten
             valgrind = parse_cmdline_wrapper_option(
@@ -754,8 +487,8 @@ module Runkit
             )
             log_level = parse_log_level_option(log_level, all_deployments)
 
-            name_mappings = resolve_name_mappings(deployments, models)
-            processes = name_mappings.map do |deployment_name, mappings, name|
+            name_mappings = resolve_name_mappings(deployments, models, loader)
+            processes = name_mappings.map do |name, deployment, mappings|
                 output = (output&.gsub "%m", name)
 
                 spawn_options = Hash[
@@ -764,12 +497,11 @@ module Runkit
                     valgrind: valgrind[name],
                     gdb: gdb[name],
                     cmdline_args: cmdline_args,
-                    wait: false,
                     log_level: log_level[name],
                     oro_logfile: oro_logfile]
-                [deployment_name, mappings, name, spawn_options]
+                [name, deployment, mappings, spawn_options]
             end
-            [processes, wait]
+            processes
         end
 
         # @api private
@@ -862,104 +594,40 @@ module Runkit
         # @return [Array<(String,Hash,String)>] a tuple of the name of a binary,
         #   the name mappings that should be used when spawning this binary and
         #   the desired process name.
-        def self.resolve_name_mappings(deployments, models)
+        def self.resolve_name_mappings(deployments, models, loader)
             processes = []
             processes += deployments.map do |deployment, prefix|
-                mapped_name   = deployment.name
-                name_mappings = {}
                 if prefix
-                    name_mappings = ProcessBase.resolve_prefix(deployment, prefix)
-                    mapped_name = "#{prefix}#{deployment.name}"
+                    ["#{prefix}#{deployment.name}",
+                     deployment,
+                     ProcessBase.resolve_prefix(deployment, prefix)]
+                else
+                    [deployment.name, deployment, deployment.name]
                 end
-
-                [deployment.name, name_mappings, mapped_name]
             end
             models.each do |model, desired_names|
                 desired_names = [desired_names] unless desired_names.kind_of? Array
                 desired_names.each do |desired_name|
-                    process_name = OroGen::Spec::Project.default_deployment_name(model.name)
+                    process_name =
+                        OroGen::Spec::Project.default_deployment_name(model.name)
+                    deployment = loader.deployment_model_from_name(process_name)
                     name_mappings = Hash[
                         process_name => desired_name,
                         "#{process_name}_Logger" => "#{desired_name}_Logger"]
 
-                    processes << [process_name, name_mappings, desired_name]
+                    processes << [desired_name, deployment, name_mappings]
                 end
             end
             processes
         end
 
-        # @deprecated use {Runkit.run} directly instead
-        def self.run(*args, **options)
-            unless Runkit.initialized?
-                # try to initialize runkit before bothering the user
-                Runkit.initialize
-            end
-            raise "CORBA layer is not initialized! There might be problem with the installation." unless Runkit::CORBA.initialized?
-
-            begin
-                process_specs, wait = parse_run_options(*args, **options)
-
-                # Then spawn them, but without waiting for them
-                processes = process_specs.map do |deployment_name, name_mappings, name, spawn_options|
-                    p = Process.new(name, deployment_name)
-                    name_mappings.each do |old, new|
-                        p.map_name old, new
-                    end
-                    p.spawn(spawn_options)
-                    p
-                end
-
-                # Finally, if the user required it, wait for the processes to run
-                if wait
-                    timeout = if wait.kind_of?(Numeric)
-                                  wait
-                              else Float::INFINITY
-                              end
-                    processes.each { |p| p.wait_running(timeout) }
-                end
-            rescue Exception => original_error
-                # Kill the processes that are already running
-                if processes
-                    begin
-                        kill(processes.map { |p| p if p.running? }.compact)
-                    rescue Exception => e
-                        Runkit.warn "failed to kill the started processes, you will have to kill them yourself"
-                        Runkit.warn e.message
-                        e.backtrace.each do |l|
-                            Runkit.warn "  #{l}"
-                        end
-                        raise original_error
-                    end
-                end
-                raise
-            end
-
-            if block_given?
-                Runkit.guard(*processes) do
-                    yield(*processes)
-                end
-            else
-                processes
-            end
-        end
-
-        # Kills the given processes
-        #
-        # @param [Array<#kill,#join>] processes a list of processes to kill
-        # @param [Boolean] wait whether the method should wait for the processes
-        #   to die or not
-        def self.kill(processes, wait = true)
-            processes.each { |p| p.kill if p.running? }
-            processes.each(&:join) if wait
-        end
-
         def self.gdb_base_port=(port)
-            @@gdb_port = port - 1
+            @gdb_port = port - 1
         end
 
-        @@gdb_port = 30_000
+        @gdb_port = 30_000
         def self.allocate_gdb_port
-            @@gdb_port += 1
+            @gdb_port += 1
         end
 
         VALID_LOG_LEVELS = %i[debug info warn error fatal disable].freeze
@@ -1041,11 +709,6 @@ module Runkit
         #   process
         # @param [#get] name_service a name service object that should be used
         #   to resolve the tasks
-        # @param [Boolean,Numeric] wait if true, the method will wait forever
-        #   for the tasks to be available. If false, it will not wait at all. If
-        #   nil, a sane default will be used (the default depends on whether the
-        #   process is executed under valgrind or gdb). Finally, if a numerical
-        #   value is provided, this value will be used as timeout (in seconds)
         # @param [Boolean,Array<String>] gdb whether the process should be
         #   executed under the supervision of gdbserver. Setting this option to
         #   true will enable gdb support. Setting it to an array of strings will
@@ -1063,32 +726,18 @@ module Runkit
             cmdline_args: {},
             oro_logfile:  "runkit.%m-%p.txt",
             prefix: nil, tracing: Runkit.tracing?,
-            wait: nil,
             output: nil,
             gdb: nil, valgrind: nil,
-            name_service: Runkit::CORBA.name_service
+            env: {}
         )
 
             raise "#{name} is already running" if alive?
 
             Runkit.info "starting deployment #{name}"
 
-            # Setup mapping for prefixed tasks in Process class
-            prefix_mappings = ProcessBase.resolve_prefix(model, prefix)
-            name_mappings = prefix_mappings.merge(self.name_mappings)
-            self.name_mappings = name_mappings
-
-            if wait.nil?
-                wait =
-                    if valgrind then 600
-                    elsif gdb then 600
-                    else 20
-                    end
-            end
-
             cmdline_args = cmdline_args.dup
             cmdline_args[:rename] ||= []
-            name_mappings.each do |old, new|
+            @name_mappings.each do |old, new|
                 cmdline_args[:rename].push "#{old}:#{new}"
             end
 
@@ -1110,8 +759,6 @@ module Runkit
                 cmdline_wrapper_options << "localhost:#{gdb_port}"
             end
 
-            ENV["ORBInitRef"] = "NameService=corbaname::#{name_service.ip}" unless name_service.ip.empty?
-
             cmdline = [binfile]
 
             # check arguments for log_level
@@ -1132,16 +779,14 @@ module Runkit
                 # Pass write file descriptor for the IOR pipe as a commandline argument
                 cmdline_args["ior-write-fd"] = ior_write_fd.fileno
 
-                ENV["LD_PRELOAD"] = Runkit.tracing_library_path if tracing
+                env["LD_PRELOAD"] = Runkit.tracing_library_path if tracing
 
                 pid = ::Process.pid
-                real_name = get_mapped_name(name)
-
-                ENV["BASE_LOG_LEVEL"] = log_level if log_level
+                env["BASE_LOG_LEVEL"] = log_level if log_level
 
                 if output&.respond_to?(:to_str)
                     output_file_name = output
-                                       .gsub("%m", real_name)
+                                       .gsub("%m", name)
                                        .gsub("%p", pid.to_s)
                     output_file_name = File.expand_path(output_file_name, working_directory) if working_directory
 
@@ -1150,12 +795,12 @@ module Runkit
 
                 if oro_logfile
                     oro_logfile = oro_logfile
-                                  .gsub("%m", real_name)
+                                  .gsub("%m", name)
                                   .gsub("%p", pid.to_s)
                     oro_logfile = File.expand_path(oro_logfile, working_directory) if working_directory
-                    ENV["ORO_LOGFILE"] = oro_logfile
+                    env["ORO_LOGFILE"] = oro_logfile
                 else
-                    ENV["ORO_LOGFILE"] = "/dev/null"
+                    env["ORO_LOGFILE"] = "/dev/null"
                 end
 
                 if output
@@ -1189,12 +834,11 @@ module Runkit
                 read.close
                 ::Process.setpgrp
                 begin
-                    exec(*cmdline, ior_write_fd => ior_write_fd, chdir: working_directory)
+                    exec(env, *cmdline, ior_write_fd => ior_write_fd, chdir: working_directory)
                 rescue Exception
                     write.write("FAILED")
                 end
             end
-            Process.register(self)
 
             ior_write_fd.close
 
@@ -1202,36 +846,15 @@ module Runkit
             raise "cannot start #{name}" if read.read == "FAILED"
 
             Runkit.warn "process #{name} has been started under gdbserver, port=#{gdb_port}. The components will not be functional until you attach a GDB to the started server" if gdb
-
-            if wait
-                timeout = if wait.kind_of?(Numeric)
-                              wait
-                          elsif wait
-                              Float::INFINITY
-                          end
-                wait_running(timeout)
-            end
         end
 
-        # Resolve all the tasks present on the process, creating a new Runkit::TaskContext
-        # if the task is not deployed yet.
+        # Return the mapping of name to task object
         #
-        # @param [Runkit::Process] process the process object
-        # @return [Hash<String, Runkit::TaskContext>] hash with
-        #   { task name => task context objet }
-        # @raise Runkit::IORNotRegisteredError when an IOR is not registered for the given
-        #   task name.
-        # @raise Runkit::NotFound if the process dies during execution
-        # @raise Runkit::InvalidIORMessage if the message received is invalid
-        def self.resolve_all_tasks(process)
-            process.task_names.each_with_object({}) do |task_name, resolved_tasks|
-                resolved_tasks[task_name] = process.task(task_name)
-            end
-        end
-
-        # See #Runkit::Process.resolve_all_tasks
+        # @raise (see #task)
         def resolve_all_tasks
-            Runkit::Process.resolve_all_tasks(self)
+            each_task.each_with_object({}) do |task, resolved_tasks|
+                resolved_tasks[task.name] = task
+            end
         end
 
         SIGNAL_NUMBERS = {
@@ -1247,13 +870,13 @@ module Runkit
             begin
                 task.stop(false)
                 task.cleanup(false) if task.model&.needs_configuration?
-            rescue StateTransitionFailed
+            rescue StateTransitionFailed # rubocop:disable Lint/SuppressedException
             end
 
             task.each_port(&:disconnect_all)
 
             true
-        rescue Exception => e
+        rescue StandardError => e
             Runkit.warn "clean shutdown of #{task.name} failed: #{e.message}"
             e.backtrace.each do |line|
                 Runkit.warn line
@@ -1263,7 +886,7 @@ module Runkit
 
         # Kills the process either cleanly by requesting a shutdown if signal ==
         # nil, or forcefully by using UNIX signals if signal is a signal name.
-        def kill(wait = true, signal = nil, cleanup: !signal, hard: false)
+        def kill(signal = nil, cleanup: !signal, hard: false)
             tpid = pid
             return unless tpid # already dead
 
@@ -1312,66 +935,7 @@ module Runkit
                 end
             end
 
-            if wait
-                join
-                if @exit_status&.signaled?
-                    if !expected_exit
-                        Runkit.warn "#{name} unexpectedly exited with signal #{@exit_status.termsig}"
-                    elsif @exit_status.termsig != expected_exit
-                        Runkit.warn "#{name} was expected to quit with signal #{expected_exit} but terminated with signal #{@exit_status.termsig}"
-                    end
-                end
-            end
-        end
-    end
-
-    # Enumerates the Runkit::Process objects that are currently available in
-    # this Ruby instance
-    def self.each_process(&block)
-        Process.each(&block)
-    end
-
-    # Evaluates a block, ensuring that a set of processes or tasks are killed
-    # when the control flow leaves it
-    def self.guard(*processes_or_tasks)
-        yield
-    rescue Interrupt
-    rescue Exception => e
-        Runkit.warn "killing running task contexts and deployments because of unhandled exception"
-        Runkit.warn "  #{e.backtrace[0]}: #{e.message}"
-        e.backtrace[1..-1].each do |line|
-            Runkit.warn "    #{line}"
-        end
-        raise
-    ensure
-        processes, tasks = processes_or_tasks.partition do |obj|
-            obj.kind_of?(Runkit::Process)
-        end
-
-        processes = each_process.to_a if processes.empty?
-        unless tasks.empty?
-            processes.each do |p|
-                tasks -= p.each_task.to_a
-            end
-        end
-
-        # NOTE: Process#kill stops all the tasks from the process first, so
-        # that's fine.
-        tasks.each do |t|
-            Runkit.info "guard: stopping task #{t.name}"
-            Runkit::Process.try_task_cleanup(t)
-        end
-        processes.each do |p|
-            if p.running?
-                Runkit.info "guard: stopping process #{p.name}"
-                p.kill(false)
-            end
-        end
-        processes.each do |p|
-            if p.running?
-                Runkit.info "guard: joining process #{p.name}"
-                p.join
-            end
+            nil
         end
     end
 end
