@@ -20,17 +20,9 @@ module Runkit
         # This is only possible if the remote deployment has been started by
         # this Ruby instance
         def write(data)
-            if (process = port.task.process)
-                unless process.alive?
-                    disconnect_all
-                    raise CORBA::ComError, "remote end is dead"
-                end
-            end
+            raise CORBA::ComError, "remote end was disconnected" unless super
 
-            if !super
-                raise CORBA::ComError, "remote end was disconnected"
-            else true
-            end
+            true
         end
     end
 end
