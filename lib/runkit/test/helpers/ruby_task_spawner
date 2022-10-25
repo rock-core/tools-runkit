@@ -5,6 +5,7 @@ require "optparse"
 input_ports  = []
 output_ports = []
 typekits     = []
+ior_fd = nil
 parser = OptionParser.new do |opt|
     opt.on "--input-port=PORT::TYPE", String do |spec|
         input_ports << spec.split("::")
@@ -15,17 +16,20 @@ parser = OptionParser.new do |opt|
     opt.on "--typekit=NAME", String do |name|
         typekits << name
     end
+    opt.on "--ior-fd=FD", Integer do |fd|
+        ior_fd = fd
+    end
 end
 name = parser.parse(ARGV).first
 
-require "orocos"
+require "runkit"
 
-Orocos.initialize
-typekits.each do |name|
-    Orocos.load_typekit name
-end
+ior_w = IO.for_fd(ior_fd)
 
-task = Orocos::RubyTasks::TaskContext.new(name)
+Runkit.initialize
+typekits.each { |typekit_name| Runkit.load_typekit(typekit_name) }
+
+task = Runkit::RubyTasks::TaskContext.new(name)
 begin
     input_ports.each do |port_name, port_type|
         task.create_input_port port_name, port_type
@@ -33,6 +37,9 @@ begin
     output_ports.each do |port_name, port_type|
         task.create_output_port port_name, port_type
     end
+
+    ior_w.write(JSON.dump({ tasks: [{ name: name, ior: task.ior }] }))
+    ior_w.close
     sleep
 ensure
     task.dispose

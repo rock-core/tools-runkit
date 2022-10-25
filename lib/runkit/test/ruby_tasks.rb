@@ -37,9 +37,9 @@ module Runkit
             end
 
             def new_external_ruby_task_context(
-                name, typekits: ["std"], input_ports: [], output_ports: [], timeout: 2
+                task_name,
+                typekits: ["std"], input_ports: [], output_ports: [], timeout: 2
             )
-
                 typekits = typekits.map do |typekit_name|
                     "--typekit=#{typekit_name}"
                 end
@@ -49,17 +49,40 @@ module Runkit
                 input_ports = input_ports.map do |name, type|
                     "--input-port=#{name}::#{type}"
                 end
-                pid = spawn(Gem.ruby, File.join(helpers_dir, "ruby_task_spawner"),
-                            name, *typekits, *input_ports, *output_ports)
 
-                start_time = Time.now
-                while (Time.now - start_time) < timeout
-                    begin
-                        return Runkit.get(name), pid
-                    rescue Runkit::NotFound
+                ior_r, ior_w = IO.pipe
+                pid = spawn(Gem.ruby, File.join(helpers_dir, "ruby_task_spawner"),
+                            task_name, *typekits, *input_ports, *output_ports,
+                            "--ior-fd=#{ior_w.fileno}", { ior_w => ior_w })
+
+                ior_w.close
+                deadline = Time.now + timeout
+                message = +""
+
+                loop do
+                    message += ior_r.read_nonblock(1024)
+                rescue IO::WaitReadable
+                    remaining_timeout = deadline - Time.now
+                    if remaining_timeout < 0
+                        flunk("timed out waiting for the external ruby task "\
+                              "contexts to be ready")
                     end
+                    select([ior_r], nil, nil, remaining_timeout)
+                rescue EOFError
+                    break
                 end
-                flunk "failed to create ruby task context #{name}"
+
+                ior_r.close
+
+                ior =
+                    begin
+                        JSON.parse(message)["tasks"][0]["ior"]
+                    rescue JSON::ParserError
+                        flunk("unexpected message received from ruby_task_spawner, "\
+                              "got '#{message}'")
+                    end
+
+                [TaskContext.new(ior, name: task_name), pid]
             end
         end
     end
