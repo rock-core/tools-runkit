@@ -44,10 +44,6 @@ module Runkit
             include FlexMock::MockContainer
         end
 
-        def work_dir
-            File.join(@test_dir, "working_copy")
-        end
-
         def data_dir
             File.join(@test_dir, "data")
         end
@@ -58,7 +54,7 @@ module Runkit
             @test_dir = File.expand_path(File.join("..", "..", "test"), __dir__)
             @__tmpdirs = []
 
-            Runkit.default_working_directory = work_dir if File.directory?(work_dir)
+            Runkit.default_working_directory = make_tmpdir
 
             @__runkit_processes = []
 
