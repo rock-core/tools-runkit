@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require "utilrb/kernel/options"
-require "utilrb/module/attr_predicate"
-
 module Runkit
     # Base class for port classes.
     #
@@ -10,9 +7,14 @@ module Runkit
     class Port
         include PortBase
 
-        @transient_port_id_counter = 0
+        @transient_port_id_counter = Concurrent::AtomicFixnum.new
+
+        def self.allocate_transient_port_id_counter
+            @transient_port_id_counter.increment
+        end
+
         def self.transient_local_port_name(base_name)
-            "#{base_name}.#{@transient_port_id_counter += 1}"
+            "#{base_name}.#{Port.allocate_transient_port_id_counter}".gsub(/[^w]/, "_")
         end
 
         @transport_names = {}

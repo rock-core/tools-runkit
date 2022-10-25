@@ -34,8 +34,12 @@ module Runkit
 end
 
 require "orogen"
+require "utilrb/kernel/options"
+require "utilrb/module/attr_predicate"
 require "utilrb/module/attr_predicate"
 require "utilrb/hash/map_value"
+
+require "concurrent-ruby"
 
 require "runkit/version"
 
