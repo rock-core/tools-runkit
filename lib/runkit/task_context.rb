@@ -52,13 +52,13 @@ module Runkit
             attr_accessor :state_symbols
 
             def read(sample = nil)
-                if value = super(sample)
+                if (value = super(sample))
                     @state_symbols[value]
                 end
             end
 
             def read_new(sample = nil)
-                if value = super(sample)
+                if (value = super(sample))
                     @state_symbols[value]
                 end
             end
