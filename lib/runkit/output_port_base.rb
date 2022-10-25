@@ -19,7 +19,6 @@ module Runkit
         # The policy dictates how data should flow between the port and the
         # reader object. See #prepare_policy
         def reader(distance: PortBase::D_UNKNOWN, **policy)
-            ensure_type_available
             reader = Runkit.ruby_task_access do
                 Runkit.ruby_task.create_input_port(
                     self.class.transient_local_port_name(full_name),
