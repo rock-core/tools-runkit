@@ -13,7 +13,7 @@ module Runkit
     #   require 'pp'
     #   pp task_object
     #
-    class TaskContext
+    class TaskContext < TaskContextBase
         # @api private
         #
         # Automated wrapper to handle CORBA exceptions coming from the C
@@ -26,13 +26,25 @@ module Runkit
             DEF_END
         end
 
+        def self.empty_orogen_model(name, loader: nil)
+            project = OroGen::Spec::Project.new(loader || Runkit.default_loader)
+            project.task_context name do
+                extended_state_support
+            end
+        end
+
+
         # Create a TaskContext instance representing the remote task context
         # with the given IOR
         #
         # @param [String] ior The IOR of the remote task.
         # @param [String] name the task name, if not known
         # @option options [String] :name Overwrites the real name of remote task
-        def initialize(ior, name:, model:)
+        def initialize(
+            ior,
+            name:, loader: nil,
+            model: self.class.empty_orogen_model(name, loader: loader)
+        )
             # Note: TaskContext.new is implemented in C++
             super(name, model: model)
             @ior = ior
