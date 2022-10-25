@@ -271,7 +271,7 @@ static VALUE name_service_ior(VALUE self, VALUE task_name)
     return rb_str_new2(ior.c_str());
 }
 
-void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA)
+void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA, VALUE mNameServices)
 {
     ::mCORBA = mCORBA;
     rb_define_singleton_method(mCORBA,
@@ -293,8 +293,8 @@ void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA)
         RUBY_METHOD_FUNC(corba_transportable_type_names),
         0);
 
-    VALUE cNameServiceBase = rb_define_class_under(mRoot, "NameServiceBase", rb_cObject);
-    cNameService = rb_define_class_under(mCORBA, "NameService", cNameServiceBase);
+    VALUE cNameServiceBase = rb_define_class_under(mNameServices, "Base", rb_cObject);
+    cNameService = rb_define_class_under(mNameServices, "CORBA", cNameServiceBase);
     rb_define_singleton_method(cNameService,
         "new",
         RUBY_METHOD_FUNC(name_service_create),

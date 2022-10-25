@@ -26,14 +26,6 @@ module Runkit
             DEF_END
         end
 
-        def self.empty_orogen_model(name, loader: nil)
-            project = OroGen::Spec::Project.new(loader || Runkit.default_loader)
-            project.task_context name do
-                extended_state_support
-            end
-        end
-
-
         # Create a TaskContext instance representing the remote task context
         # with the given IOR
         #

@@ -53,7 +53,7 @@ static VALUE cPort;
 static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
 
-extern void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA);
+extern void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA, VALUE mNameServices);
 extern void rtt_corba_init_data_handling(VALUE cTaskContext);
 extern void rtt_corba_init_operations(VALUE mRoot, VALUE cTaskContext);
 extern void rtt_corba_init_ruby_task_context(VALUE mRoot,
@@ -674,6 +674,7 @@ static VALUE no_blocking_calls_in_thread_get(VALUE self)
 extern "C" void Init_rtt_corba_ext()
 {
     mRoot = rb_define_module("Runkit");
+    VALUE mNameServices = rb_define_module_under(mRoot, "NameServices");
     mCORBA = rb_define_module_under(mRoot, "CORBA");
     eComError = rb_define_class_under(mRoot, "ComError", rb_eRuntimeError);
     eCORBA = rb_define_class_under(mRoot, "CORBAError", rb_eRuntimeError);
@@ -841,7 +842,7 @@ extern "C" void Init_rtt_corba_ext()
         RUBY_METHOD_FUNC(do_port_connect_to),
         2);
 
-    rtt_corba_init_CORBA(mRoot, mCORBA);
+    rtt_corba_init_CORBA(mRoot, mCORBA, mNameServices);
     rtt_corba_init_data_handling(cTaskContext);
     rtt_corba_init_ruby_task_context(mRoot, cTaskContext, cOutputPort, cInputPort);
     rtt_corba_init_operations(mRoot, cTaskContext);

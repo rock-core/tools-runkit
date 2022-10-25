@@ -50,14 +50,14 @@ module Runkit
                 if @registered_tasks.key?(name)
                     update(name, task.ior)
                 else
-                    publish(name task.ior)
+                    publish(name, task.ior)
                 end
             end
 
             # Update an existing service registration
             def update(name, ior)
                 service = @registered_tasks.fetch(name)
-                service.set_description("IOR", task.ior)
+                service.set_description("IOR", ior)
                 service.update
                 service
             end
@@ -65,7 +65,7 @@ module Runkit
             # Publish a new service
             def publish(name, ior)
                 service = ::Avahi::ServiceDiscovery.new
-                service.set_description("IOR", task.ior)
+                service.set_description("IOR", ior)
                 @registered_tasks[name] = service
                 service.publish(name, @searchdomain)
                 service
@@ -90,6 +90,7 @@ module Runkit
                         "Avahi: '#{name}' found multiple times. Possibly due to "\
                         "publishing on IPv4 and IPv6, or on multiple interfaces "\
                         "-- picking first one in list"
+                    )
                 end
 
                 ior = services.first.get_description("IOR")

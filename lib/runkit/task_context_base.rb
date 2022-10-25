@@ -24,7 +24,11 @@ module Runkit
         # @param [Hash] options The options.
         # @option options [Runkit::Process] :process The process supporting the task
         # @option options [String] :namespace The namespace of the task
-        def initialize(name, model:)
+        def initialize(
+            name,
+            loader: nil,
+            model: self.class.empty_orogen_model(name, loader: loader)
+        )
             @name = name
             @model = model
             initialize_model_info(model)
@@ -384,5 +388,12 @@ module Runkit
             end
         end
         include PureVirtual
+
+        def self.empty_orogen_model(name, loader: nil)
+            project = OroGen::Spec::Project.new(loader || Runkit.default_loader)
+            project.task_context name do
+                extended_state_support
+            end
+        end
     end
 end

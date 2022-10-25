@@ -25,8 +25,8 @@ module Runkit
             #
             # @return [TaskContext]
             # @raise [NotFound] if no {TaskContext} can be found
-            def get(name, model:)
-                TaskContext.new(ior(name), model: model)
+            def get(name, **options)
+                TaskContext.new(ior(name), name: name, **options)
             end
 
             # Gets the IOR for the given Runkit Task having the given name.

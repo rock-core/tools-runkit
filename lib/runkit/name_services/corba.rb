@@ -34,22 +34,23 @@ module Runkit
 
             # (see NameServiceBase#ior)
             def ior(name)
-                CORBA.refine_exceptions("corba naming service(#{ip})") do
+                Runkit::CORBA.refine_exceptions("corba naming service(#{ip})") do
                     do_ior(name)
                 end
             end
 
             # (see NameServiceBase#names)
             def names
-                result = CORBA.refine_exceptions("corba naming service(#{ip})") do
+                Runkit::CORBA.refine_exceptions("corba naming service(#{ip})") do
                     do_task_context_names.find_all { |n| n !~ /^runkitrb_(\d+)$/ }
                 end
-                map_to_namespace(result)
+            rescue NotFound
+                []
             end
 
             # (see NameServiceBase#get)
-            def get(name = nil, model:)
-                Runkit::TaskContext.new(ior(name), model: model)
+            def get(name, **options)
+                Runkit::TaskContext.new(ior(name), name: name, **options)
             end
 
             # Registers the IOR of the given {Runkit::TaskContext} on the CORBA name service.
