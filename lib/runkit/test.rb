@@ -49,6 +49,7 @@ module Runkit
         end
 
         def setup
+            ENV.delete("ORBInitRef")
             Runkit::MQueue.auto = USE_MQUEUE
             Runkit.load_typekit "base"
 
@@ -65,12 +66,6 @@ module Runkit
             Runkit::CORBA.call_timeout = 10_000
             Runkit::CORBA.connect_timeout = 10_000
 
-            if TEST_MODEL_LESS
-                flexmock(Runkit::TaskContext).new_instances(:get_from_ior).should_receive("model").and_return(nil)
-                flexmock(Runkit::TaskContext).new_instances(:do_get).should_receive("model").and_return(nil)
-            elsif TEST_MISSING_MODELS
-                flexmock(Runkit).should_receive(:task_model_from_name).and_raise(Runkit::NotFound)
-            end
             super
         end
 
@@ -82,7 +77,10 @@ module Runkit
             end
 
             @__runkit_processes.each do |p|
+                next unless p.alive?
+
                 p.kill
+                p.join
             rescue StandardError => e
                 Runkit.warn "failed, in teardown, to stop process #{p}: #{e}"
             end
@@ -105,6 +103,15 @@ module Runkit
             dir = Dir.mktmpdir
             @__tmpdirs << dir
             dir
+        end
+
+        ruby2_keywords def create_processes(*args)
+            info = Process.parse_run_options(*args)
+            info.map do |name, deployment, name_mappings, _|
+                p = Process.new(name, deployment, name_mappings: name_mappings)
+                @__runkit_processes << p
+                p
+            end
         end
 
         ruby2_keywords def start(*args)

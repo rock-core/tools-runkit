@@ -88,9 +88,9 @@ module Runkit # :nodoc:
         def orogen
             model
         end
+
         # A set of mappings from task names in the deployment model to the
         # actual name in the running process
-        attr_reader :tasks
         attr_reader :ior_mappings
 
         def initialize(name, model, name_mappings: {})
@@ -99,7 +99,6 @@ module Runkit # :nodoc:
             @name_mappings = name_mappings.dup
 
             @logged_ports = Set.new
-            @tasks = []
             @ior_mappings = nil
             @ior_message = ""
             @ior_read_fd = nil
@@ -152,7 +151,7 @@ module Runkit # :nodoc:
         def task(mapped_task_name)
             unless (ior = ior_for(mapped_task_name))
                 raise Runkit::IORNotRegisteredError,
-                      "no IOR is registered for #{task_name}"
+                      "no IOR is registered for #{mapped_task_name}"
             end
 
             deployed_task = model.task_activities.find do |t|
@@ -197,17 +196,17 @@ module Runkit # :nodoc:
         # @return [nil, Hash<String, String>] when eof is reached and the message is valid
         #   return a { task name => ior } hash. Returns nil if the process dies, or if we
         #   have not yet received all the IOR information from it.
-        def try_resolve_running_tasks
+        def try_resolve_running_tasks(channel: @ior_read_fd)
             return unless alive?
 
             begin
                 loop do
-                    @ior_message += @ior_read_fd.read_nonblock(4096)
+                    @ior_message += channel.read_nonblock(4096)
                 end
             rescue IO::WaitReadable
                 nil
             rescue EOFError
-                @ior_read_fd.close
+                channel.close
                 load_and_validate_ior_message(@ior_message)
             end
         end
@@ -221,7 +220,7 @@ module Runkit # :nodoc:
         # @return [Hash<String, String>] mappings of { task name => IOR }
         # @raise Runkit::NotFound if the process dies during execution
         # @raise Runkit::InvalidIORMessage if the message received is invalid
-        def wait_running(timeout = nil, &block)
+        def wait_running(timeout = nil, channel: @ior_read_fd, &block)
             return block.call if block_given?
             return @ior_mappings if @ior_mappings
 
@@ -230,14 +229,14 @@ module Runkit # :nodoc:
             deadline = start_time + timeout unless timeout == Float::INFINITY
             got_alive = alive?
             loop do
-                @ior_mappings = try_resolve_running_tasks
+                @ior_mappings = try_resolve_running_tasks(channel: channel)
                 return @ior_mappings if @ior_mappings
                 break if timeout < Time.now - start_time
 
                 raise Runkit::NotFound, "#{name} was started but crashed" if got_alive && !alive?
 
                 time_until_deadline = [deadline - Time.now, 0].max if deadline
-                IO.select([@ior_read_fd], nil, nil, time_until_deadline)
+                IO.select([channel], nil, nil, time_until_deadline)
             end
 
             raise Runkit::NotFound, "cannot get a running #{name} module" unless alive?
@@ -296,7 +295,7 @@ module Runkit # :nodoc:
         #   @param [String] model_name the name of the deployment model
         #
         def initialize(name, model, name_mappings: {})
-            @binfile = Runkit.default_loader.find_deployment_binfile(model.name)
+            @binfile = model.loader.find_deployment_binfile(model.name)
             super(name, model, name_mappings: name_mappings)
         end
 
@@ -309,14 +308,15 @@ module Runkit # :nodoc:
 
             begin
                 _, exit_status = ::Process.waitpid2(pid)
-                dead!(exit_status)
-            rescue Errno::ECHILD # Rubocop:disable Lint/SuppressedException
+            rescue Errno::ECHILD # rubocop:disable Lint/SuppressedException
             end
+
+            dead!(exit_status)
         end
 
         # True if the process is running
         def alive?
-            @pid
+            @pid && !@exit_status
         end
 
         # True if the process is running
@@ -409,7 +409,7 @@ module Runkit # :nodoc:
 
                 case object
                 when OroGen::Spec::TaskContext
-                    unless name
+                    unless new_name
                         raise TaskNameRequired,
                               "you must provide a task name when starting a component "\
                               "by type, as e.g. Runkit.run 'xsens_imu::Task' => 'xsens'"
@@ -478,27 +478,28 @@ module Runkit # :nodoc:
             cmdline_args: {})
             deployments, models = partition_run_options(*names, loader: loader)
 
-            all_deployments = deployments.keys.map(&:name) + models.values.flatten
+            name_mappings = resolve_name_mappings(deployments, models, loader)
+            deployment_names = name_mappings.map(&:first)
             valgrind = parse_cmdline_wrapper_option(
-                "valgrind", valgrind, valgrind_options, all_deployments
+                "valgrind", valgrind, valgrind_options, deployment_names
             )
             gdb = parse_cmdline_wrapper_option(
-                "gdbserver", gdb, gdb_options, all_deployments
+                "gdbserver", gdb, gdb_options, deployment_names
             )
-            log_level = parse_log_level_option(log_level, all_deployments)
+            log_level = parse_log_level_option(log_level, deployment_names)
 
-            name_mappings = resolve_name_mappings(deployments, models, loader)
             processes = name_mappings.map do |name, deployment, mappings|
                 output = (output&.gsub "%m", name)
 
-                spawn_options = Hash[
+                spawn_options = {
                     working_directory: working_directory,
                     output: output,
                     valgrind: valgrind[name],
                     gdb: gdb[name],
                     cmdline_args: cmdline_args,
                     log_level: log_level[name],
-                    oro_logfile: oro_logfile]
+                    oro_logfile: oro_logfile
+                }
                 [name, deployment, mappings, spawn_options]
             end
             processes
@@ -561,23 +562,36 @@ module Runkit # :nodoc:
         #   @param [Hash] options additional options to pass to the wrapper
         #   @param [Array<String>] all_deployments ignored in this form
         #
-        def self.parse_cmdline_wrapper_option(cmd, deployments, options, all_deployments)
-            return {} unless deployments
+        def self.parse_cmdline_wrapper_option(
+            cmd, wrapper_flag, wrapper_options, deployments
+        )
+            return {} unless wrapper_flag
 
-            raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed" unless command?(cmd)
+            unless command?(cmd)
+                raise "'#{cmd}' option is specified, but #{cmd} seems not to be installed"
+            end
 
-            unless deployments.respond_to?(:to_hash)
-                if deployments.respond_to?(:to_str)
-                    deployments = [deployments]
-                elsif !deployments.respond_to?(:to_ary)
-                    deployments = all_deployments
+            unless wrapper_flag.respond_to?(:to_hash)
+                if wrapper_flag.respond_to?(:to_str)
+                    wrapper_flag = [wrapper_flag]
+                elsif !wrapper_flag.respond_to?(:to_ary)
+                    wrapper_flag = deployments
                 end
 
-                deployments = deployments.each_with_object({}) { |name, h| h[name] = options; }
+                wrapper_flag = wrapper_flag.each_with_object({}) do |name, h|
+                    h[name] = wrapper_options
+                end
             end
-            deployments.each_key do |name|
-                raise ArgumentError, "#{name}, selected to be executed under #{cmd}, is not a known deployment/model" unless all_deployments.include?(name)
+
+            wrapper_flag.each_key do |name|
+                next if deployments.include?(name)
+
+                raise ArgumentError,
+                      "#{name}, selected to be executed under #{cmd}, "\
+                      "is not a known deployment/model"
             end
+
+            wrapper_flag
         end
 
         # @api private
@@ -841,7 +855,6 @@ module Runkit # :nodoc:
             end
 
             ior_write_fd.close
-
             write.close
             raise "cannot start #{name}" if read.read == "FAILED"
 
@@ -868,8 +881,8 @@ module Runkit # :nodoc:
         # successful, and false otherwise
         def self.try_task_cleanup(task)
             begin
-                task.stop(false)
-                task.cleanup(false) if task.model&.needs_configuration?
+                task.stop
+                task.cleanup if task.model&.needs_configuration?
             rescue StateTransitionFailed # rubocop:disable Lint/SuppressedException
             end
 
@@ -901,13 +914,13 @@ module Runkit # :nodoc:
             if cleanup
                 clean_shutdown = true
                 begin
-                    tasks.each do |task|
+                    each_task do |task|
                         unless self.class.try_task_cleanup(task)
                             clean_shutdown = false
                             break
                         end
                     end
-                rescue Runkit::NotFound, Runkit::NoModel
+                rescue Runkit::NotFound
                     # We're probably still starting the process. Just go on and
                     # signal it
                     clean_shutdown = false
@@ -917,8 +930,6 @@ module Runkit # :nodoc:
 
             expected_exit = nil
             if signal
-                Runkit.warn "sending #{signal} to #{name}" unless expected_exit
-
                 signal = "SIG#{signal}" if signal.respond_to?(:to_str) && signal !~ /^SIG/
 
                 expected_exit ||=
@@ -926,6 +937,7 @@ module Runkit # :nodoc:
                     else SIGNAL_NUMBERS[signal] || signal
                     end
 
+                Runkit.warn "sending #{signal} to #{name}" unless expected_exit
                 @expected_exit = expected_exit
                 begin
                     ::Process.kill(signal, tpid)

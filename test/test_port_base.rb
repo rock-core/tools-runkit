@@ -4,42 +4,6 @@ require "runkit/test"
 
 module Runkit
     describe PortBase do
-        describe "#distance_to" do
-            attr_reader :source, :sink
-            before do
-                @source = new_ruby_task_context "source" do
-                    output_port "out", "/double"
-                end
-                @sink = new_ruby_task_context "sink" do
-                    input_port "in", "/double"
-                end
-            end
-
-            it "returns D_UNKNOWN if the input port has no process" do
-                flexmock(sink).should_receive(:process).and_return(nil)
-                assert_equal PortBase::D_UNKNOWN, source.out.distance_to(sink.in)
-            end
-            it "returns D_UNKNOWN if the output port has no process" do
-                flexmock(source).should_receive(:process).and_return(nil)
-                assert_equal PortBase::D_UNKNOWN, source.out.distance_to(sink.in)
-            end
-            it "returns D_SAME_PROCESS if both tasks have the same process" do
-                process = flexmock
-                flexmock(sink).should_receive(:process).and_return(process)
-                flexmock(source).should_receive(:process).and_return(process)
-                assert_equal PortBase::D_SAME_PROCESS, source.out.distance_to(sink.in)
-            end
-            it "returns D_SAME_HOST if both tasks have different processes on the same host" do
-                flexmock(sink).should_receive(:process).and_return(flexmock(host_id: "here"))
-                flexmock(source).should_receive(:process).and_return(flexmock(host_id: "here"))
-                assert_equal PortBase::D_SAME_HOST, source.out.distance_to(sink.in)
-            end
-            it "returns D_DIFFERENT_HOSTS if both tasks have different processes on different hosts" do
-                flexmock(sink).should_receive(:process).and_return(flexmock(host_id: "here"))
-                flexmock(source).should_receive(:process).and_return(flexmock(host_id: "there"))
-                assert_equal PortBase::D_DIFFERENT_HOSTS, source.out.distance_to(sink.in)
-            end
-        end
     end
 
     describe InputPortBase do
