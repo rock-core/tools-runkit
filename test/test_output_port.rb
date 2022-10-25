@@ -3,18 +3,6 @@
 require "runkit/test"
 module Runkit
     describe OutputPort do
-        it "should not be possible to create an instance directly" do
-            assert_raises(NoMethodError) { OutputPort.new }
-        end
-
-        it "should have the right model" do
-            Runkit.run("simple_source") do
-                task = Runkit.get("simple_source_source")
-                source = task.port("cycle")
-                assert_same source.model, task.model.find_output_port("cycle")
-            end
-        end
-
         describe "connection handling" do
             attr_reader :source, :sink
 
@@ -97,8 +85,9 @@ module Runkit
                 end
 
                 it "disconnects from a dead input" do
-                    task, pid = new_external_ruby_task_context "remote_sink",
-                                                               input_ports: Hash["in" => "/double"]
+                    task, pid = new_external_ruby_task_context(
+                        "remote_sink", input_ports: Hash["in" => "/double"]
+                    )
                     sink = task.port("in")
 
                     source.connect_to sink
@@ -124,8 +113,9 @@ module Runkit
                 end
 
                 it "disconnects all inputs even though some are dead" do
-                    task, pid = new_external_ruby_task_context "remote_sink",
-                                                               input_ports: Hash["in" => "/double"]
+                    task, pid = new_external_ruby_task_context(
+                        "remote_sink", input_ports: Hash["in" => "/double"]
+                    )
                     other_sink = task.port("in")
 
                     source.connect_to sink
@@ -139,36 +129,36 @@ module Runkit
                 end
             end
 
-            it "behaves if connections are modified while running" do
+            it "behaves correctly if connections are modified while running" do
                 last = nil
-                Runkit.run("simple_sink", "simple_source", output: "%m.log") do
-                    source_task = Runkit.get("fast_source")
-                    sources = (0...4).map { |i| source_task.port("out#{i}") }
-                    sink_task = Runkit.get("fast_sink")
-                    sinks = (0...4).map { |i| sink_task.port("in#{i}") }
 
-                    count, display = nil
-                    if dataflow_stress_test_count
-                        count   = dataflow_stress_test_count
-                        display = true
-                    else
-                        count = 10_000
-                    end
+                process = start("fast_source_sink").first
+                source_task = process.task "fast_source"
+                sink_task = process.task "fast_sink"
+                sources = (0...4).map { |i| source_task.port("out#{i}") }
+                sinks = (0...4).map { |i| sink_task.port("in#{i}") }
 
-                    source_task.configure
-                    source_task.start
-                    sink_task.start
-                    count.times do |i|
-                        p_out = sources[rand(4)]
-                        p_in  = sinks[rand(4)]
-                        p_out.connect_to p_in, pull: (rand > 0.5)
-                        p_out.disconnect_all if rand > 0.8
+                count, display = nil
+                if dataflow_stress_test_count
+                    count   = dataflow_stress_test_count
+                    display = true
+                else
+                    count = 10_000
+                end
 
-                        if display && (i % 1000 == 0)
-                            delay = Time.now - last if last
-                            last = Time.now
-                            STDERR.puts "#{i} #{delay}"
-                        end
+                source_task.configure
+                source_task.start
+                sink_task.start
+                count.times do |i|
+                    p_out = sources[rand(4)]
+                    p_in  = sinks[rand(4)]
+                    p_out.connect_to p_in, pull: (rand > 0.5)
+                    p_out.disconnect_all if rand > 0.8
+
+                    if display && (i % 1000 == 0)
+                        delay = Time.now - last if last
+                        last = Time.now
+                        STDERR.puts "#{i} #{delay}"
                     end
                 end
             end
@@ -182,9 +172,11 @@ module Runkit
             it "should fallback to CORBA if connection fails with MQ" do
                 MQueue.validate_sizes = false
                 MQueue.auto_sizes = false
-                flexmock(Runkit).should_receive(:warn)
-                                .with("failed to create a connection from source.out to sink.in using the MQ transport, falling back to CORBA")
-                                .once
+                flexmock(Runkit)
+                    .should_receive(:warn)
+                    .with("failed to create a connection from source.out to sink.in "\
+                          "using the MQ transport, falling back to CORBA")
+                    .once
                 task = new_ruby_task_context "source"
                 source = task.create_output_port "out", "/double"
                 task = new_ruby_task_context "sink"

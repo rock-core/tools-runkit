@@ -4,26 +4,25 @@ module Runkit
     # OperationHandle instances represent asynchronous operation calls. They are
     # returned by Operation#sendop and TaskContext#sendop
     class SendHandle
-        attr_reader :runkit_return_types
+        attr_reader :orocos_return_types
         attr_reader :return_values
+
 
         # Waits for the operation to finish and returns both its completion
         # status and, if applicable, its return value(s)
         #
         # Existing completion status are
         #
-        #   Runkit::SEND_SUCCESS
-        #   Runkit::SEND_NOT_READY
-        #   Runkit::SEND_FAILURE
+        #   Orocos::SEND_SUCCESS
+        #   Orocos::SEND_NOT_READY
+        #   Orocos::SEND_FAILURE
         def collect
-            CORBA.refine_exceptions(self) do
-                status = do_operation_collect(runkit_return_types, return_values)
-                if return_values.empty?
-                    return status
-                else
-                    return [status, *return_values]
-                end
+            status = CORBA.refine_exceptions(self) do
+                do_operation_collect(orocos_return_types, return_values)
             end
+            return status if return_values.empty?
+
+            [status, *return_values.map { |v| Typelib.to_ruby(v) }]
         end
 
         # Returns the current status for the operation
@@ -31,20 +30,18 @@ module Runkit
         # If the operation is finished, and if it has a return value, then it
         # returns
         #
-        #    Runkit::SEND_SUCCESS, return_value1, return_value2, ...
+        #    Orocos::SEND_SUCCESS, return_value1, return_value2, ...
         #
-        # Otherwise, returns either Runkit::SEND_NOT_READY (not yet processed)
-        # or Runkit::SEND_FAILURE (operation failed to be processed on the
+        # Otherwise, returns either Orocos::SEND_NOT_READY (not yet processed)
+        # or Orocos::SEND_FAILURE (operation failed to be processed on the
         # remote task)
         def collect_if_done
-            CORBA.refine_exceptions(self) do
-                status = do_operation_collect_if_done(runkit_return_types, return_values)
-                if return_values.empty?
-                    return status
-                else
-                    return [status, *return_values]
-                end
+            status = CORBA.refine_exceptions(self) do
+                do_operation_collect_if_done(orocos_return_types, return_values)
             end
+            return status if return_values.empty?
+
+            [status, *return_values.map { |v| Typelib.to_ruby(v) }]
         end
     end
 
@@ -97,7 +94,7 @@ module Runkit
             end.compact
 
             # Remove a void return type
-            if runkit_return_typenames.first == "/void"
+            if runkit_return_typenames.first == "void"
                 @void_return = true
                 runkit_return_typenames.shift
             else

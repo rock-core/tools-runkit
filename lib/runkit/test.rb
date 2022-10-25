@@ -50,6 +50,7 @@ module Runkit
 
         def setup
             Runkit::MQueue.auto = USE_MQUEUE
+            Runkit.load_typekit "base"
 
             @test_dir = File.expand_path(File.join("..", "..", "test"), __dir__)
             @__tmpdirs = []
@@ -119,8 +120,8 @@ module Runkit
             started
         end
 
-        def start_and_get(component, name)
-            process = start(component => name).first
+        def start_and_get(start, name)
+            process = start(start).first
             process.task(name)
         end
 
@@ -132,7 +133,8 @@ module Runkit
 
                 sleep 0.01
             end
-            flunk("expected to receive one new sample on #{reader}, but got none (state: #{reader.port.task.rtt_state}")
+            flunk("expected to receive one new sample on #{reader}, "\
+                  "but got none (state: #{reader.port.task.rtt_state})")
         end
 
         def assert_state_equals(state, task, timeout = 1)

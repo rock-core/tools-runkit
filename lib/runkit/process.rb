@@ -602,7 +602,7 @@ module Runkit # :nodoc:
                      deployment,
                      ProcessBase.resolve_prefix(deployment, prefix)]
                 else
-                    [deployment.name, deployment, deployment.name]
+                    [deployment.name, deployment, {}]
                 end
             end
             models.each do |model, desired_names|
@@ -725,7 +725,7 @@ module Runkit # :nodoc:
             log_level: nil, working_directory: Runkit.default_working_directory,
             cmdline_args: {},
             oro_logfile:  "runkit.%m-%p.txt",
-            prefix: nil, tracing: Runkit.tracing?,
+            tracing: Runkit.tracing?,
             output: nil,
             gdb: nil, valgrind: nil,
             env: {}

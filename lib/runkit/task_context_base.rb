@@ -67,11 +67,10 @@ module Runkit
         #
         # Enumerates the attributes that are available on
         # this task, as instances of Runkit::Attribute
-        def each_attribute(&block)
+        def each_attribute
             return enum_for(:each_attribute) unless block_given?
 
-            names = attribute_names
-            names.each do |name|
+            attribute_names.each do |name|
                 yield(attribute(name))
             end
         end

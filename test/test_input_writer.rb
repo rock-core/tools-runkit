@@ -9,7 +9,7 @@ module Runkit
         end
 
         it "gives write access on an input port" do
-            echo = start_and_get "orogen_runkit_tests::Echo", "echo"
+            echo = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
             echo.start
             in_w = echo.port("in").writer
             out_r = echo.port("out").reader
@@ -19,7 +19,7 @@ module Runkit
         end
 
         it "converts ruby objects to typelib before writing" do
-            echo = start_and_get "orogen_runkit_tests::Echo", "echo"
+            echo = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
             writer = echo.port("struct_in").writer
             reader = echo.port("struct_out").reader
 
@@ -31,7 +31,7 @@ module Runkit
         end
 
         it "handles opaque types" do
-            echo = start_and_get "orogen_runkit_tests::Echo", "echo"
+            echo = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
             writer = echo.port("opaque_in").writer
             reader = echo.port("opaque_out").reader
 
@@ -45,7 +45,7 @@ module Runkit
             it "should fallback to CORBA if connection fails with MQ" do
                 Runkit::MQueue.validate_sizes = false
                 Runkit::MQueue.auto_sizes = false
-                echo = start_and_get "orogen_runkit_tests::Echo", "echo"
+                echo = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
                 writer = echo
                          .port("opaque_in")
                          .writer(transport: Runkit::TRANSPORT_MQ,

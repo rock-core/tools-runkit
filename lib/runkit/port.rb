@@ -14,7 +14,7 @@ module Runkit
         end
 
         def self.transient_local_port_name(base_name)
-            "#{base_name}.#{Port.allocate_transient_port_id_counter}".gsub(/[^w]/, "_")
+            "#{base_name}.#{Port.allocate_transient_port_id_counter}".gsub(/[^\w]/, "_")
         end
 
         @transport_names = {}

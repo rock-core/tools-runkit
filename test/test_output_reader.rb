@@ -2,92 +2,85 @@
 
 require "runkit/test"
 
-describe Runkit::OutputReader do
-    unless defined? TEST_DIR
-        TEST_DIR = __dir__
-        DATA_DIR = File.join(TEST_DIR, "data")
-        WORK_DIR = File.join(TEST_DIR, "working_copy")
-    end
-
-    include Runkit::Spec
-
-    it "should not be possible to create an instance directly" do
-        assert_raises(NoMethodError) { Runkit::OutputReader.new }
-    end
-
-    it "should offer read access on an output port" do
-        Runkit.run("simple_source") do |source|
-            source = source.task("source")
-            output = source.port("cycle")
-
-            # Create a new reader. The default policy is data
-            reader = output.reader
-            assert(reader.kind_of?(Runkit::OutputReader))
-            assert_equal(nil, reader.read) # nothing written yet
+module Runkit
+    describe OutputReader do
+        before do
         end
-    end
 
-    it "should allow to read opaque types" do
-        Runkit.run("echo") do |source|
-            source = source.task("Echo")
-            output = source.port("output_opaque")
-            reader = output.reader
-            source.configure
-            source.start
-            source.write_opaque(42)
+        it "returns nil if there are no samples" do
+            task = start_and_get({ "orogen_runkit_tests::SimpleSource" => "t" }, "t")
+            reader = task.port("out1").reader
 
-            sleep(0.2)
-
-            # Create a new reader. The default policy is data
-            sample = reader.read
-            assert_equal(42, sample.x)
-            assert_equal(84, sample.y)
+            assert reader.kind_of?(Runkit::OutputReader)
+            assert_nil reader.read_new
+            assert_nil reader.read
         end
-    end
 
-    it "should allow reusing a sample" do
-        Runkit.run("echo") do |source|
-            source = source.task("Echo")
-            output = source.port("output_opaque")
-            reader = output.reader
-            source.configure
-            source.start
-            source.write_opaque(42)
+        it "returns the received samples" do
+            task = start_and_get({ "orogen_runkit_tests::SimpleSource" => "t" }, "t")
+            reader = task.port("out0").reader
 
-            sleep(0.2)
-
-            # Create a new reader. The default policy is data
-            sample = output.new_sample
-            returned_sample = reader.read(sample)
-            assert_same returned_sample, sample
-            assert_equal(42, sample.x)
-            assert_equal(84, sample.y)
+            task.property("increment").write(0)
+            task.configure
+            task.start
+            assert_equal 0, read_one_sample(reader)
         end
-    end
 
-    it "should be able to read data from an output port using a data connection" do
-        Runkit.run("simple_source") do |source|
-            source = source.task("source")
-            output = source.port("cycle")
-            source.configure
-            source.start
+        it "supports having more than one reader opened on a given port" do
+            task = start_and_get({ "orogen_runkit_tests::SimpleSource" => "t" }, "t")
+            reader0 = task.port("out0").reader
+            reader1 = task.port("out0").reader
 
-            # The default policy is data
-            reader = output.reader
-            sleep(0.2)
-            assert(reader.read > 1)
+            assert reader0.connected?
+            assert reader1.connected?
+
+            task.property("increment").write(0)
+            task.configure
+            task.start
+            assert_equal 0, read_one_sample(reader0)
+            assert_equal 0, read_one_sample(reader1)
         end
-    end
 
-    it "should be able to read data from an output port using a buffer connection" do
-        Runkit.run("simple_source") do |source|
-            source = source.task("source")
-            output = source.port("cycle")
-            reader = output.reader type: :buffer, size: 10
-            source.configure
-            source.start
-            sleep(0.5)
-            source.stop
+        it "handles opaque types" do
+            task = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
+            writer = task.port("opaque_in").writer
+            reader = task.port("opaque_out").reader
+
+            task.configure
+            task.start
+
+            v = Eigen::Vector3.new(1, 2, 3)
+            writer.write(v)
+            assert_equal v, read_one_sample(reader)
+        end
+
+        it "uses a sample if passed as argument" do
+            task = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
+            writer = task.port("struct_in").writer
+            reader = task.port("struct_out").reader
+
+            task.configure
+            task.start
+
+            v = writer.new_sample
+            v.names = ["test"]
+            writer.write(v)
+            assert_equal v, read_one_sample(reader)
+
+            v.names = []
+            assert_same v, reader.read(v)
+            assert_equal ["test"], v.names
+        end
+
+        it "passes the policy argument" do
+            task = start_and_get("fast_source_sink", "fast_source")
+            task.property("increment").write(1)
+            reader = task.port("out0").reader type: :buffer, size: 10
+
+            task.configure
+            task.start
+            sleep(0.1)
+            task.stop
 
             values = []
             while v = reader.read_new
@@ -98,113 +91,74 @@ describe Runkit::OutputReader do
                 assert(b == a + 1, "non-consecutive values #{a.inspect} and #{b.inspect}")
             end
         end
-    end
 
-    it "should be able to read data from an output port using a struct" do
-        Runkit.run("simple_source") do |source|
-            source = source.task("source")
-            output = source.port("cycle_struct")
-            reader = output.reader type: :buffer, size: 10
-            source.configure
-            source.start
-            sleep(0.5)
-            source.stop
+        it "clears its connection" do
+            task = start_and_get("fast_source_sink", "fast_source")
+            reader = task.port("out0").reader type: :buffer, size: 10
 
-            values = []
-            while v = reader.read_new
-                values << v.value
-            end
-            assert(values.size > 1)
-            values.each_cons(2) do |a, b|
-                assert(b == a + 1, "non-consecutive values #{a.inspect} and #{b.inspect}")
-            end
-        end
-    end
+            task.configure
+            task.start
+            sleep(0.1)
+            task.stop
 
-    it "should be able to clear its connection" do
-        Runkit.run("simple_source") do |source|
-            source = source.task("source")
-            output = source.port("cycle")
-            reader = output.reader
-            source.configure
-            source.start
-            sleep(0.5)
-            source.stop
-
-            assert(reader.read)
+            assert reader.read
             reader.clear
-            assert(!reader.read)
+            refute reader.read
         end
-    end
 
-    it "does not raise if the remote end is dead, but is disconnected" do
-        Runkit.run "simple_source" do |source_p|
-            source = source_p.task("source")
-            output = source.port("cycle")
-            reader = output.reader
-            source.configure
-            source.start
-            sleep(0.5)
+        it "gets the last written value :init is specified" do
+            task = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
+            task.configure
+            task.start
 
-            source_p.kill(true, "KILL")
+            writer = task.port("in").writer
+            reader = task.port("ondemand").reader
 
-            reader.read # should not raise
-            refute reader.connected?
+            writer.write(10)
+            read_one_sample(reader)
+
+            reader = task.port("ondemand").reader init: true
+            assert_equal 10, read_one_sample(reader)
+            assert_nil reader.read_new
         end
-    end
 
-    it "should get an initial value when :init is specified" do
-        Runkit.run("echo") do |echo|
-            echo = echo.task("Echo")
-            echo.start
-
-            reader = echo.ondemand.reader
-            assert(!reader.read, "got data on 'ondemand': #{reader.read}")
-            echo.write(10)
-            sleep 0.1
-            assert_equal(10, reader.read)
-            reader = echo.ondemand.reader(init: true)
-            sleep 0.1
-            assert_equal(10, reader.read)
-        end
-    end
-
-    describe "#disconnect" do
-        it "disconnects from the port" do
-            task = new_ruby_task_context "test" do
-                output_port "out", "/double"
+        describe "#disconnect" do
+            it "disconnects from the port" do
+                task = new_ruby_task_context
+                task.create_output_port "out", "/double"
+                reader = task.out.reader
+                reader.disconnect
+                refute reader.connected?
+                refute task.out.connected?
             end
-            reader = task.out.reader
-            reader.disconnect
-            assert !reader.connected?
-            assert !task.out.connected?
-        end
 
-        it "does not affect the port's other connections" do
-            task = new_ruby_task_context "test" do
-                output_port "out", "/double"
+            it "does not affect the port's other connections" do
+                task = new_ruby_task_context
+                task.create_output_port "out", "/double"
+                reader0 = task.out.reader
+                reader1 = task.out.reader
+                reader0.disconnect
+                refute reader0.connected?
+                assert reader1.connected?
+                assert task.out.connected?
             end
-            reader0 = task.out.reader
-            reader1 = task.out.reader
-            reader0.disconnect
-            assert !reader0.connected?
-            assert reader1.connected?
-            assert task.out.connected?
         end
-    end
 
-    if Runkit::SelfTest::USE_MQUEUE
-        it "should fallback to CORBA if connection fails with MQ" do
-            Runkit::MQueue.validate_sizes = false
-            Runkit::MQueue.auto_sizes = false
-            Runkit.run("echo") do |echo|
-                echo = echo.task("Echo")
-                reader = echo.ondemand.reader(transport: Runkit::TRANSPORT_MQ, data_size: Runkit::MQueue.msgsize_max + 1, type: :buffer, size: 1)
+        if Runkit::SelfTest::USE_MQUEUE
+            it "should fallback to CORBA if connection fails with MQ" do
+                Runkit::MQueue.validate_sizes = false
+                Runkit::MQueue.auto_sizes = false
+                task = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
+                reader = task.out.reader(
+                    transport: Runkit::TRANSPORT_MQ,
+                    data_size: Runkit::MQueue.msgsize_max + 1,
+                    type: :buffer, size: 1
+                )
                 assert reader.connected?
+            ensure
+                Runkit::MQueue.validate_sizes = true
+                Runkit::MQueue.auto_sizes = true
             end
-        ensure
-            Runkit::MQueue.validate_sizes = true
-            Runkit::MQueue.auto_sizes = true
         end
     end
 end
