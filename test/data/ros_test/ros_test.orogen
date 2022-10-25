@@ -1,3 +1,0 @@
-name 'ros_test'
-import_types_from "ROSTestTypes.hpp"
-typekit.ros_mappings '/ros_test/Time' => 'std_msgs/Time'
