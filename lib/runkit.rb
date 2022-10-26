@@ -23,7 +23,6 @@ end
 
 require "typelib"
 require "runkit/base"
-require "runkit/default_loader"
 require "runkit/typekits"
 
 # Low-level interface to Rock components
