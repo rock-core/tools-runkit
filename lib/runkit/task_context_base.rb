@@ -12,7 +12,7 @@ module Runkit
         # It may be partial
         #
         # @return [OroGen::Spec::TaskContext]
-        attr_reader :model
+        attr_accessor :model
 
         # @return [String] The IOR of this task context
         attr_reader :ior
