@@ -254,15 +254,15 @@ module Runkit
 
             it "handles the normal state changes" do
                 task = new_ruby_task_context("task")
-                assert_equal :PRE_OPERATIONAL, task.rtt_state
+                assert_equal :PRE_OPERATIONAL, task.read_toplevel_state
                 task.configure
-                assert_equal :STOPPED, task.rtt_state
+                assert_equal :STOPPED, task.read_toplevel_state
                 task.start
-                assert_equal :RUNNING, task.rtt_state
+                assert_equal :RUNNING, task.read_toplevel_state
                 task.stop
-                assert_equal :STOPPED, task.rtt_state
+                assert_equal :STOPPED, task.read_toplevel_state
                 task.cleanup
-                assert_equal :PRE_OPERATIONAL, task.rtt_state
+                assert_equal :PRE_OPERATIONAL, task.read_toplevel_state
             end
         end
     end

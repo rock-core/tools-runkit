@@ -6,11 +6,7 @@ require_relative "lib/runkit/rake"
 Rake::TestTask.new("test") do |t|
     t.libs << "lib"
     t.libs << "."
-    test_files = FileList["test/**/test_*.rb"]
-    test_files.exclude "test/standalone/**/*"
-    test_files.exclude "test/async/**/*"
-    test_files.exclude "test/ros/**/*"
-    t.test_files = test_files
+    t.test_files = FileList["test/**/test_*.rb"]
     t.warning = false
 end
 

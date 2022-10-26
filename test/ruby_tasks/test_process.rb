@@ -9,7 +9,6 @@ module Runkit
             attr_reader :process
 
             before do
-                Runkit.load_typekit "echo"
                 project = OroGen::Spec::Project.new(Runkit.default_loader)
                 project.task_context "Task"
                 deployment_m = project.deployment "test" do
@@ -21,14 +20,15 @@ module Runkit
             describe "#spawn" do
                 it "spawns a RubyTask per task described in the oroGen model" do
                     process.spawn
+                    assert process.wait_running(10)
                     task = process.task "task"
-                    assert_equal Runkit.get("task"), task
+                    task.configure
                 end
                 it "applies name mappings" do
                     process.map_name "task", "mytask"
                     process.spawn
                     task = process.task "mytask"
-                    assert_equal Runkit.get("mytask"), task
+                    task.configure
                 end
             end
         end

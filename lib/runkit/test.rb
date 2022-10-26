@@ -141,12 +141,22 @@ module Runkit
                 sleep 0.01
             end
             flunk("expected to receive one new sample on #{reader}, "\
-                  "but got none (state: #{reader.port.task.rtt_state})")
+                  "but got none (state: #{reader.port.task.read_toplevel_state})")
+        end
+
+        def assert_toplevel_state_becomes(state, task, timeout = 1)
+            Integer(timeout / 0.01).times do
+                return if task.read_toplevel_state == state
+
+                sleep 0.01
+            end
+            flunk("#{task} was expected to be in state #{state} "\
+                  "but is in #{task.read_toplevel_state}")
         end
 
         def assert_state_equals(state, task, timeout = 1)
             expected_toplevel = task.toplevel_state(state)
-            toplevel = task.rtt_state
+            toplevel = task.read_toplevel_state
             flunk("#{task} was expected to be in toplevel state #{expected_toplevel} because of #{state} but is in #{toplevel}") if expected_toplevel != toplevel
 
             Integer(timeout / 0.01).times do

@@ -10,6 +10,7 @@ module Runkit
 
         it "gives write access on an input port" do
             echo = start_and_get({ "orogen_runkit_tests::Echo" => "echo" }, "echo")
+            echo.configure
             echo.start
             in_w = echo.port("in").writer
             out_r = echo.port("out").reader
@@ -23,6 +24,7 @@ module Runkit
             writer = echo.port("struct_in").writer
             reader = echo.port("struct_out").reader
 
+            echo.configure
             echo.start
 
             assert_nil reader.read_new
@@ -35,6 +37,7 @@ module Runkit
             writer = echo.port("opaque_in").writer
             reader = echo.port("opaque_out").reader
 
+            echo.configure
             echo.start
 
             writer.write({ data: [10, 20, 30] })

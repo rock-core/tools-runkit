@@ -1,0 +1,20 @@
+--- name:default
+enm: FIRST
+intg: 20
+str: "test"
+fp: 0.1
+--- name:compound
+compound:
+    enm: SECOND
+    intg: 30
+    str: "test2"
+    fp: 0.2
+    simple_array:
+        - 1
+        - 2
+        - 3
+--- name:simple_container
+simple_container:
+    - 10
+    - 20
+    - 30

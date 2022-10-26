@@ -305,11 +305,11 @@ module Runkit
                 state = nil
                 flexmock(::Process)
                     .should_receive(:kill)
-                    .with(->(*) { state = task.rtt_state }, Integer)
+                    .with(->(*) { state = task.read_toplevel_state }, Integer)
                     .pass_thru
 
                 process.kill
-                assert_equal :STOPPED, state
+                assert_equal :PRE_OPERATIONAL, state
                 process.join
             end
 
@@ -321,7 +321,7 @@ module Runkit
                 state = nil
                 flexmock(::Process)
                     .should_receive(:kill)
-                    .with(->(*) { state = task.rtt_state }, Integer)
+                    .with(->(*) { state = task.read_toplevel_state }, Integer)
                     .pass_thru
 
                 process.kill(cleanup: false)

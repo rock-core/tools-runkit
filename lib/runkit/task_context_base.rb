@@ -167,6 +167,8 @@ module Runkit
         # Enumerates the input ports that are available on this task, as
         # instances of Runkit::InputPort
         def each_input_port
+            return enum_for(:each_input_port) unless block_given?
+
             each_port do |p|
                 yield(p) if p.respond_to?(:writer)
             end
@@ -178,6 +180,8 @@ module Runkit
         # Enumerates the input ports that are available on this task, as
         # instances of Runkit::OutputPort
         def each_output_port
+            return enum_for(:each_output_port) unless block_given?
+
             each_port do |p|
                 yield(p) if p.respond_to?(:reader)
             end
@@ -201,7 +205,8 @@ module Runkit
         end
 
         # @return [Symbol] the toplevel state that corresponds to +state+, i.e.
-        #   the value returned by #rtt_state when #state returns 'state'
+        #   the value returned by #read_toplevel_state when a state reader returns
+        #   'state'
         def toplevel_state(state)
             if exception_state?(state) then :EXCEPTION
             elsif fatal_state?(state) then :FATAL_ERROR
@@ -376,7 +381,7 @@ module Runkit
             end
 
             # Reads the state
-            def rtt_state
+            def read_toplevel_state
                 raise NotImplementedError
             end
 

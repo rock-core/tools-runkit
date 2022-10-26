@@ -148,6 +148,7 @@ module Runkit
 
                 source_task.configure
                 source_task.start
+                sink_task.configure
                 sink_task.start
                 count.times do |i|
                     p_out = sources[rand(4)]

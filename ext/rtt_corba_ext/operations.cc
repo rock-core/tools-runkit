@@ -11,9 +11,7 @@ static VALUE cSendHandle;
 
 static void corba_args_to_ruby(VALUE type_names, VALUE result, CAnyArguments& args)
 {
-    size_t len = RARRAY_LEN(result);
-    VALUE* value_ptr = RARRAY_PTR(result);
-    VALUE* types_ptr = RARRAY_PTR(type_names);
+    size_t len = rb_array_len(result);
 
     if (len != args.length())
         rb_raise(rb_eArgError,
@@ -23,14 +21,16 @@ static void corba_args_to_ruby(VALUE type_names, VALUE result, CAnyArguments& ar
             static_cast<int>(args.length()));
 
     for (size_t i = 0; i < len; ++i) {
-        if (rb_obj_is_kind_of(value_ptr[i], rb_cString)) {
+        VALUE value = rb_ary_entry(result, i);
+        if (rb_obj_is_kind_of(value, rb_cString)) {
             char const* string;
             (args[i]) >>= string;
-            rb_str_cat2(value_ptr[i], string);
+            rb_str_cat2(value, string);
         }
         else {
-            Typelib::Value v = typelib_get(value_ptr[i]);
-            corba_to_ruby(StringValuePtr(types_ptr[i]), v, args[i]);
+            VALUE type = rb_ary_entry(type_names, i);
+            Typelib::Value v = typelib_get(value);
+            corba_to_ruby(StringValuePtr(type), v, args[i]);
         }
     }
 }
@@ -38,21 +38,21 @@ static void corba_args_to_ruby(VALUE type_names, VALUE result, CAnyArguments& ar
 static CAnyArguments* corba_args_from_ruby(VALUE type_names, VALUE args)
 {
     CAnyArguments_var corba_args = new CAnyArguments;
-    corba_args->length(RARRAY_LEN(args));
+    corba_args->length(rb_array_len(args));
 
-    size_t len = RARRAY_LEN(args);
-    VALUE* value_ptr = RARRAY_PTR(args);
-    VALUE* types_ptr = RARRAY_PTR(type_names);
+    size_t len = rb_array_len(args);
     for (size_t i = 0; i < len; ++i) {
-        if (rb_obj_is_kind_of(value_ptr[i], rb_cString)) {
-            char const* string = StringValuePtr(value_ptr[i]);
+        VALUE value = rb_ary_entry(args, i);
+        VALUE type = rb_ary_entry(type_names, i);
+        if (rb_obj_is_kind_of(value, rb_cString)) {
+            char const* string = StringValuePtr(value);
             CORBA::Any_var arg_any = new CORBA::Any;
             arg_any <<= CORBA::string_dup(string);
             corba_args[i] = arg_any;
         }
         else {
-            Typelib::Value v = typelib_get(value_ptr[i]);
-            CORBA::Any_var arg_any = ruby_to_corba(StringValuePtr(types_ptr[i]), v);
+            Typelib::Value v = typelib_get(value);
+            CORBA::Any_var arg_any = ruby_to_corba(StringValuePtr(type), v);
             corba_args[i] = arg_any;
         }
     }

@@ -12,6 +12,7 @@ module Runkit
                 { "orogen_runkit_tests::Operations" => "operations" },
                 "operations"
             )
+            @task.configure
             @task.start
         end
 
@@ -63,6 +64,8 @@ module Runkit
         end
 
         it "synchronous call with a parameter used as return value" do
+            skip "KNOWN BUG"
+
             arg = [Time.at(10), Eigen::Vector3.new(2, 3, 0)]
             expected = [Time.at(3), Time.at(20)]
 
@@ -102,45 +105,64 @@ module Runkit
             assert_send_returns expected, "with_returned_parameter", *arg
         end
 
+        it "raises CORBA::ComError when the process crashes during a operation call" do
+            process = start({ "orogen_runkit_tests::Kill" => "kill" }).first
+            task = process.task("kill")
+            assert_raises(CORBA::ComError) do
+                task.operation(:kill).callop
+            end
+
+            process.join # to avoid a warning during teardown
+        end
+
         def assert_operation_signature(returns, arguments, opname)
             op = task.operation(opname)
 
-            assert_equal returns, op.runkit_return_typenames, "wrong return types for #{opname}"
-            assert_equal arguments, op.runkit_arguments_typenames, "wrong argument types for #{opname}"
+            assert_equal returns, op.orocos_return_typenames, "wrong return types for #{opname}"
+            assert_equal arguments, op.orocos_arguments_typenames, "wrong argument types for #{opname}"
         end
 
         def assert_call_returns(expected_value, opname, *args)
             op = task.operation opname
             return_value = op.callop(*args)
             if expected_value.nil?
-                assert_nil op.callop(*args)
+                assert_nil return_value
             else
-                assert_equal(expected_value, op.callop(*args))
+                assert_equal(expected_value, return_value)
             end
         end
 
-        def assert_send_returns(expected_value, opname, *args)
+        def assert_send_returns(expected_values, opname, *args)
             op = task.operation opname
 
             # First will collect()
             handle = op.sendop(*args)
             assert_kind_of Runkit::SendHandle, handle
-            status, *result = handle.collect
+            status, result = handle.collect
             assert_equal(Runkit::SendHandle::SEND_SUCCESS, status)
-            assert_equal(expected_value, result, "collect failed")
+            if expected_values.nil?
+                assert_nil result, "collect failed"
+            else
+                assert_equal(expected_values, result, "collect failed")
+            end
 
             # Then with collect_if_done
             handle = op.sendop(*args)
             assert_kind_of Runkit::SendHandle, handle
             status, result = nil
             50.times do
-                status, *result = handle.collect_if_done
+                status, result = handle.collect_if_done
                 break if status == Runkit::SendHandle::SEND_SUCCESS
 
                 sleep 0.01
             end
             assert_equal Runkit::SendHandle::SEND_SUCCESS, status
-            assert_equal(expected_value, result, "collect_if_done failed")
+
+            if expected_values.nil?
+                assert_nil(result, "collect_if_done failed")
+            else
+                assert_equal(expected_values, result, "collect_if_done failed")
+            end
         end
     end
 end

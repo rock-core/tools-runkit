@@ -768,12 +768,11 @@ module Runkit
                 end
             end
 
-            timestamp = Time.now
             config.each do |prop_name, conf|
                 p = task.property(prop_name)
                 result = p.raw_read
                 result = TaskConfigurations.apply_conf_on_typelib_value(result, conf)
-                p.write(result, timestamp)
+                p.write(result)
             end
         end
 

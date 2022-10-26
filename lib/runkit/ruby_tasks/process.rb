@@ -81,13 +81,13 @@ module Runkit
             # Deploys the tasks defined in {model} as ruby tasks
             #
             # @return [void]
-            def spawn(options = {})
+            def spawn(**)
                 model.task_activities.each do |deployed_task|
-                    name = get_mapped_name(deployed_task.name)
+                    name = mapped_name_for(deployed_task.name)
                     Runkit.allow_blocking_calls do
-                        deployed_tasks[name] =
-                            task_context_class.from_orogen_model(name,
-                                                                 deployed_task.task_model)
+                        deployed_tasks[name] = task_context_class.from_orogen_model(
+                            name, deployed_task.task_model
+                        )
                     end
                 end
                 @alive = true
@@ -96,7 +96,7 @@ module Runkit
             # The ruby tasks are already ready, so all this is does is to get the IOR mappings
             # from them. The wait_running method name is maintained to keep the API closer to
             # the remote process'.
-            def wait_running
+            def wait_running(*)
                 (@ior_mappings = deployed_tasks.transform_values(&:ior)) unless @ior_mappings
                 @ior_mappings
             end

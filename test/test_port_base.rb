@@ -10,9 +10,9 @@ module Runkit
         describe "#writer" do
             attr_reader :input_port
             before do
-                @input_port = new_ruby_task_context "source" do
-                    input_port "out", "/double"
-                end.out
+                @input_port =
+                    new_ruby_task_context("source")
+                    .create_input_port("out", "/double")
             end
             def assert_creates_writer_port(*expected_args)
                 flexmock(Runkit.ruby_task).should_receive(:create_output_port)
@@ -68,16 +68,16 @@ module Runkit
         describe "#reader" do
             attr_reader :output_port
             before do
-                @output_port = new_ruby_task_context "source" do
-                    output_port "out", "/double"
-                end.out
+                @output_port =
+                    new_ruby_task_context("source")
+                    .create_output_port "out", "/double"
             end
-            def assert_creates_reader_port(*expected_args)
-                flexmock(Runkit.ruby_task).should_receive(:create_input_port)
-                                          .once.pass_thru do |port|
-                    yield(port)
-                    port
-                end
+            def assert_creates_reader_port
+                flexmock(Runkit.ruby_task)
+                    .should_receive(:create_input_port).once.pass_thru do |port|
+                        yield(port)
+                        port
+                    end
             end
 
             it "creates a transient port and connects it" do

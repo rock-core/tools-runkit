@@ -43,7 +43,7 @@ module Runkit
         end
 
         def ping
-            rtt_state
+            read_toplevel_state
             nil
         end
 
@@ -99,9 +99,14 @@ module Runkit
         end
 
         # Reads the state announced by the task's getState() operation
-        def rtt_state
+        def read_toplevel_state
             value = CORBA.refine_exceptions(self) { do_state }
             @state_symbols[value]
+        end
+
+        def rtt_state
+            warn "TaskContext#rtt_state is deprecated, use read_toplevel_state instead"
+            read_toplevel_state
         end
 
         # Loads the configuration for the TaskContext from a file,
