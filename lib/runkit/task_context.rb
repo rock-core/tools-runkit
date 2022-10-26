@@ -79,12 +79,12 @@ module Runkit
 
         # Returns a StateReader object that allows to flexibly monitor the
         # task's state
-        def state_reader(**policy)
+        def state_reader(distance: PortBase::D_UNKNOWN, **policy)
             policy = Port.prepare_policy(
                 **{ init: true, type: :buffer, size: 10 }.merge(policy)
             )
 
-            reader = port("state").reader(**policy)
+            reader = port("state").reader(distance: distance, **policy)
             reader.extend StateReader
             reader.state_symbols = @state_symbols
             reader

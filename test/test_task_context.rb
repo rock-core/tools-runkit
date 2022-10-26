@@ -64,6 +64,17 @@ module Runkit
             end
         end
 
+        it "allows passing the `distance` argument to state_reader" do
+            task = start_and_get({ "orogen_runkit_tests::EmptyTask" => "empty" }, "empty")
+            state_port = task.port("state")
+            flexmock(task).should_receive(:port).with("state").and_return(state_port)
+
+            distance = flexmock
+            flexmock(state_port)
+                .should_receive(:reader).with(hsh(distance: distance)).pass_thru
+            task.state_reader distance: distance
+        end
+
         it "manipulates the task state machine and read its state" do
             task = start_and_get({ "orogen_runkit_tests::EmptyTask" => "empty" }, "empty")
             state_r = task.state_reader type: :buffer, size: 20
