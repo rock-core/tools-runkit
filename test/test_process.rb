@@ -87,7 +87,7 @@ module Runkit
                 deployments, models, options = Process.partition_run_options(
                     "test_deployment", { "test::Task" => "name" }, loader: @loader
                 )
-                assert_equal Hash[deployment_m => nil], deployments
+                assert_equal Hash[deployment_m => ""], deployments
             end
             it "raises if an unexisting name is given" do
                 assert_raises(OroGen::NotFound) do

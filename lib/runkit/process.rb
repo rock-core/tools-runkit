@@ -372,63 +372,59 @@ module Runkit # :nodoc:
 
         # Converts the options given to Runkit.run in a more normalized format
         #
-        # It returns a triple (deployments, models, options) where
-        #
-        # * \c deployments is a map from a deployment name to a prefix that should
-        #   be used to run this deployment. Prefixes are prepended to all task
-        #   names in the deployment. It is set to nil if there are no prefix.
-        # * \c models is a mapping from a oroGen model name to a name. It
-        #   requests to start the default deployment for the model_name, using
-        #   \c name as the task name
-        # * options are options that should be passed to #spawn
-        #
-        # For instance, in
-        #
-        #   Runkit.run 'xsens', 'xsens_imu::Task' => 'imu', :valgrind => true
-        #
-        # One deployment called 'xsens' should be called with no prefix, the
-        # default deployment for xsens_imu::Task should be started and the
-        # corresponding task be renamed to 'imu' and all deployments should be
-        # started with the :valgrind => true option. Therefore, the parsed
-        # options would be
-        #
-        #   deployments = { 'xsens' => nil }
-        #   models = { 'xsens_imu::Task' => 'imu' }
-        #   options = { valgrind => true }
-        #
-        # In case multiple instances of a single model need to be started, the
-        # names can be given as an Array. E.g.
-        #
-        #   Runkit.run 'xsens_imu::Task' => ['imu1', 'imu2']
-        #
-        def self.partition_run_options(*names, loader: Runkit.default_loader)
+        # @return [[{OroGen::Spec::Deployment=>String},{OroGen::Spec::TaskContext=>[String]}]
+        def self.partition_run_options(*run, loader: Runkit.default_loader)
+            # Split the list-style options (i.e. deployments) from the hash-style
+            # deployment => prefix and task_model => name
             mapped_names = {}
-            mapped_names = names.pop if names.last.kind_of?(Hash)
+            mapped_names = run.pop if run.last.kind_of?(Hash)
+            # What's leftover in 'run' are the deployments without prefix
+            run.each { |n| mapped_names[n] = "" }
 
+            # Resolve the names into the orogen models
+            mapped_names = mapped_names.transform_keys do |object|
+                if object.respond_to?(:to_str) || object.respond_to?(:to_sym)
+                    run_options_resolve_orogen_model(object, loader: loader)
+                else
+                    object
+                end
+            end
+
+            run_options_partition_deployments_and_tasks(mapped_names)
+        end
+
+        # @api private
+        #
+        # Resolve a name passed as a run option to {#partition_run_options}
+        #
+        # @param [String] name
+        # @return [OroGen::Spec::TaskContext,OroGen::Spec::Deployment]
+        def self.run_options_resolve_orogen_model(name, loader:)
+            object = object.to_s
+            loader.task_model_from_name(name)
+        rescue OroGen::NotFound => task_e
+            begin
+                loader.deployment_model_from_name(name)
+            rescue OroGen::NotFound => deployment_e
+                raise OroGen::NotFound,
+                      "#{object} is neither a task model "\
+                      "nor a deployment name: #{task_e} and #{deployment_e}"
+            end
+        end
+
+        # @api private
+        #
+        # Partition the task-to-name from the deployment-to-prefix bits in the
+        # run options for {.partition_run_options}
+        #
+        # @return [[{OroGen::Spec::Deployment=>String},{OroGen::Spec::TaskContext=>[String]}]]
+        def self.run_options_partition_deployments_and_tasks(mapping)
             deployments = {}
             models = {}
-            names.each { |n| mapped_names[n] = nil }
-            mapped_names.each do |object, new_name|
-                # If given a name, resolve to the corresponding oroGen spec
-                # object
-                if object.respond_to?(:to_str) || object.respond_to?(:to_sym)
-                    object = object.to_s
-                    begin
-                        object = loader.task_model_from_name(object)
-                    rescue OroGen::NotFound => task_e
-                        begin
-                            object = loader.deployment_model_from_name(object)
-                        rescue OroGen::NotFound => deployment_e
-                            raise OroGen::NotFound,
-                                  "#{object} is neither a task model "\
-                                  "nor a deployment name: #{task_e} and #{deployment_e}"
-                        end
-                    end
-                end
-
+            mapping.each do |object, new_name|
                 case object
                 when OroGen::Spec::TaskContext
-                    unless new_name
+                    if new_name.empty?
                         raise TaskNameRequired,
                               "you must provide a task name when starting a component "\
                               "by type, as e.g. Runkit.run 'xsens_imu::Task' => 'xsens'"
@@ -629,11 +625,11 @@ module Runkit # :nodoc:
         #   the desired process name.
         def self.resolve_name_mappings(deployments, models, loader)
             processes = []
-            processes += deployments.map do |deployment, prefix|
+            processes += deployments.map do |deployment_model, prefix|
                 if prefix
-                    ["#{prefix}#{deployment.name}",
-                     deployment,
-                     ProcessBase.resolve_prefix(deployment, prefix)]
+                    ["#{prefix}#{deployment_model.name}",
+                     deployment_model,
+                     ProcessBase.resolve_prefix(deployment_model, prefix)]
                 else
                     [deployment.name, deployment, {}]
                 end
