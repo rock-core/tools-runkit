@@ -671,10 +671,10 @@ module Runkit # :nodoc:
             log_level: nil,
             cmdline_args: {},
             tracing: Runkit.tracing?, gdb: nil, valgrind: nil,
-            name_service_ip: Runkit::CORBA.name_service_ip
+            env: {}
         )
-
-            result = CommandLine.new({}, nil, [], working_directory)
+            env = env.transform_keys(&:to_s).transform_values(&:to_s)
+            result = CommandLine.new(env, nil, [], working_directory)
             result.command = binfile
 
             result.env["LD_PRELOAD"] = Runkit.tracing_library_path if tracing
@@ -687,11 +687,10 @@ module Runkit # :nodoc:
                                          " Valid options are #{valid_levels}."
                 end
             end
-            result.env["ORBInitRef"] = "NameService=corbaname::#{name_service_ip}" if name_service_ip
 
             cmdline_args = cmdline_args.dup
             cmdline_args[:rename] ||= []
-            name_mappings.each do |old, new|
+            @name_mappings.each do |old, new|
                 cmdline_args[:rename].push "#{old}:#{new}"
             end
 
@@ -736,8 +735,6 @@ module Runkit # :nodoc:
         # @param [Boolean] tracing whether the tracing library
         #   {Runkit.tracing_library_path} should be preloaded before executing the
         #   process
-        # @param [#get] name_service a name service object that should be used
-        #   to resolve the tasks
         # @param [Boolean,Array<String>] gdb whether the process should be
         #   executed under the supervision of gdbserver. Setting this option to
         #   true will enable gdb support. Setting it to an array of strings will

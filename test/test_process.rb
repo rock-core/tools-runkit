@@ -396,5 +396,80 @@ module Runkit
             end
         end
 
+        describe "#command_line" do
+            before do
+                @loader = OroGen::Loaders::RTT.new(Runkit.orocos_target)
+                @task_m = @loader.task_model_from_name(
+                    "orogen_runkit_tests::EmptyTask"
+                )
+                flexmock(@loader).should_receive(:find_deployment_binfile)
+                                 .and_return("/test")
+                default_deployment_name = "orogen_default_orogen_runkit_tests__EmptyTask"
+                @expected_rename_args = [
+                    "--rename=#{default_deployment_name}:test",
+                    "--rename=#{default_deployment_name}_Logger:test_Logger"
+                ]
+            end
+
+            it "creates a basic command line" do
+                process = Process.for_orogen_model({ @task_m => "test" }, loader: @loader)
+                cmd = process.command_line
+                assert_equal "/test", cmd.command
+
+                assert_equal @expected_rename_args, cmd.args
+                assert_equal({}, cmd.env)
+            end
+
+            it "accepts arbitrary arguments" do
+                process = Process.for_orogen_model({ @task_m => "test" }, loader: @loader)
+                cmd = process.command_line(cmdline_args: { some: "thing" })
+                assert_equal "/test", cmd.command
+
+                expected = [*@expected_rename_args, "--some=thing" ]
+                assert_equal expected, cmd.args.sort
+                assert_equal({}, cmd.env)
+            end
+
+            it "accepts duplicated arguments" do
+                process = Process.for_orogen_model({ @task_m => "test" }, loader: @loader)
+                cmd = process.command_line(cmdline_args: { some: %w[thing bar] })
+                assert_equal "/test", cmd.command
+
+                expected = [*@expected_rename_args, "--some=bar", "--some=thing"]
+                assert_equal expected, cmd.args.sort
+                assert_equal({}, cmd.env)
+            end
+
+            it "passes environment variables" do
+                process = Process.for_orogen_model({ @task_m => "test" }, loader: @loader)
+                cmd = process.command_line(env: { var: 42 })
+                assert_equal "/test", cmd.command
+
+                assert_equal @expected_rename_args, cmd.args.sort
+                assert_equal({ "var" => "42" }, cmd.env)
+            end
+
+            it "sets gdb up if requested" do
+                process = Process.for_orogen_model({ @task_m => "test" }, loader: @loader)
+                flexmock(Process).should_receive(:allocate_gdb_port).and_return(42)
+                cmd = process.command_line(gdb: true)
+
+                expected = ["0.0.0.0:42", "/test", *@expected_rename_args]
+                assert_equal "gdbserver", cmd.command
+                assert_equal expected, cmd.args
+                assert_equal({}, cmd.env)
+            end
+
+            it "sets gdb valgrind if requested" do
+                process = Process.for_orogen_model({ @task_m => "test" }, loader: @loader)
+                flexmock(Process).should_receive(:allocate_gdb_port).and_return(42)
+                cmd = process.command_line(valgrind: true)
+
+                expected = ["/test", *@expected_rename_args]
+                assert_equal "valgrind", cmd.command
+                assert_equal expected, cmd.args
+                assert_equal({}, cmd.env)
+            end
+        end
     end
 end
