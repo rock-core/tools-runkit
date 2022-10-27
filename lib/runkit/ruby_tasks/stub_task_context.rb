@@ -2,7 +2,20 @@
 
 module Runkit
     module RubyTasks
+        # Ruby task context that stubs operations
+        #
+        # Ruby task contexts cannot define operations. Operations are however needed
+        # when using ruby tasks for testing. This class is used in place of
+        # {RubyTasks::TaskContext} to be able to stub the operations and test
+        # the code that interacts with the task
+        #
+        # Operations are defined either as writing properties (for dynamic
+        # properties) or as empty methods with the same name than the operation.
+        # Overload the method to define specific behaviors.
         class StubTaskContext < TaskContext
+            # (see TaskContext#setup_from_orogen_model}
+            #
+            # Overloaded to define the operation stubs
             def setup_from_orogen_model(orogen_model)
                 setter_operations = {}
                 orogen_model.each_property.each do |prop|
@@ -13,12 +26,12 @@ module Runkit
 
                 stubbed_operations = Module.new
                 orogen_model.each_operation do |op|
-                    next if has_operation?(op.name, with_stubs: false)
+                    next if operation?(op.name, with_stubs: false)
 
                     if (property = setter_operations[op.name])
                         stubbed_operations.class_eval do
                             define_method(op.name) do |value|
-                                self.property(property.name).write(value, Time.now, direct: true)
+                                self.property(property.name).write(value, direct: true)
                                 true
                             end
                         end
@@ -37,6 +50,7 @@ module Runkit
                 super(name) || (with_stubs && model.find_operation(name))
             end
 
+            # Fake SendHandle used for operation stubs
             class SendHandle
                 # Value returned by the stub method
                 attr_reader :result
@@ -63,6 +77,7 @@ module Runkit
                 end
             end
 
+            # Fake Operation class to access operation stubs
             class Operation
                 attr_reader :name
                 attr_reader :task_context
@@ -85,6 +100,9 @@ module Runkit
                 end
             end
 
+            # (see TaskContext#operation)
+            #
+            # @return [Operation]
             def operation(name)
                 super
             rescue NotFound
