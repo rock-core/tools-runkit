@@ -362,11 +362,6 @@ module Runkit # :nodoc:
                     Runkit.info "deployment #{name} terminated with signal #{exit_status.termsig} but #{@expected_exit} was expected"
                 else
                     Runkit.error "deployment #{name} unexpectedly terminated with signal #{exit_status.termsig}"
-                    Runkit.error "This is normally a fault inside the component, not caused by the framework."
-                    Runkit.error "Try to run your component within gdb or valgrind with"
-                    Runkit.error "  Runkit.run 'component', :gdb=>true"
-                    Runkit.error "  Runkit.run 'component', :valgrind=>true"
-                    Runkit.error "Make also sure that your component is installed by running 'amake' in it"
                 end
             else
                 Runkit.warn "deployment #{name} terminated with code #{exit_status.to_i}"
