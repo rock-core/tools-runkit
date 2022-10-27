@@ -9,7 +9,7 @@ module Runkit
         before do
             @loader = flexmock(OroGen::Loaders::Aggregate.new)
             @loader.should_receive(:find_deployment_binfile)
-                   .explicitly.by_default
+                   .explicitly.by_default.and_return("/some/path")
 
             project = OroGen::Spec::Project.new(@loader)
             project.default_task_superclass = OroGen::Spec::TaskContext.new(
@@ -17,7 +17,10 @@ module Runkit
             )
             @task_m = OroGen::Spec::TaskContext.new project, "test::Task"
             @deployment_m = OroGen::Spec::Deployment.new project, "test_deployment"
-            @default_deployment_m = OroGen::Spec::Deployment.new project, "orogen_default_test__Task"
+            @default_deployment_m = OroGen::Spec::Deployment.new(
+                project, "orogen_default_test__Task"
+            )
+            @default_deployment_m.task "orogen_default_test__Task", @task_m
             @loader.register_task_context_model(@task_m)
             @loader.register_deployment_model(@deployment_m)
             @loader.register_deployment_model(@default_deployment_m)
@@ -29,7 +32,8 @@ module Runkit
 
         describe "#initialize" do
             it "resolves the binfile" do
-                @deployment_m.loader
+                @deployment_m
+                    .loader
                     .should_receive(:find_deployment_binfile)
                     .explicitly
                     .with("test_deployment")
@@ -40,13 +44,33 @@ module Runkit
                 )
                 assert_equal "/path/to/file", process.binfile
             end
+            it "accepts a different loader than the model's" do
+                loader = flexmock
+                loader
+                    .should_receive(:find_deployment_binfile)
+                    .with("test_deployment")
+                    .and_return("/path/to/file")
+                process = Process.new(
+                    "test", @deployment_m, name_mappings: { "task" => "renamed_task" }
+                )
+                assert_equal "/path/to/file", process.binfile
+            end
             it "applies the name mappings" do
                 @deployment_m.task "task", @task_m
                 process = Process.new(
                     "test", @deployment_m,
-                    name_mappings: { "task" => "renamed_task"   }
+                    name_mappings: { "task" => "renamed_task" }
                 )
                 assert_equal "renamed_task", process.mapped_name_for("task")
+            end
+        end
+
+        describe ".for_orogen_model" do
+            it "provides a shortcut to create a Process object" do
+                process = Process.for_orogen_model({ @task_m => "test" }, loader: @loader)
+                assert_equal "test", process.name
+                assert_equal [@task_m], process.model.task_activities.map(&:task_model)
+                assert_equal "test", process.mapped_name_for("orogen_default_test__Task")
             end
         end
 

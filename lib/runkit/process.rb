@@ -282,6 +282,30 @@ module Runkit # :nodoc:
         # The component process ID
         attr_reader :pid
 
+        # Create a Process object that deploys the given orogen model
+        #
+        # @overload for_orogen_model(task_m => "name")
+        #   Returns a Process that would deploy the given task using its
+        #   default deployment, renamed to "name"
+        #
+        #   @return [Process]
+        #
+        # @overload for_orogen_model(deployment_m)
+        #   Returns a Process that would deploy the given deployment
+        #
+        #   @return [Process]
+        #
+        # @overload for_orogen_model(deployment_m => "prefix_")
+        #   Returns a Process that would deploy the given deployment, with
+        #   "prefix_" applied to its task name
+        #
+        #   @return [Process]
+        def self.for_orogen_model(spec, loader: Runkit.default_loader)
+            name, deployment_m, name_mappings, =
+                parse_run_options(spec, loader: loader).first
+            new(name, deployment_m, loader: loader, name_mappings: name_mappings)
+        end
+
         # Creates a new Process instance which will be able to
         # start and supervise the execution of the given Runkit
         # component
@@ -294,8 +318,8 @@ module Runkit # :nodoc:
         #   @param [String] name the process name
         #   @param [String] model_name the name of the deployment model
         #
-        def initialize(name, model, name_mappings: {})
-            @binfile = model.loader.find_deployment_binfile(model.name)
+        def initialize(name, model, loader: model.loader, name_mappings: {})
+            @binfile = loader.find_deployment_binfile(model.name)
             super(name, model, name_mappings: name_mappings)
         end
 
