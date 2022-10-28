@@ -51,7 +51,7 @@ module Runkit
                     .with("test_deployment")
                     .and_return("/path/to/file")
                 process = Process.new(
-                    "test", @deployment_m, name_mappings: { "task" => "renamed_task" }
+                    "test", @deployment_m, loader: loader, name_mappings: { "task" => "renamed_task" }
                 )
                 assert_equal "/path/to/file", process.binfile
             end
