@@ -400,7 +400,8 @@ module Runkit
             if type.respond_to?(:to_str)
                 type = loader.resolve_type(type, define_dummy_type: true)
             end
-            port_class.new(task.model, name, type, validate_type: false)
+
+            port_class.new(task.model, name, type)
         end
 
         # Create a null model for a dynamically discovered property
@@ -408,7 +409,7 @@ module Runkit
             if type.respond_to?(:to_str)
                 type = loader.resolve_type(type, define_dummy_type: true)
             end
-            OroGen::Spec::Property.new(task.model, name, type, nil, validate_type: false)
+            OroGen::Spec::Property.new(task.model, name, type, nil)
         end
 
         # Create a null model for a dynamically discovered attribute
@@ -416,7 +417,7 @@ module Runkit
             if type.respond_to?(:to_str)
                 type = loader.resolve_type(type, define_dummy_type: true)
             end
-            OroGen::Spec::Attribute.new(task.model, name, type, nil, validate_type: false)
+            OroGen::Spec::Attribute.new(task.model, name, type, nil)
         end
     end
 end
