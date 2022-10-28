@@ -423,7 +423,7 @@ module Runkit
                     raise ConversionFailed.new, "#{k} is not a property of #{model.name}"
                 end
 
-                property_types[k] = Runkit.typelib_type_for(p.type, loader: loader)
+                property_types[k] = loader.typelib_type_for(p.type)
             end
 
             normalize_conf_hash(conf, property_types)
