@@ -6,7 +6,7 @@ require "utilrb/module/include"
 
 module Runkit
     module Test
-        module Component
+        module Component #:nodoc:
             include Test::RubyTasks
 
             attribute(:processes) { [] }
@@ -50,7 +50,7 @@ module Runkit
             # Verifies that +reader+ gets one sample within +timeout+ seconds
             def assert_has_one_new_sample(reader, timeout = 3, poll_period = 0.01)
                 Integer(timeout / poll_period).times do
-                    if sample = reader.read_new
+                    if (sample = reader.read_new)
                         return sample
                     end
 

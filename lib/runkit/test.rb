@@ -9,9 +9,6 @@ if ENV["TEST_ENABLE_COVERAGE"] == "1"
     rescue LoadError
         require "runkit"
         Runkit.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
-    rescue Exception => e
-        require "runkit"
-        Runkit.warn "coverage is disabled: #{e.message}"
     end
 end
 
@@ -25,6 +22,7 @@ require "runkit/test/mocks"
 require "runkit/test/ruby_tasks"
 
 module Runkit
+    # Common setup and helpers for runkit's own test suite
     module SelfTest
         include Test::Mocks
         include Test::RubyTasks
@@ -134,7 +132,7 @@ module Runkit
 
         def read_one_sample(reader, timeout = 1)
             Integer(timeout / 0.01).times do
-                if value = reader.read_new
+                if (value = reader.read_new)
                     return value
                 end
 
@@ -157,7 +155,9 @@ module Runkit
         def assert_state_equals(state, task, timeout = 1)
             expected_toplevel = task.toplevel_state(state)
             toplevel = task.read_toplevel_state
-            flunk("#{task} was expected to be in toplevel state #{expected_toplevel} because of #{state} but is in #{toplevel}") if expected_toplevel != toplevel
+            if expected_toplevel != toplevel
+                flunk("#{task} was expected to be in toplevel state #{expected_toplevel} because of #{state} but is in #{toplevel}")
+            end
 
             Integer(timeout / 0.01).times do
                 return if task.state == state
@@ -170,7 +170,7 @@ module Runkit
 end
 
 module Minitest
-    class Test
+    class Test # :nodoc:
         include Runkit::SelfTest
     end
 end

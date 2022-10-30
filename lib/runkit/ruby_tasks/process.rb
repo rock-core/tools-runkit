@@ -97,7 +97,9 @@ module Runkit
             # from them. The wait_running method name is maintained to keep the API closer to
             # the remote process'.
             def wait_running(*)
-                (@ior_mappings = deployed_tasks.transform_values(&:ior)) unless @ior_mappings
+                unless @ior_mappings
+                    (@ior_mappings = deployed_tasks.transform_values(&:ior))
+                end
                 @ior_mappings
             end
 
@@ -119,7 +121,7 @@ module Runkit
                 @ior_mappings = ior_mappings
             end
 
-            def kill(_wait = true, status = ProcessManager::Status.new(exit_code: 0), **)
+            def kill(status = ProcessManager::Status.new(exit_code: 0), **)
                 deployed_tasks.each_value(&:dispose)
                 dead!(status)
             end

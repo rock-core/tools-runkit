@@ -132,7 +132,9 @@ module Runkit
             def raw_read_with_result(sample = nil, copy_old_data = true)
                 if sample
                     unless sample.kind_of?(type)
-                        raise ArgumentError, "wrong sample type #{sample.class}, expected #{type}" if sample.class != type
+                        if sample.class != type
+                            raise ArgumentError, "wrong sample type #{sample.class}, expected #{type}"
+                        end
                     end
                     value = sample
                 else
@@ -153,39 +155,6 @@ module Runkit
             # Clears the channel, i.e. "forget" that this port ever got written to
             def clear
                 do_clear
-            end
-        end
-
-        class LocalOutputPort < OutputPort
-            # Remove this port from the underlying task context
-            def remove
-                task.remove_port(self)
-            end
-
-            # Write a sample on this output port
-            #
-            # If the data type is a struct, the sample can be provided either as a
-            # Typelib instance object or as a hash.
-            #
-            # In the first case, one can do:
-            #
-            #   value = port.new_sample # Get a new sample from the port
-            #   value.field = 10
-            #   value.other_field = "a_string"
-            #   input_writer.write(value)
-            #
-            # In the second case,
-            #   input_writer.write(:field => 10, :other_field => "a_string")
-            def write(data)
-                data = Typelib.from_ruby(data, type)
-                do_write(runkit_type_name, data)
-            end
-
-            # Whether the port seem to be connected to something
-            def connected?
-                Runkit.allow_blocking_calls do
-                    super
-                end
             end
         end
     end

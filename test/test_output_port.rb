@@ -14,9 +14,9 @@ module Runkit
             end
 
             def dataflow_stress_test_count
-                if count = ENV["DATAFLOW_STRESS_TEST"]
-                    Integer(count)
-                end
+                return unless (count = ENV["DATAFLOW_STRESS_TEST"])
+
+                Integer(count)
             end
 
             describe "#connect_to" do
@@ -56,7 +56,7 @@ module Runkit
 
                 it "refuses connecting to another OutputPort" do
                     task = new_ruby_task_context "other_source"
-                    other_source = task.create_input_port "out", "/double"
+                    task.create_input_port "out", "/double"
 
                     assert_raises(ArgumentError) { source.connect_to source }
                     refute source.connected?

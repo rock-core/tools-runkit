@@ -145,11 +145,9 @@ module Runkit
         end
 
         def result_value_for(type)
-            if type.opaque?
-                raise ArgumentError, "I don't know how to handle #{type.name}"
-            else
-                type.new
-            end
+            raise ArgumentError, "I don't know how to handle #{type.name}" if type.opaque?
+
+            type.new
         end
 
         # Returns a Typelib value that can store the result of this operation

@@ -14,7 +14,8 @@ module Runkit
                     new_ruby_task_context("source")
                     .create_input_port("out", "/double")
             end
-            def assert_creates_writer_port(*expected_args)
+
+            def assert_creates_writer_port
                 flexmock(Runkit.ruby_task).should_receive(:create_output_port)
                                           .once.pass_thru do |port|
                     yield(port)

@@ -20,7 +20,6 @@ module Runkit
                 assert_same task, task.instance_variable_get(:@local_task).remote_task
             end
 
-
             describe "with a supporting oroGen model" do
                 before do
                     project = OroGen::Spec::Project.new(@loader)
@@ -47,7 +46,6 @@ module Runkit
                     assert_equal "in", in_p.name
                     assert_same @task_m.find_port("in"), in_p.model
                 end
-
 
                 it "passes the port model when creating output ports" do
                     out_p = @task.port("out")

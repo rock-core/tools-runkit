@@ -83,7 +83,7 @@ module Runkit
             task.stop
 
             values = []
-            while v = reader.read_new
+            while (v = reader.read_new)
                 values << v
             end
             assert(values.size > 1)

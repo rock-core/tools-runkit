@@ -34,11 +34,11 @@ module Runkit
 
         it "enumerates its properties" do
             t = start_and_get({ "orogen_runkit_tests::Properties" => "test" }, "test")
-            assert_equal %w{dynamic_prop dynamic_prop_setter_called prop1 prop2 prop3},
-                        t.property_names.sort
-            assert_equal %w{dynamic_prop dynamic_prop_setter_called prop1 prop2 prop3},
-                        t.each_property.map(&:name).sort
-            %w{dynamic_prop prop1 prop2 prop3}.each do |name|
+            assert_equal %w[dynamic_prop dynamic_prop_setter_called prop1 prop2 prop3],
+                         t.property_names.sort
+            assert_equal %w[dynamic_prop dynamic_prop_setter_called prop1 prop2 prop3],
+                         t.each_property.map(&:name).sort
+            %w[dynamic_prop prop1 prop2 prop3].each do |name|
                 t.property?(name)
             end
         end

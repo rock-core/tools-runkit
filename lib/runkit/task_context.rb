@@ -18,10 +18,10 @@ module Runkit
         #
         # Automated wrapper to handle CORBA exceptions coming from the C
         # extension
-        def self.corba_wrap(m, *args) # :nodoc:
+        def self.corba_wrap(name, *args) # :nodoc:
             class_eval <<~DEF_END, __FILE__, __LINE__ + 1
-                def #{m}(#{args.join('. ')})
-                    CORBA.refine_exceptions(self) { do_#{m}(#{args.join(', ')}) }
+                def #{name}(#{args.join('. ')})
+                    CORBA.refine_exceptions(self) { do_#{name}(#{args.join(', ')}) }
                 end
             DEF_END
         end
@@ -56,15 +56,15 @@ module Runkit
             attr_accessor :state_symbols
 
             def read(sample = nil)
-                if (value = super(sample))
-                    @state_symbols[value]
-                end
+                return unless (value = super(sample))
+
+                @state_symbols[value]
             end
 
             def read_new(sample = nil)
-                if (value = super(sample))
-                    @state_symbols[value]
-                end
+                return unless (value = super(sample))
+
+                @state_symbols[value]
             end
 
             def read_with_result(sample = nil, copy_old_data = false)

@@ -19,10 +19,12 @@ module Runkit
                 @allocated_task_contexts.each(&:dispose)
                 @started_external_ruby_task_contexts.each do |pid|
                     begin Process.kill "INT", pid
-                    rescue Errno::ESRCH
+                    rescue Errno::ESRCH # rubocop:disable Lint/SuppressedException
                     end
                     _, status = Process.waitpid2 pid
-                    raise "subprocess #{pid} failed with #{status.inspect}" unless status.success?
+                    unless status.success?
+                        raise "subprocess #{pid} failed with #{status.inspect}"
+                    end
                 end
             end
 

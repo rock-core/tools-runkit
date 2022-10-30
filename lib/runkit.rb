@@ -3,21 +3,21 @@
 begin
     require "orogen"
 rescue LoadError
-    STDERR.puts "Cannot require 'orogen'"
-    STDERR.puts "If you are using Rock, the 'orogen' package should have been installed automatically."
-    STDERR.puts "It should be installed in tools/orogen from the root of your Rock installation"
-    STDERR.puts "Make sure that you have loaded autoproj's env.sh script before continuing"
+    warn "Cannot require 'orogen'"
+    warn "If you are using Rock, the 'orogen' package should have been installed automatically."
+    warn "It should be installed in tools/orogen from the root of your Rock installation"
+    warn "Make sure that you have loaded autoproj's env.sh script before continuing"
     exit 1
 end
 
 begin
     require "runkit/rtt_corba_ext"
 rescue LoadError => e
-    STDERR.puts "Cannot require Runkit's Ruby/C extension #{e}"
-    STDERR.puts "If you are using Rock, this should have been done automatically."
-    STDERR.puts "Run"
-    STDERR.puts "  amake runkit"
-    STDERR.puts "and try again"
+    warn "Cannot require Runkit's Ruby/C extension #{e}"
+    warn "If you are using Rock, this should have been done automatically."
+    warn "Run"
+    warn "  amake runkit"
+    warn "and try again"
     exit 1
 end
 

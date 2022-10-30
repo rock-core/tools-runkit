@@ -2,6 +2,7 @@
 
 module Runkit
     module NameServices
+        # Access to the CORBA name service
         class CORBA < Base
             def initialize(host = "")
                 self.ip = host

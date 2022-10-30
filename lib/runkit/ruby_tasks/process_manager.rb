@@ -7,6 +7,7 @@ module Runkit
         # This is a drop-in replacement for ProcessClient. It creates Ruby tasks in
         # the local process, based on the deployment models
         class ProcessManager
+            # Fake Process::Status to represent the exit status of ruby task "deployments"
             class Status
                 def initialize(exit_code: nil, signal: nil)
                     @exit_code = exit_code
@@ -69,7 +70,9 @@ module Runkit
                             loader.deployment_model_from_name(deployment_name)
                         else deployment_name
                         end
-                raise ArgumentError, "#{name} is already started in #{self}" if deployments[name]
+                if deployments[name]
+                    raise ArgumentError, "#{name} is already started in #{self}"
+                end
 
                 prefix_mappings = Runkit::ProcessBase.resolve_prefix(model, options.delete(:prefix))
                 name_mappings = prefix_mappings.merge(name_mappings)
@@ -96,7 +99,7 @@ module Runkit
             #
             # Returns a hash that maps deployment names to the Status
             # object that represents their exit status.
-            def wait_termination(timeout = nil)
+            def wait_termination(_timeout = nil)
                 result = terminated_deployments
                 @terminated_deployments = {}
                 result
@@ -119,15 +122,13 @@ module Runkit
             # The call does not block until the process has quit. You will have to
             # call #wait_termination to wait for the process end.
             def stop(deployment_name)
-                if deployment = deployments[deployment_name]
-                    deployment.kill
-                end
+                deployments[deployment_name]&.kill
             end
 
             def dead_deployment(deployment_name, status = Status.new(exit_code: 0))
-                if deployment = deployments.delete(deployment_name)
-                    terminated_deployments[deployment] = status
-                end
+                return unless (deployment = deployments.delete(deployment_name))
+
+                terminated_deployments[deployment] = status
             end
         end
     end

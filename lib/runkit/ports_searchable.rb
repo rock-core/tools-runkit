@@ -55,18 +55,23 @@ module Runkit
         # This is a helper method used in various places
         def find_port(type, port_name = nil)
             candidates = find_all_ports(type, port_name)
-            if candidates.size > 1
-                type_name =
-                    if !type.respond_to?(:to_str)
-                        type.name
-                    else type.to_str
-                    end
-                if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple ports #{port_name}: #{candidates.map(&:name).join(', ')}"
+            return candidates.first if candidates.size == 1
+
+            type_name =
+                if type.respond_to?(:name)
+                    type.name
                 else
-                    raise ArgumentError, "#{type_name} is provided by multiple ports: #{candidates.map(&:name).join(', ')}"
+                    type.to_str
                 end
-            else candidates.first
+
+            if port_name
+                raise ArgumentError,
+                      "#{type_name} is provided by multiple ports #{port_name}: "\
+                      "#{candidates.map(&:name).join(', ')}"
+            else
+                raise ArgumentError,
+                      "#{type_name} is provided by multiple ports: "\
+                      "#{candidates.map(&:name).join(', ')}"
             end
         end
 
@@ -77,17 +82,23 @@ module Runkit
         # This is a helper method used in various places
         def find_input_port(type, port_name = nil)
             candidates = find_all_input_ports(type, port_name)
-            if candidates.size > 1
-                type_name = if !type.respond_to?(:to_str)
-                                type.name
-                            else type.to_str
-                            end
-                if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple input ports #{port_name}: #{candidates.map(&:name).join(', ')}"
+            return candidates.first if candidates.size == 1
+
+            type_name =
+                if type.respond_to?(:name)
+                    type.name
                 else
-                    raise ArgumentError, "#{type_name} is provided by multiple input ports: #{candidates.map(&:name).join(', ')}"
+                    type.to_str
                 end
-            else candidates.first
+
+            if port_name
+                raise ArgumentError,
+                      "#{type_name} is provided by multiple input ports "\
+                      "#{port_name}: #{candidates.map(&:name).join(', ')}"
+            else
+                raise ArgumentError,
+                      "#{type_name} is provided by multiple input ports: "\
+                      "#{candidates.map(&:name).join(', ')}"
             end
         end
 
@@ -98,17 +109,23 @@ module Runkit
         # This is a helper method used in various places
         def find_output_port(type, port_name = nil)
             candidates = find_all_output_ports(type, port_name)
-            if candidates.size > 1
-                type_name = if !type.respond_to?(:to_str)
-                                type.name
-                            else type.to_str
-                            end
-                if port_name
-                    raise ArgumentError, "#{type_name} is provided by multiple output ports #{port_name}: #{candidates.map(&:name).join(', ')}"
+            return candidates.first if candidates.size == 1
+
+            type_name =
+                if type.respond_to?(:name)
+                    type.name
                 else
-                    raise ArgumentError, "#{type_name} is provided by multiple output ports: #{candidates.map(&:name).join(', ')}"
+                    type.to_str
                 end
-            else candidates.first
+
+            if port_name
+                raise ArgumentError,
+                      "#{type_name} is provided by multiple output ports "\
+                      "#{port_name}: #{candidates.map(&:name).join(', ')}"
+            else
+                raise ArgumentError,
+                      "#{type_name} is provided by multiple output ports: "\
+                      "#{candidates.map(&:name).join(', ')}"
             end
         end
     end

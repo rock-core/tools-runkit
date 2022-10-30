@@ -50,21 +50,23 @@ module Runkit
             return super unless input_port.respond_to?(:to_runkit_port)
 
             input_port = input_port.to_runkit_port
-            if !input_port.kind_of?(InputPort)
+            if !input_port.kind_of?(InputPort) # rubocop:disable Style/GuardClause
                 raise ArgumentError, "an output port can only connect to an input port (got #{input_port})"
             elsif input_port.type.name != type.name
                 raise ArgumentError, "trying to connect #{self}, an output port of type #{type.name}, to #{input_port}, an input port of type #{input_port.type.name}"
             end
 
             policy = Port.prepare_policy(**options)
-            policy = handle_mq_transport(input_port.full_name, policy) if distance == D_SAME_HOST
+            if distance == D_SAME_HOST
+                policy = handle_mq_transport(input_port.full_name, policy)
+            end
             input_port.blocking_read = true if policy[:pull]
 
             begin
                 refine_exceptions(input_port) do
                     do_connect_to(input_port, policy)
                 end
-            rescue Runkit::ConnectionFailed => e
+            rescue Runkit::ConnectionFailed
                 if policy[:transport] == TRANSPORT_MQ && Runkit::MQueue.auto_fallback_to_corba?
                     policy[:transport] = TRANSPORT_CORBA
                     Runkit.warn "failed to create a connection from #{full_name} to #{input_port.full_name} using the MQ transport, falling back to CORBA"

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module Runkit
+    # Representation of an attribute on a remote task context
     class Attribute < TaskContextAttributeBase
         def log_metadata
             super.merge("rock_stream_type" => "attribute")

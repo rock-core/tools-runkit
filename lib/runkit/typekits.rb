@@ -2,7 +2,7 @@
 
 Types = Typelib::RegistryExport::Namespace.new
 
-module Runkit
+module Runkit # :nodoc:
     class << self
         # The set of typekits whose shared libraries have been loaded in this
         # process
@@ -18,7 +18,9 @@ module Runkit
 
     @enforce_typekit_threading = nil
     def self.enforce_typekit_threading?
-        @enforce_typekit_threading = (ENV["OROCOS_ENFORCE_TYPEKIT_THREADING"] == "1") if @enforce_typekit_threading.nil?
+        if @enforce_typekit_threading.nil?
+            @enforce_typekit_threading = (ENV["OROCOS_ENFORCE_TYPEKIT_THREADING"] == "1")
+        end
 
         @enforce_typekit_threading
     end
@@ -64,10 +66,12 @@ module Runkit
 
         begin
             Runkit.info "loading plugin library #{libpath}"
-            raise "the RTT plugin system refused to load #{libpath}" unless Runkit.load_rtt_plugin(libpath)
+            unless Runkit.load_rtt_plugin(libpath)
+                raise "the RTT plugin system refused to load #{libpath}"
+            end
 
             @loaded_plugins << libpath
-        rescue Exception
+        rescue StandardError
             @failed_plugins << libpath
             raise
         end
@@ -167,22 +171,28 @@ module Runkit
                         raise NotFound, "the '#{name}' typekit has a #{transport_name} transport installed, but it is disabled"
                     end
                 rescue Utilrb::PkgConfig::NotFound => e
-                    raise NotFound, "the '#{name}' typekit has no #{transport_name} transport: could not find pkg-config package #{e.name} in #{ENV['PKG_CONFIG_PATH']}" if required
+                    if required
+                        raise NotFound, "the '#{name}' typekit has no #{transport_name} transport: could not find pkg-config package #{e.name} in #{ENV['PKG_CONFIG_PATH']}"
+                    end
                 end
             end
         end
 
         plugins.each_pair do |file, (pkg, required)|
             lib, lib_dirs = find_plugin_library(pkg, file)
-            if !lib
-                if required
-                    raise NotFound, "cannot find shared library #{file} for #{name} (searched in #{lib_dirs})"
-                else
-                    Runkit.warn "plugin #{file} is registered through pkg-config, but the library cannot be found in #{lib_dirs}"
-                end
-            else
+            if lib
                 libs << [lib, required]
+                next
             end
+
+            if required
+                raise NotFound,
+                      "cannot find shared library #{file} for #{name} "\
+                      "(searched in #{lib_dirs})"
+            end
+
+            Runkit.warn "plugin #{file} is registered through pkg-config, "\
+                        "but the library cannot be found in #{lib_dirs}"
         end
         libs
     end
@@ -235,7 +245,9 @@ module Runkit
     #   value that should be stored
     #
     def self.max_sizes(typename = nil, *sizes, &block)
-        raise ArgumentError, "cannot call Runkit.max_sizes before Runkit.load" unless @max_sizes
+        unless @max_sizes
+            raise ArgumentError, "cannot call Runkit.max_sizes before Runkit.load"
+        end
 
         return @max_sizes if !typename && sizes.empty?
 

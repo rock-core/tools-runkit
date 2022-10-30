@@ -17,7 +17,7 @@ module Runkit
 
         it "should be able to load simple configuration structures" do
             conf.load_from_yaml(File.join(data_dir, "configurations", "base_config.yml"))
-            assert_equal %w{compound default simple_container}, conf.sections.keys.sort
+            assert_equal %w[compound default simple_container], conf.sections.keys.sort
 
             verify_loaded_conf conf, "default" do
                 assert_conf_value "enm", "/orogen_runkit_tests/Enumeration", Typelib::EnumType, :FIRST
@@ -49,7 +49,7 @@ module Runkit
 
         it "should be able to load dynamic configuration structures" do
             conf.load_from_yaml(File.join(data_dir, "configurations", "dynamic_config.yml"))
-            assert_equal %w{compound default simple_container}, conf.sections.keys.sort
+            assert_equal %w[compound default simple_container], conf.sections.keys.sort
 
             verify_loaded_conf conf, "default" do
                 assert_conf_value "enm", "/orogen_runkit_tests/Enumeration",
@@ -111,7 +111,7 @@ module Runkit
                 intg: 30
                 CONF
 
-                flexmock(YAML).should_receive(:load).at_least.once.pass_thru
+                flexmock(YAML).should_receive(:safe_load).at_least.once.pass_thru
                 conf = Runkit::TaskConfigurations.new(model)
                 conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
                 default = conf.conf("default")
@@ -123,7 +123,7 @@ module Runkit
                 intg: <%= Time.now.tv_usec %>
                 CONF
                 @conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
-                flexmock(YAML).should_receive(:load).at_least.once.pass_thru
+                flexmock(YAML).should_receive(:safe_load).at_least.once.pass_thru
                 conf = Runkit::TaskConfigurations.new(model)
                 conf.load_from_yaml(@conf_file, cache_dir: @cache_dir)
             end
@@ -725,7 +725,7 @@ module Runkit
                     assert_kind_of type.deference, e
                 end
                 assert_equal [1, 2, 3, 4],
-                            (result.map { |e| Typelib.to_ruby(e) })
+                             (result.map { |e| Typelib.to_ruby(e) })
             end
             it "maps arrays to a typelib array if the sizes match" do
                 type = registry.build("/int[5]")
@@ -747,7 +747,7 @@ module Runkit
             it "converts numerical values using evaluate_numeric_field" do
                 type = registry.get "/int"
                 flexmock(conf).should_receive(:evaluate_numeric_field)
-                            .with("42", type).and_return(42).once
+                              .with("42", type).and_return(42).once
                 result = conf.normalize_conf_value("42", type)
                 assert_kind_of type, result
                 assert_equal 42, Typelib.to_ruby(result)
@@ -790,7 +790,7 @@ module Runkit
             it "properly handles Ruby objects that are converted from a complex Typelib type" do
                 klass = Class.new
                 compound_t = registry.create_compound("/S") { |c| c.add "a", "/int" }
-                compound_t.convert_from_ruby(klass) { |v| compound_t.new(a: 10) }
+                compound_t.convert_from_ruby(klass) { |_v| compound_t.new(a: 10) }
                 normalized = conf.normalize_conf_value(klass.new, compound_t)
                 assert_kind_of compound_t, normalized
                 assert_kind_of compound_t["a"], normalized.raw_get("a")
@@ -844,7 +844,7 @@ module Runkit
                     e = assert_raises(Runkit::TaskConfigurations::ConversionFailed) do
                         conf.normalize_conf_value(bad_value, type)
                     end
-                    assert_equal %w{.out_f}, e.full_path
+                    assert_equal %w[.out_f], e.full_path
                     assert(/\.out_f/ === e.message)
                 end
             end
@@ -863,15 +863,15 @@ module Runkit
                         p.write v
                     end
                     flexmock(conf).should_receive(:save)
-                                .with(task, FlexMock.any, FlexMock.any)
-                                .pass_thru
+                                  .with(task, FlexMock.any, FlexMock.any)
+                                  .pass_thru
                 end
 
                 it "warns about deprecation" do
                     flexmock(Runkit).should_receive(:warn).once
                     flexmock(conf).should_receive(:save)
-                                .with("sec", FlexMock.any, FlexMock.any)
-                                .once
+                                  .with("sec", FlexMock.any, FlexMock.any)
+                                  .once
                     conf.save(task, "/conf.yml", "sec")
                 end
 
@@ -879,9 +879,9 @@ module Runkit
                     flexmock(Runkit).should_receive(:warn)
                     expected_conf = conf.normalize_conf(Runkit::TaskConfigurations.read_task_conf(task))
                     flexmock(conf).should_receive(:save)
-                                .with("sec", "/conf.yml", task_model: task.model)
-                                .once
-                                .and_return(ret = flexmock)
+                                  .with("sec", "/conf.yml", task_model: task.model)
+                                  .once
+                                  .and_return(ret = flexmock)
                     assert_same ret, conf.save(task, "/conf.yml", "sec")
                     assert_equal expected_conf, conf.conf("sec")
                 end
@@ -964,7 +964,9 @@ module Runkit
                     config = Hash["enm" => "FIRST"]
                     Runkit::TaskConfigurations.save(config, "/conf.yml", "sec", task_model: model)
                     data = File.readlines("/conf.yml")
-                    _, idx = data.each_with_index.find { |line, idx| line.strip == "# this is a documentation string" }
+                    _, idx = data.each_with_index.find do |line, _|
+                        line.strip == "# this is a documentation string"
+                    end
                     assert data[idx + 1].strip =~ /^enm:/
                 end
                 it "appends the documentation to an existing file" do
@@ -1099,17 +1101,13 @@ module Runkit
         end
 
         def verify_applied_conf(task, *base_path)
-            unless base_path.empty?
-                base_property = task.property(base_path.shift)
-                value_path = base_path
-            end
+            base_property = task.property(base_path.shift) unless base_path.empty?
 
             @conf_getter = lambda do |*path|
                 property =
                     base_property || task.property(path.shift)
 
-                result = property.raw_read
-                (base_path + path).inject(result) do |result, field|
+                (base_path + path).inject(property.raw_read) do |result, field|
                     result.raw_get(field)
                 end
             end

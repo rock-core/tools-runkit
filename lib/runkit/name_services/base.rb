@@ -59,7 +59,7 @@ module Runkit
             def reachable?
                 validate
                 true
-            rescue
+            rescue StandardError
                 false
             end
 
@@ -76,7 +76,7 @@ module Runkit
                     begin
                         task.ping
                         yield(task)
-                    rescue NotFound
+                    rescue NotFound # rubocop:disable Lint/SuppressedException
                     end
                 end
             end

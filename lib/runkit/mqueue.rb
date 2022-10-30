@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Runkit
+module Runkit #:nodoc:
     # This is hardcoded here, as we need it to make sure people don't use
     # MQueues on systems where it is not available
     #
@@ -18,7 +18,7 @@ module Runkit
                 @available =
                     if !defined?(RTT_TRANSPORT_MQ_ID)
                         false
-                    elsif error = MQueue.try_mq_open
+                    elsif (error = MQueue.try_mq_open)
                         Runkit.warn "the RTT is built with MQ support, but creating message queues fails with: #{error}"
                         false
                     elsif TRANSPORT_MQ != RTT_TRANSPORT_MQ_ID
@@ -58,7 +58,13 @@ module Runkit
                 end
 
                 def auto=(value)
-                    raise ArgumentError, "cannot turn automatic MQ handling. It is either not built into the RTT, or you don't have enough permissions to create message queues (in which case a warning message has been displayed)" if value
+                    return unless value
+
+                    raise ArgumentError,
+                          "cannot turn automatic MQ handling. It is either not "\
+                          "built into the RTT, or you don't have enough permissions "\
+                          "to create message queues (in which case a warning "\
+                          "message has been displayed)"
                 end
             end
 

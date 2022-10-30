@@ -2,7 +2,7 @@
 
 module Runkit
     module Test
-        module Mocks
+        module Mocks #:nodoc:
             class FakeTaskContext
             end
 

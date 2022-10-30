@@ -39,7 +39,7 @@ module Runkit
         #
         # Enumerates the operation that are available on
         # this task, as instances of Runkit::Operation
-        def each_operation(&block)
+        def each_operation
             return enum_for(:each_operation) unless block_given?
 
             names = operation_names
@@ -225,11 +225,13 @@ module Runkit
 
         # load all informations from the model
         def initialize_model_info(model)
-            @state_symbols = model.each_state.map { |name, type| name.to_sym }
+            @state_symbols = model.each_state.map { |name, _type| name.to_sym }
             @error_states  =
                 model
                 .each_state
-                .map { |name, type| name.to_sym if %I[error exception fatal].include?(type) }
+                .map do |name, type|
+                    name.to_sym if %I[error exception fatal].include?(type)
+                end
                 .compact.to_set
 
             @exception_states =
@@ -292,28 +294,41 @@ module Runkit
             end
         end
 
-        def method_missing(m, *args) # :nodoc:
-            m = m.to_s
-            if m =~ /^(\w+)=/
-                name = $1
+        def method_missing(name, *args) # rubocop:disable Style/MethodMissingSuper, Style/MissinRespondToMissing
+            # NOTE: we do not implement respond_to_missing? as with it any
+            # respond_to would lead to a network call
+            name = name.to_s
+            if (m = /^(\w+)=/.match(name))
+                name = m[1]
                 begin
                     return property(name).write(*args)
-                rescue Runkit::NotFound
+                rescue Runkit::NotFound # rubocop:disable Lint/SuppressedException
                 end
 
-            elsif port?(m)
-                raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}" unless args.empty?
+            elsif port?(name)
+                unless args.empty?
+                    raise ArgumentError,
+                          "expected zero arguments for #{name}, got #{args.size}"
+                end
 
-                return port(m)
-            elsif operation?(m)
-                return operation(m).callop(*args)
-            elsif property?(m) || attribute?(m)
-                raise ArgumentError, "expected zero arguments for #{m}, got #{args.size}" unless args.empty?
+                return port(name)
+            elsif operation?(name)
+                return operation(name).callop(*args)
+            elsif property?(name) || attribute?(name)
+                unless args.empty?
+                    raise ArgumentError,
+                          "expected zero arguments for #{name}, got #{args.size}"
+                end
 
-                prop = if property?(m) then property(m)
-                       else attribute(m)
-                       end
+                prop =
+                    if property?(name)
+                        property(name)
+                    else
+                        attribute(name)
+                    end
+
                 value = prop.read
+
                 if block_given?
                     yield(value)
                     prop.write(value)
@@ -321,7 +336,7 @@ module Runkit
                 return value
             end
 
-            super(m.to_sym, *args)
+            super(name.to_sym, *args)
         end
 
         def to_h

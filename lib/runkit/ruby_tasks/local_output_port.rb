@@ -2,10 +2,10 @@
 
 module Runkit
     module RubyTasks
-        # Input port created on a {TaskContext} task instantiated in this Ruby
+        # Output port created on a {TaskContext} task instantiated in this Ruby
         # process
         #
-        # It is created by {TaskContext#create_input_port}
+        # It is created by {TaskContext#create_output_port}
         class LocalOutputPort < OutputPort
             # Remove this port from the underlying task context
             def remove

@@ -32,7 +32,9 @@ module Runkit # :nodoc:
     # directory.
     def self.default_working_directory=(value)
         value = File.expand_path(value)
-        raise ArgumentError, "#{value} is not an existing directory" unless File.directory?(value)
+        unless File.directory?(value)
+            raise ArgumentError, "#{value} is not an existing directory"
+        end
 
         @default_working_directory = value
     end
@@ -233,7 +235,9 @@ module Runkit # :nodoc:
                 return @ior_mappings if @ior_mappings
                 break if timeout < Time.now - start_time
 
-                raise Runkit::NotFound, "#{name} was started but crashed" if got_alive && !alive?
+                if got_alive && !alive?
+                    raise Runkit::NotFound, "#{name} was started but crashed"
+                end
 
                 time_until_deadline = [deadline - Time.now, 0].max if deadline
                 IO.select([channel], nil, nil, time_until_deadline)
@@ -402,10 +406,10 @@ module Runkit # :nodoc:
         def self.run_options_resolve_orogen_model(name, loader:)
             object = object.to_s
             loader.task_model_from_name(name)
-        rescue OroGen::NotFound => task_e
+        rescue OroGen::NotFound => task_e # rubocop:disable Naming/RescuedExceptionsVariableName
             begin
                 loader.deployment_model_from_name(name)
-            rescue OroGen::NotFound => deployment_e
+            rescue OroGen::NotFound => deployment_e # rubocop:disable Naming/RescuedExceptionsVariableName
                 raise OroGen::NotFound,
                       "#{object} is neither a task model "\
                       "nor a deployment name: #{task_e} and #{deployment_e}"
@@ -484,13 +488,15 @@ module Runkit # :nodoc:
         #   package has been installed along with orogen
         #   The sd domain is of the format: <name>.<suffix> where the suffix has to
         #   be one of _tcp or _udp
-        def self.parse_run_options(*names, loader: Runkit.default_loader,
+        def self.parse_run_options(
+            *names, loader: Runkit.default_loader,
             valgrind: false, valgrind_options: {},
             gdb: false, gdb_options: {},
             log_level: nil,
             output: nil, oro_logfile: "runkit.%m-%p.txt",
             working_directory: Runkit.default_working_directory,
-            cmdline_args: {})
+            cmdline_args: {}
+        )
             deployments, models = partition_run_options(*names, loader: loader)
 
             name_mappings = resolve_name_mappings(deployments, models, loader)
@@ -683,7 +689,7 @@ module Runkit # :nodoc:
                 if valid_levels.include?(log_level)
                     result.env["BASE_LOG_LEVEL"] = log_level.to_s.upcase
                 else
-                    raise ArgumentError, "'#{log_level}' is not a valid log level." +
+                    raise ArgumentError, "'#{log_level}' is not a valid log level." \
                                          " Valid options are #{valid_levels}."
                 end
             end
@@ -793,7 +799,7 @@ module Runkit # :nodoc:
                 if valid_levels.include?(log_level)
                     log_level = log_level.to_s.upcase
                 else
-                    raise ArgumentError, "'#{log_level}' is not a valid log level." +
+                    raise ArgumentError, "'#{log_level}' is not a valid log level." \
                                          " Valid options are #{valid_levels}."
                 end
             end
@@ -814,7 +820,9 @@ module Runkit # :nodoc:
                     output_file_name = output
                                        .gsub("%m", name)
                                        .gsub("%p", pid.to_s)
-                    output_file_name = File.expand_path(output_file_name, working_directory) if working_directory
+                    if working_directory
+                        output_file_name = File.expand_path(output_file_name, working_directory)
+                    end
 
                     output = File.open(output_file_name, "a")
                 end
@@ -823,7 +831,9 @@ module Runkit # :nodoc:
                     oro_logfile = oro_logfile
                                   .gsub("%m", name)
                                   .gsub("%p", pid.to_s)
-                    oro_logfile = File.expand_path(oro_logfile, working_directory) if working_directory
+                    if working_directory
+                        oro_logfile = File.expand_path(oro_logfile, working_directory)
+                    end
                     env["ORO_LOGFILE"] = oro_logfile
                 else
                     env["ORO_LOGFILE"] = "/dev/null"
@@ -834,7 +844,9 @@ module Runkit # :nodoc:
                     STDOUT.reopen(output)
                 end
 
-                cmdline.unshift "--log-file=#{output_file_name}.valgrind" if output_file_name && valgrind
+                if output_file_name && valgrind
+                    cmdline.unshift "--log-file=#{output_file_name}.valgrind"
+                end
 
                 if cmdline_wrapper
                     cmdline = cmdline_wrapper_options + cmdline
@@ -860,8 +872,9 @@ module Runkit # :nodoc:
                 read.close
                 ::Process.setpgrp
                 begin
-                    exec(env, *cmdline, ior_write_fd => ior_write_fd, chdir: working_directory)
-                rescue Exception
+                    exec(env, *cmdline,
+                         ior_write_fd => ior_write_fd, chdir: working_directory)
+                rescue RuntimeError
                     write.write("FAILED")
                 end
             end
@@ -870,7 +883,15 @@ module Runkit # :nodoc:
             write.close
             raise "cannot start #{name}" if read.read == "FAILED"
 
-            Runkit.warn "process #{name} has been started under gdbserver, port=#{gdb_port}. The components will not be functional until you attach a GDB to the started server" if gdb
+            if gdb
+                Runkit.warn(
+                    "process #{name} has been started under gdbserver, port=#{gdb_port}. "\
+                    "The components will not be functional until you attach a GDB to the "\
+                    "started server"
+                )
+            end
+
+            nil
         end
 
         # Return the mapping of name to task object
@@ -937,7 +958,9 @@ module Runkit # :nodoc:
                     # signal it
                     clean_shutdown = false
                 end
-                Runkit.warn "clean shutdown of process #{name} failed" unless clean_shutdown
+                unless clean_shutdown
+                    Runkit.warn "clean shutdown of process #{name} failed"
+                end
             end
 
             expected_exit = nil

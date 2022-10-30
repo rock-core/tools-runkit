@@ -16,7 +16,7 @@ module Runkit
                     ior = nil
                     begin
                         capture_subprocess_io { ior = @service.ior(name) }
-                    rescue NotFound
+                    rescue NotFound # rubocop:disable Lint/SuppressedException
                     end
 
                     return if ior == expected_ior

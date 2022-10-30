@@ -5,7 +5,7 @@ require "yaml"
 require "utilrb/hash/map_key"
 require "digest"
 
-module Runkit
+module Runkit #:nodoc:
     # Class handling multiple possible configuration for a single task
     #
     # It can load configuration files that are structured as follows:
@@ -86,7 +86,7 @@ module Runkit
 
         def initialize_copy(source)
             super
-            @sections = sections.map_value { |k, v| v.dup }
+            @sections = sections.map_value { |_k, v| v.dup }
             @merged_conf = {}
             @context = []
         end
@@ -109,15 +109,16 @@ module Runkit
                 # non greedy matching of dynamic code
                 value.gsub!(/<%=((.|\n)*?)%>/) do |match|
                     if match =~ /<%=((.|\n)*?)%>/
-                        ruby_content = $1.strip
+                        ruby_content = Regexp.last_match(1).strip
                         p = proc {}
-                        eval(ruby_content, p.binding, filename)
+                        eval(ruby_content, p.binding, filename) # rubocop:disable Security/Eval
                     else
                         match
                     end
                 end
-            rescue Exception => e
-                raise e, "error evaluating dynamic content '#{ruby_content}': #{e.message}", e.backtrace
+            rescue StandardError => e
+                raise e, "error evaluating dynamic content '#{ruby_content}': "\
+                         "#{e.message}", e.backtrace
             end
             value
         end
@@ -141,45 +142,61 @@ module Runkit
                 headers.unshift ["--- name:default", -1]
             elsif headers.first[1] != 0
                 leading_lines = document_lines[0, headers.first[1]].map(&:strip)
-                headers.unshift ["--- name:default", -1] if leading_lines.any? { |l| !l.empty? && !l.start_with?("#") }
+                if leading_lines.any? { |l| !l.empty? && !l.start_with?("#") }
+                    headers.unshift ["--- name:default", -1]
+                end
             end
 
             options = headers.map do |line, line_number|
                 line_options = {}
                 line = line.chomp
                 line.split(/\s+/)[1..-1].each do |opt|
-                    if opt =~ /^(\w+):(.*)$/
-                        line_options[$1] = $2
-                    else
-                        raise ArgumentError, "#{file}:#{line_number}: wrong format #{opt}, expected option_name:value, where 'value' has no spaces"
+                    unless (m = /^(\w+):(.*)$/.match(opt))
+                        raise ArgumentError,
+                              "#{file}:#{line_number}: wrong format #{opt}, "\
+                              "expected option_name:value, where 'value' has no spaces"
                     end
+
+                    line_options[m[1]] = m[2]
                 end
 
                 section_options = Hash[
                     name: line_options.delete("name"),
                     merge: (line_options.delete("merge") == "true"),
                     chain: (line_options.delete("chain") || "").split(",")]
-                ConfigurationManager.warn "unrecognized options #{line_options.keys.sort.join(', ')} in #{file}" unless line_options.empty?
+                unless line_options.empty?
+                    ConfigurationManager.warn(
+                        "unrecognized options #{line_options.keys.sort.join(', ')} "\
+                        "in #{file}"
+                    )
+                end
 
                 [section_options, line_number]
             end
             options[0][0][:name] ||= "default"
 
             options.each do |line_options, line_number|
-                raise ArgumentError, "#{file}:#{line_number}: missing a 'name' option" unless line_options[:name]
+                unless line_options[:name]
+                    raise ArgumentError, "#{file}:#{line_number}: missing a 'name' option"
+                end
             end
 
             sections = []
             options.each_cons(2) do |(_, line0), (_, line1)|
                 sections << document_lines[line0 + 1, line1 - line0 - 1]
             end
-            sections << document_lines[options[-1][1] + 1, document_lines.size - options[-1][1] - 1]
+            sections << document_lines[
+                options[-1][1] + 1,
+                document_lines.size - options[-1][1] - 1
+            ]
 
             sections = options.map(&:first).zip(sections)
             found_sections = []
-            sections.each do |conf_options, doc|
+            sections.each do |conf_options, _doc|
                 name = conf_options[:name]
-                raise ArgumentError, "#{name} defined twice" if found_sections.include?(name)
+                if found_sections.include?(name)
+                    raise ArgumentError, "#{name} defined twice"
+                end
 
                 found_sections << name
             end
@@ -195,8 +212,8 @@ module Runkit
             return cache_id unless File.exist?(path)
 
             begin
-                [cache_id, Marshal.load(File.read(path))]
-            rescue Exception
+                [cache_id, Marshal.load(File.read(path))] # rubocop:disable Security/MarshalLoad
+            rescue StandardError
                 cache_id
             end
         end
@@ -231,15 +248,22 @@ module Runkit
                 doc = evaluate_dynamic_content(file, doc)
 
                 cache_id, cached_yaml = read_yaml_from_cache(cache_dir, doc) if cache_dir
-                loaded_yaml = YAML.load(StringIO.new(doc)) || {} unless cached_yaml
+                raw_conf =
+                    cached_yaml ||
+                    YAML.safe_load(StringIO.new(doc), [Symbol, Time]) ||
+                    {}
 
                 begin
-                    result = normalize_conf(cached_yaml || loaded_yaml || {})
+                    result = normalize_conf(raw_conf)
                 rescue ConversionFailed => e
-                    raise e, "while loading section #{conf_options[:name] || 'default'} #{e.message}", e.backtrace
+                    section_name = conf_options[:name] || "default"
+                    raise e, "while loading section #{section_name}: #{e.message}",
+                          e.backtrace
                 end
 
-                save_yaml_to_cache(cache_dir, cache_id, loaded_yaml) if cache_id && !cached_yaml
+                if cache_id && !cached_yaml
+                    save_yaml_to_cache(cache_dir, cache_id, raw_conf)
+                end
 
                 name  = conf_options.delete(:name)
                 chain = conf(conf_options.delete(:chain), true)
@@ -253,7 +277,7 @@ module Runkit
 
             @merged_conf.clear unless changed_sections.empty?
             changed_sections
-        rescue Exception => e
+        rescue StandardError => e
             raise e, "error loading #{file}: #{e.message}", e.backtrace
         end
 
@@ -278,17 +302,18 @@ module Runkit
         def self.convert_unit_to_SI(expr) # rubocop:disable Naming/MethodName
             unit, power = expr.split("^")
             power = Integer(power || "1")
-            if unit_to_si = UNITS[unit]
+            if (unit_to_si = UNITS[unit])
                 return unit_to_si**power
             end
 
             SCALES.each do |prefix, scale|
-                if unit.start_with?(prefix)
-                    if unit_to_si = UNITS[unit[prefix.size..-1]]
-                        return (unit_to_si * scale)**power
-                    end
+                next unless unit.start_with?(prefix)
+
+                if (unit_to_si = UNITS[unit[prefix.size..-1]])
+                    return (unit_to_si * scale)**power
                 end
             end
+
             raise ArgumentError, "does not know how to convert #{expr} to SI"
         end
 
@@ -302,12 +327,14 @@ module Runkit
                     # This is a plain integer, don't bother and don't annoy the
                     # user with a float-to-integer rounding mode warning
                     return Integer(field)
-                elsif field =~ /^([+-]?\d+(?:\.\d+)?(?:e[+-]\d+)?)(.*)/
-                    value = Float($1)
-                    unit = $2
-                else
+                end
+
+                unless (m = /^([+-]?\d+(?:\.\d+)?(?:e[+-]\d+)?)(.*)/.match(field))
                     raise ArgumentError, "#{field} does not look like a numeric field"
                 end
+
+                value = Float(m[1])
+                unit = m[2]
 
                 unit = unit.scan(/\.\w+(?:\^-?\d+)?/).inject(1) do |u, unit_expr|
                     unit_name = unit_expr[1..-1]
@@ -318,14 +345,18 @@ module Runkit
                         u * TaskConfigurations.convert_unit_to_SI(unit_name)
                     end
                 end
-                value = value * unit
+                value *= unit
             else
                 value = field
             end
 
             if value.kind_of?(Float) && field_type.integer?
                 unless rounding_mode
-                    ConfigurationManager.warn "#{current_context} #{field} used for an integer field, but no rounding mode specified. Append one of .round, .floor or .ceil. This defaults to .floor"
+                    ConfigurationManager.warn(
+                        "#{current_context} #{field} used for an integer field, "\
+                        "but no rounding mode specified. Append one of .round, "\
+                        ".floor or .ceil. This defaults to .floor"
+                    )
                     rounding_mode = :floor
                 end
                 value.send(rounding_mode)
@@ -370,7 +401,7 @@ module Runkit
         # @param [String] name the section name
         # @return [Boolean] true if such as section existed, and false otherwise
         def remove(name)
-            !!sections.delete(name)
+            sections.delete(name)
         end
 
         # Extract configuration from a task object and save it as a section in self
@@ -386,7 +417,8 @@ module Runkit
         #   otherwise
         # @see add
         def extract(name, task, merge: true)
-            in_context("while saving section #{name} from task #{task.name}(#{task.model.name})") do
+            in_context("while saving section #{name} from task "\
+                       "#{task.name}(#{task.model.name})") do
                 add(name, TaskConfigurations.read_task_conf(task), merge: merge)
             end
         end
@@ -418,7 +450,7 @@ module Runkit
         # @return [Object] a normalized configuration hash
         def normalize_conf(conf)
             property_types = {}
-            conf.each do |k, v|
+            conf.each do |k, _v|
                 unless (p = model.find_property(k))
                     raise ConversionFailed.new, "#{k} is not a property of #{model.name}"
                 end
@@ -454,7 +486,7 @@ module Runkit
         # @param [Typelib::Type] value_t the type we are validating against
         # @return [Object] a normalized configuration value
         def normalize_conf_value(value, value_t)
-            if value_t.method_defined?(:to_str)
+            if value_t.method_defined?(:to_str) # rubocop:disable Style/GuardClause
                 return normalize_conf_terminal_value(value, value_t)
             elsif value.kind_of?(value_t)
                 return value
@@ -467,21 +499,24 @@ module Runkit
             when Typelib::CompoundType
                 result = {}
                 value.raw_each_field do |field_name, field_value|
-                    result[field_name] = normalize_conf_value(field_value, value_t[field_name])
+                    result[field_name] =
+                        normalize_conf_value(field_value, value_t[field_name])
                 end
                 result
             when Hash
-                if value_t <= Typelib::CompoundType
-                    normalize_conf_hash(value, value_t)
-                else
-                    raise ConversionFailed.new, "cannot interpret a hash as a #{value_t.name}"
+                unless value_t <= Typelib::CompoundType
+                    raise ConversionFailed.new,
+                          "cannot interpret a hash as a #{value_t.name}"
                 end
+
+                normalize_conf_hash(value, value_t)
             when Array
-                if value_t <= Typelib::ArrayType || value_t <= Typelib::ContainerType
-                    normalize_conf_array(value, value_t)
-                else
-                    raise ConversionFailed.new, "cannot interpret an array as #{value_t.name}"
+                unless value_t <= Typelib::ArrayType || value_t <= Typelib::ContainerType
+                    raise ConversionFailed.new,
+                          "cannot interpret an array as #{value_t.name}"
                 end
+
+                normalize_conf_array(value, value_t)
             else
                 normalize_conf_terminal_value(value, value_t)
             end
@@ -517,7 +552,11 @@ module Runkit
         #
         # Helper for {.}. See it for details
         def normalize_conf_array(array, value_t)
-            raise ConversionFailed.new, "array too big (got #{array.size} for a maximum of #{value_t.length}" if value_t.respond_to?(:length) && value_t.length < array.size
+            if value_t.respond_to?(:length) && value_t.length < array.size
+                raise ConversionFailed.new,
+                      "array too big (got #{array.size} "\
+                      "for a maximum of #{value_t.length}"
+            end
 
             element_t = value_t.deference
             if element_t <= Typelib::NumericType
@@ -525,18 +564,19 @@ module Runkit
                 # Otherwise, go through the slow path
                 begin
                     packed_array = array.pack("#{element_t.pack_code}*")
-                    if value_t.respond_to?(:length)
-                        if value_t.length == array.size
-                            return value_t.from_buffer(packed_array)
-                        else
-                            return array.map do |v|
-                                normalize_conf_terminal_value(v, element_t)
-                            end
-                        end
-                    else
+
+                    unless value_t.respond_to?(:length)
                         return value_t.from_buffer([array.size].pack("Q") + packed_array)
                     end
-                rescue TypeError
+
+                    if value_t.length == array.size
+                        return value_t.from_buffer(packed_array)
+                    end
+
+                    return array.map do |v|
+                        normalize_conf_terminal_value(v, element_t)
+                    end
+                rescue TypeError # rubocop:disable Lint/SuppressedException
                 end
             end
 
@@ -544,7 +584,8 @@ module Runkit
                 normalize_conf_value(value, element_t)
             rescue ConversionFailed => e
                 e.full_path.unshift "[#{i}]"
-                raise e, "failed to convert configuration value for #{e.full_path.join('')}", e.backtrace
+                raise e, "failed to convert configuration value "\
+                         "for #{e.full_path.join('')}", e.backtrace
             end
         end
 
@@ -571,13 +612,14 @@ module Runkit
                     result[key] = normalize_conf_value(value, field_t)
                 rescue ConversionFailed => e
                     e.full_path.unshift ".#{key}"
-                    raise e, "failed to convert configuration value for #{e.full_path.join('')}: #{e.original_message}", e.backtrace
+                    raise e, "failed to convert configuration value for "\
+                             "#{e.full_path.join('')}: #{e.original_message}", e.backtrace
                 end
             end
             result
         end
 
-        def self.merge_conf_array(a, b, override)
+        def self.merge_conf_array(a, b, override) # rubocop:disable Naming/MethodParameterName
             result = []
             a.each_with_index do |v1, idx|
                 v2 = b[idx]
@@ -597,7 +639,9 @@ module Runkit
                 elsif override || v1 == v2
                     result << v2
                 else
-                    raise ArgumentError, "cannot merge configuration: conflict in [#{idx}] between v1=#{v1} and v2=#{v2}"
+                    raise ArgumentError,
+                          "cannot merge configuration: conflict in "\
+                          "[#{idx}] between v1=#{v1} and v2=#{v2}"
                 end
             end
 
@@ -610,9 +654,9 @@ module Runkit
         #
         # See {#sections} for a description of how the configuration value
         # formatting allows this to be done.
-        def self.merge_conf(a, b, override)
+        def self.merge_conf(a, b, override) # rubocop:disable Naming/MethodParameterName
             if override
-                a.recursive_merge(b) do |k, v1, v2|
+                a.recursive_merge(b) do |_k, v1, v2|
                     if v1.respond_to?(:to_ary) && v2.respond_to?(:to_ary)
                         merge_conf_array(v1, v2, true)
                     else
@@ -624,7 +668,9 @@ module Runkit
                     if v1.respond_to?(:to_ary) && v2.respond_to?(:to_ary)
                         merge_conf_array(v1, v2, false)
                     elsif v1 != v2
-                        raise ArgumentError, "cannot merge configuration: conflict in field #{k} between v1=#{v1} and v2=#{v2}"
+                        raise ArgumentError,
+                              "cannot merge configuration: conflict in field "\
+                              "#{k} between v1=#{v1} and v2=#{v2}"
                     else
                         v1
                     end
@@ -691,12 +737,16 @@ module Runkit
             names = Array(names)
             if names.empty?
                 {}
-            elsif cached = @merged_conf[[names, override]]
+            elsif (cached = @merged_conf[[names, override]])
                 cached
             else
                 config = names.inject({}) do |c, section_name|
                     section = sections[section_name]
-                    raise SectionNotFound.new(section_name), "#{section_name} is not a known configuration section for #{model.name}" unless section
+                    unless section
+                        raise SectionNotFound.new(section_name),
+                              "#{section_name} is not a known configuration section "\
+                              "for #{model.name}"
+                    end
 
                     TaskConfigurations.merge_conf(c, section, override)
                 end
@@ -760,12 +810,17 @@ module Runkit
             config = conf(config, override) unless config.kind_of?(Hash)
 
             unless config
-                if names == ["default"]
-                    ConfigurationManager.info "required to apply configuration #{names.join(', ')} on #{task.name} of type #{task.model.name}, but this configuration is not registered or empty. Not changing anything."
-                    return
-                else
-                    raise ArgumentError, "no configuration #{names.join(', ')} for #{task.model.name}"
+                unless names == ["default"]
+                    raise ArgumentError,
+                          "no configuration #{names.join(', ')} for #{task.model.name}"
                 end
+
+                ConfigurationManager.info(
+                    "required to apply configuration #{names.join(', ')} "\
+                    "on #{task.name} of type #{task.model.name}, but this configuration "\
+                    "is not registered or empty. Not changing anything."
+                )
+                return
             end
 
             config.each do |prop_name, conf|
@@ -812,8 +867,10 @@ module Runkit
         def self.apply_conf_on_typelib_value(value, conf)
             if conf.kind_of?(Hash)
                 conf.each do |conf_key, conf_value|
-                    value.raw_set(conf_key,
-                                  apply_conf_on_typelib_value(value.raw_get(conf_key), conf_value))
+                    value.raw_set(
+                        conf_key,
+                        apply_conf_on_typelib_value(value.raw_get(conf_key), conf_value)
+                    )
                 end
                 value
             elsif conf.respond_to?(:to_ary)
@@ -858,7 +915,9 @@ module Runkit
             when Numeric, String, Symbol
                 value
             else
-                raise ArgumentError, "invalid object #{value} of type #{value.class} found while converting typelib values to their YAML representation"
+                raise ArgumentError,
+                      "invalid object #{value} of type #{value.class} found "\
+                      "while converting typelib values to their YAML representation"
             end
         end
 
@@ -912,7 +971,10 @@ module Runkit
         #
         def save(*args, task_model: model, replace: false)
             unless args.first.respond_to?(:to_str)
-                Runkit.warn "save(task, file, name) is deprecated, use a combination of #extract and #save(name, file) instead"
+                Runkit.warn(
+                    "save(task, file, name) is deprecated, use a combination "\
+                    "of #extract and #save(name, file) instead"
+                )
                 task, file, name = *args
                 extract(name, task)
                 return save(name, file, task_model: task.model)
@@ -920,7 +982,9 @@ module Runkit
 
             section_name, file = *args
             conf = conf(section_name)
-            self.class.save(conf, file, section_name, task_model: task_model, replace: replace)
+            self.class.save(
+                conf, file, section_name, task_model: task_model, replace: replace
+            )
             conf
         end
 
@@ -959,7 +1023,10 @@ module Runkit
             config = to_yaml(config)
 
             if File.directory?(file)
-                raise ArgumentError, "#{file} is a directory and the given model has no name" unless task_model.name
+                unless task_model.name
+                    raise ArgumentError,
+                          "#{file} is a directory and the given model has no name"
+                end
 
                 file = File.join(file, "#{task_model.name}.yml")
             else
@@ -1086,17 +1153,22 @@ module Runkit
                 changed_configurations =
                     begin load_file(file)
                     rescue OroGen::TaskModelNotFound
-                        ConfigurationManager.warn "ignoring configuration file #{file} as there are no corresponding task model"
+                        ConfigurationManager.warn(
+                            "ignoring configuration file #{file} as there are "\
+                            "no corresponding task model"
+                        )
                         next
                     end
 
                 if changed_configurations
-                    changed.merge!(changed_configurations) do |model_name, old, new|
+                    changed.merge!(changed_configurations) do |_model_name, old, new|
                         old.concat(new).uniq
                     end
 
                     changed_configurations.each do |model_name, conf|
-                        ConfigurationManager.info "  configuration #{conf} of #{model_name} changed"
+                        ConfigurationManager.info(
+                            "  configuration #{conf} of #{model_name} changed"
+                        )
                     end
                 end
             end
@@ -1116,18 +1188,25 @@ module Runkit
         # @raise ArgumentError if the file does not exist
         # @raise OroGen::TaskModelNotFound if the task model cannot be found
         def load_file(file, model = nil)
-            raise ArgumentError, "#{file} does not exist or is not a file" unless File.file?(file)
+            unless File.file?(file)
+                raise ArgumentError, "#{file} does not exist or is not a file"
+            end
 
             if !model || model.respond_to?(:to_str)
                 model_name = model || File.basename(file, ".yml")
                 model = loader.task_model_from_name(model_name)
             end
 
-            ConfigurationManager.info "loading configuration file #{file} for #{model.name}"
+            ConfigurationManager.info(
+                "loading configuration file #{file} for #{model.name}"
+            )
             conf[model.name] ||= TaskConfigurations.new(model)
 
             changed_configurations = conf[model.name].load_from_yaml(file)
-            ConfigurationManager.info "  #{model.name} available configurations: #{conf[model.name].sections.keys.join(', ')}"
+            ConfigurationManager.info(
+                "  #{model.name} available configurations: "\
+                "#{conf[model.name].sections.keys.join(', ')}"
+            )
             if changed_configurations.empty?
                 false
             else
@@ -1136,7 +1215,10 @@ module Runkit
         end
 
         def find_task_configuration_object(task, options = {})
-            raise ArgumentError, "cannot use ConfigurationManager#apply for non-orogen tasks" unless task.model
+            unless task.model
+                raise ArgumentError,
+                      "cannot use ConfigurationManager#apply for non-orogen tasks"
+            end
 
             options = Kernel.validate_options options, model_name: task.model.name
             conf[options[:model_name]]
@@ -1156,31 +1238,46 @@ module Runkit
                 # Backward compatibility
                 options = Hash[override: options]
             end
-            options, find_options = Kernel.filter_options options, override: false, model_name: task.model.name
+            options, find_options = Kernel.filter_options(
+                options, override: false, model_name: task.model.name
+            )
 
             model_name = options[:model_name]
-            raise ArgumentError, "applying configuration on #{task.name} failed. #{task.class} has no model name." if model_name.nil?
+            if model_name.nil?
+                raise ArgumentError,
+                      "applying configuration on #{task.name} failed. "\
+                      "#{task.class} has no model name."
+            end
 
-            task_conf = find_task_configuration_object(task, find_options.merge(model_name: model_name))
-            if names = resolve_requested_configuration_names(model_name, task_conf, names)
-                ConfigurationManager.info "applying configuration #{names.join(', ')} on #{task.name} of type #{model_name}"
+            task_conf = find_task_configuration_object(
+                task, find_options.merge(model_name: model_name)
+            )
+            names = resolve_requested_configuration_names(model_name, task_conf, names)
+            if names
+                ConfigurationManager.info(
+                    "applying configuration #{names.join(', ')} on #{task.name} "\
+                    "of type #{model_name}"
+                )
                 task_conf.apply(task, names, options[:override])
             else
-                ConfigurationManager.info "required default configuration on #{task.name} of type #{model_name}, but #{model_name} has no registered configurations"
+                ConfigurationManager.info(
+                    "required default configuration on #{task.name} of type "\
+                    "#{model_name}, but #{model_name} has no registered configurations"
+                )
             end
             true
         end
 
         def resolve_requested_configuration_names(model_name, task_conf, names)
             unless task_conf
-                if names.empty? || names == ["default"]
-                    return
-                else
+                unless names.empty? || names == ["default"]
                     section_name = names.find { |n| n != "default" }
                     raise TaskConfigurations::SectionNotFound.new(section_name),
                           "no configuration available for #{model_name} "\
                           "(expected #{names.join(', ')})"
                 end
+
+                return
             end
 
             # If no names are given try to figure them out
@@ -1214,13 +1311,15 @@ module Runkit
         # @overload save(task, path, name)
         #   @deprecated old signature. One should use the option hash now.
         def save(task, path, options = {})
-            options = Hash[name: options] if options.respond_to?(:to_str) || !options # for backward compatibility
-            options, find_options = Kernel.filter_options options,
-                                                          name: nil,
-                                                          model: task.model
+            # for backward compatibility
+            options = { name: options } if options.respond_to?(:to_str) || !options
+            options, find_options =
+                Kernel.filter_options(options, name: nil, model: task.model)
 
             model_name = options[:model].name
-            task_conf = find_task_configuration_object(task, find_options.merge(model_name: model_name))
+            task_conf = find_task_configuration_object(
+                task, find_options.merge(model_name: model_name)
+            )
             task_conf ||= conf[model_name] = TaskConfigurations.new(options[:model])
             name = options[:name] || task.name
             task_conf.extract(name, task)
@@ -1238,11 +1337,18 @@ module Runkit
         # @return [Object] a configuration object as formatted by the rules
         #   described in the {TaskConfigurations#sections} attribute description
         def resolve(task_model_name, conf_names = [], override = false)
-            task_model_name = task_model_name.model.name if task_model_name.respond_to?(:model)
+            if task_model_name.respond_to?(:model)
+                task_model_name = task_model_name.model.name
+            end
+
             task_conf = conf[task_model_name]
-            if conf_names = resolve_requested_configuration_names(task_model_name, task_conf, conf_names)
+            conf_names = resolve_requested_configuration_names(
+                task_model_name, task_conf, conf_names
+            )
+            if conf_names
                 task_conf.conf(conf_names, override)
-            else {}
+            else
+                {}
             end
         end
     end

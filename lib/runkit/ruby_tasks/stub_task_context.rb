@@ -19,7 +19,7 @@ module Runkit
             def setup_from_orogen_model(orogen_model)
                 setter_operations = {}
                 orogen_model.each_property.each do |prop|
-                    if op = prop.setter_operation
+                    if (op = prop.setter_operation)
                         setter_operations[op.name] = prop
                     end
                 end

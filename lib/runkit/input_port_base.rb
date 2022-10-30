@@ -43,7 +43,7 @@ module Runkit
         # @param source the source object in the connection that is being
         #   created
         # @raise [ArgumentError] if the connection cannot be created
-        def resolve_connection_from(source, **policy)
+        def resolve_connection_from(source, **_policy)
             raise ArgumentError, "I don't know how to connect #{source} to #{self}"
         end
 

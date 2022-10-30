@@ -67,7 +67,7 @@ module Runkit
 
                 begin
                     return service.ior(name)
-                rescue Runkit::NotFound
+                rescue Runkit::NotFound # rubocop:disable Lint/SuppressedException
                 end
             end
             raise Runkit::NotFound, error_message(name)
@@ -75,7 +75,7 @@ module Runkit
 
         # (see NameServices::Base#names)
         def names
-            @name_services.flat_map { |service| service.names }.uniq
+            @name_services.flat_map(&:names).uniq
         end
 
         # Calls cleanup on all underlying name services which support cleanup

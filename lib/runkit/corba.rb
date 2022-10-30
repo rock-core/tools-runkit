@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Runkit
+module Runkit #:nodoc:
     Port.transport_names[TRANSPORT_CORBA] = "CORBA"
 
     # Management of the CORBA layer for communication with the RTT components

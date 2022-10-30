@@ -85,7 +85,7 @@ module Runkit
                     flexmock(Runkit::MQueue).should_receive(:valid_sizes?)
                                             .with(42, 10, Proc).once.and_return(false)
                     assert_equal Hash[transport: 0, size: 42],
-                                port.handle_mq_transport("input", transport: 0, size: 42)
+                                 port.handle_mq_transport("input", transport: 0, size: 42)
                 end
                 it "raises if the sizes are not valid and the MQ transport was selected explicitely" do
                     flexmock(Runkit::MQueue).should_receive(:valid_sizes?)
@@ -101,18 +101,18 @@ module Runkit
                     flexmock(port).should_receive(:max_marshalling_size).and_return(10)
                     flexmock(Runkit::MQueue).should_receive(:validate_sizes?).and_return(false)
                     assert_equal Hash[transport: Runkit::TRANSPORT_MQ, size: 42, data_size: 10],
-                                port.handle_mq_transport("input", transport: 0, size: 42, data_size: 0)
+                                 port.handle_mq_transport("input", transport: 0, size: 42, data_size: 0)
                 end
                 it "initializes data_size by the value returned by #max_marshalling_size f data_size is not given" do
                     flexmock(port).should_receive(:max_marshalling_size).and_return(10)
                     flexmock(Runkit::MQueue).should_receive(:validate_sizes?).and_return(false)
                     assert_equal Hash[transport: Runkit::TRANSPORT_MQ, size: 42, data_size: 10],
-                                port.handle_mq_transport("input", transport: 0, size: 42)
+                                 port.handle_mq_transport("input", transport: 0, size: 42)
                 end
                 it "falls back to the original policy if the max marshalling size cannot be computed" do
                     flexmock(port).should_receive(:max_marshalling_size).and_return(nil)
                     assert_equal Hash[transport: 0, size: 42],
-                                port.handle_mq_transport("input", transport: 0, size: 42)
+                                 port.handle_mq_transport("input", transport: 0, size: 42)
                 end
                 it "raises if the max marshalling size cannot be computed and the MQ transport was selected explicitely" do
                     flexmock(port).should_receive(:max_marshalling_size).and_return(nil)

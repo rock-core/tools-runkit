@@ -76,7 +76,7 @@ module Runkit
 
         describe ".partition_run_options" do
             it "partitions deployment names from task model names using Runkit.available_task_models" do
-                deployments, models, options = Process.partition_run_options(
+                deployments, models, = Process.partition_run_options(
                     { "test_deployment" => "name2", "test::Task" => "name" },
                     loader: @loader
                 )
@@ -84,7 +84,7 @@ module Runkit
                 assert_equal Hash[task_m => ["name"]], models
             end
             it "sets to nil the prefix for deployments that should not have one" do
-                deployments, models, options = Process.partition_run_options(
+                deployments, = Process.partition_run_options(
                     "test_deployment", { "test::Task" => "name" }, loader: @loader
                 )
                 assert_equal Hash[deployment_m => ""], deployments
@@ -103,7 +103,7 @@ module Runkit
 
         describe "parse_run_options" do
             describe "wrappers" do
-                %I{valgrind gdb}.each do |wrapper|
+                %I[valgrind gdb].each do |wrapper|
                     it "uses an empty hash as default value if if no #{wrapper} options "\
                        "are explicitely given" do
                         result = Process.parse_run_options(
@@ -425,7 +425,7 @@ module Runkit
                 cmd = process.command_line(cmdline_args: { some: "thing" })
                 assert_equal "/test", cmd.command
 
-                expected = [*@expected_rename_args, "--some=thing" ]
+                expected = [*@expected_rename_args, "--some=thing"]
                 assert_equal expected, cmd.args.sort
                 assert_equal({}, cmd.env)
             end

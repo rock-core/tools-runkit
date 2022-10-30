@@ -8,7 +8,6 @@ rescue LoadError
           "for Avahi nameservice support"
 end
 
-
 module Runkit
     module NameServices
         # Name service to access Runkit Tasks which are publishing their IOR via

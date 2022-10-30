@@ -36,3 +36,7 @@ task doc: :yard
 task docs: :yard
 task redoc: :yard
 task redocs: :yard
+
+require "rubocop/rake_task"
+RuboCop::RakeTask.new
+task "test" => "rubocop"

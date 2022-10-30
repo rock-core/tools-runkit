@@ -95,7 +95,7 @@ module Runkit
             policy[:type] = policy[:type].to_sym if policy.key?(:type)
             policy[:lock] = policy[:lock].to_sym if policy.key?(:lock)
 
-            if (policy[:type] == :buffer || policy[:type] == :circular_buffer) && !policy[:size]
+            if (policy[:type] == :buffer || policy[:type] == :circular_buffer) && !policy[:size] # rubocop:disable Style/GuardClause
                 raise ArgumentError, "you must provide a 'size' argument for buffer connections"
             elsif policy[:type] == :data && (policy[:size] && policy[:size] != 0)
                 raise ArgumentError, "there are no 'size' argument to data connections"
@@ -153,10 +153,12 @@ module Runkit
             end
         rescue NotFound
             if !other || task.port?(name)
-                raise InterfaceObjectNotFound.new(task, name), "port '#{name}' disappeared from task '#{task.name}'"
-            else
-                raise InterfaceObjectNotFound.new(other.task, other.name), "port '#{other.name}' disappeared from task '#{other.task.name}'"
+                raise InterfaceObjectNotFound.new(task, name),
+                      "port '#{name}' disappeared from task '#{task.name}'"
             end
+
+            raise InterfaceObjectNotFound.new(other.task, other.name),
+                  "port '#{other.name}' disappeared from task '#{other.task.name}'"
         end
 
         class InvalidMQTransportSetup < ArgumentError; end
@@ -172,7 +174,9 @@ module Runkit
         # otherwise)
         def handle_mq_transport(input_name, policy) # :nodoc:
             if policy[:transport] == TRANSPORT_MQ
-                raise InvalidMQTransportSetup, "cannot select the MQueue transport as it is not built into the RTT" unless Runkit::MQueue.available?
+                unless Runkit::MQueue.available?
+                    raise InvalidMQTransportSetup, "cannot select the MQueue transport as it is not built into the RTT"
+                end
                 # Go on to the validation steps
             elsif !Runkit::MQueue.available?
                 return policy.dup
@@ -195,9 +199,13 @@ module Runkit
             if Runkit::MQueue.auto_sizes? && message_size == 0
                 size = max_marshalling_size
                 unless size
-                    raise InvalidMQTransportSetup, "MQ transport explicitely selected, but the message size cannot be computed for #{self}" if policy[:transport] == TRANSPORT_MQ
+                    if policy[:transport] == TRANSPORT_MQ
+                        raise InvalidMQTransportSetup, "MQ transport explicitely selected, but the message size cannot be computed for #{self}"
+                    end
 
-                    Runkit.warn "the MQ transport could be selected, but the marshalling size of samples from the output port #{full_name}, of type #{type.name}, is unknown, falling back to auto-transport" if Runkit::MQueue.warn?
+                    if Runkit::MQueue.warn?
+                        Runkit.warn "the MQ transport could be selected, but the marshalling size of samples from the output port #{full_name}, of type #{type.name}, is unknown, falling back to auto-transport"
+                    end
                     return policy.dup
                 end
 
@@ -213,9 +221,13 @@ module Runkit
                 end
 
                 unless valid
-                    raise InvalidMQTransportSetup, "MQ transport explicitely selected, but the current system setup does not allow to create a MQ of #{queue_length} messages of size #{message_size}" if policy[:transport] == TRANSPORT_MQ
+                    if policy[:transport] == TRANSPORT_MQ
+                        raise InvalidMQTransportSetup, "MQ transport explicitely selected, but the current system setup does not allow to create a MQ of #{queue_length} messages of size #{message_size}"
+                    end
 
-                    Runkit.warn "the MQ transport could be selected, but the marshalling size of samples (#{policy[:data_size]}) is invalid, falling back to auto-transport" if Runkit::MQueue.warn?
+                    if Runkit::MQueue.warn?
+                        Runkit.warn "the MQ transport could be selected, but the marshalling size of samples (#{policy[:data_size]}) is invalid, falling back to auto-transport"
+                    end
                     return policy.dup
                 end
             end
