@@ -294,7 +294,7 @@ module Runkit
             end
         end
 
-        def method_missing(name, *args) # rubocop:disable Style/MethodMissingSuper, Style/MissinRespondToMissing
+        def method_missing(name, *args) # rubocop:disable Style/MethodMissingSuper, Style/MissingRespondToMissing
             # NOTE: we do not implement respond_to_missing? as with it any
             # respond_to would lead to a network call
             name = name.to_s
