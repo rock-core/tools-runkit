@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-Types = Typelib::RegistryExport::Namespace.new
+Types = Typelib::RegistryExport::Namespace.new unless defined?(Types)
 
 module Runkit # :nodoc:
     class << self

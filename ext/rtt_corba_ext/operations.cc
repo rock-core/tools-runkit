@@ -6,6 +6,7 @@
 
 using namespace std;
 using namespace RTT::corba;
+using namespace runkit;
 
 static VALUE cSendHandle;
 
@@ -207,7 +208,7 @@ static VALUE operation_argument_types(VALUE task_, VALUE opname)
     return Qnil; // never reached
 }
 
-void rtt_corba_init_operations(VALUE mRoot, VALUE cTaskContext)
+void runkit::rtt_corba_init_operations(VALUE mRoot, VALUE cTaskContext)
 {
     VALUE cOperation = rb_define_class_under(mRoot, "Operation", rb_cObject);
     cSendHandle = rb_define_class_under(mRoot, "SendHandle", rb_cObject);

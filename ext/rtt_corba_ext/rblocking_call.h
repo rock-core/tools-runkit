@@ -34,7 +34,7 @@ protected:
     void blockingCall()
     {
         exception_class = Qnil;
-        runkit_verify_thread_interdiction();
+        runkit::verify_thread_interdiction();
 
 #if defined HAVE_RUBY_INTERN_H
         rb_thread_call_without_gvl(&BlockingFunctionBase::callProcessing,

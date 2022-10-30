@@ -22,150 +22,154 @@
 #include <sys/syscall.h>
 #endif
 
+using namespace runkit;
+
 static VALUE cRubyTaskContext;
 static VALUE cLocalTaskContext;
 static VALUE cLocalOutputPort;
 static VALUE cLocalInputPort;
 
-struct LocalTaskContext : public RTT::TaskContext {
-    std::string model_name;
+namespace {
+    struct LocalTaskContext : public RTT::TaskContext {
+        std::string model_name;
 
-    RTT::Operation<::std::string()> _getModelName;
-    RTT::Operation<boost::int32_t()> ___orogen_getTID;
-    RTT::OutputPort<::boost::int32_t> _state;
-    std::string getModelName() const
-    {
-        return model_name;
-    }
-    void setModelName(std::string const& value)
-    {
-        model_name = value;
-    }
-
-    LocalTaskContext(std::string const& name)
-        : RTT::TaskContext(name, TaskCore::PreOperational)
-        , _getModelName("getModelName",
-              &LocalTaskContext::getModelName,
-              this,
-              RTT::ClientThread)
-        , ___orogen_getTID("__orogen_getTID",
-              &LocalTaskContext::__orogen_getTID,
-              this,
-              RTT::OwnThread)
-        , _state("state")
-    {
-        setupComponentInterface();
-    }
-
-    void setupComponentInterface()
-    {
-        provides()
-            ->addOperation(_getModelName)
-            .doc("returns the oroGen model name for this task");
-        provides()
-            ->addOperation(___orogen_getTID)
-            .doc("returns the thread ID of this task");
-        _state.keepLastWrittenValue(false);
-        _state.keepNextWrittenValue(true);
-        ports()->addPort(_state);
-
-        _state.keepLastWrittenValue(true);
-        _state.write(getTaskState());
-    }
-
-    boost::int32_t __orogen_getTID() const
-    {
-        return syscall(SYS_gettid);
-    }
-
-    void report(int state)
-    {
-        _state.write(state);
-    }
-    void state(int state)
-    {
-        _state.write(state);
-    }
-    void error(int state)
-    {
-        _state.write(state);
-        TaskContext::error();
-    }
-    void exception(int state)
-    {
-        _state.write(state);
-        TaskContext::exception();
-    }
-    void fatal(int state)
-    {
-        _state.write(state);
-        TaskContext::fatal();
-    }
-    struct StateExporter {
-        RTT::TaskContext const& task;
-        RTT::OutputPort<boost::int32_t>& port;
-
-        StateExporter(RTT::TaskContext const& task, RTT::OutputPort<int>& port)
-            : task(task)
-            , port(port)
+        RTT::Operation<::std::string()> _getModelName;
+        RTT::Operation<boost::int32_t()> ___orogen_getTID;
+        RTT::OutputPort<::boost::int32_t> _state;
+        std::string getModelName() const
         {
+            return model_name;
         }
-        ~StateExporter()
+        void setModelName(std::string const& value)
         {
-            port.write(task.getTaskState());
+            model_name = value;
+        }
+
+        LocalTaskContext(std::string const& name)
+            : RTT::TaskContext(name, TaskCore::PreOperational)
+            , _getModelName("getModelName",
+                  &LocalTaskContext::getModelName,
+                  this,
+                  RTT::ClientThread)
+            , ___orogen_getTID("__orogen_getTID",
+                  &LocalTaskContext::__orogen_getTID,
+                  this,
+                  RTT::OwnThread)
+            , _state("state")
+        {
+            setupComponentInterface();
+        }
+
+        void setupComponentInterface()
+        {
+            provides()
+                ->addOperation(_getModelName)
+                .doc("returns the oroGen model name for this task");
+            provides()
+                ->addOperation(___orogen_getTID)
+                .doc("returns the thread ID of this task");
+            _state.keepLastWrittenValue(false);
+            _state.keepNextWrittenValue(true);
+            ports()->addPort(_state);
+
+            _state.keepLastWrittenValue(true);
+            _state.write(getTaskState());
+        }
+
+        boost::int32_t __orogen_getTID() const
+        {
+            return syscall(SYS_gettid);
+        }
+
+        void report(int state)
+        {
+            _state.write(state);
+        }
+        void state(int state)
+        {
+            _state.write(state);
+        }
+        void error(int state)
+        {
+            _state.write(state);
+            TaskContext::error();
+        }
+        void exception(int state)
+        {
+            _state.write(state);
+            TaskContext::exception();
+        }
+        void fatal(int state)
+        {
+            _state.write(state);
+            TaskContext::fatal();
+        }
+        struct StateExporter {
+            RTT::TaskContext const& task;
+            RTT::OutputPort<boost::int32_t>& port;
+
+            StateExporter(RTT::TaskContext const& task, RTT::OutputPort<int>& port)
+                : task(task)
+                , port(port)
+            {
+            }
+            ~StateExporter()
+            {
+                port.write(task.getTaskState());
+            }
+        };
+        bool start()
+        {
+            StateExporter exporter(*this, _state);
+            return RTT::TaskContext::start();
+        }
+
+        bool configure()
+        {
+            StateExporter exporter(*this, _state);
+            return RTT::TaskContext::configure();
+        }
+        bool recover()
+        {
+            StateExporter exporter(*this, _state);
+            return RTT::TaskContext::recover();
+        }
+        bool stop()
+        {
+            StateExporter exporter(*this, _state);
+            return RTT::TaskContext::stop();
+        }
+        bool cleanup()
+        {
+            StateExporter exporter(*this, _state);
+            return RTT::TaskContext::cleanup();
+        }
+        void fatal()
+        {
+            return fatal(RTT::TaskContext::FatalError);
+        }
+        void error()
+        {
+            return error(RTT::TaskContext::RunTimeError);
+        }
+        void exception()
+        {
+            return exception(RTT::TaskContext::Exception);
         }
     };
-    bool start()
-    {
-        StateExporter exporter(*this, _state);
-        return RTT::TaskContext::start();
-    }
 
-    bool configure()
-    {
-        StateExporter exporter(*this, _state);
-        return RTT::TaskContext::configure();
-    }
-    bool recover()
-    {
-        StateExporter exporter(*this, _state);
-        return RTT::TaskContext::recover();
-    }
-    bool stop()
-    {
-        StateExporter exporter(*this, _state);
-        return RTT::TaskContext::stop();
-    }
-    bool cleanup()
-    {
-        StateExporter exporter(*this, _state);
-        return RTT::TaskContext::cleanup();
-    }
-    void fatal()
-    {
-        return fatal(RTT::TaskContext::FatalError);
-    }
-    void error()
-    {
-        return error(RTT::TaskContext::RunTimeError);
-    }
-    void exception()
-    {
-        return exception(RTT::TaskContext::Exception);
-    }
-};
+    struct RLocalTaskContext {
+        LocalTaskContext* tc;
+        RLocalTaskContext(LocalTaskContext* tc)
+            : tc(tc)
+        {
+        }
+    };
+}
 
-struct RLocalTaskContext {
-    LocalTaskContext* tc;
-    RLocalTaskContext(LocalTaskContext* tc)
-        : tc(tc)
-    {
-    }
-};
-
-LocalTaskContext& local_task_context(VALUE obj)
+static LocalTaskContext& local_task_context(VALUE obj)
 {
-    LocalTaskContext* tc = get_wrapped<RLocalTaskContext>(obj).tc;
+    LocalTaskContext* tc = runkit::get_wrapped<RLocalTaskContext>(obj).tc;
     if (!tc)
         rb_raise(rb_eArgError, "accessing a disposed task context");
     return *tc;
@@ -517,7 +521,7 @@ static VALUE local_output_port_write(VALUE _local_port,
     return local_port.connected() ? Qtrue : Qfalse;
 }
 
-void rtt_corba_init_ruby_task_context(VALUE mRoot,
+void runkit::rtt_corba_init_ruby_task_context(VALUE mRoot,
     VALUE cTaskContext,
     VALUE cOutputPort,
     VALUE cInputPort)

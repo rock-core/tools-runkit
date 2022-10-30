@@ -11,12 +11,15 @@ using namespace RTT;
 using namespace RTT::base;
 using namespace RTT::types;
 using namespace RTT::corba;
+using namespace runkit;
 
 // Unmarshals the data that is included in the given any into the memory held in
 // +dest+. +dest+ must be holding a memory zone that is valid to hold a value of
 // the given type (i.e. either directly of type type_name, or if type_name is
 // opaque, to the type used to represent this particular opaque)
-VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::Any& src)
+VALUE runkit::corba_to_ruby(std::string const& type_name,
+    Typelib::Value dest,
+    CORBA::Any& src)
 {
     // First, get both the CORBA and typelib transports
     TypeInfo* ti = get_type_info(type_name);
@@ -56,7 +59,7 @@ VALUE corba_to_ruby(std::string const& type_name, Typelib::Value dest, CORBA::An
 }
 
 // Marshals the data that is held by +src+ into a CORBA::Any
-CORBA::Any* ruby_to_corba(std::string const& type_name, Typelib::Value src)
+CORBA::Any* runkit::ruby_to_corba(std::string const& type_name, Typelib::Value src)
 {
     TypeInfo* ti = get_type_info(type_name);
     RTT::corba::CorbaTypeTransporter* corba_transport = get_corba_transport(ti, false);
@@ -225,7 +228,7 @@ static VALUE attribute_do_write(VALUE rbtask,
     return Qnil;
 }
 
-void rtt_corba_init_data_handling(VALUE cTaskContext)
+void runkit::rtt_corba_init_data_handling(VALUE cTaskContext)
 {
     rb_define_method(cTaskContext,
         "do_property_read_string",

@@ -31,20 +31,21 @@
 using namespace std;
 using namespace boost;
 using namespace RTT::corba;
+using namespace runkit;
 
-VALUE mRoot;
-VALUE mCORBA;
-VALUE eComError;
-VALUE eCORBA;
-VALUE eCORBAComError;
-VALUE eCORBATimeoutError;
-VALUE cNameService;
-VALUE cTaskContext;
-VALUE eNotFound;
-VALUE eNotInitialized;
-VALUE eBlockingCallInForbiddenThread = Qnil;
-VALUE threadInterdiction = Qnil;
-VALUE corbaAccess = Qnil;
+VALUE runkit::mRoot = Qnil;
+VALUE runkit::mCORBA = Qnil;
+VALUE runkit::eComError = Qnil;
+VALUE runkit::eCORBA = Qnil;
+VALUE runkit::eCORBAComError = Qnil;
+VALUE runkit::eCORBATimeoutError = Qnil;
+VALUE runkit::cNameService = Qnil;
+VALUE runkit::cTaskContext = Qnil;
+VALUE runkit::eNotFound = Qnil;
+VALUE runkit::eNotInitialized = Qnil;
+VALUE runkit::eBlockingCallInForbiddenThread = Qnil;
+VALUE runkit::threadInterdiction = Qnil;
+VALUE runkit::corbaAccess = Qnil;
 
 static VALUE cInputPort;
 static VALUE cOutputPort;
@@ -53,16 +54,8 @@ static VALUE cPort;
 static VALUE eConnectionFailed;
 static VALUE eStateTransitionFailed;
 
-extern void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA, VALUE mNameServices);
-extern void rtt_corba_init_data_handling(VALUE cTaskContext);
-extern void rtt_corba_init_operations(VALUE mRoot, VALUE cTaskContext);
-extern void rtt_corba_init_ruby_task_context(VALUE mRoot,
-    VALUE cTaskContext,
-    VALUE cOutputPort,
-    VALUE cInputPort);
 static RTT::corba::CConnPolicy policyFromHash(VALUE options);
-
-RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check)
+RTT::types::TypeInfo* runkit::get_type_info(std::string const& name, bool do_check)
 {
     RTT::types::TypeInfoRepository::shared_ptr type_registry =
         RTT::types::TypeInfoRepository::Instance();
@@ -74,7 +67,7 @@ RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check)
     return ti;
 }
 
-RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name,
+RTT::corba::CorbaTypeTransporter* runkit::get_corba_transport(std::string const& name,
     bool do_check)
 {
     RTT::types::TypeInfo* ti = get_type_info(name, do_check);
@@ -83,7 +76,7 @@ RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name,
     return get_corba_transport(ti, do_check);
 }
 
-RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* ti,
+RTT::corba::CorbaTypeTransporter* runkit::get_corba_transport(RTT::types::TypeInfo* ti,
     bool do_check)
 {
     if (ti->hasProtocol(ORO_CORBA_PROTOCOL_ID))
@@ -97,7 +90,8 @@ RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* ti,
         return 0;
 }
 
-orogen_transports::TypelibMarshallerBase* get_typelib_transport(std::string const& name,
+orogen_transports::TypelibMarshallerBase* runkit::get_typelib_transport(
+    std::string const& name,
     bool do_check)
 {
     RTT::types::TypeInfo* ti = get_type_info(name, do_check);
@@ -106,7 +100,8 @@ orogen_transports::TypelibMarshallerBase* get_typelib_transport(std::string cons
     return get_typelib_transport(ti, do_check);
 }
 
-orogen_transports::TypelibMarshallerBase* get_typelib_transport(RTT::types::TypeInfo* ti,
+orogen_transports::TypelibMarshallerBase* runkit::get_typelib_transport(
+    RTT::types::TypeInfo* ti,
     bool do_check)
 {
     if (ti->hasProtocol(orogen_transports::TYPELIB_MARSHALLER_ID))
@@ -120,7 +115,7 @@ orogen_transports::TypelibMarshallerBase* get_typelib_transport(RTT::types::Type
         return 0;
 }
 
-boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
+boost::tuple<RTaskContext*, VALUE, VALUE> runkit::get_port_reference(VALUE port)
 {
     VALUE task = rb_iv_get(port, "@task");
     VALUE task_name = rb_iv_get(task, "@name");
@@ -133,7 +128,7 @@ boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port)
 /**
  * @!method TaskContext.new(ior, name:, model:)
  */
-VALUE task_context_create(int argc, VALUE* argv, VALUE klass)
+VALUE runkit::task_context_create(int argc, VALUE* argv, VALUE klass)
 {
     corba_must_be_initialized();
 
@@ -438,7 +433,7 @@ static VALUE port_connected_p(VALUE self)
 {
     RTaskContext* task;
     VALUE name;
-    tie(task, tuples::ignore, name) = getPortReference(self);
+    tie(task, tuples::ignore, name) = get_port_reference(self);
     bool result =
         corba_blocking_fct_call_with_result(bind(&_objref_CDataFlowInterface::isConnected,
             (_objref_CDataFlowInterface*)task->ports,
@@ -491,10 +486,10 @@ static VALUE do_port_connect_to(VALUE routput_port, VALUE rinput_port, VALUE opt
 {
     RTaskContext* out_task;
     VALUE out_name;
-    tie(out_task, tuples::ignore, out_name) = getPortReference(routput_port);
+    tie(out_task, tuples::ignore, out_name) = get_port_reference(routput_port);
     RTaskContext* in_task;
     VALUE in_name;
-    tie(in_task, tuples::ignore, in_name) = getPortReference(rinput_port);
+    tie(in_task, tuples::ignore, in_name) = get_port_reference(rinput_port);
 
     RTT::corba::CConnPolicy policy = policyFromHash(options);
     bool result = corba_blocking_fct_call_with_result(
@@ -513,7 +508,7 @@ static VALUE do_port_disconnect_all(VALUE port)
 {
     RTaskContext* task;
     VALUE name;
-    tie(task, tuples::ignore, name) = getPortReference(port);
+    tie(task, tuples::ignore, name) = get_port_reference(port);
     corba_blocking_fct_call(bind(&_objref_CDataFlowInterface::disconnectPort,
         (_objref_CDataFlowInterface*)task->ports,
         StringValuePtr(name)));
@@ -524,10 +519,10 @@ static VALUE do_port_disconnect_from(VALUE self, VALUE other)
 {
     RTaskContext* self_task;
     VALUE self_name;
-    tie(self_task, tuples::ignore, self_name) = getPortReference(self);
+    tie(self_task, tuples::ignore, self_name) = get_port_reference(self);
     RTaskContext* other_task;
     VALUE other_name;
-    tie(other_task, tuples::ignore, other_name) = getPortReference(other);
+    tie(other_task, tuples::ignore, other_name) = get_port_reference(other);
     bool result = corba_blocking_fct_call_with_result(
         bind(&_objref_CDataFlowInterface::removeConnection,
             (_objref_CDataFlowInterface*)self_task->ports,
@@ -541,7 +536,7 @@ static VALUE do_port_create_stream(VALUE rport, VALUE _policy)
 {
     RTaskContext* task;
     VALUE name;
-    tie(task, tuples::ignore, name) = getPortReference(rport);
+    tie(task, tuples::ignore, name) = get_port_reference(rport);
 
     RTT::corba::CConnPolicy policy = policyFromHash(_policy);
     bool result = corba_blocking_fct_call_with_result(
@@ -558,7 +553,7 @@ static VALUE do_port_remove_stream(VALUE rport, VALUE stream_name)
 {
     RTaskContext* task;
     VALUE name;
-    tie(task, tuples::ignore, name) = getPortReference(rport);
+    tie(task, tuples::ignore, name) = get_port_reference(rport);
 
     corba_blocking_fct_call(bind(&_objref_CDataFlowInterface::removeStream,
         (_objref_CDataFlowInterface*)task->ports,

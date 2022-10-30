@@ -19,9 +19,7 @@ using namespace CORBA;
 using namespace std;
 using namespace boost;
 using namespace corba;
-
-static VALUE cNameService;
-static VALUE mCORBA;
+using namespace runkit;
 
 CorbaAccess* CorbaAccess::the_instance = NULL;
 void CorbaAccess::init(int argc, char* argv[])
@@ -203,7 +201,7 @@ static VALUE name_service_reset(VALUE self, VALUE ip, VALUE port)
     return self;
 }
 
-void corba_must_be_initialized()
+void runkit::corba_must_be_initialized()
 {
     if (CORBA::is_nil(RTT::corba::ApplicationServer::orb))
         rb_raise(eNotInitialized,
@@ -271,7 +269,7 @@ static VALUE name_service_ior(VALUE self, VALUE task_name)
     return rb_str_new2(ior.c_str());
 }
 
-void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA, VALUE mNameServices)
+void runkit::rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA, VALUE mNameServices)
 {
     ::mCORBA = mCORBA;
     rb_define_singleton_method(mCORBA,

@@ -16,44 +16,47 @@
 #define RTT_VERSION_GTE(major, minor, patch) false
 #endif
 
-struct RInputPort {};
-struct ROutputPort {};
-
 namespace RTT {
     namespace types {
         class TypeInfo;
     }
 }
 
-struct RTaskContext;
+namespace runkit {
+    struct RInputPort {};
+    struct ROutputPort {};
+    struct RTaskContext;
 
-extern VALUE task_context_create(int argc, VALUE* argv, VALUE klass);
+    VALUE task_context_create(int argc, VALUE* argv, VALUE klass);
 
-extern RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
-extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(
-    RTT::types::TypeInfo* type,
-    bool do_check = true);
-extern orogen_transports::TypelibMarshallerBase* get_typelib_transport(
-    std::string const& name,
-    bool do_check = true);
-extern RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* type,
-    bool do_check = true);
-extern RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name,
-    bool do_check = true);
-extern boost::tuple<RTaskContext*, VALUE, VALUE> getPortReference(VALUE port);
+    RTT::types::TypeInfo* get_type_info(std::string const& name, bool do_check = true);
+    orogen_transports::TypelibMarshallerBase* get_typelib_transport(
+        RTT::types::TypeInfo* type,
+        bool do_check = true);
+    orogen_transports::TypelibMarshallerBase* get_typelib_transport(
+        std::string const& name,
+        bool do_check = true);
+    RTT::corba::CorbaTypeTransporter* get_corba_transport(RTT::types::TypeInfo* type,
+        bool do_check = true);
+    RTT::corba::CorbaTypeTransporter* get_corba_transport(std::string const& name,
+        bool do_check = true);
+    boost::tuple<RTaskContext*, VALUE, VALUE> get_port_reference(VALUE port);
 
-extern VALUE corbaAccess;
-extern VALUE cTaskContext;
-extern VALUE eBlockingCallInForbiddenThread;
-extern VALUE threadInterdiction;
+    extern VALUE mRoot;
+    extern VALUE mCORBA;
+    extern VALUE eComError;
+    extern VALUE eCORBA;
+    extern VALUE eCORBAComError;
+    extern VALUE eCORBATimeoutError;
+    extern VALUE cNameService;
+    extern VALUE cTaskContext;
+    extern VALUE eNotFound;
+    extern VALUE eNotInitialized;
+    extern VALUE eBlockingCallInForbiddenThread;
+    extern VALUE threadInterdiction;
+    extern VALUE corbaAccess;
 
-extern VALUE eCORBA;
-extern VALUE eCORBAComError;
-extern VALUE eNotFound;
-extern VALUE eNotInitialized;
-
-namespace {
-    inline VALUE runkit_verify_thread_interdiction()
+    inline VALUE verify_thread_interdiction()
     {
         if (threadInterdiction == rb_thread_current()) {
             rb_raise(eBlockingCallInForbiddenThread,
@@ -92,6 +95,14 @@ namespace {
         rb_iv_set(robj, "@corba", corbaAccess);
         return robj;
     }
+
+    void rtt_corba_init_ruby_task_context(VALUE mRoot,
+        VALUE cTaskContext,
+        VALUE cOutputPort,
+        VALUE cInputPort);
+    void rtt_corba_init_CORBA(VALUE mRoot, VALUE mCORBA, VALUE mNameServices);
+    void rtt_corba_init_data_handling(VALUE cTaskContext);
+    void rtt_corba_init_operations(VALUE mRoot, VALUE cTaskContext);
 }
 
 #endif
