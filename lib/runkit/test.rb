@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 
+unless [nil, "pre", "post"].include?(ENV["RUNKIT_TEST_REQUIRE_OROCOSRB"])
+    raise ArgumentError, "invalid value for RUNKIT_TEST_REQUIRE_OROCOSRB"
+end
+
+require "orocos" if ENV["RUNKIT_TEST_REQUIRE_OROCOSRB"] == "pre"
+
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
 if ENV["TEST_ENABLE_COVERAGE"] == "1"
@@ -17,6 +23,8 @@ require "minitest/spec"
 require "flexmock/minitest"
 
 require "runkit"
+require "orocos" if ENV["RUNKIT_TEST_REQUIRE_OROCOSRB"] == "post"
+
 require "runkit/rake"
 require "runkit/test/mocks"
 require "runkit/test/ruby_tasks"
