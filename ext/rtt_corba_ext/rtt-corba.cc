@@ -146,7 +146,12 @@ VALUE runkit::task_context_create(int argc, VALUE* argv, VALUE klass)
     VALUE obj = simple_wrap(klass, context);
 
     VALUE args[2] = {ior_rb, kw};
+
+#if RUBY_API_VERSION_CODE >= 20700
     rb_obj_call_init_kw(obj, 2, args, RB_PASS_CALLED_KEYWORDS);
+#else
+    rb_obj_call_init(obj, 2, args);
+#endif
     return obj;
 }
 
