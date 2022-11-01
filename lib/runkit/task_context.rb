@@ -53,28 +53,36 @@ module Runkit
         #
         # StateReader objects are created by TaskContext#state_reader
         module StateReader
-            attr_accessor :state_symbols
-
             def read(sample = nil)
                 return unless (value = super(sample))
 
-                @state_symbols[value]
+                port.task.map_state_value_to_symbol(value)
             end
 
             def read_new(sample = nil)
                 return unless (value = super(sample))
 
-                @state_symbols[value]
+                port.task.map_state_value_to_symbol(value)
             end
 
             def read_with_result(sample = nil, copy_old_data = false)
                 result, value = super
                 if value
-                    [result, @state_symbols[value]]
+                    symbol = port.task.map_state_value_to_symbol(value)
+                    [result, symbol]
                 else
                     result
                 end
             end
+        end
+
+        # Maps a state value (as received from the state port) into the
+        # corresponding symbol
+        #
+        # @param [Integer] value
+        # @return [Symbol]
+        def map_state_value_to_symbol(value)
+            @state_symbols.fetch(value)
         end
 
         # Returns a StateReader object that allows to flexibly monitor the
@@ -86,7 +94,6 @@ module Runkit
 
             reader = port("state").reader(distance: distance, **policy)
             reader.extend StateReader
-            reader.state_symbols = @state_symbols
             reader
         end
 

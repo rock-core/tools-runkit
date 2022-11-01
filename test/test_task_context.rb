@@ -125,34 +125,51 @@ module Runkit
             )
             state_r = t.state_reader type: :buffer, size: 20
 
-            # First check the nominal state changes
             t.configure
             t.start
-            t.stop
-            t.cleanup
-
-            expected = %I[PRE_OPERATIONAL STOPPED RUNNING STOPPED PRE_OPERATIONAL]
-            actual = expected.map { read_one_sample(state_r) }
-            assert_equal expected, actual
-
-            # Then test the error states
-            t.configure
-            t.start
+            t.do_custom_runtime
+            t.do_custom_error
             t.do_recover
-            t.do_runtime_error
-            t.do_recover
-            t.do_runtime_error
-            t.do_recover
-            t.do_exception
+            t.do_custom_exception
             t.reset_exception
 
             # Note: we don't have state_pre_operational as we already read it
             # once
-            expected = %I[STOPPED RUNNING RUNTIME_ERROR RUNTIME_ERROR
-                          RUNNING RUNTIME_ERROR RUNTIME_ERROR RUNNING
-                          EXCEPTION EXCEPTION PRE_OPERATIONAL]
-            actual = expected.map { read_one_sample(state_r) }
-            assert_equal expected, actual
+            expected =
+                %I[PRE_OPERATIONAL STOPPED RUNNING CUSTOM_RUNTIME
+                   CUSTOM_ERROR RUNNING CUSTOM_EXCEPTION PRE_OPERATIONAL]
+            expected.each_with_index do |expected_state, i|
+                assert_equal expected_state, read_one_sample(state_r),
+                             "#{i}-th state failed"
+            end
+        end
+
+        it "properly resolves custom states if the exact orogen model is set after "\
+           "the state reader was created" do
+            full_task = start_and_get(
+                { "orogen_runkit_tests::StateTransitions" => "test" }, "test"
+            )
+            t = TaskContext.new(full_task.ior, name: "test")
+            state_r = t.state_reader type: :buffer, size: 20
+            t.model = full_task.model
+
+            t.configure
+            t.start
+            t.do_custom_runtime
+            t.do_custom_error
+            t.do_recover
+            t.do_custom_exception
+            t.reset_exception
+
+            # Note: we don't have state_pre_operational as we already read it
+            # once
+            expected =
+                %I[PRE_OPERATIONAL STOPPED RUNNING CUSTOM_RUNTIME
+                   CUSTOM_ERROR RUNNING CUSTOM_EXCEPTION PRE_OPERATIONAL]
+            expected.each_with_index do |expected_state, i|
+                assert_equal expected_state, read_one_sample(state_r),
+                             "#{i}-th state failed"
+            end
         end
 
         it "handles uncaught exceptions in a nice way" do

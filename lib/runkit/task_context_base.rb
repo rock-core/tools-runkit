@@ -12,13 +12,22 @@ module Runkit
         # It may be partial
         #
         # @return [OroGen::Spec::TaskContext]
-        attr_accessor :model
+        attr_reader :model
 
         # @return [String] The IOR of this task context
         attr_reader :ior
 
         # @return [String] The full name of the task context
         attr_reader :name
+
+        # Explicitly set the orogen model for this task
+        #
+        # Use this to provide a more complete model than the one loaded, e.g.
+        # that would include dynamically created ports
+        def model=(orogen_model)
+            @model = orogen_model
+            initialize_model_info(orogen_model)
+        end
 
         # @param [String] name The name of the task.
         # @param [Hash] options The options.
@@ -30,8 +39,7 @@ module Runkit
             model: self.class.empty_orogen_model(name, loader: loader)
         )
             @name = name
-            @model = model
-            initialize_model_info(model)
+            self.model = model
         end
 
         # call-seq:
