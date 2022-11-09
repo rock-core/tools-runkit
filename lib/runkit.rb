@@ -22,6 +22,7 @@ rescue LoadError => e
 end
 
 require "typelib"
+require "ruby2_keywords"
 require "runkit/base"
 require "runkit/typekits"
 

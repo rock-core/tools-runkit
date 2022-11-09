@@ -19,6 +19,7 @@
     <depend package="orogen" />
     <depend package="omniorb" />
     <depend package="rake-compiler" />
+    <depend package="ruby2_keywords" />
 
     <test_depend package='flexmock' />
     <test_depend package='fakefs' />
