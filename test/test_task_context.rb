@@ -35,6 +35,14 @@ module Runkit
             refute task.port?("does_not_exist")
         end
 
+        it "defines has_port? as a deprecated alias to port?" do
+            task = new_remote_task_context do |t|
+                t.create_input_port "in", "/base/Vector3d"
+            end
+            flexmock(task).should_receive(:warn).once
+            assert task.has_port?("in")
+        end
+
         it "enumerates its ports" do
             in_p, out_p = nil
             task = new_remote_task_context do |t|

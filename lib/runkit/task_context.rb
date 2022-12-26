@@ -207,6 +207,12 @@ module Runkit
             end
         end
 
+        # @deprecated use {#port?} instead
+        def has_port?(name)
+            warn "TaskContext#has_port? is deprecated, use port? instead"
+            port?(name)
+        end
+
         # Returns the array of the names of available operations on this task
         # context
         def operation_names
