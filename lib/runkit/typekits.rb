@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-Types = Typelib::RegistryExport::Namespace.new unless defined?(Types)
-
 module Runkit # :nodoc:
     class << self
         # The set of typekits whose shared libraries have been loaded in this
