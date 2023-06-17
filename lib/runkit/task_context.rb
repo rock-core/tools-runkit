@@ -208,7 +208,7 @@ module Runkit
         end
 
         # @deprecated use {#port?} instead
-        def has_port?(name)
+        def has_port?(name) # rubocop:disable Naming/PredicateName
             warn "TaskContext#has_port? is deprecated, use port? instead"
             port?(name)
         end
