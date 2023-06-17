@@ -3,7 +3,7 @@
 require "rake/testtask"
 require_relative "lib/runkit/rake"
 
-Rake::TestTask.new("test") do |t|
+Rake::TestTask.new("test:lib") do |t|
     t.libs << "lib"
     t.libs << "."
     t.test_files = FileList["test/**/test_*.rb"]
@@ -40,3 +40,4 @@ task redocs: :yard
 require "rubocop/rake_task"
 RuboCop::RakeTask.new
 task "test" => "rubocop"
+task "test" => "test:lib"
