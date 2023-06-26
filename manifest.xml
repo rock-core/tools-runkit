@@ -25,5 +25,6 @@
     <test_depend package='fakefs' />
     <test_depend package='base/orogen/types' />
     <test_depend package='tools/orogen_runkit_tests' />
+    <test_depend package='avahi' />
 </package>
 
