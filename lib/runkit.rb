@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+if $LOADED_FEATURES.find { File.basename(_1) == "orocos.rb" }
+    raise "cannot load runkit and orocos.rb at the same time"
+end
+
 begin
     require "orogen"
 rescue LoadError
@@ -79,3 +83,5 @@ require "runkit/output_reader"
 
 require "utilrb/hash/recursive_merge"
 require "runkit/configurations"
+
+$LOAD_PATH.unshift File.expand_path(File.join("runkit", "orocosrb"), __dir__)
