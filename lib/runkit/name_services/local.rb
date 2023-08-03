@@ -9,8 +9,16 @@ module Runkit
             # @param [Hash<String,Runkit::TaskContext>] tasks The tasks which are known by the name service.
             # @note The namespace is always "Local"
             def initialize(tasks = [])
-                @registered_tasks = {}
+                @registered_tasks = Concurrent::Hash.new
                 tasks.each { |task| register(task) }
+            end
+
+            def names
+                @registered_tasks.keys
+            end
+
+            def include?(name)
+                @registered_tasks.key?(name)
             end
 
             # (see NameServiceBase#get)
@@ -45,11 +53,6 @@ module Runkit
             # @param [String,TaskContext] name The name or task
             def deregister(name)
                 @registered_tasks.delete(name)
-            end
-
-            # (see Base#names)
-            def names
-                @registered_tasks.keys
             end
 
             # (see Base#cleanup)
