@@ -247,27 +247,11 @@ module Runkit #:nodoc:
                 doc = doc.join("")
                 doc = evaluate_dynamic_content(file, doc)
 
-                cache_id, cached_yaml = read_yaml_from_cache(cache_dir, doc) if cache_dir
-                raw_conf =
-                    cached_yaml ||
-                    YAML.safe_load(StringIO.new(doc), permitted_classes: [Symbol, Time]) ||
-                    {}
-
-                begin
-                    result = normalize_conf(raw_conf)
-                rescue ConversionFailed => e
-                    section_name = conf_options[:name] || "default"
-                    raise e, "while loading section #{section_name}: #{e.message}",
-                          e.backtrace
-                end
-
-                if cache_id && !cached_yaml
-                    save_yaml_to_cache(cache_dir, cache_id, raw_conf)
-                end
+                conf = read_conf(cache_dir, doc)
 
                 name  = conf_options.delete(:name)
                 chain = conf(conf_options.delete(:chain), true)
-                result = Runkit::TaskConfigurations.merge_conf(result, chain, true)
+                result = Runkit::TaskConfigurations.merge_conf(conf, chain, true)
                 changed = in_context("while loading section #{name} of #{file}") do
                     add(name, result, normalize: false, **conf_options)
                 end
@@ -279,6 +263,29 @@ module Runkit #:nodoc:
             changed_sections
         rescue StandardError => e
             raise e, "error loading #{file}: #{e.message}", e.backtrace
+        end
+
+        def read_conf(cache_dir, doc)
+            cache_id, cached_yaml = read_yaml_from_cache(cache_dir, doc) if cache_dir
+
+            raw_conf =
+                cached_yaml ||
+                YAML.safe_load(
+                    StringIO.new(doc), permitted_classes: [Symbol, Time]
+                ) ||
+                {}
+
+            begin
+                conf = normalize_conf(raw_conf)
+            rescue ConversionFailed => e
+                section_name = conf_options[:name] || "default"
+                raise e, "while loading section #{section_name}: #{e.message}",
+                      e.backtrace
+            end
+
+            save_yaml_to_cache(cache_dir, cache_id, raw_conf) if cache_id && !cached_yaml
+
+            conf
         end
 
         UNITS = Hash[
