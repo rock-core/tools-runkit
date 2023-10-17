@@ -250,7 +250,7 @@ module Runkit #:nodoc:
                 cache_id, cached_yaml = read_yaml_from_cache(cache_dir, doc) if cache_dir
                 raw_conf =
                     cached_yaml ||
-                    YAML.safe_load(StringIO.new(doc), [Symbol, Time]) ||
+                    YAML.safe_load(StringIO.new(doc), permitted_classes: [Symbol, Time]) ||
                     {}
 
                 begin
