@@ -81,12 +81,13 @@ module Runkit
             # Deploys the tasks defined in {model} as ruby tasks
             #
             # @return [void]
-            def spawn(**)
+            def spawn(register_on_name_server: true, **)
                 model.task_activities.each do |deployed_task|
                     name = mapped_name_for(deployed_task.name)
                     Runkit.allow_blocking_calls do
                         deployed_tasks[name] = task_context_class.from_orogen_model(
-                            name, deployed_task.task_model
+                            name, deployed_task.task_model,
+                            register_on_name_server: register_on_name_server
                         )
                     end
                 end

@@ -65,7 +65,11 @@ module Runkit
                 loader.register_deployment_model(model)
             end
 
-            def start(name, deployment_name, name_mappings, options)
+            def start(
+                name, deployment_name, name_mappings,
+                prefix: nil, task_context_class: self.task_context_class,
+                register_on_name_server: true, **
+            )
                 model = if deployment_name.respond_to?(:to_str)
                             loader.deployment_model_from_name(deployment_name)
                         else deployment_name
@@ -74,14 +78,13 @@ module Runkit
                     raise ArgumentError, "#{name} is already started in #{self}"
                 end
 
-                prefix_mappings = Runkit::ProcessBase.resolve_prefix(model, options.delete(:prefix))
+                prefix_mappings = Runkit::ProcessBase.resolve_prefix(model, prefix)
                 name_mappings = prefix_mappings.merge(name_mappings)
 
-                task_context_class = options.fetch(:task_context_class, self.task_context_class)
-                ruby_deployment = Process.new(self, name, model,
-                                              task_context_class: task_context_class)
+                ruby_deployment =
+                    Process.new(self, name, model, task_context_class: task_context_class)
                 name_mappings.each { |from, to| ruby_deployment.map_name(from, to) }
-                ruby_deployment.spawn
+                ruby_deployment.spawn(register_on_name_server: register_on_name_server)
                 deployments[name] = ruby_deployment
             end
 

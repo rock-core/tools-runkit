@@ -204,7 +204,7 @@ static void delete_local_task_context(RLocalTaskContext* rtask)
     local_task_context_dispose(rtask);
 }
 
-static VALUE local_task_context_new(VALUE klass, VALUE _name)
+static VALUE local_task_context_new(VALUE klass, VALUE _name, VALUE use_naming)
 {
     std::string name = StringValuePtr(_name);
     LocalTaskContext* ruby_task = new LocalTaskContext(name);
@@ -217,7 +217,7 @@ static VALUE local_task_context_new(VALUE klass, VALUE _name)
         RTT::os::LowestPriority);
 #endif
 
-    RTT::corba::TaskContextServer::Create(ruby_task);
+    RTT::corba::TaskContextServer::Create(ruby_task, RTEST(use_naming));
 
     VALUE rlocal_task = Data_Wrap_Struct(cLocalTaskContext,
         0,
@@ -533,7 +533,7 @@ void runkit::rtt_corba_init_ruby_task_context(VALUE mRoot,
     rb_define_singleton_method(cLocalTaskContext,
         "new",
         RUBY_METHOD_FUNC(local_task_context_new),
-        1);
+        2);
     rb_define_method(cLocalTaskContext,
         "dispose",
         RUBY_METHOD_FUNC(static_cast<VALUE (*)(VALUE)>(local_task_context_dispose)),

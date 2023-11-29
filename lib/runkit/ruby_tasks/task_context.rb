@@ -23,8 +23,9 @@ module Runkit
             # Creates a new local task context that fits the given oroGen model
             #
             # @return [TaskContext]
-            def self.from_orogen_model(name, orogen_model)
-                new(name, model: orogen_model)
+            def self.from_orogen_model(name, orogen_model, register_on_name_server: true)
+                new(name, model: orogen_model,
+                          register_on_name_server: register_on_name_server)
             end
 
             def self.empty_orogen_model(name, loader: nil)
@@ -39,9 +40,13 @@ module Runkit
             # @param [String] name the task name
             # @return [TaskContext]
             def self.new(
-                name, loader: nil, model: empty_orogen_model(name, loader: loader)
+                name,
+                loader: nil, model: empty_orogen_model(name, loader: loader),
+                register_on_name_server: true
             )
-                local_task = LocalTaskContext.new(name)
+                local_task = LocalTaskContext.new(
+                    name, register_on_name_server: register_on_name_server
+                )
                 local_task.model_name = model.name if model&.name
 
                 remote_task = super(local_task.ior, name: name, model: model)
